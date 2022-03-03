@@ -262,12 +262,16 @@ function Node:iterate_children(opts)
   end
 end
 
-function Node:collapse()
+function Node:collapse(recursive)
   if self:is_directory() then
     self.expanded = false
-  end
 
-  return self
+    if recursive then
+      for _, child in ipairs(self.children) do
+        child:collapse(recursive)
+      end
+    end
+  end
 end
 
 function Node:expand(to)
@@ -295,8 +299,6 @@ function Node:expand(to)
       end
     end
   end
-
-  return self
 end
 
 local function refresh_node(node, recurse)

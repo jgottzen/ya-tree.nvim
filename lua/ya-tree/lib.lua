@@ -154,6 +154,12 @@ function M.close_node(node)
   ui.update(M.tree.root, node)
 end
 
+function M.close_all_nodes()
+  M.tree.root:collapse(true)
+  M.tree.current_node = M.tree.root
+  ui.update(M.tree.root, M.tree.root)
+end
+
 function M.cd_to(node)
   if not node then
     return

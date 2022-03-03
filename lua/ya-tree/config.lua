@@ -140,6 +140,7 @@ local M = {
       ["<C-s>"] = { action = "split" },
       ["<Tab>"] = { action = "preview" },
       ["<BS>"] = { action = "close_node" },
+      ["z"] = { action = "close_all_nodes" },
       [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to" },
       ["-"] = { action = "cd_up" },
       ["P"] = { action = "parent_node" },

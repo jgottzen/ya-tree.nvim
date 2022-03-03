@@ -30,6 +30,7 @@ local actions = {
 
   ["close_window"] = lib.close,
   ["close_node"] = lib.close_node,
+  ["close_all_nodes"] = lib.close_all_nodes,
   ["cd_to"] = lib.cd_to,
   ["cd_up"] = lib.cd_up,
   ["parent_node"] = lib.parent_node,
