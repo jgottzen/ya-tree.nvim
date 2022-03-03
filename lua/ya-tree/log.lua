@@ -1,1 +1,126 @@
-return require("simple-log").new({ name = "ya-tree" })
+local logger = {}
+
+local default = {
+  name = "ya-tree",
+  to_console = true,
+  highlight = true,
+  to_file = false,
+  level = "warn",
+  max_size = 5000,
+  levels = {
+    { level = "trace", highlight = "Comment" },
+    { level = "debug", highlight = "Comment" },
+    { level = "info", highlight = "NONE" },
+    { level = "warn", highlight = "WarningMsg" },
+    { level = "error", highlight = "ErrorMsg" },
+  },
+}
+
+local unpack = unpack or table.unpack
+local inspect = vim.inspect
+local fmt = string.format
+local tbl_concat = table.concat
+local tbl_insert = table.insert
+
+function logger.new(config)
+  config = vim.tbl_deep_extend("force", default, config or {})
+
+  local log_file = fmt("%s/%s.log", vim.fn.stdpath("data"), config.name)
+  local this = {
+    config = config,
+  }
+  local levels = {}
+  for k, v in ipairs(this.config.levels) do
+    levels[v.level] = k
+  end
+
+  local function str(value)
+    local _type = type(value)
+    if _type == "table" then
+      local v = inspect(value, { depth = 20 })
+      if #v > config.max_size then
+        return v:sub(1, config.max_size)
+      else
+        return v
+      end
+    elseif _type == "function" then
+      return inspect(value)
+    else
+      return tostring(value)
+    end
+  end
+
+  local function pack(...)
+    local rest = {}
+    local list = { n = select("#", ...), ... }
+    for i = 1, list.n do
+      rest[i] = str(list[i])
+    end
+    return rest
+  end
+
+  local function concat(arg, ...)
+    local t = pack(...)
+    tbl_insert(t, 1, str(arg))
+    return tbl_concat(t, " ")
+  end
+
+  local function format(arg, ...)
+    if type(arg) == "string" then
+      if arg:find("%%s") or arg:find("%%q") then
+        if select("#", ...) > 0 then
+          local rest = pack(...)
+          local ok, m = pcall(fmt, arg, unpack(rest))
+          if ok then
+            return m
+          end
+        end
+      end
+    end
+
+    return concat(arg, ...)
+  end
+
+  local function log(level, name, highlight, arg, ...)
+    if level < levels[config.level] or not (this.config.to_console or this.config.to_file) then
+      return
+    end
+
+    local message = format(arg, ...)
+    local info = debug.getinfo(2, "Sl")
+    local timestamp = os.date("%H:%M:%S")
+    local fmt_message = fmt("[%-6s%s] %s:%s: %s", name, timestamp, info.short_src, info.currentline, message)
+
+    if this.config.to_console then
+      vim.schedule(function()
+        for _, m in ipairs(vim.split(fmt_message, "\n")) do
+          m = fmt("[%s] %s", config.name, m)
+          local chunk = (this.config.highlight and highlight) and { m, highlight } or { m }
+          vim.api.nvim_echo({ chunk }, true, {})
+        end
+      end)
+    end
+    if this.config.to_file then
+      vim.schedule(function()
+        local file = io.open(log_file, "a")
+        if file then
+          file:write(fmt_message .. "\n")
+          file:close()
+        else
+          error("[simple-log] Could not open log file: " .. log_file)
+          this.config.to_file = false
+        end
+      end)
+    end
+  end
+
+  for k, v in ipairs(config.levels) do
+    this[v.level] = function(arg, ...)
+      return log(k, v.level:upper(), v.highlight, arg, ...)
+    end
+  end
+
+  return this
+end
+
+return logger.new()
