@@ -1,0 +1,205 @@
+local Path = require("plenary.path")
+local wrap = require("plenary.async.async").wrap
+local scheduler = require("plenary.async.util").scheduler
+
+local job = require("ya-tree.job")
+local utils = require("ya-tree.utils")
+local log = require("ya-tree.log")
+
+local os_sep = Path.path.sep
+
+local M = {
+  Repo = {},
+  config = {
+    yadm_enabled = false,
+  },
+  repos = {},
+}
+
+local command = wrap(function(args, cmd, callback)
+  cmd = cmd or "git"
+  args = cmd == "git" and { "--no-pager", unpack(args) } or args
+
+  job.run({ cmd = cmd, args = args }, function(_, stdout, stderr)
+    local lines = vim.split(stdout or "", "\n", true)
+    if lines[#lines] == "" then
+      lines[#lines] = nil
+    end
+
+    callback(lines, stderr)
+  end)
+end, 3)
+
+local function windowize_path(path)
+  return path:gsub("/", "\\")
+end
+
+local function get_repo_info(path, cmd)
+  local args = {
+    "-C",
+    path,
+    "rev-parse",
+    "--show-toplevel",
+    "--absolute-git-dir",
+  }
+
+  scheduler()
+
+  local result = command(args, cmd)
+  if #result == 0 then
+    return nil
+  end
+  local git_root = result[1]
+  local toplevel = result[2]
+
+  if utils.is_windows then
+    git_root = windowize_path(git_root)
+    toplevel = windowize_path(toplevel)
+  end
+
+  return git_root, toplevel
+end
+
+local Repo = M.Repo
+Repo.__index = Repo
+
+function Repo:new(path)
+  -- check if it's already cached
+  local cached = M.repos[path]
+  if cached then
+    log.debug("repository for %s already created, returning cached repo", path)
+    return cached
+  end
+
+  local toplevel, git_dir = get_repo_info(path)
+  local is_yadm = false
+  if M.config.yadm_enabled and not git_dir then
+    if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, "yadm") ~= 0 then
+      toplevel, git_dir = get_repo_info(path, "yadm")
+      if toplevel then
+        is_yadm = true
+      end
+    end
+  end
+
+  if not toplevel then
+    log.debug("no git repo found for %q", path)
+    return nil
+  end
+
+  local this = setmetatable({
+    toplevel = toplevel,
+    _git_dir = git_dir,
+    _git_status = {},
+    _ignored = {},
+    _is_yadm = is_yadm,
+  }, Repo)
+
+  log.debug("created Repo for %q, toplevel=%q, gitdir=%q, is_yamd=%q", path, toplevel, git_dir, is_yadm)
+  M.repos[this.toplevel] = this
+
+  return this
+end
+
+function Repo:command(args)
+  if not self._git_dir then
+    return {}
+  end
+
+  scheduler()
+  -- always run in the the toplevel directory, so all paths are relative the root,
+  -- this way we can just concatenate the paths returned by git with the toplevel
+  return command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) })
+end
+
+function Repo:refresh_status(opts)
+  opts = opts or {}
+  local args = {
+    "--no-optional-locks",
+    "status",
+    "--porcelain=v1",
+  }
+  -- only include ignored if requested
+  if opts.ignored then
+    table.insert(args, "--ignored=matching")
+    -- yadm repositories requires that this flag is added explicitly
+    if self._is_yadm then
+      table.insert(args, "--untracked-files=normal")
+    end
+  end
+
+  log.debug("refreshing git status for %q, with arguments=%s", self.toplevel, args)
+  local results = self:command(args)
+
+  self._git_status = {}
+  self._ignored = {}
+
+  local size = #self.toplevel
+  for _, line in ipairs(results) do
+    local status = line:sub(1, 2)
+    local relative_path = line:sub(4)
+    local arrow_pos = relative_path:find(" -> ")
+    if arrow_pos ~= nil then
+      relative_path = line:sub(arrow_pos + 5)
+    end
+    -- remove any " due to whitespace in the path
+    relative_path = relative_path:gsub('^"', ""):gsub('$"', "")
+    if utils.is_windows == true then
+      relative_path = windowize_path(relative_path)
+    end
+    local absolute_path = utils.join_path(self.toplevel, relative_path)
+    -- if in a yadm managed repository/directory it's quite likely that _a lot_ of
+    -- files will be untracked, so don't add untracked files in that case.
+    if not (self._is_yadm and status == "??") then
+      self._git_status[absolute_path] = status
+    end
+
+    -- git ignore format:
+    -- !! path/to/directory/
+    -- !! path/to/file
+    -- with paths relative to the repository root
+    if status == "!!" then
+      self._ignored[#self._ignored + 1] = absolute_path
+    else
+      -- bubble the status up to the parent directories
+      for _, parent in next, Path:new(absolute_path):parents() do
+        -- don't add paths above the toplevel directory
+        if #parent < size then
+          break
+        end
+        self._git_status[parent] = "dirty"
+      end
+    end
+  end
+end
+
+function Repo:status_of(path)
+  return self._git_status[path]
+end
+
+function Repo:is_ignored(path, _type)
+  path = _type == "directory" and (path .. os_sep) or path
+  for _, ignored in ipairs(self._ignored) do
+    if ignored:len() > 0 and ignored:sub(-1) == os_sep then
+      -- directory ignore
+      if vim.startswith(path, ignored) then
+        return true
+      end
+    else
+      -- file ignore
+      if path == ignored then
+        return true
+      end
+    end
+  end
+end
+
+M.setup = function(config)
+  if config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
+    utils.print("yadm not in PATH. Ignoring 'git.yadm.enable' in config")
+  else
+    M.config.yadm_enabled = config.git.yadm.enable
+  end
+end
+
+return M
