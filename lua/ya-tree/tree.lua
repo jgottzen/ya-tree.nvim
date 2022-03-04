@@ -20,131 +20,121 @@ Node.__tostring = function(self)
   return self.path
 end
 
-do
-  local node_cache = {}
+function Tree.root(cwd, old_root)
+  local root = Node:new({
+    name = fn.fnamemodify(cwd, ":t"),
+    type = "directory",
+    path = cwd,
+    children = {},
+  }, nil)
 
-  function Tree.node_for_path(path)
-    return node_cache[path]
+  root.repo = git.Repo:new(root.path)
+  if root.repo then
+    log.debug("node %q is in a git repo with toplevel %q", root.path, root.repo.toplevel)
+    root.repo:refresh_status({ ignored = true })
   end
 
-  function Node:new(nodedata, parent, use_cache)
-    local node
-    if use_cache then
-      -- if the node already exist, copy some data over
-      node = node_cache[nodedata.path]
-      if node then
-        nodedata.expanded = node.expanded
-        nodedata.scanned = node.scanned
-        nodedata.children = node.children
-        nodedata.clipboard_status = node.clipboard_status
-        nodedata.repo = node.repo
-      end
-    end
-
-    log.trace("creating node for %q", nodedata.path)
-
-    node = setmetatable(nodedata, Node)
-    node.parent = parent
-
-    -- inherit any git repo
-    if parent and parent.repo then
-      node.repo = parent.repo
-    end
-
-    if use_cache then
-      node_cache[node.path] = node
-    end
-
-    return node
-  end
-
-  function Node:_scandir()
-    log.debug("scanning directory %q", self.path)
-    -- keep track of the current children
-    local paths = {}
-    for _, child in ipairs(self.children) do
-      paths[child.path] = true
-    end
-    self.children = vim.tbl_map(function(node)
-      paths[node.path] = nil -- the node is still present
-      return Node:new(node, self, true)
-    end, fs.scan_dir(self.path))
-
-    -- for any path still present, it does no longer exist in the directory of this node
-    -- remove it from the cache
-    for path, _ in pairs(paths) do
-      node_cache[path] = nil
-    end
-
-    self.empty = #self.children == 0
-    self.scanned = true
-  end
-
-  local function set_git_repo_on_node_and_children(repo, node)
-    log.debug("setting repo on node %s", node.path)
-    node.repo = repo
-    if node.children then
-      for _, child in ipairs(node.children) do
-        set_git_repo_on_node_and_children(repo, child)
-      end
+  -- if the tree root was moved on level up, i.e the new root is the parent of the old root,
+  -- add it to the tree
+  if old_root then
+    if Path:new(old_root.path):parent().filename == root.path then
+      root.children[#root.children + 1] = old_root
+      old_root.parent = root
     end
   end
 
-  function Node:check_for_git_repo()
-    local repo = git.Repo:new(self.path)
-    if repo then
-      repo:refresh_status({ ignored = true })
-      local toplevel = repo.toplevel
-      if toplevel == self.path then
-        -- this node is the git toplevel directory, set the property on self
-        set_git_repo_on_node_and_children(repo, self)
-      else
-        local node = node_cache[toplevel]
-        if node then
-          -- the git toplevel directory is loaded in the tree, set the repo property on that node
-          set_git_repo_on_node_and_children(repo, node)
-        else
-          -- the git toplevel directory is not loaded in the tree
-          if #toplevel < #self.path then
-            -- this node is below the git toplevel directory,
-            -- walk the tree upwards until we hit the topmost node
-            node = self
-            while node.parent and toplevel < #node.parent.path do
-              node = node.parent
-            end
-            set_git_repo_on_node_and_children(repo, node)
-          else
-            log.error("git repo with toplevel %s is somehow below this node %s, this should not be possible", toplevel, self.path)
-            log.error("self=%s", self)
-            log.error("repo=%s", repo)
-          end
-        end
-      end
+  -- force rescan of the directory
+  root:expand({ force_scan = true })
+
+  return root
+end
+
+function Node:new(nodedata, parent)
+  log.trace("creating node for %q", nodedata.path)
+
+  local node = setmetatable(nodedata, Node)
+  node.parent = parent
+  if node:is_directory() then
+    node.children = {}
+  end
+
+  -- inherit any git repo
+  if parent and parent.repo then
+    node.repo = parent.repo
+  end
+
+  return node
+end
+
+function Node:_merge_new_data(nodedata)
+  for k, v in pairs(nodedata) do
+    if type(self[k]) ~= "function" then
+      self[k] = v
     else
-      log.debug("path %s is not in a git repository", self.path)
+      log.error("nodedata.%s is a function, this should not happen!", k)
     end
   end
+end
 
-  function Tree.root(cwd)
-    local root = node_cache[cwd]
-    if not root then
-      root = Node:new({
-        name = fn.fnamemodify(cwd, ":t"),
-        type = "directory",
-        path = cwd,
-        children = {},
-      }, nil, true)
+function Node:_scandir()
+  log.debug("scanning directory %q", self.path)
+  -- keep track of the current children
+  local children = {}
+  for _, child in ipairs(self.children) do
+    children[child.path] = child
+  end
+  self.children = vim.tbl_map(function(nodedata)
+    local child = children[nodedata.path]
+    if child then
+      log.trace("_scandir: merging %q", nodedata.path)
+      child:_merge_new_data(nodedata)
+      children[nodedata.path] = nil -- the node is still present
+      return child
+    else
+      log.trace("_scandir: creating new %q", nodedata.path)
+      return Node:new(nodedata, self)
     end
+  end, fs.scan_dir(self.path))
 
-    root.repo = git.Repo:new(root.path)
-    if root.repo then
-      log.debug("node %q is in a git repo with toplevel %q", root.path, root.repo.toplevel)
-      root.repo:refresh_status({ ignored = true })
+  self.empty = #self.children == 0
+  self.scanned = true
+end
+
+local function set_git_repo_on_node_and_children(repo, node)
+  log.debug("setting repo on node %s", node.path)
+  node.repo = repo
+  if node.children then
+    for _, child in ipairs(node.children) do
+      set_git_repo_on_node_and_children(repo, child)
     end
-    -- force rescan of the directory
-    root:expand({ force_scan = true })
+  end
+end
 
-    return root
+function Node:check_for_git_repo()
+  local repo = git.Repo:new(self.path)
+  if repo then
+    repo:refresh_status({ ignored = true })
+    local toplevel = repo.toplevel
+    if toplevel == self.path then
+      -- this node is the git toplevel directory, set the property on self
+      set_git_repo_on_node_and_children(repo, self)
+    else
+      if #toplevel < #self.path then
+        -- this node is below the git toplevel directory,
+        -- walk the tree upwards until we hit the topmost node
+        local node = self
+        while node.parent and toplevel < #node.parent.path do
+          node = node.parent
+        end
+        set_git_repo_on_node_and_children(repo, node)
+      else
+        log.error("git repo with toplevel %s is somehow below this node %s, this should not be possible", toplevel, self.path)
+        log.error("self=%s", self)
+        log.error("repo=%s", repo)
+      end
+    end
+  else
+    log.debug("path %s is not in a git repository", self.path)
   end
 end
 
@@ -217,7 +207,6 @@ function Node:iterate_children(opts)
   end
 
   opts = opts or {}
-  opts.reverse = opts.reverse or false
   local start = 0
   if opts.reverse then
     start = #self.children + 1
@@ -319,7 +308,7 @@ function Node:create_search_tree(search_results)
     path = self.path,
     children = {},
     expanded = true,
-  }, nil, false)
+  }, nil)
   local node_map = {}
   node_map[self.path] = search_root
 
@@ -333,21 +322,27 @@ function Node:create_search_tree(search_results)
         local parent = node_map[parent_path]
         if not parent then
           local grand_parent = node_map[parents[i + 1]]
-          parent = Node:new(fs.node_for(parent_path), grand_parent, false)
-          parent.expanded = true
-          grand_parent.children[#grand_parent.children + 1] = parent
-          table.sort(grand_parent.children, fs.file_item_sorter)
-          node_map[parent_path] = parent
+          local nodedata = fs.node_for(parent_path)
+          if nodedata then
+            parent = Node:new(nodedata, grand_parent)
+            parent.expanded = true
+            grand_parent.children[#grand_parent.children + 1] = parent
+            table.sort(grand_parent.children, fs.file_item_sorter)
+            node_map[parent_path] = parent
+          end
         end
       end
     end
 
     local parent = node_map[parents[1]]
-    local node = Node:new(fs.node_for(path), parent, false)
-    node.expanded = true
-    parent.children[#parent.children + 1] = node
-    table.sort(parent.children, fs.file_item_sorter)
-    node_map[node.path] = node
+    local nodedata = fs.node_for(path)
+    if nodedata then
+      local node = Node:new(nodedata, parent)
+      node.expanded = true
+      parent.children[#parent.children + 1] = node
+      table.sort(parent.children, fs.file_item_sorter)
+      node_map[node.path] = node
+    end
   end
 
   local first_node = search_root

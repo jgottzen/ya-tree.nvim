@@ -68,26 +68,6 @@ local function get_current_buffer_filename()
   return utils.is_readable_file(file) and file
 end
 
-local function expand_to_path(file)
-  local node = Tree.node_for_path(file)
-  if node then
-    -- the path to the file has already been scanned into the tree
-    log.debug("node %q loaded in tree, expanding...", node.path)
-    node:expand()
-    local parent = node.parent
-    while parent and parent ~= M.tree.root do
-      parent:expand()
-      parent = parent.parent
-    end
-  else
-    -- The node is currently not loaded in the tree, expand to it
-    log.debug("%q not loaded in tree, loading...", file)
-    node = M.tree.root:expand({ to = file })
-  end
-
-  return node
-end
-
 function M.navigate_to(file)
   if not file or file == "" then
     file = get_current_buffer_filename()
@@ -105,7 +85,7 @@ function M.navigate_to(file)
   end
 
   async.run(function()
-    M.tree.current_node = expand_to_path(file)
+    M.tree.current_node = M.tree.root:expand({ to = file })
 
     vim.schedule(function()
       ui.open(M.tree.root, { redraw = true, focus = true }, M.tree.current_node)
@@ -197,8 +177,10 @@ function M.change_root_node(new_root)
 
   async.run(function()
     if type(new_root) == "string" then
-      M.tree.root = Tree.root(new_root)
+      log.debug("creaing new tree root")
+      M.tree.root = Tree.root(new_root, M.tree.root)
     else
+      log.debug("using already existing node as root")
       M.tree.root = new_root
       M.tree.root:expand({ force_scan = true })
     end
@@ -309,7 +291,7 @@ do
       M.tree.root:refresh()
 
       if path then
-        local node = expand_to_path(path)
+        local node = M.tree.root:expand({ to = path })
         if node then
           node:expand()
           M.tree.current_node = node

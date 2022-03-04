@@ -18,7 +18,6 @@ local function directory_node(cwd, name, _type)
     type = _type,
     path = path,
     empty = empty,
-    children = {},
   }
 end
 
@@ -50,42 +49,50 @@ local function link_node(cwd, name, _type)
   end
 
   local stat = uv.fs_stat(path)
-  local children, empty, extension, executable, link_name, link_extension
   local p = Path:new(link_to)
   link_to = Path:new(link_to):make_relative()
 
+  local nodedata
   if stat and stat.type == "directory" then
     _type = "directory"
-    children = {}
     local handle = uv.fs_scandir(path)
-    empty = handle and uv.fs_scandir_next(handle) == nil
+    local empty = handle and uv.fs_scandir_next(handle) == nil
+
+    nodedata = {
+      name = name,
+      type = _type,
+      link = true,
+      path = path,
+      link_to = link_to,
+      empty = empty,
+    }
   elseif stat and stat.type == "file" then
     _type = "file"
-    extension = string.match(name, ".?[^.]+%.(.*)") or ""
+    local extension = string.match(name, ".?[^.]+%.(.*)") or ""
     local _, pos = p.filename:find(p:parent().filename, 1, true)
-    link_name = p.filename:sub(pos + 2)
-    link_extension = string.match(link_name, ".?[^.]+%.(.*)") or ""
+    local link_name = p.filename:sub(pos + 2)
+    local link_extension = string.match(link_name, ".?[^.]+%.(.*)") or ""
+    local executable
     if utils.is_windows then
       executable = utils.is_windows_exe(extension)
     else
       executable = uv.fs_access(path, "X")
     end
+
+    nodedata = {
+      name = name,
+      type = _type,
+      link = true,
+      path = path,
+      link_to = link_to,
+      link_name = link_name,
+      link_extension = link_extension,
+      extension = extension,
+      executable = executable,
+    }
   end
 
-  return {
-    name = name,
-    type = _type,
-    link = true,
-    path = path,
-    link_to = link_to,
-    link_name = link_name,
-    link_extension = link_extension,
-    expanded = false,
-    empty = empty,
-    children = children,
-    extension = extension,
-    executable = executable,
-  }
+  return nodedata
 end
 
 function M.file_item_sorter(a, b)
@@ -100,9 +107,10 @@ function M.node_for(path)
   local stat = uv.fs_stat(path)
   local _type = stat and stat.type or nil
   if not _type then
-    utils.print_error(string.format("path %s has no fs_stat type", path))
+    utils.print_error("cannot determine type for path " .. path)
     return
   end
+
   local p = Path:new(path)
   local parent_path = p:parent().filename
   local _, pos = p.filename:find(parent_path, 1, true)
@@ -116,9 +124,9 @@ function M.node_for(path)
   end
 end
 
-function M.scan_dir(cwd)
+function M.scan_dir(dir)
   local nodes = {}
-  local fd = uv.fs_scandir(cwd)
+  local fd = uv.fs_scandir(dir)
   if fd then
     while true do
       local name, _type = uv.fs_scandir_next(fd)
@@ -127,11 +135,11 @@ function M.scan_dir(cwd)
       end
       local node
       if _type == "directory" then
-        node = directory_node(cwd, name, _type)
+        node = directory_node(dir, name, _type)
       elseif _type == "file" then
-        node = file_node(cwd, name, _type)
+        node = file_node(dir, name, _type)
       elseif _type == "link" then
-        node = link_node(cwd, name, _type)
+        node = link_node(dir, name, _type)
       end
       if node ~= nil then
         nodes[#nodes + 1] = node
