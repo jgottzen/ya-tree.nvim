@@ -49,7 +49,7 @@ local actions = {
   ["system_open"] = lib.system_open,
 }
 
-M.execute = function(id)
+function M.execute(id)
   local command = commands[id]
   if ui.is_help_open() and command and command.name ~= "toggle_help" then
     return
@@ -67,10 +67,11 @@ end
 
 local next_handler_id = 1
 local function assing_handler(mapping)
-  local handler_id = next_handler_id
+  local handler_id = tostring(next_handler_id)
   local action = mapping.action
   local func = mapping.func
   if action then
+    handler_id = action
     commands[handler_id] = {
       name = action,
       action = actions[action],
@@ -80,11 +81,12 @@ local function assing_handler(mapping)
       name = mapping.name or "function",
       func = func,
     }
+    next_handler_id = next_handler_id + 1
   else
     log.error("mapping for key %s doesn't have an action or func assigned", mapping.keys)
     return
   end
-  next_handler_id = next_handler_id + 1
+
   return handler_id
 end
 
@@ -97,7 +99,7 @@ function M.apply_mappings(bufnr)
         rhs = m.command
       else
         local handler = assing_handler(m)
-        rhs = string.format("<cmd>lua require('ya-tree.actions').execute(%s)<CR>", handler)
+        rhs = string.format("<cmd>lua require('ya-tree.actions').execute('%s')<CR>", handler)
       end
 
       if rhs then
