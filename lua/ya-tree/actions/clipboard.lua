@@ -14,8 +14,13 @@ local M = {
 local function add_or_remove_from_queue(node, action)
   for i, v in ipairs(M.queue) do
     if v.node.path == node.path then
-      table.remove(M.queue, i)
-      node:set_clipboard_status(nil)
+      if v.action == action then
+        table.remove(M.queue, i)
+        node:set_clipboard_status(nil)
+      else
+        v.action = action
+        node:set_clipboard_status(action)
+      end
       return
     end
   end
