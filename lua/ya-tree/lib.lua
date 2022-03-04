@@ -534,7 +534,9 @@ M.on_diagnostics_changed = debounce_trailing(function()
   end
 
   if config.diagnostics.propagate_to_parents then
-    local size = #M.tree.root.path
+    -- this function might get triggered before the tree has fully loaded (due to the asynchronous nature),
+    -- guard against it by checking and falling back on cwd, which is always set
+    local size = M.tree.root and #M.tree.root.path or #M.tree.cwd
     for path, severity in pairs(diagnostics) do
       for _, parent in next, Path:new(path):parents() do
         -- don't propagate beyond the current root node
