@@ -125,7 +125,7 @@ do
     end
   end
 
-  function Tree.root(cwd, old_root)
+  function Tree.root(cwd)
     local root = node_cache[cwd]
     if not root then
       root = Node:new({
@@ -141,17 +141,8 @@ do
       log.debug("node %q is in a git repo with toplevel %q", root.path, root.repo.toplevel)
       root.repo:refresh_status({ ignored = true })
     end
-    root:expand()
-
-    -- if the old root is a child of the new root, add its children
-    if old_root then
-      for _, node in ipairs(root.children) do
-        if node.path == old_root.path then
-          node.children = old_root.children
-          break
-        end
-      end
-    end
+    -- force rescan of the directory
+    root:expand({ force_scan = true })
 
     return root
   end
@@ -220,10 +211,6 @@ do
   end
 end
 
--- function Node:get_diagnostics_severity()
---   return self.tree.diagnostics[self.path]
--- end
-
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then
     return function() end, nil, nil
@@ -274,15 +261,17 @@ function Node:collapse(recursive)
   end
 end
 
-function Node:expand(to)
+function Node:expand(opts)
+  opts = opts or {}
   if self:is_directory() then
-    if not self.scanned then
+    if not self.scanned or opts.force_scan then
       self:_scandir()
     end
     self.expanded = true
   end
 
-  if to then
+  if opts.to then
+    local to = opts.to
     log.debug("node %q is expanding to path=%q", self.path, to)
     if self.path == to then
       log.debug("self %q is equal to path=%q", self.path, to)
@@ -291,7 +280,7 @@ function Node:expand(to)
       for _, node in ipairs(self.children) do
         if node:is_parent_of(to) then
           log.debug("child node %q is parent of %q, expanding...", node.path, to)
-          return node:expand(to)
+          return node:expand(opts)
         elseif node.path == to then
           log.debug("found node %q equal to path=%q", node.path, to)
           return node

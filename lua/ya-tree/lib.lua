@@ -68,21 +68,21 @@ local function get_current_buffer_filename()
   return utils.is_readable_file(file) and file
 end
 
-local function expand_from_path(file)
+local function expand_to_path(file)
   local node = Tree.node_for_path(file)
   if node then
     -- the path to the file has already been scanned into the tree
     log.debug("node %q loaded in tree, expanding...", node.path)
     node:expand()
     local parent = node.parent
-    while parent do
+    while parent and parent ~= M.tree.root do
       parent:expand()
       parent = parent.parent
     end
   else
     -- The node is currently not loaded in the tree, expand to it
     log.debug("%q not loaded in tree, loading...", file)
-    node = M.tree.root:expand(file)
+    node = M.tree.root:expand({ to = file })
   end
 
   return node
@@ -93,18 +93,19 @@ function M.navigate_to(file)
     file = get_current_buffer_filename()
   end
   if file and not vim.startswith(file, utils.os_root()) then
-    file = utils.join_path(M.tree.cwd, file)
+    file = Path:new({ M.tree.cwd, file }):absolute()
+    log.debug("expanded cwd relative path to %s", file)
   end
   log.debug("navigating to %q", file)
 
-  if not file or not file:find(M.tree.cwd, 1, true) then
-    -- the path is not located under the current cwd, just open the viewer
+  if not file or not file:find(M.tree.root.path, 1, true) then
+    -- the path is not located in the tree, just open the viewer
     M.open()
     return
   end
 
   async.run(function()
-    M.tree.current_node = expand_from_path(file)
+    M.tree.current_node = expand_to_path(file)
 
     vim.schedule(function()
       ui.open(M.tree.root, { redraw = true, focus = true }, M.tree.current_node)
@@ -171,7 +172,7 @@ function M.cd_to(node)
   if config.cwd.update_from_tree then
     vim.cmd("cd " .. fn.fnameescape(node.path))
   else
-    M.change_root(node.path)
+    M.change_root_node(node)
   end
 end
 
@@ -179,24 +180,28 @@ function M.cd_up(node)
   if not node then
     return
   end
-  local new_cwd = vim.fn.fnamemodify(M.tree.cwd, ":h")
-  log.debug("changing root directory one level up from %q to %q", M.tree.cwd, new_cwd)
+  local new_cwd = vim.fn.fnamemodify(M.tree.root.path, ":h")
+  log.debug("changing root directory one level up from %q to %q", M.tree.root.path, new_cwd)
 
   M.tree.current_node = node
 
   if config.cwd.update_from_tree then
     vim.cmd("cd " .. fn.fnameescape(new_cwd))
   else
-    M.change_root(new_cwd)
+    M.change_root_node(M.tree.root.parent or new_cwd)
   end
 end
 
-function M.change_root(new_cwd)
-  log.debug("changing root node to %q", new_cwd)
+function M.change_root_node(new_root)
+  log.debug("changing root node to %q", tostring(new_root))
 
   async.run(function()
-    M.tree.cwd = new_cwd
-    M.tree.root = Tree.root(M.tree.cwd, M.tree.root)
+    if type(new_root) == "string" then
+      M.tree.root = Tree.root(new_root)
+    else
+      M.tree.root = new_root
+      M.tree.root:expand({ force_scan = true })
+    end
     vim.schedule(function()
       ui.update(M.tree.root, M.tree.current_node)
     end)
@@ -304,7 +309,7 @@ do
       M.tree.root:refresh()
 
       if path then
-        local node = expand_from_path(path)
+        local node = expand_to_path(path)
         if node then
           node:expand()
           M.tree.current_node = node
@@ -505,7 +510,8 @@ function M.on_dir_changed()
   end
 
   M.tree.current_node = M.get_current_node()
-  M.change_root(new_cwd)
+  M.tree.cwd = new_cwd
+  M.change_root_node(new_cwd)
 end
 
 function M.on_git_event()
@@ -528,7 +534,7 @@ M.on_diagnostics_changed = debounce_trailing(function()
   end
 
   if config.diagnostics.propagate_to_parents then
-    local size = #M.tree.cwd
+    local size = #M.tree.root.path
     for path, severity in pairs(diagnostics) do
       for _, parent in next, Path:new(path):parents() do
         -- don't propagate beyond the current root node
