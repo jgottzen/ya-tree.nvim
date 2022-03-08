@@ -18,7 +18,7 @@ local M = {
     search = {
       max_results = 200,
       command = nil,
-      args = {},
+      args = nil,
     },
     filters = {
       enable = true,

@@ -14,27 +14,28 @@ local fn = vim.fn
 local M = {}
 
 local function open_file(node, mode, config)
-  local edit_winnr = ui.get_edit_winnr()
+  local edit_winid = ui.get_edit_winid()
   log.debug(
-    "open_file: edit_winnr=%s, current_winnr=%s, ui_winnr=%s",
-    edit_winnr,
+    "open_file: edit_winid=%s, current_winid=%s, ui_winid=%s",
+    edit_winid,
     api.nvim_get_current_win(),
-    require("ya-tree.ui.view").winnr()
+    require("ya-tree.ui.view").winid()
   )
-  if not edit_winnr then
+  if not edit_winid then
     -- only the tree window is open, i.e. netrw replacement
     -- create a new window for buffers
     local position = config.view.side == "left" and "belowright" or "aboveleft"
+    local current_winid = api.nvim_get_current_win()
     vim.cmd(position .. " vsp")
-    edit_winnr = api.nvim_get_current_win()
-    ui.set_edit_winnr(edit_winnr)
-    ui.resize()
+    edit_winid = api.nvim_get_current_win()
+    ui.set_edit_winid(edit_winid)
+    ui.resize(current_winid)
     if mode == "split" or mode == "vsplit" then
       mode = "edit"
     end
   end
 
-  api.nvim_set_current_win(edit_winnr)
+  api.nvim_set_current_win(edit_winid)
   vim.cmd(mode .. " " .. fn.fnameescape(node.path))
 end
 
@@ -111,7 +112,7 @@ end
 
 function M.rename(node, _)
   -- prohibit renaming the root node
-  if lib.get_cwd() == node.path then
+  if lib.is_node_root(node) then
     return
   end
 
@@ -134,6 +135,38 @@ function M.rename(node, _)
   end)
 end
 
+local function get_nodes_to_delete(node)
+  local nodes = {}
+  local mode = api.nvim_get_mode().mode
+  if mode == "v" or mode == "V" then
+    nodes = ui.get_selected_nodes()
+    utils.feed_esc()
+  else
+    nodes = { node }
+  end
+
+  local parents = {}
+  for _, v in ipairs(nodes) do
+    -- prohibit deleting the root node
+    if lib.is_node_root(v) then
+      utils.print_error(string.format("path %s is the root of the tree, aborting.", v.path))
+      return
+    end
+
+    -- if this node is a parent of one of the nodes to delete,
+    -- remove it from the list
+    parents[v.path] = nil
+    if v.parent then
+      parents[v.parent.path] = v.parent
+    end
+  end
+  table.sort(vim.tbl_values(parents), function(a, b)
+    return a.path < b.path
+  end)
+
+  return nodes, parents[1]
+end
+
 local function delete_node(node)
   local response = ui.input({ prompt = "Delete " .. node.path .. "? y/N:" })
   if response and response:match("^[yY]") then
@@ -153,30 +186,19 @@ local function delete_node(node)
 end
 
 function M.delete(node, _)
+  local nodes, selected_node = get_nodes_to_delete(node)
+  if not nodes then
+    return
+  end
+
   async.run(function()
     scheduler()
-
-    local nodes
-    local mode = api.nvim_get_mode().mode
-    if mode == "v" or mode == "V" then
-      nodes = ui.get_selected_nodes()
-      utils.feed_esc()
-    else
-      nodes = { node }
-    end
-
-    for _, v in ipairs(nodes) do
-      -- prohibit deleting the root node
-      if lib.get_cwd() == v.path then
-        return
-      end
-    end
 
     for _, v in ipairs(nodes) do
       delete_node(v)
     end
 
-    lib.refresh()
+    lib.refresh(selected_node)
   end)
 end
 
@@ -185,25 +207,13 @@ function M.trash(node, config)
     return
   end
 
+  local nodes, selected_node = get_nodes_to_delete(node)
+  if not nodes then
+    return
+  end
+
   async.run(function()
     scheduler()
-
-    local nodes
-    local mode = api.nvim_get_mode().mode
-    if mode == "v" or mode == "V" then
-      nodes = ui.get_selected_nodes()
-      utils.feed_esc()
-    else
-      nodes = { node }
-    end
-
-    local cwd = lib.get_cwd()
-    for _, v in ipairs(nodes) do
-      -- prohibit deleting the root node
-      if cwd == v.path then
-        return
-      end
-    end
 
     local files = {}
     if config.trash.require_confirm then
@@ -223,9 +233,9 @@ function M.trash(node, config)
 
     if #files > 0 then
       log.debug("trashing files %s", files)
-      job.run({ cmd = "trash", args = files, cwd = cwd }, function(code, _, error)
+      job.run({ cmd = "trash", args = files }, function(code, _, error)
         if code == 0 then
-          lib.refresh()
+          lib.refresh(selected_node)
         else
           vim.schedule(function()
             utils.print_error(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), error))

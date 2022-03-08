@@ -1,5 +1,4 @@
 local config = require("ya-tree.config").config
-local view = require("ya-tree.ui.view")
 local help = require("ya-tree.ui.help")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
@@ -49,8 +48,6 @@ local function render_node(node)
   return table.concat(content), highlights
 end
 
-local nodes, node_path_to_index_lookup, node_lines, node_highlights
-
 local function should_display_node(node)
   if config.filters.enable then
     if config.filters.dotfiles and node:is_dotfile() then
@@ -69,6 +66,8 @@ local function should_display_node(node)
 
   return true
 end
+
+local nodes, node_path_to_index_lookup, node_lines, node_highlights
 
 local function create_tree(root)
   nodes, node_path_to_index_lookup, node_lines, node_highlights = {}, {}, {}, {}
@@ -133,56 +132,36 @@ local function draw(bufnr, opts)
   api.nvim_buf_set_option(bufnr, "modifiable", false)
 end
 
-function M.render(root, opts)
-  local bufnr = view.bufnr()
-  if not bufnr then
-    return
-  end
-
+function M.render(bufnr, root, opts)
   if opts and opts.redraw then
     create_tree(root)
   end
   draw(bufnr)
 end
 
-function M.render_help()
-  local bufnr = view.bufnr()
-  if not bufnr then
-    return
-  end
-
+function M.render_help(bufnr)
   draw(bufnr, { help = true })
 end
 
-function M.render_search(search_root)
-  local bufnr = view.bufnr()
-  if not bufnr then
-    return
-  end
-
+function M.render_search(bufnr, search_root)
   create_tree(search_root)
   draw(bufnr)
 end
 
-function M.get_current_node()
-  local node = M.get_current_node_and_position()
+function M.get_current_node(winid)
+  local node = M.get_current_node_and_position(winid)
   return node
 end
 
-function M.get_current_node_and_position()
-  local winnr = view.winnr()
-  if not winnr then
-    return
-  end
-
-  local row, column = unpack(api.nvim_win_get_cursor(winnr))
+function M.get_current_node_and_position(winid)
+  local row, column = unpack(api.nvim_win_get_cursor(winid))
   return nodes[row], row, column
 end
 
 do
   local previous_row
-  function M.move_cursor_to_name()
-    local node, row, _ = M.get_current_node_and_position()
+  function M.move_cursor_to_name(winid)
+    local node, row, _ = M.get_current_node_and_position(winid)
     if not node or row == previous_row then
       return
     end
@@ -191,14 +170,14 @@ do
     local line = api.nvim_get_current_line()
     local pos = fn.stridx(line, node.name)
     if pos > 0 then
-      api.nvim_win_set_cursor(view.winnr() or 0, { row, pos })
+      api.nvim_win_set_cursor(winid or 0, { row, pos })
     end
   end
 end
 
-local function set_cursor_position(winnr, row, col)
-  local win_height = api.nvim_win_get_height(winnr)
-  local ok = pcall(api.nvim_win_set_cursor, winnr, { row, col })
+local function set_cursor_position(winid, row, col)
+  local win_height = api.nvim_win_get_height(winid)
+  local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
   if ok then
     if win_height > row then
       vim.cmd("normal! zb")
@@ -208,12 +187,7 @@ local function set_cursor_position(winnr, row, col)
   end
 end
 
-function M.focus_node(node)
-  local winnr = view.winnr()
-  if not winnr then
-    return
-  end
-
+function M.focus_node(winid, node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
   while not should_display_node(node) and node.parent do
@@ -226,18 +200,13 @@ function M.focus_node(node)
       if config.hijack_cursor then
         column = fn.stridx(node_lines[index], node.name)
       end
-      set_cursor_position(winnr, index, column)
+      set_cursor_position(winid, index, column)
       return
     end
   end
 end
 
-function M.focus_prev_sibling()
-  local winnr = view.winnr()
-  if not winnr then
-    return
-  end
-
+function M.focus_prev_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
@@ -248,19 +217,14 @@ function M.focus_prev_sibling()
     if should_display_node(prev) then
       local index = node_path_to_index_lookup[prev.path]
       if index then
-        set_cursor_position(winnr, index, col)
+        set_cursor_position(winid, index, col)
         return
       end
     end
   end
 end
 
-function M.focus_next_sibling()
-  local winnr = view.winnr()
-  if not winnr then
-    return
-  end
-
+function M.focus_next_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
@@ -271,19 +235,14 @@ function M.focus_next_sibling()
     if should_display_node(next) then
       local index = node_path_to_index_lookup[next.path]
       if index then
-        set_cursor_position(winnr, index, col)
+        set_cursor_position(winid, index, col)
         return
       end
     end
   end
 end
 
-function M.focus_first_sibling()
-  local winnr = view.winnr()
-  if not winnr then
-    return
-  end
-
+function M.focus_first_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
@@ -294,19 +253,14 @@ function M.focus_first_sibling()
     if should_display_node(next) then
       local index = node_path_to_index_lookup[next.path]
       if index then
-        set_cursor_position(winnr, index, col)
+        set_cursor_position(winid, index, col)
         return
       end
     end
   end
 end
 
-function M.focus_last_sibling()
-  local winnr = view.winnr()
-  if not winnr then
-    return
-  end
-
+function M.focus_last_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
@@ -317,7 +271,7 @@ function M.focus_last_sibling()
     if should_display_node(prev) then
       local index = node_path_to_index_lookup[prev.path]
       if index then
-        set_cursor_position(winnr, index, col)
+        set_cursor_position(winid, index, col)
         return
       end
     end

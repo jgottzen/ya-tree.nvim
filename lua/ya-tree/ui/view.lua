@@ -4,34 +4,32 @@ local log = require("ya-tree.log")
 local api = vim.api
 
 local M = {
-  view = {
-    edit_winnr = nil,
-    winnr = nil,
-    bufnr = nil,
-    win_options = {
-      number = false,
-      relativenumber = false,
-      list = false,
-      winfixwidth = true,
-      winfixheight = true,
-      foldenable = false,
-      spell = false,
-      signcolumn = "no",
-      foldmethod = "manual",
-      foldcolumn = "0",
-      cursorcolumn = false,
-      cursorlineopt = "line",
-      wrap = false,
-      winhl = table.concat({
-        "Normal:YaTreeNormal",
-        "NormalNC:YaTreeNormalNC",
-        "CursorLine:YaTreeCursorLine",
-        "VertSplit:YaTreeVertSplit",
-        "StatusLine:YaTreeStatusLine",
-        "StatusLineNC:YaTreeStatuslineNC",
-      }, ","),
-    },
-  },
+  tabs = {},
+}
+
+local win_options = {
+  -- number and relativenumber are taken directly from config
+  -- number = false,
+  -- relativenumber = false,
+  list = false,
+  winfixwidth = true,
+  winfixheight = true,
+  foldenable = false,
+  spell = false,
+  signcolumn = "no",
+  foldmethod = "manual",
+  foldcolumn = "0",
+  cursorcolumn = false,
+  cursorlineopt = "line",
+  wrap = false,
+  winhl = table.concat({
+    "Normal:YaTreeNormal",
+    "NormalNC:YaTreeNormalNC",
+    "CursorLine:YaTreeCursorLine",
+    "VertSplit:YaTreeVertSplit",
+    "StatusLine:YaTreeStatusLine",
+    "StatusLineNC:YaTreeStatuslineNC",
+  }, ","),
 }
 
 local buf_options = {
@@ -43,8 +41,20 @@ local buf_options = {
   { name = "swapfile", value = false },
 }
 
-function M.is_open()
-  return M.view.winnr ~= nil and api.nvim_win_is_valid(M.view.winnr)
+local function get_or_create_tab_data()
+  local tabpage = api.nvim_get_current_tabpage()
+  local tab = M.tabs[tabpage]
+  if not tab then
+    tab = {}
+    M.tabs[tabpage] = tab
+  end
+
+  return tab
+end
+
+function M.is_open(tab)
+  tab = tab or get_or_create_tab_data()
+  return tab.winid ~= nil and api.nvim_win_is_valid(tab.winid)
 end
 
 local function is_buffer_loaded(bufnr)
@@ -52,23 +62,26 @@ local function is_buffer_loaded(bufnr)
 end
 
 function M.bufnr()
-  return is_buffer_loaded(M.view.bufnr) and M.view.bufnr or nil
+  local tab = get_or_create_tab_data()
+  return is_buffer_loaded(tab.bufnr) and tab.bufnr
 end
 
-function M.winnr()
-  return M.is_open() and M.view.winnr or nil
+function M.winid()
+  local tab = M.tabs[api.nvim_get_current_tabpage()]
+  return M.is_open(tab) and tab.winid
 end
 
 function M.is_current_win_ui_win()
-  return api.nvim_get_current_win() == M.view.winnr
+  local tab = get_or_create_tab_data()
+  return api.nvim_get_current_win() == tab.winid
 end
 
-function M.get_winnr_and_size()
-  local winnr = M.winnr()
-  if winnr then
-    local height = api.nvim_win_get_height(winnr)
-    local width = api.nvim_win_get_width(winnr)
-    return winnr, height, width
+function M.get_winid_and_size()
+  local winid = M.winid()
+  if winid then
+    local height = api.nvim_win_get_height(winid)
+    local width = api.nvim_win_get_width(winid)
+    return winid, height, width
   end
 end
 
@@ -83,116 +96,108 @@ local function format_option(key, value)
 end
 
 function M.reset_ui_window()
-  if not M.view.win_options.number and not M.view.win_options.relativenumber then
+  if not config.view.number and not config.view.relativenumber then
     api.nvim_command("stopinsert")
     api.nvim_command("noautocmd setlocal norelativenumber")
   end
 end
 
-local function delete_buffers()
-  for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    if bufnr ~= M.view.bufnr and vim.fn.bufname(bufnr) == "YaTree" then
-      pcall(api.nvim_buf_delete, bufnr, { force = true })
-    end
-  end
-end
-
-local function create_buffer(hijack_buffer)
-  M.view.bufnr = hijack_buffer and api.nvim_get_current_buf() or api.nvim_create_buf(false, false)
-  delete_buffers()
-  api.nvim_buf_set_name(M.view.bufnr, "YaTree")
+local function create_buffer(tab, hijack_buffer)
+  tab.bufnr = hijack_buffer and api.nvim_get_current_buf() or api.nvim_create_buf(false, false)
+  api.nvim_buf_set_name(tab.bufnr, "YaTree")
 
   for _, v in ipairs(buf_options) do
-    api.nvim_buf_set_option(M.view.bufnr, v.name, v.value)
+    api.nvim_buf_set_option(tab.bufnr, v.name, v.value)
   end
 
-  require("ya-tree.actions").apply_mappings(M.view.bufnr)
+  require("ya-tree.actions").apply_mappings(tab.bufnr)
 end
 
-local function set_window_options_and_size()
-  api.nvim_win_set_buf(M.view.winnr, M.view.bufnr)
-  api.nvim_command("noautocmd wincmd " .. (M.view.side == "right" and "L" or "H"))
-  api.nvim_command("noautocmd vertical resize " .. M.view.width)
+local function set_window_options_and_size(tab)
+  api.nvim_win_set_buf(tab.winid, tab.bufnr)
+  api.nvim_command("noautocmd wincmd " .. (config.view.side == "right" and "L" or "H"))
+  api.nvim_command("noautocmd vertical resize " .. config.view.width)
 
-  for k, v in pairs(M.view.win_options) do
+  for k, v in pairs(win_options) do
     api.nvim_command(string.format("noautocmd setlocal %s", format_option(k, v)))
   end
+  api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
+  api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
 
-  M.resize()
+  M.resize(tab.winid)
 end
 
-local function create_window()
+local function create_window(tab)
+  local edit_winid = api.nvim_get_current_win()
   api.nvim_command("noautocmd vsplit")
 
-  M.view.winnr = api.nvim_get_current_win()
-  set_window_options_and_size()
+  local winid = api.nvim_get_current_win()
+  tab.winid = winid
+  tab.edit_winid = edit_winid
+  set_window_options_and_size(tab)
 end
 
 function M.open(hijack_buffer)
   local redraw = false
-  if not is_buffer_loaded(M.view.bufnr) then
+  local tab = get_or_create_tab_data()
+  if not is_buffer_loaded(tab.bufnr) then
     redraw = true
-    create_buffer(hijack_buffer)
+    create_buffer(tab, hijack_buffer)
   end
 
   if hijack_buffer then
-    log.debug("view.open: setting edit_winnr to nil")
-    M.view.edit_winnr = nil
-    M.view.winnr = api.nvim_get_current_win()
-    set_window_options_and_size()
+    log.debug("view.open: setting edit_winid to nil")
+    tab.winid = api.nvim_get_current_win()
+    tab.edit_winid = nil
+    set_window_options_and_size(tab)
   end
 
   if not M.is_open() then
-    log.debug("view.open: setting edit_winnr to %s, old=%s", api.nvim_get_current_win(), M.view.edit_winnr)
-    M.view.edit_winnr = api.nvim_get_current_win()
-    create_window()
+    log.debug("view.open: setting edit_winid to %s, old=%s", api.nvim_get_current_win(), tab.edit_winid)
+    create_window(tab)
   end
 
-  return redraw
+  return redraw, tab.bufnr
 end
 
-function M.resize()
-  api.nvim_win_set_width(M.view.winnr, M.view.width)
+function M.resize(winid)
+  api.nvim_win_set_width(winid, config.view.width)
   vim.cmd("wincmd =")
 end
 
 function M.focus()
-  local current_winnr = api.nvim_get_current_win()
-  local winnr = M.winnr()
-  if winnr and current_winnr ~= winnr then
-    log.debug("view.focus: winnr=%s setting edit_winnr to %s, old=%s", winnr, current_winnr, M.view.edit_winnr)
-    M.view.edit_winnr = current_winnr
-    api.nvim_set_current_win(winnr)
+  local tab = get_or_create_tab_data()
+  if tab.winid then
+    local current_winid = api.nvim_get_current_win()
+    if current_winid ~= tab.winid then
+      log.debug("view.focus: winid=%s setting edit_winid to %s, old=%s", tab.winid, current_winid, tab.edit_winid)
+      tab.edit_winid = current_winid
+      api.nvim_set_current_win(tab.winid)
+    end
   end
 end
 
 function M.close()
-  local winnr = M.view.winnr
-  if not winnr then
+  local tab = get_or_create_tab_data()
+  if not tab.winid then
     return
   end
 
-  local ok = pcall(api.nvim_win_close, winnr, true)
-  M.view.winnr = nil
+  local ok = pcall(api.nvim_win_close, tab.winid, true)
   if not ok then
-    log.error("error closing window %q", winnr)
+    tab.winid = nil
+    log.error("error closing window %q", tab.winid)
   end
 end
 
-function M.get_edit_winnr()
-  return M.view.edit_winnr
+function M.get_edit_winid()
+  return get_or_create_tab_data().edit_winid
 end
 
-function M.set_edit_winnr(winnr)
-  log.debug("view.set_edit_winnr: setting edit_winnr to %s, old=%s", api.nvim_get_current_win(), M.view.edit_winnr)
-  M.view.edit_winnr = winnr
-end
-
-function M.setup()
-  M.view.width = config.view.width
-  M.view.side = config.view.side
-  M.view.win_options.number = config.view.number
-  M.view.win_options.relativenumber = config.view.relativenumber
+function M.set_edit_winid(winid)
+  local tab = get_or_create_tab_data()
+  log.debug("view.set_edit_winid: setting edit_winid to %s, old=%s", api.nvim_get_current_win(), tab.edit_winid)
+  tab.edit_winid = winid
 end
 
 return M

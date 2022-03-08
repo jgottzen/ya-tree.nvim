@@ -35,8 +35,7 @@ function M.copy_node(node, _)
     return
   end
   -- copying the root node will not work
-  local cwd = lib.get_cwd()
-  if cwd == node.path then
+  if lib.is_node_root(node) then
     return
   end
 
@@ -60,9 +59,8 @@ function M.cut_node(node, _)
   if not node then
     return
   end
-  -- copying the root node will not work
-  local cwd = lib.get_cwd()
-  if cwd == node.path then
+  -- cutting the root node will not work
+  if lib.is_node_root(node)then
     return
   end
 
@@ -201,7 +199,7 @@ function M.copy_name_to_clipboard(node, _)
 end
 
 function M.copy_root_relative_path_to_clipboard(node, _)
-  local relative = utils.relative_path_for(node.path, lib.get_cwd())
+  local relative = utils.relative_path_for(node.path, lib.get_root_node_path())
   if node:is_directory() then
     relative = relative .. utils.os_sep
   end

@@ -99,11 +99,11 @@ function Input:_create_title()
     -- See https://github.com/neovim/neovim/issues/13403
     vim.cmd("redraw")
 
-    local width = math.min(api.nvim_win_get_width(self.winnr) - 4, 2 + api.nvim_strwidth(self.title))
+    local width = math.min(api.nvim_win_get_width(self.winid) - 4, 2 + api.nvim_strwidth(self.title))
     local bufnr = api.nvim_create_buf(false, true)
-    self.title_winnr = api.nvim_open_win(bufnr, false, {
+    self.title_winid = api.nvim_open_win(bufnr, false, {
       relative = "win",
-      win = self.winnr,
+      win = self.winid,
       width = width,
       height = 1,
       row = -1,
@@ -113,7 +113,7 @@ function Input:_create_title()
       style = "minimal",
       noautocmd = false,
     })
-    api.nvim_win_set_option(self.title_winnr, "winblend", api.nvim_win_get_option(self.winnr, "winblend"))
+    api.nvim_win_set_option(self.title_winid, "winblend", api.nvim_win_get_option(self.winid, "winblend"))
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     api.nvim_buf_set_lines(bufnr, 0, -1, true, { " " .. self.title .. " " })
     local ns = api.nvim_create_namespace("YaTreeInput")
@@ -123,7 +123,7 @@ function Input:_create_title()
 end
 
 function Input:open()
-  if self.openned then
+  if self.winid then
     return
   end
 
@@ -132,12 +132,10 @@ function Input:open()
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
 
-  self.winnr = api.nvim_open_win(self.bufnr, true, self.win_config)
+  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
   for k, v in pairs(win_options) do
     api.nvim_command(string.format("noautocmd setlocal %s", format_option(k, v)))
   end
-
-  self.openned = true
 
   self:_create_title()
 
@@ -161,7 +159,7 @@ function Input:open()
 end
 
 function Input:close()
-  if not self.openned then
+  if not self.winid then
     return
   end
 
@@ -170,19 +168,15 @@ function Input:close()
     self.bufnr = nil
   end
 
-  if not self.winnr then
-    return
+  if self.title_winid and api.nvim_win_is_valid(self.title_winid) then
+    api.nvim_win_close(self.title_winid, true)
+    self.title_winid = nil
+  end
+  if api.nvim_win_is_valid(self.winid) then
+    api.nvim_win_close(self.winid, true)
   end
 
-  if self.title_winnr and api.nvim_win_is_valid(self.title_winnr) then
-    api.nvim_win_close(self.title_winnr, true)
-    self.title_winnr = nil
-  end
-  if api.nvim_win_is_valid(self.winnr) then
-    api.nvim_win_close(self.winnr, true)
-  end
-
-  self.winnr = nil
+  self.winid = nil
 end
 
 do
@@ -216,7 +210,7 @@ do
   end
 
   function Input:map(mode, key, handler, opts)
-    if not self.openned then
+    if not self.winid then
       error("Popup not shown yet, call Input:open()")
     end
 

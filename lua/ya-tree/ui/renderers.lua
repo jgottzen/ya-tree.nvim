@@ -140,7 +140,10 @@ function M.name(node, config, renderer)
 
   local highlight
   if renderer.use_git_status_colors then
-    highlight = helpers.get_git_status_hl(node:get_git_status())
+    local git_status = node:get_git_status()
+    if git_status then
+      highlight = helpers.get_git_status_hl(git_status)
+    end
   end
 
   if not highlight then

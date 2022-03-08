@@ -112,13 +112,13 @@ local function search(term, node, config, focus_node)
       if lines[#lines] == "" then
         lines[#lines] = nil
       end
-      lib.display_search_result(node, term, lines)
+      vim.schedule(function()
+        lib.display_search_result(node, term, lines)
 
-      if focus_node then
-        vim.schedule(function()
+        if focus_node then
           lib.focus_first_search_result()
-        end)
-      end
+        end
+      end)
     else
       vim.schedule(function()
         utils.print_error(string.format("Search failed with code %s and message %s", code, stderr))
@@ -137,8 +137,8 @@ function M.live_search(node, config)
     node = node.parent
   end
 
-  local winnr, height, width = ui.get_ui_winnr_and_size()
-  if not winnr then
+  local winid, height, width = ui.get_ui_winid_and_size()
+  if not winid then
     return
   end
 
@@ -168,7 +168,7 @@ function M.live_search(node, config)
 
   local term = ""
   local anchor = config.view.side == "left" and "SW" or "SE"
-  local input = Input:new({ title = "Search:", win = winnr, anchor = anchor, row = height, col = 0, size = width - 2 }, {
+  local input = Input:new({ title = "Search:", win = winid, anchor = anchor, row = height, col = 0, size = width - 2 }, {
     on_change = function(value)
       if value == term or value == nil then
         return

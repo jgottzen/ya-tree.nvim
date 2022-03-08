@@ -83,6 +83,7 @@ function Node:_scandir()
   for _, child in ipairs(self.children) do
     children[child.path] = child
   end
+
   self.children = vim.tbl_map(function(nodedata)
     local child = children[nodedata.path]
     if child then
@@ -161,8 +162,8 @@ function Node:is_link()
   return self.link == true
 end
 
-function Node:is_parent_of(path)
-  return self:is_directory() and path:find(self.path .. utils.os_sep, 1, true)
+function Node:is_ancestor_of(path)
+  return self:is_directory() and #self.path <= #path and path:find(self.path .. utils.os_sep, 1, true)
 end
 
 function Node:is_empty()
@@ -238,13 +239,16 @@ function Node:iterate_children(opts)
   end
 end
 
-function Node:collapse(recursive)
+function Node:collapse(opts)
+  opts = opts or {}
   if self:is_directory() then
-    self.expanded = false
+    if not opts.children_only then
+      self.expanded = false
+    end
 
-    if recursive then
+    if opts.recursive then
       for _, child in ipairs(self.children) do
-        child:collapse(recursive)
+        child:collapse({ recursive = opts.recursive })
       end
     end
   end
@@ -267,7 +271,7 @@ function Node:expand(opts)
       return self
     elseif self:is_directory() then
       for _, node in ipairs(self.children) do
-        if node:is_parent_of(to) then
+        if node:is_ancestor_of(to) then
           log.debug("child node %q is parent of %q, expanding...", node.path, to)
           return node:expand(opts)
         elseif node.path == to then
@@ -279,25 +283,43 @@ function Node:expand(opts)
   end
 end
 
-local function refresh_node(node, recurse)
+function Node:get_child_if_loaded(path)
+  if self.path == path then
+    return self
+  end
+  if not self:is_directory() then
+    return
+  end
+
+  for _, node in ipairs(self.children) do
+    if node.path == path then
+      return node
+    elseif node:is_ancestor_of(path) then
+      return node:get_child_if_loaded(path)
+    end
+  end
+end
+
+local function refresh_node(node, recurse, refreshed_git_repos)
+  refreshed_git_repos = refreshed_git_repos or {}
+
   if node:is_directory() and node.scanned then
+    if node.repo and not refreshed_git_repos[node.repo.toplevel] then
+      node.repo:refresh_status({ ignored = true })
+      refreshed_git_repos[node.repo.toplevel] = true
+    end
     node:_scandir()
 
     if recurse then
       for _, child in ipairs(node.children) do
-        refresh_node(child, true)
+        refresh_node(child, true, refreshed_git_repos)
       end
     end
   end
 end
 
 function Node:refresh()
-  for _, repo in pairs(git.repos) do
-    if repo then
-      repo:refresh_status({ ignored = true })
-    end
-  end
-
+  log.debug("refreshing %q", self.path)
   refresh_node(self, true)
 end
 

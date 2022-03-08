@@ -2,7 +2,7 @@ local log = require("ya-tree.log")
 
 local M = {}
 
--- use indirection so the global is available to all modules
+-- use indirection so the config can be required as is for live changes to it
 local function lib()
   return require("ya-tree.lib")
 end
@@ -30,17 +30,17 @@ local function setup_autocommands(config)
   vim.cmd("augroup YaTree")
   vim.cmd("autocmd!")
 
-  vim.cmd([[autocmd WinLeave * lua require('ya-tree.lib').on_win_leave()]])
+  vim.cmd([[autocmd WinLeave * lua require('ya-tree.lib').on_win_leave(vim.fn.expand('<abuf>'))]])
   vim.cmd([[autocmd ColorScheme * lua require('ya-tree.lib').on_color_scheme()]])
 
   if config.auto_close then
-    vim.cmd([[autocmd WinClosed * lua require('ya-tree.lib').on_win_closed()]])
+    vim.cmd([[autocmd WinClosed * lua require('ya-tree.lib').on_win_closed(vim.fn.expand('<amatch>'))]])
   end
   if config.auto_reload_on_write then
-    vim.cmd([[autocmd BufWritePost * lua require('ya-tree.lib').on_buf_write_post()]])
+    vim.cmd([[autocmd BufWritePost * lua require('ya-tree.lib').on_buf_write_post(vim.fn.expand('<afile>:p'))]])
   end
   if config.follow_focused_file then
-    vim.cmd([[autocmd BufEnter * lua require('ya-tree.lib').on_buf_enter()]])
+    vim.cmd([[autocmd BufEnter * lua require('ya-tree.lib').on_buf_enter(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
   end
   if config.hijack_cursor then
     vim.cmd([[autocmd CursorMoved YaTree lua require('ya-tree.lib').on_cursor_moved()]])
@@ -75,7 +75,7 @@ function M.focus()
 end
 
 function M.find_file(file)
-  lib().navigate_to(file)
+  lib().open({ file = file, focus = true })
 end
 
 function M.set_log_level(level)

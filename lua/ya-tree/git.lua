@@ -16,6 +16,8 @@ local M = {
   repos = {},
 }
 
+M.repos.__mode = "v"
+
 local command = wrap(function(args, cmd, callback)
   cmd = cmd or "git"
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
@@ -194,7 +196,15 @@ function Repo:is_ignored(path, _type)
   end
 end
 
-M.setup = function(config)
+function M.get_repo_for_path(path)
+  for toplevel, repo in pairs(M.repos) do
+    if path:find(toplevel, 1, true) then
+      return repo
+    end
+  end
+end
+
+function M.setup(config)
   if config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
     utils.print("yadm not in PATH. Ignoring 'git.yadm.enable' in config")
   else
