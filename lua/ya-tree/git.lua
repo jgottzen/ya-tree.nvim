@@ -62,9 +62,17 @@ local function get_repo_info(path, cmd)
   return git_root, toplevel
 end
 
+---@class Repo
+---@field public toplevel string
+---@field private _git_dir string
+---@field private _git_status table
+---@field private _ignored table
+---@field private _is_yadm boolean
 local Repo = M.Repo
 Repo.__index = Repo
 
+---@param path string
+---@return Repo | nil #a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
@@ -114,6 +122,8 @@ function Repo:command(args)
   return command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) })
 end
 
+
+---@param opts { ignored?: boolean }
 function Repo:refresh_status(opts)
   opts = opts or {}
   local args = {
@@ -175,10 +185,17 @@ function Repo:refresh_status(opts)
   end
 end
 
+
+---@param path string
+---@return string | nil
 function Repo:status_of(path)
   return self._git_status[path]
 end
 
+
+---@param path string
+---@param _type "'directory'" | "'file'"
+---@return boolean
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path
   for _, ignored in ipairs(self._ignored) do
@@ -194,6 +211,7 @@ function Repo:is_ignored(path, _type)
       end
     end
   end
+  return false
 end
 
 function M.get_repo_for_path(path)

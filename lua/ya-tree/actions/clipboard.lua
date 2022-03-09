@@ -11,6 +11,12 @@ local M = {
   queue = {},
 }
 
+---@alias clipboard_action "'copy'" | "'cut'"
+
+local copy_action, cut_action = "copy", "cut"
+
+---@param node Node
+---@param action clipboard_action
 local function add_or_remove_from_queue(node, action)
   for i, v in ipairs(M.queue) do
     if v.node.path == node.path then
@@ -28,9 +34,8 @@ local function add_or_remove_from_queue(node, action)
   node:set_clipboard_status(action)
 end
 
-local copy_action, cut_action = "copy", "cut"
-
-function M.copy_node(node, _)
+---@param node Node
+function M.copy_node(node)
   if not node then
     return
   end
@@ -55,7 +60,8 @@ function M.copy_node(node, _)
   lib.redraw()
 end
 
-function M.cut_node(node, _)
+---@param node Node
+function M.cut_node(node)
   if not node then
     return
   end
@@ -80,6 +86,10 @@ function M.cut_node(node, _)
   lib.redraw()
 end
 
+---@param dest_node Node
+---@param node Node
+---@param action clipboard_action
+---@return boolean, string?
 local function paste_node(dest_node, node, action)
   if not fs.exists(node.path) then
     utils.print_error(string.format("Item %q does not exist, cannot %s!", node.path, action))
@@ -140,7 +150,8 @@ local function clear_clipboard()
   M.queue = {}
 end
 
-function M.paste_from_clipboard(node, _)
+---@param node Node
+function M.paste_from_clipboard(node)
   if not node then
     return
   end
@@ -182,7 +193,7 @@ function M.show_clipboard()
   end
 end
 
-function M.clear_clipboard(_, _)
+function M.clear_clipboard()
   clear_clipboard()
   lib.redraw()
   utils.print("Clipboard cleared!")
@@ -194,11 +205,13 @@ local function copy_to_system_clipboard(content)
   utils.print(string.format("Copied %s to system clipboad", content))
 end
 
-function M.copy_name_to_clipboard(node, _)
+---@param node Node
+function M.copy_name_to_clipboard(node)
   copy_to_system_clipboard(node.name)
 end
 
-function M.copy_root_relative_path_to_clipboard(node, _)
+---@param node Node
+function M.copy_root_relative_path_to_clipboard(node)
   local relative = utils.relative_path_for(node.path, lib.get_root_node_path())
   if node:is_directory() then
     relative = relative .. utils.os_sep
@@ -206,7 +219,8 @@ function M.copy_root_relative_path_to_clipboard(node, _)
   copy_to_system_clipboard(relative)
 end
 
-function M.copy_absolute_path_to_clipboard(node, _)
+---@param node Node
+function M.copy_absolute_path_to_clipboard(node)
   copy_to_system_clipboard(node.path)
 end
 

@@ -4,6 +4,9 @@ local uv = vim.loop
 
 local M = {}
 
+---@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean}
+---@param on_complete fun(code: number, stdout?: string, stderr?: string): nil
+---@return table
 function M.run(opts, on_complete)
   local state = {
     stdout = uv.new_pipe(false),

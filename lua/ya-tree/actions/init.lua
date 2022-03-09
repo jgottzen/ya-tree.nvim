@@ -8,7 +8,18 @@ local log = require("ya-tree.log")
 
 local M = {}
 
+---@class action_mapping
+---@field mode string[]
+---@field keys string[]
+---@field name string
+---@field action? function
+---@field func? function
+---@field command? string
+
+---@type table<string, action_mapping>
 local commands = {}
+
+---@type table<string, function>
 local actions = {
   ["open"] = file_actions.open,
   ["vsplit"] = file_actions.vsplit,
@@ -49,6 +60,7 @@ local actions = {
   ["system_open"] = lib.system_open,
 }
 
+---@param id string
 function M.execute(id)
   local command = commands[id]
   if ui.is_help_open() and command and command.name ~= "toggle_help" then
@@ -66,6 +78,7 @@ function M.execute(id)
 end
 
 local next_handler_id = 1
+---@param mapping action_mapping
 local function assing_handler(mapping)
   local handler_id = tostring(next_handler_id)
   local action = mapping.action
@@ -90,6 +103,7 @@ local function assing_handler(mapping)
   return handler_id
 end
 
+---@param bufnr number
 function M.apply_mappings(bufnr)
   local opts = { noremap = true, silent = true, nowait = true }
   for _, m in pairs(M.mappings) do

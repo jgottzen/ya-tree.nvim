@@ -13,13 +13,20 @@ local uv = vim.loop
 
 local M = {}
 
+---@type boolean
 local has_fd = fn.executable("fd") == 1
+---@type boolean
 local has_fdfind = fn.executable("fdfind") == 1
+---@type boolean
 local has_find = fn.executable("find") == 1
+---@type boolean
 local has_where = fn.executable("where") == 1
+---@type boolean
 local has_win32 = fn.has("win32") == 1
 
+---@type boolean
 local fd_has_max_results
+---@type boolean
 local fdfind_has_max_results
 do
   local function has_max_results(cmd)
@@ -31,6 +38,10 @@ do
   fdfind_has_max_results = has_fdfind and has_max_results("fdfind")
 end
 
+---@param term string
+---@param path string
+---@param config any
+---@return string, string[]
 local function build_search(term, path, config)
   local cmd, args
   if config.search.cmd then
@@ -90,6 +101,10 @@ local function build_search(term, path, config)
   return cmd, args
 end
 
+---@param term string
+---@param node Node
+---@param config any
+---@param focus_node boolean
 local function search(term, node, config, focus_node)
   local search_term = term
   if term ~= "*" and not term:find("*") then
@@ -127,6 +142,8 @@ local function search(term, node, config, focus_node)
   end)
 end
 
+---@param node Node
+---@param config any
 function M.live_search(node, config)
   if not node then
     return
@@ -209,6 +226,8 @@ function M.live_search(node, config)
   input:open()
 end
 
+---@param node Node
+---@param config any
 function M.search(node, config)
   if not node then
     return

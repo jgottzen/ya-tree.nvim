@@ -8,20 +8,28 @@ local uv = vim.loop
 
 local M = {}
 
-local function directory_node(cwd, name, _type)
+--- creates a directory node
+---@param cwd string the directory containing the directory
+---@param name string the name of the directory
+---@return table { name: string, type: string, path: string, empty: boolean }
+local function directory_node(cwd, name)
   local path = utils.join_path(cwd, name)
   local handle = uv.fs_scandir(path)
   local empty = handle and uv.fs_scandir_next(handle) == nil or false
 
   return {
     name = name,
-    type = _type,
+    type = "directory",
     path = path,
     empty = empty,
   }
 end
 
-local function file_node(cwd, name, _type)
+--- creates a file node
+---@param cwd string the directory containing the file
+---@param name string the name of the file
+---@return table { name: string, type: string, path: string, extension: string, executable: boolean }
+local function file_node(cwd, name)
   local path = utils.join_path(cwd, name)
   local extension = string.match(name, ".?[^.]+%.(.*)") or ""
   local executable
@@ -33,14 +41,17 @@ local function file_node(cwd, name, _type)
 
   return {
     name = name,
-    type = _type,
+    type = "file",
     path = path,
     extension = extension,
     executable = executable,
   }
 end
 
-local function link_node(cwd, name, _type)
+---@param cwd string the directory containing the link
+---@param name string name of the link
+---@return table { name: string, type: string, link: boolean, path: string, link_to: string, empty: boolean, link_name: string, link_extension: string, extension: string, executable: boolean }
+local function link_node(cwd, name)
   local path = utils.join_path(cwd, name)
   local link_to = uv.fs_realpath(path)
   if not link_to then
@@ -54,20 +65,18 @@ local function link_node(cwd, name, _type)
 
   local nodedata
   if stat and stat.type == "directory" then
-    _type = "directory"
     local handle = uv.fs_scandir(path)
     local empty = handle and uv.fs_scandir_next(handle) == nil
 
     nodedata = {
       name = name,
-      type = _type,
+      type = "directory",
       link = true,
       path = path,
       link_to = link_to,
       empty = empty,
     }
   elseif stat and stat.type == "file" then
-    _type = "file"
     local extension = string.match(name, ".?[^.]+%.(.*)") or ""
     local _, pos = p.filename:find(p:parent().filename, 1, true)
     local link_name = p.filename:sub(pos + 2)
@@ -81,7 +90,7 @@ local function link_node(cwd, name, _type)
 
     nodedata = {
       name = name,
-      type = _type,
+      type = "file",
       link = true,
       path = path,
       link_to = link_to,
@@ -116,11 +125,11 @@ function M.node_for(path)
   local _, pos = p.filename:find(parent_path, 1, true)
   local name = p.filename:sub(pos + 2)
   if _type == "directory" then
-    return directory_node(parent_path, name, _type)
+    return directory_node(parent_path, name)
   elseif _type == "file" then
-    return file_node(parent_path, name, _type)
+    return file_node(parent_path, name)
   elseif _type == "link" then
-    return link_node(parent_path, name, _type)
+    return link_node(parent_path, name)
   end
 end
 
@@ -135,11 +144,11 @@ function M.scan_dir(dir)
       end
       local node
       if _type == "directory" then
-        node = directory_node(dir, name, _type)
+        node = directory_node(dir, name)
       elseif _type == "file" then
-        node = file_node(dir, name, _type)
+        node = file_node(dir, name)
       elseif _type == "link" then
-        node = link_node(dir, name, _type)
+        node = link_node(dir, name)
       end
       if node ~= nil then
         nodes[#nodes + 1] = node

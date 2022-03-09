@@ -13,6 +13,10 @@ local fn = vim.fn
 
 local M = {}
 
+---@alias editmode "'edit'" | "'vsplit'" | "'split'"
+
+---@param node Node
+---@param mode editmode
 local function open_file(node, mode, config)
   local edit_winid = ui.get_edit_winid()
   log.debug(
@@ -39,6 +43,7 @@ local function open_file(node, mode, config)
   vim.cmd(mode .. " " .. fn.fnameescape(node.path))
 end
 
+---@param node Node
 function M.open(node, config)
   if node:is_file() then
     open_file(node, "edit", config)
@@ -47,18 +52,21 @@ function M.open(node, config)
   end
 end
 
+---@param node Node
 function M.vsplit(node, config)
   if node:is_file() then
     open_file(node, "vsplit", config)
   end
 end
 
+---@param node Node
 function M.split(node, config)
   if node:is_file() then
     open_file(node, "split", config)
   end
 end
 
+---@param node Node
 function M.preview(node, config)
   if node:is_file() then
     open_file(node, "edit", config)
@@ -66,7 +74,8 @@ function M.preview(node, config)
   end
 end
 
-function M.add(node, _)
+---@param node Node
+function M.add(node)
   async.run(function()
     scheduler()
 
@@ -110,7 +119,8 @@ function M.add(node, _)
   end)
 end
 
-function M.rename(node, _)
+---@param node Node
+function M.rename(node)
   -- prohibit renaming the root node
   if lib.is_node_root(node) then
     return
@@ -135,6 +145,8 @@ function M.rename(node, _)
   end)
 end
 
+---@param node Node
+---@return Node[], string
 local function get_nodes_to_delete(node)
   local nodes = {}
   local mode = api.nvim_get_mode().mode
@@ -167,6 +179,7 @@ local function get_nodes_to_delete(node)
   return nodes, parents[1]
 end
 
+---@param node Node
 local function delete_node(node)
   local response = ui.input({ prompt = "Delete " .. node.path .. "? y/N:" })
   if response and response:match("^[yY]") then
@@ -185,7 +198,8 @@ local function delete_node(node)
   end
 end
 
-function M.delete(node, _)
+---@param node Node
+function M.delete(node)
   local nodes, selected_node = get_nodes_to_delete(node)
   if not nodes then
     return
@@ -202,6 +216,7 @@ function M.delete(node, _)
   end)
 end
 
+---@param node Node
 function M.trash(node, config)
   if not M.trash.enabled then
     return

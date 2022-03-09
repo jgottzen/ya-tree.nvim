@@ -7,21 +7,63 @@ local log = require("ya-tree.log")
 
 local fn = vim.fn
 
-local Tree = {
-  Node = {},
-}
+local M = {}
 
-local Node = Tree.Node
-Node.__index = Node
-Node.__eq = function(n1, n2)
-  return n1 and n2 and n1.path ~= nil and n1.path == n2.path
-end
-Node.__tostring = function(self)
-  return self.path
+---@class Node
+---@field public parent? Node
+---@field public name string
+---@field public path string
+---@field public type "'directory'" | "'file'"
+---@field public children? Node[]
+---@field public empty? boolean
+---@field public extension? string
+---@field public executable? boolean
+---@field public link boolean
+---@field public link_to? string
+---@field public link_name? string
+---@field public link_extension? string
+---@field public repo? Repo
+---@field public clipboard_status clipboard_action | nil
+---@field private scanned? boolean
+---@field private expanded? boolean
+local Node = {}
+
+--- Creates a new node.
+---@param nodedata table filesystem data.
+---@param parent? Node the parent node.
+---@return Node
+local function create_node(nodedata, parent)
+  log.trace("creating node for %q", nodedata.path)
+
+  ---@type Node
+  local self = setmetatable(nodedata, {
+    __index = Node,
+    __eq = function(n1, n2)
+      return n1 and n2 and n1.path ~= nil and n1.path == n2.path
+    end,
+    __tostring = function(self)
+      return self.path
+    end,
+  })
+  self.parent = parent
+  if self:is_directory() then
+    self.children = {}
+  end
+
+  -- inherit any git repo
+  if parent and parent.repo then
+    self.repo = parent.repo
+  end
+
+  return self
 end
 
-function Tree.root(cwd, old_root)
-  local root = Node:new({
+--- Creates a new node tree root.
+---@param cwd string the path
+---@param old_root? Node the previous root
+---@return Node
+function M.root(cwd, old_root)
+  local root = create_node({
     name = fn.fnamemodify(cwd, ":t"),
     type = "directory",
     path = cwd,
@@ -49,23 +91,7 @@ function Tree.root(cwd, old_root)
   return root
 end
 
-function Node:new(nodedata, parent)
-  log.trace("creating node for %q", nodedata.path)
-
-  local node = setmetatable(nodedata, Node)
-  node.parent = parent
-  if node:is_directory() then
-    node.children = {}
-  end
-
-  -- inherit any git repo
-  if parent and parent.repo then
-    node.repo = parent.repo
-  end
-
-  return node
-end
-
+---@private
 function Node:_merge_new_data(nodedata)
   for k, v in pairs(nodedata) do
     if type(self[k]) ~= "function" then
@@ -76,6 +102,7 @@ function Node:_merge_new_data(nodedata)
   end
 end
 
+---@private
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
   -- keep track of the current children
@@ -93,7 +120,7 @@ function Node:_scandir()
       return child
     else
       log.trace("_scandir: creating new %q", nodedata.path)
-      return Node:new(nodedata, self)
+      return create_node(nodedata, self)
     end
   end, fs.scan_dir(self.path))
 
@@ -101,6 +128,8 @@ function Node:_scandir()
   self.scanned = true
 end
 
+---@param repo Repo
+---@param node Node
 local function set_git_repo_on_node_and_children(repo, node)
   log.debug("setting repo on node %s", node.path)
   node.repo = repo
@@ -139,6 +168,7 @@ function Node:check_for_git_repo()
   end
 end
 
+---@private
 function Node:_debug_table()
   local t = { path = self.path }
   if self:is_directory() then
@@ -150,42 +180,53 @@ function Node:_debug_table()
   return t
 end
 
+---@return boolean
 function Node:is_directory()
   return self.type == "directory"
 end
 
+---@return boolean
 function Node:is_file()
   return self.type == "file"
 end
 
+---@return boolean
 function Node:is_link()
   return self.link == true
 end
 
+---@param path string
+---@return boolean
 function Node:is_ancestor_of(path)
   return self:is_directory() and #self.path <= #path and path:find(self.path .. utils.os_sep, 1, true)
 end
 
+---@return boolean
 function Node:is_empty()
   return self.empty
 end
 
+---@return boolean
 function Node:is_dotfile()
   return self.name:sub(1, 1) == "."
 end
 
+---@return boolean
 function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self.type)
 end
 
+---@return string
 function Node:get_git_status()
   return self.repo and self.repo:status_of(self.path)
 end
 
+---@return boolean
 function Node:is_git_repository_root()
   return self.repo and self.repo.toplevel == self.path
 end
 
+---@param status clipboard_action
 function Node:set_clipboard_status(status)
   self.clipboard_status = status
 end
@@ -193,15 +234,19 @@ end
 do
   local diagnostics = {}
 
-  function Tree.set_diagnostics(new_diagnostics)
+  ---@param new_diagnostics table<string, number>
+  function M.set_diagnostics(new_diagnostics)
     diagnostics = new_diagnostics
   end
 
+  ---@return number | nil
   function Node:get_diagnostics_severity()
     return diagnostics[self.path]
   end
 end
 
+---@param opts { reverse?: boolean, from?: Node }
+---@return fun():Node | nil
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then
     return function() end, nil, nil
@@ -239,6 +284,10 @@ function Node:iterate_children(opts)
   end
 end
 
+--- Collapses the node, it it is a directory.
+---@param opts {children_only?: boolean, recursive?: boolean}
+---  - {opts.children_only} `boolean`
+---  - {opts.recursive} `boolean`
 function Node:collapse(opts)
   opts = opts or {}
   if self:is_directory() then
@@ -254,6 +303,11 @@ function Node:collapse(opts)
   end
 end
 
+--- Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+---@param opts {force_scan?: boolean, to?: string}
+---  - {opts.force_scan} `boolean`.
+---  - {opts.to} `string` expand all the way to the specified path and returns it.
+---@return Node | nil #if {opts.to} is specified, and found.
 function Node:expand(opts)
   opts = opts or {}
   if self:is_directory() then
@@ -283,6 +337,9 @@ function Node:expand(opts)
   end
 end
 
+--- Returns the child node specified by `path` if it has been loaded.
+---@param path string
+---@return Node | nil
 function Node:get_child_if_loaded(path)
   if self.path == path then
     return self
@@ -300,6 +357,10 @@ function Node:get_child_if_loaded(path)
   end
 end
 
+---@private
+---@param node Node
+---@param recurse boolean
+---@param refreshed_git_repos table<string, boolean> | nil
 local function refresh_node(node, recurse, refreshed_git_repos)
   refreshed_git_repos = refreshed_git_repos or {}
 
@@ -323,8 +384,11 @@ function Node:refresh()
   refresh_node(self, true)
 end
 
+--- Creates a separate node search tree from the `search_result`.
+---@param search_results string[]
+---@return Node search_root, Node first_node
 function Node:create_search_tree(search_results)
-  local search_root = Node:new({
+  local search_root = create_node({
     name = self.name,
     type = self.type,
     path = self.path,
@@ -346,7 +410,7 @@ function Node:create_search_tree(search_results)
           local grand_parent = node_map[parents[i + 1]]
           local nodedata = fs.node_for(parent_path)
           if nodedata then
-            parent = Node:new(nodedata, grand_parent)
+            parent = create_node(nodedata, grand_parent)
             parent.expanded = true
             grand_parent.children[#grand_parent.children + 1] = parent
             table.sort(grand_parent.children, fs.file_item_sorter)
@@ -359,7 +423,7 @@ function Node:create_search_tree(search_results)
     local parent = node_map[parents[1]]
     local nodedata = fs.node_for(path)
     if nodedata then
-      local node = Node:new(nodedata, parent)
+      local node = create_node(nodedata, parent)
       node.expanded = true
       parent.children[#parent.children + 1] = node
       table.sort(parent.children, fs.file_item_sorter)
@@ -375,4 +439,4 @@ function Node:create_search_tree(search_results)
   return search_root, first_node
 end
 
-return Tree
+return M

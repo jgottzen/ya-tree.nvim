@@ -2,7 +2,7 @@ local async = require("plenary.async")
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
-local Tree = require("ya-tree.tree")
+local Nodes = require("ya-tree.nodes")
 local job = require("ya-tree.job")
 local git = require("ya-tree.git")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
@@ -16,7 +16,22 @@ local uv = vim.loop
 
 local M = {}
 
-local get_current_tree, for_each_tree
+---@class SearchTree
+---@field result Node the root of the search tree.
+---@field current_node Node the currently selected node.
+
+---@class Tree
+---@field cwd string the workding directory of the tabpage.
+---@field root Node the root of the tree.
+---@field current_node Node the currently selected node.
+---@field search? SearchTree the current search tree.
+---@field tabpage number the current tabpage.
+
+---@alias get_current_tree_optsion {tabpage?: number, create_if_missing?: boolean, root?: string}
+---@type fun(opts: get_current_tree_optsion): Tree
+local get_current_tree
+---@type fun(cb: fun(tree: Tree): nil) : nil
+local for_each_tree
 do
   local trees = {}
 
@@ -30,7 +45,7 @@ do
       log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
       tree = {
         cwd = cwd,
-        root = Tree.root(root),
+        root = Nodes.root(root),
         current_node = nil,
         search = {
           result = nil,
@@ -51,17 +66,21 @@ do
   end
 end
 
+---@param node Node
+---@return boolean
 function M.is_node_root(node)
   local tree = get_current_tree()
   return tree ~= nil and tree.root.path == node.path
 end
 
+---@return boolean
 function M.get_root_node_path()
   local tree = get_current_tree()
   return tree ~= nil and tree.root.path
 end
 
-local function get_current_buffer_filename()
+---@return string | nil the path fo the current buffer
+local function get_current_buffer_path()
   local bufname = fn.bufname()
   local file = fn.fnamemodify(bufname, ":p")
   log.debug("current buffer file is %s, bufname is %s", file, bufname)
@@ -69,9 +88,13 @@ local function get_current_buffer_filename()
   return utils.is_readable_file(file) and file
 end
 
+--- Resolves the `path` in the speicfied `tree`.
+---@param tree Tree
+---@param path string
+---@return string  |nil #the fully resolved path, or `nil`
 local function resolve_path(tree, path)
   if not path or path == "" then
-    path = get_current_buffer_filename()
+    path = get_current_buffer_path()
   end
   if path and not vim.startswith(path, utils.os_root()) then
     -- a relative path is relative to the current cwd, not the tree's root node
@@ -87,6 +110,7 @@ local function resolve_path(tree, path)
   end
 end
 
+---@param opts {tree?: Tree, file?: string, hijack_buffer?: boolean, focus?: boolean}
 function M.open(opts)
   async.run(function()
     opts = opts or {}
@@ -145,6 +169,7 @@ function M.get_current_node()
   return ui.get_current_node()
 end
 
+---@param node Node
 function M.toggle_directory(node)
   local tree = get_current_tree()
   if not tree or not node or not node:is_directory() or tree.root == node then
@@ -165,6 +190,7 @@ function M.toggle_directory(node)
   end)
 end
 
+---@param node Node
 function M.close_node(node)
   local tree = get_current_tree()
   -- bail if the node is the root node
@@ -194,6 +220,7 @@ function M.close_all_nodes()
   end
 end
 
+---@param node Node
 function M.cd_to(node)
   local tree = get_current_tree()
   if not tree or not node then
@@ -210,6 +237,7 @@ function M.cd_to(node)
   end
 end
 
+---@param node Node
 function M.cd_up(node)
   local tree = get_current_tree()
   if not tree or not node then
@@ -227,6 +255,8 @@ function M.cd_up(node)
   end
 end
 
+---@param tree Tree
+---@param new_root string | Tree
 function M.change_root_node(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
 
@@ -251,7 +281,7 @@ function M.change_root_node(tree, new_root)
       end
 
       if not root then
-        root = Tree.root(new_root, tree.root)
+        root = Nodes.root(new_root, tree.root)
       end
       tree.root = root
     else
@@ -265,6 +295,7 @@ function M.change_root_node(tree, new_root)
   end)
 end
 
+---@param node Node
 function M.parent_node(node)
   -- bail if the node is the current root node
   local tree = get_current_tree()
@@ -276,6 +307,7 @@ function M.parent_node(node)
   ui.focus_node(node)
 end
 
+---@param node Node
 function M.prev_sibling(node)
   if not node then
     return
@@ -284,6 +316,7 @@ function M.prev_sibling(node)
   ui.focus_prev_sibling()
 end
 
+---@param node Node
 function M.next_sibling(node)
   if not node then
     return
@@ -292,6 +325,7 @@ function M.next_sibling(node)
   ui.focus_next_sibling()
 end
 
+---@param node Node
 function M.first_sibling(node)
   if not node then
     return
@@ -300,6 +334,7 @@ function M.first_sibling(node)
   ui.focus_first_sibling()
 end
 
+---@param node Node
 function M.last_sibling(node)
   if not node then
     return
@@ -308,6 +343,7 @@ function M.last_sibling(node)
   ui.focus_last_sibling()
 end
 
+---@param node Node
 function M.toggle_ignored(node)
   local tree = get_current_tree()
   if not tree or not node then
@@ -320,6 +356,7 @@ function M.toggle_ignored(node)
   ui.update(tree.root, tree.current_node)
 end
 
+---@param node Node
 function M.toggle_filter(node)
   local tree = get_current_tree()
   if not tree or not node then
@@ -335,6 +372,8 @@ end
 do
   local refreshing = false
 
+  ---@param tree Tree
+  ---@param node_or_path Node | string
   local function refresh_tree(tree, node_or_path)
     log.debug("refreshing current tree")
     if refreshing or vim.v.exiting ~= vim.NIL then
@@ -363,6 +402,7 @@ do
     end)
   end
 
+  ---@param node Node
   function M.refresh(node)
     local tree = get_current_tree()
     if tree then
@@ -370,6 +410,7 @@ do
     end
   end
 
+  ---@param path string
   function M.refresh_and_navigate(path)
     local tree = get_current_tree()
     if tree then
@@ -404,6 +445,7 @@ do
   end
 end
 
+---@param node Node
 function M.rescan_dir_for_git(node)
   local tree = get_current_tree()
   if not tree or not node then
@@ -424,6 +466,9 @@ function M.rescan_dir_for_git(node)
   end)
 end
 
+---@param node Node
+---@param term string
+---@param search_result string[]
 function M.display_search_result(node, term, search_result)
   local tree = get_current_tree()
   if not tree or not node then
@@ -459,6 +504,7 @@ function M.clear_search()
   ui.close_search(tree.root, tree.current_node)
 end
 
+---@param node Node
 function M.toggle_help(node)
   local tree = get_current_tree()
   if not tree then
@@ -469,6 +515,7 @@ function M.toggle_help(node)
   ui.toggle_help(tree.root, tree.current_node)
 end
 
+---@param node Node
 function M.system_open(node)
   if not node then
     return
@@ -490,6 +537,7 @@ function M.system_open(node)
   end)
 end
 
+---@param bufnr number
 function M.on_win_leave(bufnr)
   local tree = get_current_tree()
   if not tree then
@@ -520,6 +568,7 @@ function M.on_color_scheme()
   ui.setup_highlights()
 end
 
+---@param closed_winid number
 function M.on_win_closed(closed_winid)
   -- if the closed window was a floating window, do nothing.
   -- otherwise we will quit from a hijacked netrw buffer when using
@@ -537,6 +586,7 @@ function M.on_win_closed(closed_winid)
   end, 50)
 end
 
+---@param file string
 function M.on_buf_write_post(file)
   if file then
     async.run(function()
@@ -558,6 +608,8 @@ function M.on_buf_write_post(file)
   end
 end
 
+---@param file string
+---@param bufnr number
 function M.on_buf_enter(file, bufnr)
   if not ui.is_open() or file == nil or file == "" or ui.is_buffer_yatree(bufnr) then
     return
@@ -642,7 +694,7 @@ M.on_diagnostics_changed = debounce_trailing(function()
       end
     end
   end
-  Tree.set_diagnostics(diagnostics)
+  Nodes.set_diagnostics(diagnostics)
 
   -- FIXME: how to handle uis not currently shown
   local tree = get_current_tree()
@@ -657,6 +709,7 @@ M.on_diagnostics_changed = debounce_trailing(function()
   end
 end, config.diagnostics.debounce_time)
 
+---@return boolean, string?
 local function get_netrw_dir()
   if not config.replace_netrw then
     return false
