@@ -11,12 +11,12 @@ local M = {}
 
 M.is_open = view.is_open
 
----@param root Node
+---@param root YaTreeNode
 ---@param opts {redraw: boolean, hijack_buffer: boolean, focus: boolean}
 ---  - {opts.redraw} `boolean`
 ---  - {opts.hijack_buffer} `boolean`
 ---  - {opts.focus} `boolean`
----@param node Node
+---@param node YaTreeNode
 function M.open(root, opts, node)
   opts = opts or {}
   local is_open = view.is_open()
@@ -46,7 +46,7 @@ end
 
 M.close = view.close
 
----@param root Node
+---@param root YaTreeNode
 function M.focus(root)
   if not view.is_open() then
     M.open(root, { focus = true })
@@ -55,8 +55,8 @@ function M.focus(root)
   end
 end
 
----@param root Node
----@param node? Node
+---@param root YaTreeNode
+---@param node? YaTreeNode
 ---@param focus? boolean
 function M.update(root, node, focus)
   if not view.is_open() then
@@ -73,7 +73,7 @@ function M.update(root, node, focus)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.focus_node(node)
   canvas.focus_node(view.winid(), node)
 end
@@ -145,8 +145,8 @@ do
   local showing_help = false
   local in_search = false
 
-  ---@param root Node
-  ---@param node Node
+  ---@param root YaTreeNode
+  ---@param node YaTreeNode
   function M.toggle_help(root, node)
     ---@type number
     local bufnr
@@ -174,7 +174,7 @@ do
     return showing_help
   end
 
-  ---@param search_root Node
+  ---@param search_root YaTreeNode
   function M.search(search_root)
     in_search = true
     canvas.render_search(view.bufnr(), search_root)
@@ -184,8 +184,8 @@ do
     return in_search
   end
 
-  ---@param root Node
-  ---@param node Node
+  ---@param root YaTreeNode
+  ---@param node YaTreeNode
   function M.close_search(root, node)
     in_search = false
     M.update(root, node)

@@ -102,7 +102,7 @@ local function build_search(term, path, config)
 end
 
 ---@param term string
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param focus_node boolean
 local function search(term, node, config, focus_node)
@@ -142,7 +142,7 @@ local function search(term, node, config, focus_node)
   end)
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.live_search(node, config)
   if not node then
@@ -226,7 +226,7 @@ function M.live_search(node, config)
   input:open()
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.search(node, config)
   if not node then

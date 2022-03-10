@@ -36,7 +36,7 @@ local function line_part(pos, padding, text, hl_name)
   return group.to, string.format("%s%s", padding, text), group
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@return string, highlight_group[]
 local function render_node(node)
   local content = {}
@@ -62,7 +62,7 @@ local function render_node(node)
   return table.concat(content), highlights
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@return boolean
 local function should_display_node(node)
   if config.filters.enable then
@@ -85,7 +85,7 @@ end
 
 local nodes, node_path_to_index_lookup, node_lines, node_highlights
 
----@param root Node
+---@param root YaTreeNode
 local function create_tree(root)
   nodes, node_path_to_index_lookup, node_lines, node_highlights = {}, {}, {}, {}
 
@@ -97,7 +97,7 @@ local function create_tree(root)
   node_lines[#node_lines + 1] = content
   node_highlights[#node_highlights + 1] = highlights
 
-  ---@param node Node
+  ---@param node YaTreeNode
   ---@param depth number
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
@@ -158,7 +158,7 @@ local function draw(bufnr, opts)
 end
 
 ---@param bufnr number
----@param root Node
+---@param root YaTreeNode
 ---@param opts {redraw: boolean}
 ---  - {opts.redraw} `boolean`
 function M.render(bufnr, root, opts)
@@ -174,21 +174,21 @@ function M.render_help(bufnr)
 end
 
 ---@param bufnr number
----@param search_root Node
+---@param search_root YaTreeNode
 function M.render_search(bufnr, search_root)
   create_tree(search_root)
   draw(bufnr)
 end
 
 ---@param winid number
----@return Node?
+---@return YaTreeNode?
 function M.get_current_node(winid)
   local node = M.get_current_node_and_position(winid)
   return node
 end
 
 ---@param winid number
----@return Node, number, number
+---@return YaTreeNode, number, number
 function M.get_current_node_and_position(winid)
   local row, column = unpack(api.nvim_win_get_cursor(winid))
   return nodes[row], row, column
@@ -228,7 +228,7 @@ local function set_cursor_position(winid, row, col)
 end
 
 ---@param winid number
----@param node Node
+---@param node YaTreeNode
 function M.focus_node(winid, node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
@@ -326,7 +326,7 @@ end
 
 ---@param first number
 ---@param last number
----@return Node[]
+---@return YaTreeNode[]
 function M.get_nodes_for_lines(first, last)
   local result = {}
   for index = first, last do
@@ -340,7 +340,7 @@ end
 
 ---@class Renderer
 ---@field name string
----@field fun fun(node: Node, config: YaTreeConfig, renderer: YaTreeRendererConfig)
+---@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig)
 ---@field config? YaTreeRendererConfig
 
 do

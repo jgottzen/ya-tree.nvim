@@ -23,7 +23,7 @@ local helpers = M.helpers
 ---@field highlight string
 
 local marker_at = {}
----@param node Node
+---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Indentation
 ---@return RenderResult
@@ -55,7 +55,7 @@ function M.indentation(node, _, renderer)
   }
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Icon
 ---@return RenderResult
@@ -116,7 +116,7 @@ function M.icon(node, _, renderer)
   }
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Filter
 function M.filter(node, _, renderer)
@@ -141,7 +141,7 @@ function M.filter(node, _, renderer)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Name
 function M.name(node, config, renderer)
@@ -193,7 +193,7 @@ function M.name(node, config, renderer)
   }
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Repository
 function M.repository(node, _, renderer)
@@ -206,7 +206,7 @@ function M.repository(node, _, renderer)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.SymlinkTarget
 function M.symlink_target(node, _, renderer)
@@ -219,7 +219,7 @@ function M.symlink_target(node, _, renderer)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.GitStatus
 function M.git_status(node, config, renderer)
@@ -243,7 +243,7 @@ function M.git_status(node, config, renderer)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Diagnostics
 function M.diagnostics(node, config, renderer)
@@ -264,7 +264,7 @@ function M.diagnostics(node, config, renderer)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Clipboard
 function M.clipboard(node, _, renderer)

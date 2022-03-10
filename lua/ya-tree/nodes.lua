@@ -9,12 +9,12 @@ local fn = vim.fn
 
 local M = {}
 
----@class Node
----@field public parent? Node
+---@class YaTreeNode
+---@field public parent? YaTreeNode
 ---@field public name string
 ---@field public path string
 ---@field public type "'directory'"|"'file'"
----@field public children? Node[]
+---@field public children? YaTreeNode[]
 ---@field public empty? boolean
 ---@field public extension? string
 ---@field public executable? boolean
@@ -33,12 +33,12 @@ local Node = {}
 
 --- Creates a new node.
 ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
----@param parent? Node the parent node.
----@return Node
+---@param parent? YaTreeNode the parent node.
+---@return YaTreeNode
 local function create_node(fs_node, parent)
   log.trace("creating node for %q", fs_node.path)
 
-  ---@type Node
+  ---@type YaTreeNode
   local self = setmetatable(fs_node, {
     __index = Node,
     __eq = function(n1, n2)
@@ -63,8 +63,8 @@ end
 
 --- Creates a new node tree root.
 ---@param path string the path
----@param old_root? Node the previous root
----@return Node
+---@param old_root? YaTreeNode the previous root
+---@return YaTreeNode
 function M.root(path, old_root)
   local root = create_node({
     name = fn.fnamemodify(path, ":t"),
@@ -110,7 +110,7 @@ end
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
   -- keep track of the current children
-  ---@type table<string, Node>
+  ---@type table<string, YaTreeNode>
   local children = {}
   for _, child in ipairs(self.children) do
     children[child.path] = child
@@ -134,7 +134,7 @@ function Node:_scandir()
 end
 
 ---@param repo Repo
----@param node Node
+---@param node YaTreeNode
 local function set_git_repo_on_node_and_children(repo, node)
   log.debug("setting repo on node %s", node.path)
   node.repo = repo
@@ -250,10 +250,10 @@ do
   end
 end
 
----@param opts { reverse?: boolean, from?: Node }
+---@param opts { reverse?: boolean, from?: YaTreeNode }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} `Node`
----@return fun():Node|nil
+---@return fun():YaTreeNode|nil
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then
     return function() end, nil, nil
@@ -314,7 +314,7 @@ end
 ---@param opts {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan} `boolean`.
 ---  - {opts.to} `string` expand all the way to the specified path and returns it.
----@return Node|nil #if {opts.to} is specified, and found.
+---@return YaTreeNode|nil #if {opts.to} is specified, and found.
 function Node:expand(opts)
   opts = opts or {}
   if self:is_directory() then
@@ -346,7 +346,7 @@ end
 
 --- Returns the child node specified by `path` if it has been loaded.
 ---@param path string
----@return Node|nil
+---@return YaTreeNode|nil
 function Node:get_child_if_loaded(path)
   if self.path == path then
     return self
@@ -365,7 +365,7 @@ function Node:get_child_if_loaded(path)
 end
 
 ---@private
----@param node Node
+---@param node YaTreeNode
 ---@param recurse boolean
 ---@param refreshed_git_repos table<string, boolean>|nil
 local function refresh_node(node, recurse, refreshed_git_repos)
@@ -393,7 +393,7 @@ end
 
 --- Creates a separate node search tree from the `search_result`.
 ---@param search_results string[]
----@return Node search_root, Node first_node
+---@return YaTreeNode search_root, YaTreeNode first_node
 function Node:create_search_tree(search_results)
   local search_root = create_node({
     name = self.name,
@@ -402,7 +402,7 @@ function Node:create_search_tree(search_results)
     children = {},
     expanded = true,
   }, nil)
-  ---@type table<string, Node>
+  ---@type table<string, YaTreeNode>
   local node_map = {}
   node_map[self.path] = search_root
 

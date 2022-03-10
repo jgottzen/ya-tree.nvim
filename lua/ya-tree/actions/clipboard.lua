@@ -8,7 +8,7 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 ---@class ClipboardItem
----@field node Node
+---@field node YaTreeNode
 ---@field action clipboard_action
 
 local M = {
@@ -20,7 +20,7 @@ local M = {
 
 local copy_action, cut_action = "copy", "cut"
 
----@param node Node
+---@param node YaTreeNode
 ---@param action clipboard_action
 local function add_or_remove_from_queue(node, action)
   for i, v in ipairs(M.queue) do
@@ -39,7 +39,7 @@ local function add_or_remove_from_queue(node, action)
   node:set_clipboard_status(action)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.copy_node(node)
   if not node then
     return
@@ -65,7 +65,7 @@ function M.copy_node(node)
   lib.redraw()
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.cut_node(node)
   if not node then
     return
@@ -91,8 +91,8 @@ function M.cut_node(node)
   lib.redraw()
 end
 
----@param dest_node Node
----@param node Node
+---@param dest_node YaTreeNode
+---@param node YaTreeNode
 ---@param action clipboard_action
 ---@return boolean, string?
 local function paste_node(dest_node, node, action)
@@ -155,7 +155,7 @@ local function clear_clipboard()
   M.queue = {}
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.paste_from_clipboard(node)
   if not node then
     return
@@ -211,12 +211,12 @@ local function copy_to_system_clipboard(content)
   utils.print(string.format("Copied %s to system clipboad", content))
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.copy_name_to_clipboard(node)
   copy_to_system_clipboard(node.name)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.copy_root_relative_path_to_clipboard(node)
   local relative = utils.relative_path_for(node.path, lib.get_root_node_path())
   if node:is_directory() then
@@ -225,7 +225,7 @@ function M.copy_root_relative_path_to_clipboard(node)
   copy_to_system_clipboard(relative)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.copy_absolute_path_to_clipboard(node)
   copy_to_system_clipboard(node.path)
 end

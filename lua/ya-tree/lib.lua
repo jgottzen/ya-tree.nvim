@@ -17,7 +17,7 @@ local uv = vim.loop
 
 local M = {}
 
----@param node Node
+---@param node YaTreeNode
 ---@return boolean
 function M.is_node_root(node)
   local tree = Tree.get_current_tree()
@@ -40,7 +40,7 @@ local function get_current_buffer_path()
 end
 
 --- Resolves the `path` in the speicfied `tree`.
----@param tree Tree
+---@param tree YaTree
 ---@param path? string
 ---@return string|nil #the fully resolved path, or `nil`
 local function resolve_path(tree, path)
@@ -61,7 +61,7 @@ local function resolve_path(tree, path)
   end
 end
 
----@param opts {tree?: Tree, file?: string, hijack_buffer?: boolean, focus?: boolean}
+---@param opts {tree?: YaTree, file?: string, hijack_buffer?: boolean, focus?: boolean}
 ---  - {opts.tree?} `Tree`
 ---  - {opts.file?} `string`
 ---  - {opts.hijack_buffer?} `boolean`
@@ -125,7 +125,7 @@ function M.get_current_node()
   return ui.get_current_node()
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.toggle_directory(node)
   local tree = Tree.get_current_tree()
   if not tree or not node or not node:is_directory() or tree.root == node then
@@ -146,7 +146,7 @@ function M.toggle_directory(node)
   end)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.close_node(node)
   local tree = Tree.get_current_tree()
   -- bail if the node is the root node
@@ -176,7 +176,7 @@ function M.close_all_nodes()
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.cd_to(node)
   local tree = Tree.get_current_tree()
   if not tree or not node then
@@ -193,7 +193,7 @@ function M.cd_to(node)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.cd_up(node)
   local tree = Tree.get_current_tree()
   if not tree or not node then
@@ -211,13 +211,14 @@ function M.cd_up(node)
   end
 end
 
----@param tree Tree
----@param new_root string|Tree
+---@param tree YaTree
+---@param new_root string|YaTree
 function M.change_root_node(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
 
   async.run(function()
     if type(new_root) == "string" then
+      ---@type YaTreeNode
       local root
       if tree.root:is_ancestor_of(new_root) then
         local node = tree.root:get_child_if_loaded(new_root)
@@ -241,6 +242,7 @@ function M.change_root_node(tree, new_root)
       end
       tree.root = root
     else
+      ---@type YaTreeNode
       tree.root = new_root
       tree.root:expand({ force_scan = true })
     end
@@ -251,7 +253,7 @@ function M.change_root_node(tree, new_root)
   end)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.parent_node(node)
   -- bail if the node is the current root node
   local tree = Tree.get_current_tree()
@@ -263,7 +265,7 @@ function M.parent_node(node)
   ui.focus_node(node)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.prev_sibling(node)
   if not node then
     return
@@ -272,7 +274,7 @@ function M.prev_sibling(node)
   ui.focus_prev_sibling()
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.next_sibling(node)
   if not node then
     return
@@ -281,7 +283,7 @@ function M.next_sibling(node)
   ui.focus_next_sibling()
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.first_sibling(node)
   if not node then
     return
@@ -290,7 +292,7 @@ function M.first_sibling(node)
   ui.focus_first_sibling()
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.last_sibling(node)
   if not node then
     return
@@ -299,7 +301,7 @@ function M.last_sibling(node)
   ui.focus_last_sibling()
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.toggle_ignored(node)
   local tree = Tree.get_current_tree()
   if not tree or not node then
@@ -312,7 +314,7 @@ function M.toggle_ignored(node)
   ui.update(tree.root, tree.current_node)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.toggle_filter(node)
   local tree = Tree.get_current_tree()
   if not tree or not node then
@@ -328,8 +330,8 @@ end
 do
   local refreshing = false
 
-  ---@param tree Tree
-  ---@param node_or_path Node|string
+  ---@param tree YaTree
+  ---@param node_or_path YaTreeNode|string
   local function refresh_tree(tree, node_or_path)
     log.debug("refreshing current tree")
     if refreshing or vim.v.exiting ~= vim.NIL then
@@ -342,7 +344,7 @@ do
       tree.root:refresh()
 
       if type(node_or_path) == "table" then
-        ---@type Node
+        ---@type YaTreeNode
         tree.current_node = node_or_path
       elseif type(node_or_path) == "string" then
         local node = tree.root:expand({ to = node_or_path })
@@ -359,7 +361,7 @@ do
     end)
   end
 
-  ---@param node Node
+  ---@param node YaTreeNode
   function M.refresh(node)
     local tree = Tree.get_current_tree()
     if tree then
@@ -402,7 +404,7 @@ do
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.rescan_dir_for_git(node)
   local tree = Tree.get_current_tree()
   if not tree or not node then
@@ -423,7 +425,7 @@ function M.rescan_dir_for_git(node)
   end)
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param term string
 ---@param search_result string[]
 function M.display_search_result(node, term, search_result)
@@ -461,7 +463,7 @@ function M.clear_search()
   ui.close_search(tree.root, tree.current_node)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.toggle_help(node)
   local tree = Tree.get_current_tree()
   if not tree then
@@ -472,7 +474,7 @@ function M.toggle_help(node)
   ui.toggle_help(tree.root, tree.current_node)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.system_open(node)
   if not node then
     return
@@ -694,14 +696,14 @@ local function get_netrw_dir()
 end
 
 function M.setup()
-  local netrw, root = get_netrw_dir()
+  local netrw, root_path = get_netrw_dir()
   if not netrw then
-    root = uv.cwd()
+    root_path = uv.cwd()
   end
 
   async.run(function()
     -- create the tree for the current tabpage
-    local tree = Tree.get_current_tree({ root = root })
+    local tree = Tree.get_current_tree({ root_path = root_path })
     if netrw then
       vim.schedule(function()
         M.open({ tree = tree, hijack_buffer = true })

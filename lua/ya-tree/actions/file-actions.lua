@@ -15,7 +15,7 @@ local M = {}
 
 ---@alias editmode "'edit'"|"'vsplit'"|"'split'"
 
----@param node Node
+---@param node YaTreeNode
 ---@param mode editmode
 ---@param config YaTreeConfig
 local function open_file(node, mode, config)
@@ -44,7 +44,7 @@ local function open_file(node, mode, config)
   vim.cmd(mode .. " " .. fn.fnameescape(node.path))
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.open(node, config)
   if node:is_file() then
@@ -54,7 +54,7 @@ function M.open(node, config)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.vsplit(node, config)
   if node:is_file() then
@@ -62,7 +62,7 @@ function M.vsplit(node, config)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.split(node, config)
   if node:is_file() then
@@ -70,7 +70,7 @@ function M.split(node, config)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.preview(node, config)
   if node:is_file() then
@@ -79,7 +79,7 @@ function M.preview(node, config)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.add(node)
   async.run(function()
     scheduler()
@@ -124,7 +124,7 @@ function M.add(node)
   end)
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.rename(node)
   -- prohibit renaming the root node
   if lib.is_node_root(node) then
@@ -150,8 +150,8 @@ function M.rename(node)
   end)
 end
 
----@param node Node
----@return Node[], string
+---@param node YaTreeNode
+---@return YaTreeNode[], string
 local function get_nodes_to_delete(node)
   local nodes = {}
   local mode = api.nvim_get_mode().mode
@@ -184,7 +184,7 @@ local function get_nodes_to_delete(node)
   return nodes, parents[1]
 end
 
----@param node Node
+---@param node YaTreeNode
 local function delete_node(node)
   local response = ui.input({ prompt = "Delete " .. node.path .. "? y/N:" })
   if response and response:match("^[yY]") then
@@ -203,7 +203,7 @@ local function delete_node(node)
   end
 end
 
----@param node Node
+---@param node YaTreeNode
 function M.delete(node)
   local nodes, selected_node = get_nodes_to_delete(node)
   if not nodes then
@@ -221,7 +221,7 @@ function M.delete(node)
   end)
 end
 
----@param node Node
+---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.trash(node, config)
   if not M.trash.enabled then
