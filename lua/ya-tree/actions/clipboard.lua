@@ -7,11 +7,16 @@ local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
+---@class ClipboardItem
+---@field node Node
+---@field action clipboard_action
+
 local M = {
+  ---@type ClipboardItem[]
   queue = {},
 }
 
----@alias clipboard_action "'copy'" | "'cut'"
+---@alias clipboard_action "'copy'"|"'cut'"
 
 local copy_action, cut_action = "copy", "cut"
 
@@ -199,6 +204,7 @@ function M.clear_clipboard()
   utils.print("Clipboard cleared!")
 end
 
+---@param content string
 local function copy_to_system_clipboard(content)
   vim.fn.setreg("+", content)
   vim.fn.setreg('"', content)

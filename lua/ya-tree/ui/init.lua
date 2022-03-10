@@ -11,6 +11,12 @@ local M = {}
 
 M.is_open = view.is_open
 
+---@param root Node
+---@param opts {redraw: boolean, hijack_buffer: boolean, focus: boolean}
+---  - {opts.redraw} `boolean`
+---  - {opts.hijack_buffer} `boolean`
+---  - {opts.focus} `boolean`
+---@param node Node
 function M.open(root, opts, node)
   opts = opts or {}
   local is_open = view.is_open()
@@ -18,6 +24,7 @@ function M.open(root, opts, node)
     return
   end
 
+  ---@type number
   local bufnr
   if not is_open then
     local redraw
@@ -39,6 +46,7 @@ end
 
 M.close = view.close
 
+---@param root Node
 function M.focus(root)
   if not view.is_open() then
     M.open(root, { focus = true })
@@ -47,6 +55,9 @@ function M.focus(root)
   end
 end
 
+---@param root Node
+---@param node? Node
+---@param focus? boolean
 function M.update(root, node, focus)
   if not view.is_open() then
     return
@@ -62,6 +73,7 @@ function M.update(root, node, focus)
   end
 end
 
+---@param node Node
 function M.focus_node(node)
   canvas.focus_node(view.winid(), node)
 end
@@ -104,11 +116,15 @@ end
 M.get_edit_winid = view.get_edit_winid
 M.set_edit_winid = view.set_edit_winid
 
+---@param winid number
+---@return boolean
 function M.is_window_floating(winid)
   local config = api.nvim_win_get_config(winid or 0)
   return config.relative > "" or config.external
 end
 
+---@param bufnr number
+---@return boolean
 function M.is_buffer_yatree(bufnr)
   local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
   return ok and filetype == "YaTree"
@@ -118,6 +134,7 @@ M.is_current_win_ui_win = view.is_current_win_ui_win
 M.get_ui_winid_and_size = view.get_winid_and_size
 M.reset_ui_window = view.reset_ui_window
 
+---@param winid number
 function M.resize(winid)
   if view.is_open() then
     view.resize(winid)
@@ -128,10 +145,14 @@ do
   local showing_help = false
   local in_search = false
 
+  ---@param root Node
+  ---@param node Node
   function M.toggle_help(root, node)
+    ---@type number
     local bufnr
     if not view.is_open() then
-      bufnr = view.open()
+      local _
+      _, bufnr = view.open()
     else
       bufnr = view.bufnr()
     end
@@ -153,6 +174,7 @@ do
     return showing_help
   end
 
+  ---@param search_root Node
   function M.search(search_root)
     in_search = true
     canvas.render_search(view.bufnr(), search_root)
@@ -162,12 +184,16 @@ do
     return in_search
   end
 
+  ---@param root Node
+  ---@param node Node
   function M.close_search(root, node)
     in_search = false
     M.update(root, node)
   end
 end
 
+---@type fun(opts: table): string
+---@see vim.ui.input
 M.input = wrap(function(opts, callback)
   vim.ui.input(opts, callback)
 end, 2)

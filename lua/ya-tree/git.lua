@@ -18,6 +18,7 @@ local M = {
 
 M.repos.__mode = "v"
 
+---@type fun(args: string[], cmd: string): string[], string
 local command = wrap(function(args, cmd, callback)
   cmd = cmd or "git"
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
@@ -36,6 +37,9 @@ local function windowize_path(path)
   return path:gsub("/", "\\")
 end
 
+---@param path string
+---@param cmd string
+---@return string, string
 local function get_repo_info(path, cmd)
   local args = {
     "-C",
@@ -72,7 +76,7 @@ local Repo = M.Repo
 Repo.__index = Repo
 
 ---@param path string
----@return Repo | nil #a `Repo` object or `nil` if the path is not in a git repo.
+---@return Repo|nil #a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
@@ -111,6 +115,8 @@ function Repo:new(path)
   return this
 end
 
+---@param args string[]
+---@return string[]
 function Repo:command(args)
   if not self._git_dir then
     return {}
@@ -124,6 +130,7 @@ end
 
 
 ---@param opts { ignored?: boolean }
+---  - {opts.ignored?} `boolean`
 function Repo:refresh_status(opts)
   opts = opts or {}
   local args = {
@@ -187,14 +194,14 @@ end
 
 
 ---@param path string
----@return string | nil
+---@return string|nil
 function Repo:status_of(path)
   return self._git_status[path]
 end
 
 
 ---@param path string
----@param _type "'directory'" | "'file'"
+---@param _type "'directory'"|"'file'"
 ---@return boolean
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path
@@ -214,6 +221,8 @@ function Repo:is_ignored(path, _type)
   return false
 end
 
+---@param path string
+---@return Repo?
 function M.get_repo_for_path(path)
   for toplevel, repo in pairs(M.repos) do
     if path:find(toplevel, 1, true) then

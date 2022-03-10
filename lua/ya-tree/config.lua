@@ -1,4 +1,146 @@
+---@class YaTreeConfig
+---@field log_level string
+---@field log_to_console boolean
+---@field log_to_file boolean
+---@field auto_close boolean
+---@field auto_reload_on_write boolean
+---@field follow_focused_file boolean
+---@field hijack_cursor boolean
+---@field replace_netrw boolean
+---@field cwd YaTreeConfig.Cwd
+---@field search YaTreeConfig.Search
+---@field filters YaTreeConfig.Filters
+---@field git YaTreeConfig.Git
+---@field diagnostics YaTreeConfig.Diagnostics
+---@field system_open YaTreeConfig.SystemOpen
+---@field trash YaTreeConfig.Trash
+---@field view YaTreeConfig.View
+---@field renderers YaTreeConfig.Renderers
+---@field mappings table<string|string[], YaTreeConfig.Mappings.Action>
+
+---@class YaTreeConfig.Cwd
+---@field follow boolean
+---@field update_from_tree boolean
+
+---@class YaTreeConfig.Search
+---@field max_results number
+---@field cmd string|nil
+---@field args string[]|nil
+
+---@class YaTreeConfig.Filters
+---@field enable boolean
+---@field dotfiles boolean
+---@field custom string[]
+
+---@class YaTreeConfig.Git
+---@field enable boolean
+---@field show_ignored boolean
+---@field yadm YaTreeConfig.Git.Yadm
+
+---@class YaTreeConfig.Git.Yadm
+---@field enable boolean
+
+---@class YaTreeConfig.Diagnostics
+---@field enable boolean
+---@field debounce_time number
+---@field propagate_to_parents boolean
+
+---@class YaTreeConfig.SystemOpen
+---@field cmd string
+---@field args string[]
+
+---@class YaTreeConfig.Trash
+---@field enable boolean
+---@field require_confirm boolean
+
+---@class YaTreeConfig.View
+---@field width number
+---@field side string
+---@field number boolean
+---@field relativenumber boolean
+---@field renderers YaTreeConfig.View.Renderers
+
+---@class YaTreeConfig.View.Renderers
+---@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[]
+---@field file YaTreeConfig.View.Renderers.FileRenderer[]
+
+---@alias YaTreeConfig.View.Renderers.DirectoryRenderer table
+---@alias YaTreeConfig.View.Renderers.FileRenderer table
+
+---@class YaTreeConfig.Renderers
+---@field indentation YaTreeConfig.Renderers.Indentation
+---@field icon YaTreeConfig.Renderers.Icon
+---@field filter YaTreeConfig.Renderers.Filter
+---@field name YaTreeConfig.Renderers.Name
+---@field repository YaTreeConfig.Renderers.Repository
+---@field symlink_target YaTreeConfig.Renderers.SymlinkTarget
+---@field git_status YaTreeConfig.Renderers.GitStatus
+---@field diagnostics YaTreeConfig.Renderers.Diagnostics
+---@field clipboard YaTreeConfig.Renderers.Clipboard
+
+---@class YaTreeRendererConfig
+---@field padding string
+
+---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig
+---@field use_marker boolean
+---@field indent_marker string
+---@field last_indent_marker string
+
+---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig
+---@field directory YaTreeConfig.Renderers.Icon.Directory
+---@field file YaTreeConfig.Renderers.Icon.File
+
+---@class YaTreeConfig.Renderers.Icon.Directory
+---@field default string
+---@field expanded string
+---@field empty string
+---@field empty_expanded string
+---@field symlink string
+---@field symlink_expanded string
+---@field custom table<string, string>
+
+---@class YaTreeConfig.Renderers.Icon.File
+---@field default string
+---@field symlink string
+
+---@class YaTreeConfig.Renderers.Filter : YaTreeRendererConfig
+
+---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig
+---@field trailing_slash boolean
+---@field use_git_status_colors boolean
+---@field root_folder_format string
+
+---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig
+---@field icon string
+
+---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig
+---@field arrow_icon string
+
+---@class YaTreeConfig.Renderers.GitStatus : YaTreeRendererConfig
+---@field icons YaTreeConfig.Renderers.GitStatus.Icons
+
+---@class YaTreeConfig.Renderers.GitStatus.Icons
+---@field unstaged string
+---@field staged string
+---@field unmerged string
+---@field renamed string
+---@field untracked string
+---@field deleted string
+---@field ignored string
+
+---@class YaTreeConfig.Renderers.Diagnostics : YaTreeRendererConfig
+---@field min_severity number
+
+---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig
+
+---@class YaTreeConfig.Mappings.Action
+---@field mode string|string[]
+---@field action? string
+---@field func? function(node: Node, config: YaTreeConfig)
+---@field command? string
+
 local M = {
+  ---@type YaTreeConfig
   default = {
     log_level = "warn",
     log_to_console = false,
@@ -17,7 +159,7 @@ local M = {
     },
     search = {
       max_results = 200,
-      command = nil,
+      cmd = nil,
       args = nil,
     },
     filters = {
@@ -173,11 +315,15 @@ local M = {
   },
 }
 
+---@param opts YaTreeConfig?
+---@return YaTreeConfig
 function M.setup(opts)
   local utils = require("ya-tree.utils")
-  M.config = vim.tbl_deep_extend("keep", opts or {}, M.default)
+  ---@type YaTreeConfig
+  M.config = vim.tbl_deep_extend("force", M.default, opts or {})
 
   -- convert the list of custom filters to a table for quicker lookups
+  ---@type table<string, boolean>
   M.config.filters.custom = M.default.filters.custom
   local custom_filters = (opts and opts.filters and opts.filters.custom) or {}
   for _, v in ipairs(custom_filters) do

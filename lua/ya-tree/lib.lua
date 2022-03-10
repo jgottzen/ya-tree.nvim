@@ -2,6 +2,7 @@ local async = require("plenary.async")
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
+local Tree = require("ya-tree.tree")
 local Nodes = require("ya-tree.nodes")
 local job = require("ya-tree.job")
 local git = require("ya-tree.git")
@@ -16,70 +17,20 @@ local uv = vim.loop
 
 local M = {}
 
----@class SearchTree
----@field result Node the root of the search tree.
----@field current_node Node the currently selected node.
-
----@class Tree
----@field cwd string the workding directory of the tabpage.
----@field root Node the root of the tree.
----@field current_node Node the currently selected node.
----@field search? SearchTree the current search tree.
----@field tabpage number the current tabpage.
-
----@alias get_current_tree_optsion {tabpage?: number, create_if_missing?: boolean, root?: string}
----@type fun(opts: get_current_tree_optsion): Tree
-local get_current_tree
----@type fun(cb: fun(tree: Tree): nil) : nil
-local for_each_tree
-do
-  local trees = {}
-
-  get_current_tree = function(opts)
-    opts = opts or {}
-    local tabpage = opts.tabpage or api.nvim_get_current_tabpage()
-    local tree = trees[tabpage]
-    if not tree and (opts.create_if_missing or opts.root) then
-      local cwd = uv.cwd()
-      local root = opts.root or cwd
-      log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
-      tree = {
-        cwd = cwd,
-        root = Nodes.root(root),
-        current_node = nil,
-        search = {
-          result = nil,
-          current_node = nil,
-        },
-        tabpage = tabpage,
-      }
-      trees[tabpage] = tree
-    end
-
-    return tree
-  end
-
-  for_each_tree = function(cb)
-    for _, tree in pairs(trees) do
-      cb(tree)
-    end
-  end
-end
-
 ---@param node Node
 ---@return boolean
 function M.is_node_root(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   return tree ~= nil and tree.root.path == node.path
 end
 
 ---@return boolean
 function M.get_root_node_path()
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   return tree ~= nil and tree.root.path
 end
 
----@return string | nil the path fo the current buffer
+---@return string|nil the path fo the current buffer
 local function get_current_buffer_path()
   local bufname = fn.bufname()
   local file = fn.fnamemodify(bufname, ":p")
@@ -90,8 +41,8 @@ end
 
 --- Resolves the `path` in the speicfied `tree`.
 ---@param tree Tree
----@param path string
----@return string  |nil #the fully resolved path, or `nil`
+---@param path? string
+---@return string|nil #the fully resolved path, or `nil`
 local function resolve_path(tree, path)
   if not path or path == "" then
     path = get_current_buffer_path()
@@ -111,11 +62,16 @@ local function resolve_path(tree, path)
 end
 
 ---@param opts {tree?: Tree, file?: string, hijack_buffer?: boolean, focus?: boolean}
+---  - {opts.tree?} `Tree`
+---  - {opts.file?} `string`
+---  - {opts.hijack_buffer?} `boolean`
+---  - {opts.focus?} `boolean`
 function M.open(opts)
   async.run(function()
     opts = opts or {}
-    local tree = opts.tree or get_current_tree({ create_if_missing = true })
+    local tree = opts.tree or Tree.get_current_tree({ create_if_missing = true })
 
+    ---@type string|nil
     local file
     if opts.file then
       file = resolve_path(tree, opts.file)
@@ -148,7 +104,7 @@ function M.focus()
   if not ui.is_open() then
     M.open({ focus = true })
   else
-    local tree = get_current_tree()
+    local tree = Tree.get_current_tree()
     if tree then
       ui.focus(tree.root)
     end
@@ -158,7 +114,7 @@ end
 function M.redraw()
   log.debug("redrawing tree")
 
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if tree then
     tree.current_node = M.get_current_node()
     ui.update(tree.root, tree.current_node)
@@ -171,7 +127,7 @@ end
 
 ---@param node Node
 function M.toggle_directory(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node or not node:is_directory() or tree.root == node then
     return
   end
@@ -192,7 +148,7 @@ end
 
 ---@param node Node
 function M.close_node(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   -- bail if the node is the root node
   if not tree or not node or tree.root == node then
     return
@@ -212,7 +168,7 @@ function M.close_node(node)
 end
 
 function M.close_all_nodes()
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if tree then
     tree.root:collapse({ recursive = true, children_only = true })
     tree.current_node = tree.root
@@ -222,7 +178,7 @@ end
 
 ---@param node Node
 function M.cd_to(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node then
     return
   end
@@ -239,7 +195,7 @@ end
 
 ---@param node Node
 function M.cd_up(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node then
     return
   end
@@ -256,7 +212,7 @@ function M.cd_up(node)
 end
 
 ---@param tree Tree
----@param new_root string | Tree
+---@param new_root string|Tree
 function M.change_root_node(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
 
@@ -298,7 +254,7 @@ end
 ---@param node Node
 function M.parent_node(node)
   -- bail if the node is the current root node
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node or tree.root == node then
     return
   end
@@ -345,7 +301,7 @@ end
 
 ---@param node Node
 function M.toggle_ignored(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node then
     return
   end
@@ -358,7 +314,7 @@ end
 
 ---@param node Node
 function M.toggle_filter(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node then
     return
   end
@@ -373,7 +329,7 @@ do
   local refreshing = false
 
   ---@param tree Tree
-  ---@param node_or_path Node | string
+  ---@param node_or_path Node|string
   local function refresh_tree(tree, node_or_path)
     log.debug("refreshing current tree")
     if refreshing or vim.v.exiting ~= vim.NIL then
@@ -386,6 +342,7 @@ do
       tree.root:refresh()
 
       if type(node_or_path) == "table" then
+        ---@type Node
         tree.current_node = node_or_path
       elseif type(node_or_path) == "string" then
         local node = tree.root:expand({ to = node_or_path })
@@ -404,7 +361,7 @@ do
 
   ---@param node Node
   function M.refresh(node)
-    local tree = get_current_tree()
+    local tree = Tree.get_current_tree()
     if tree then
       refresh_tree(tree, node)
     end
@@ -412,7 +369,7 @@ do
 
   ---@param path string
   function M.refresh_and_navigate(path)
-    local tree = get_current_tree()
+    local tree = Tree.get_current_tree()
     if tree then
       tree.current_node = M.get_current_node()
       refresh_tree(tree, path)
@@ -434,7 +391,7 @@ do
         end
       end
 
-      local tree = get_current_tree()
+      local tree = Tree.get_current_tree()
       if tree then
         vim.schedule(function()
           ui.update(tree.root)
@@ -447,7 +404,7 @@ end
 
 ---@param node Node
 function M.rescan_dir_for_git(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node then
     return
   end
@@ -470,7 +427,7 @@ end
 ---@param term string
 ---@param search_result string[]
 function M.display_search_result(node, term, search_result)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree or not node then
     return
   end
@@ -483,7 +440,7 @@ function M.display_search_result(node, term, search_result)
 end
 
 function M.focus_first_search_result()
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree then
     return
   end
@@ -494,7 +451,7 @@ function M.focus_first_search_result()
 end
 
 function M.clear_search()
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree then
     return
   end
@@ -506,7 +463,7 @@ end
 
 ---@param node Node
 function M.toggle_help(node)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree then
     return
   end
@@ -539,7 +496,7 @@ end
 
 ---@param bufnr number
 function M.on_win_leave(bufnr)
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree then
     return
   end
@@ -590,7 +547,7 @@ end
 function M.on_buf_write_post(file)
   if file then
     async.run(function()
-      for_each_tree(function(tree)
+      Tree.for_each_tree(function(tree)
         if tree.root:is_ancestor_of(file) then
           log.debug("changed file %q is in tree %q and tab %s", file, tree.root.path, tree.tabpage)
           local parent_path = Path:new(file):parent():absolute()
@@ -615,7 +572,7 @@ function M.on_buf_enter(file, bufnr)
     return
   end
 
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if not tree then
     return
   end
@@ -648,7 +605,7 @@ function M.on_dir_changed()
   log.debug("on_dir_changed: event.scope=%s, event.changed_window=%s, event.cwd=%s", scope, window_change, new_cwd)
 
   if scope == "tabpage" then
-    local tree = get_current_tree()
+    local tree = Tree.get_current_tree()
     if not tree or new_cwd == tree.cwd then
       return
     end
@@ -657,7 +614,7 @@ function M.on_dir_changed()
     tree.cwd = new_cwd
     M.change_root_node(tree, new_cwd)
   elseif scope == "global" then
-    for_each_tree(function(tree)
+    Tree.for_each_tree(function(tree)
       if new_cwd ~= tree.cwd then
         tree.cwd = new_cwd
         M.change_root_node(tree, new_cwd)
@@ -697,7 +654,7 @@ M.on_diagnostics_changed = debounce_trailing(function()
   Nodes.set_diagnostics(diagnostics)
 
   -- FIXME: how to handle uis not currently shown
-  local tree = get_current_tree()
+  local tree = Tree.get_current_tree()
   if tree then
     if not ui.is_help_open() then
       if ui.is_search_open() then
@@ -744,7 +701,7 @@ function M.setup()
 
   async.run(function()
     -- create the tree for the current tabpage
-    local tree = get_current_tree({ root = root })
+    local tree = Tree.get_current_tree({ root = root })
     if netrw then
       vim.schedule(function()
         M.open({ tree = tree, hijack_buffer = true })

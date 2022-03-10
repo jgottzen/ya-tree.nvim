@@ -17,6 +17,7 @@ local function setup_commands()
   ]])
 end
 
+---@param config YaTreeConfig
 local function setup_netrw(config)
   if config.replace_netrw then
     vim.cmd([[silent! autocmd! FileExplorer *]])
@@ -26,6 +27,7 @@ local function setup_netrw(config)
   end
 end
 
+---@param config YaTreeConfig
 local function setup_autocommands(config)
   vim.cmd("augroup YaTree")
   vim.cmd("autocmd!")
@@ -95,8 +97,8 @@ function M.setup(opts)
   require("ya-tree.git").setup(config)
   require("ya-tree.ui").setup()
 
-  setup_netrw(config)
   setup_commands()
+  setup_netrw(config)
   setup_autocommands(config)
 
   lib().setup()

@@ -6,9 +6,11 @@ function M.create_help()
   local mappings = require("ya-tree.actions").mappings
 
   local lines, highlights
+  ---@type ActionMapping[]
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
   end, mappings)
+  ---@type ActionMapping[]
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
   end, mappings)

@@ -10,9 +10,21 @@ local M = {}
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
+---@type Renderer[]
 local directory_renderers = {}
+---@type Renderer[]
 local file_renderers = {}
 
+---@class highlight_group
+---@field name string
+---@field from number
+---@field to number
+
+---@param pos number
+---@param padding string
+---@param text string
+---@param hl_name string
+---@return number, string, highlight_group
 local function line_part(pos, padding, text, hl_name)
   local from = pos + #padding
   local size = #text
@@ -24,6 +36,8 @@ local function line_part(pos, padding, text, hl_name)
   return group.to, string.format("%s%s", padding, text), group
 end
 
+---@param node Node
+---@return string, highlight_group[]
 local function render_node(node)
   local content = {}
   local highlights = {}
@@ -48,6 +62,8 @@ local function render_node(node)
   return table.concat(content), highlights
 end
 
+---@param node Node
+---@return boolean
 local function should_display_node(node)
   if config.filters.enable then
     if config.filters.dotfiles and node:is_dotfile() then
@@ -69,6 +85,7 @@ end
 
 local nodes, node_path_to_index_lookup, node_lines, node_highlights
 
+---@param root Node
 local function create_tree(root)
   nodes, node_path_to_index_lookup, node_lines, node_highlights = {}, {}, {}, {}
 
@@ -80,6 +97,9 @@ local function create_tree(root)
   node_lines[#node_lines + 1] = content
   node_highlights[#node_highlights + 1] = highlights
 
+  ---@param node Node
+  ---@param depth number
+  ---@param last_child boolean
   local function append_node(node, depth, last_child)
     if should_display_node(node) then
       node.depth = depth
@@ -92,18 +112,23 @@ local function create_tree(root)
       node_highlights[#node_highlights + 1] = highlights
 
       if node:is_directory() and node.expanded then
+        local nr_of_children = #node.children
         for i, child in ipairs(node.children) do
-          append_node(child, depth + 1, i == #node.children)
+          append_node(child, depth + 1, i == nr_of_children)
         end
       end
     end
   end
 
+  local nr_of_children = #root.children
   for i, node in ipairs(root.children) do
-    append_node(node, 1, i == #root.children)
+    append_node(node, 1, i == nr_of_children)
   end
 end
 
+---@param bufnr number
+---@param opts {help: boolean}
+---  - {opts.help} `boolean`
 local function draw(bufnr, opts)
   api.nvim_buf_set_option(bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
@@ -132,6 +157,10 @@ local function draw(bufnr, opts)
   api.nvim_buf_set_option(bufnr, "modifiable", false)
 end
 
+---@param bufnr number
+---@param root Node
+---@param opts {redraw: boolean}
+---  - {opts.redraw} `boolean`
 function M.render(bufnr, root, opts)
   if opts and opts.redraw then
     create_tree(root)
@@ -139,20 +168,27 @@ function M.render(bufnr, root, opts)
   draw(bufnr)
 end
 
+---@param bufnr number
 function M.render_help(bufnr)
   draw(bufnr, { help = true })
 end
 
+---@param bufnr number
+---@param search_root Node
 function M.render_search(bufnr, search_root)
   create_tree(search_root)
   draw(bufnr)
 end
 
+---@param winid number
+---@return Node?
 function M.get_current_node(winid)
   local node = M.get_current_node_and_position(winid)
   return node
 end
 
+---@param winid number
+---@return Node, number, number
 function M.get_current_node_and_position(winid)
   local row, column = unpack(api.nvim_win_get_cursor(winid))
   return nodes[row], row, column
@@ -160,6 +196,7 @@ end
 
 do
   local previous_row
+  ---@param winid number
   function M.move_cursor_to_name(winid)
     local node, row, _ = M.get_current_node_and_position(winid)
     if not node or row == previous_row then
@@ -175,6 +212,9 @@ do
   end
 end
 
+---@param winid number
+---@param row number
+---@param col number
 local function set_cursor_position(winid, row, col)
   local win_height = api.nvim_win_get_height(winid)
   local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
@@ -187,6 +227,8 @@ local function set_cursor_position(winid, row, col)
   end
 end
 
+---@param winid number
+---@param node Node
 function M.focus_node(winid, node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
@@ -206,6 +248,7 @@ function M.focus_node(winid, node)
   end
 end
 
+---@param winid number
 function M.focus_prev_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
@@ -224,6 +267,7 @@ function M.focus_prev_sibling(winid)
   end
 end
 
+---@param winid number
 function M.focus_next_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
@@ -242,6 +286,7 @@ function M.focus_next_sibling(winid)
   end
 end
 
+---@param winid number
 function M.focus_first_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
@@ -260,6 +305,7 @@ function M.focus_first_sibling(winid)
   end
 end
 
+---@param winid number
 function M.focus_last_sibling(winid)
   local node, _, col = M.get_current_node_and_position()
   local parent = node.parent
@@ -278,6 +324,9 @@ function M.focus_last_sibling(winid)
   end
 end
 
+---@param first number
+---@param last number
+---@return Node[]
 function M.get_nodes_for_lines(first, last)
   local result = {}
   for index = first, last do
@@ -289,17 +338,24 @@ function M.get_nodes_for_lines(first, last)
   return result
 end
 
+---@class Renderer
+---@field name string
+---@field fun fun(node: Node, config: YaTreeConfig, renderer: YaTreeRendererConfig)
+---@field config? YaTreeRendererConfig
+
 do
   local renderers = require("ya-tree.ui.renderers")
-
+  ---@param view_renderer YaTreeConfig.View.Renderers.DirectoryRenderer|YaTreeConfig.View.Renderers.FileRenderer
+  ---@return Renderer?
   local function create_renderer(view_renderer)
+    ---@type Renderer
     local renderer = {}
 
     local name = view_renderer[1]
     if type(name) == "string" then
       renderer.name = name
       local fun = renderers[name]
-      if fun then
+      if type(fun) == "function" then
         renderer.fun = fun
         renderer.config = vim.deepcopy(config.renderers[name])
       else
@@ -317,7 +373,7 @@ do
     if renderer.fun then
       for k, v in pairs(view_renderer) do
         if type(k) ~= "number" then
-          log.debug("overriding renderer %q config value for %s to %s", renderer.name, k, v)
+          log.debug("overriding renderer %q config value for %s with %s", renderer.name, k, v)
           renderer.config[k] = v
         end
       end
@@ -328,18 +384,18 @@ do
   function M.setup()
     renderers.setup(config)
 
-    for _, view_renderer in pairs(config.view.renderers.directory) do
-      local renderer = create_renderer(view_renderer)
+    for _, directory_renderer in pairs(config.view.renderers.directory) do
+      local renderer = create_renderer(directory_renderer)
       if renderer then
         directory_renderers[#directory_renderers + 1] = renderer
       end
     end
     log.trace("directory renderers=%s", directory_renderers)
 
-    for _, renderer in pairs(config.view.renderers.file) do
-      local data = create_renderer(renderer)
-      if data then
-        file_renderers[#file_renderers + 1] = data
+    for _, file_renderer in pairs(config.view.renderers.file) do
+      local renderer = create_renderer(file_renderer)
+      if renderer then
+        file_renderers[#file_renderers + 1] = renderer
       end
     end
     log.trace("file renderers=%s", file_renderers)

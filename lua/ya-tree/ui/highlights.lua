@@ -44,6 +44,7 @@ local M = {
   GIT_IGNORED = "YaTreeGitIgnored",
 }
 
+---@type table<string, string>
 local hl_links = {
   [M.DIRECTORY_ICON] = "Directory",
   [M.SYMBOLIC_DIRECTORY_ICON] = M.DIRECTORY_ICON,
@@ -68,6 +69,9 @@ local hl_links = {
   [M.GIT_IGNORED] = "Comment",
 }
 
+---@param name string
+---@param link? string
+---@param highlight table
 local function create_highlight(name, link, highlight)
   if link then
     api.nvim_command("hi def link " .. name .. " " .. link)
@@ -79,6 +83,9 @@ local function create_highlight(name, link, highlight)
   end
 end
 
+---@param name string
+---@param fallback string
+---@return string
 local function get_color_from_hl(name, fallback)
   local ok, id = pcall(vim.fn.hlID, name)
   if not ok or not id then
@@ -106,6 +113,7 @@ local function get_colors()
   }
 end
 
+---@return table<string, table>
 local function get_groups()
   local colors = get_colors()
 

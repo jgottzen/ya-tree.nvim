@@ -3,6 +3,14 @@ local log = require("ya-tree.log")
 local api = vim.api
 local fn = vim.fn
 
+---@class Input
+---@field private winid number
+---@field private bufnr number
+---@field private prompt string
+---@field private title string
+---@field private title_winid? number
+---@field private win_config table<string, any>
+---@field private callbacks table<string, function>
 local Input = {}
 Input.__index = Input
 
@@ -33,6 +41,18 @@ local win_options = {
   }, ","),
 }
 
+---@param opts {prompt?: string, title: string, win: number, anchor: string, row: number, col: number}
+---  - {opts.prompt?} `string`
+---  - {opts.title} `string`
+---  - {opts.win} `number`
+---  - {opts.anchor} `string`
+---  - {opts.row} `number`
+---  - {opts.col} `number`
+---@param callbacks {on_submit: function, on_close: function, on_change: function}
+---  - {callbacks.on_submit?} `function(text: string): void`
+---  - {callbacks.on_close?} `function(): void`
+---  - {callbacks.on_change?} `function(text: string): void`
+---@return Input
 function Input:new(opts, callbacks)
   local this = setmetatable({
     prompt = opts.prompt or "",
@@ -83,6 +103,8 @@ function Input:new(opts, callbacks)
   return this
 end
 
+---@param key string
+---@param value boolean|string
 local function format_option(key, value)
   if value == true then
     return key
@@ -180,14 +202,21 @@ function Input:close()
 end
 
 do
+  ---@type table<string, function>
   local handlers = {}
   local handler_id = 1
 
+  ---@param bufnr number
+  ---@param mode string
+  ---@param key string
+  ---@param handler function|string
+  ---@param opts? table
   local function set_key_map(bufnr, mode, key, handler, opts)
     opts = opts or {}
 
     local rhs
     if type(handler) == "function" then
+      ---@type function
       handlers[tostring(handler_id)] = handler
       rhs = string.format("<cmd>lua require('ya-tree.ui.input'):_execute(%s, %s)<CR>", bufnr, handler_id)
       handler_id = handler_id + 1
@@ -199,6 +228,8 @@ do
     api.nvim_buf_set_keymap(bufnr, mode, key, rhs, opts)
   end
 
+  ---@param bufnr number
+  ---@param id number
   function Input:_execute(bufnr, id)
     local handler = handlers[tostring(id)]
     if handler then
@@ -209,6 +240,10 @@ do
     end
   end
 
+  ---@param mode string
+  ---@param key string
+  ---@param handler function|string
+  ---@param opts table
   function Input:map(mode, key, handler, opts)
     if not self.winid then
       error("Popup not shown yet, call Input:open()")

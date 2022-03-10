@@ -13,10 +13,11 @@ local fn = vim.fn
 
 local M = {}
 
----@alias editmode "'edit'" | "'vsplit'" | "'split'"
+---@alias editmode "'edit'"|"'vsplit'"|"'split'"
 
 ---@param node Node
 ---@param mode editmode
+---@param config YaTreeConfig
 local function open_file(node, mode, config)
   local edit_winid = ui.get_edit_winid()
   log.debug(
@@ -44,6 +45,7 @@ local function open_file(node, mode, config)
 end
 
 ---@param node Node
+---@param config YaTreeConfig
 function M.open(node, config)
   if node:is_file() then
     open_file(node, "edit", config)
@@ -53,6 +55,7 @@ function M.open(node, config)
 end
 
 ---@param node Node
+---@param config YaTreeConfig
 function M.vsplit(node, config)
   if node:is_file() then
     open_file(node, "vsplit", config)
@@ -60,6 +63,7 @@ function M.vsplit(node, config)
 end
 
 ---@param node Node
+---@param config YaTreeConfig
 function M.split(node, config)
   if node:is_file() then
     open_file(node, "split", config)
@@ -67,6 +71,7 @@ function M.split(node, config)
 end
 
 ---@param node Node
+---@param config YaTreeConfig
 function M.preview(node, config)
   if node:is_file() then
     open_file(node, "edit", config)
@@ -217,6 +222,7 @@ function M.delete(node)
 end
 
 ---@param node Node
+---@param config YaTreeConfig
 function M.trash(node, config)
   if not M.trash.enabled then
     return

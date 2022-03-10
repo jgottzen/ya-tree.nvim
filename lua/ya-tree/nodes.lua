@@ -13,7 +13,7 @@ local M = {}
 ---@field public parent? Node
 ---@field public name string
 ---@field public path string
----@field public type "'directory'" | "'file'"
+---@field public type "'directory'"|"'file'"
 ---@field public children? Node[]
 ---@field public empty? boolean
 ---@field public extension? string
@@ -23,20 +23,23 @@ local M = {}
 ---@field public link_name? string
 ---@field public link_extension? string
 ---@field public repo? Repo
----@field public clipboard_status clipboard_action | nil
+---@field public clipboard_status clipboard_action|nil
 ---@field private scanned? boolean
----@field private expanded? boolean
+---@field public expanded? boolean
+---@field public depth number
+---@field public last_child boolean
+---@field public search_term? string
 local Node = {}
 
 --- Creates a new node.
----@param nodedata table filesystem data.
+---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
 ---@param parent? Node the parent node.
 ---@return Node
-local function create_node(nodedata, parent)
-  log.trace("creating node for %q", nodedata.path)
+local function create_node(fs_node, parent)
+  log.trace("creating node for %q", fs_node.path)
 
   ---@type Node
-  local self = setmetatable(nodedata, {
+  local self = setmetatable(fs_node, {
     __index = Node,
     __eq = function(n1, n2)
       return n1 and n2 and n1.path ~= nil and n1.path == n2.path
@@ -59,14 +62,14 @@ local function create_node(nodedata, parent)
 end
 
 --- Creates a new node tree root.
----@param cwd string the path
+---@param path string the path
 ---@param old_root? Node the previous root
 ---@return Node
-function M.root(cwd, old_root)
+function M.root(path, old_root)
   local root = create_node({
-    name = fn.fnamemodify(cwd, ":t"),
+    name = fn.fnamemodify(path, ":t"),
     type = "directory",
-    path = cwd,
+    path = path,
     children = {},
   }, nil)
 
@@ -92,12 +95,13 @@ function M.root(cwd, old_root)
 end
 
 ---@private
-function Node:_merge_new_data(nodedata)
-  for k, v in pairs(nodedata) do
+---@param fs_node FsNode
+function Node:_merge_new_data(fs_node)
+  for k, v in pairs(fs_node) do
     if type(self[k]) ~= "function" then
       self[k] = v
     else
-      log.error("nodedata.%s is a function, this should not happen!", k)
+      log.error("fs_node.%s is a function, this should not happen!", k)
     end
   end
 end
@@ -106,21 +110,22 @@ end
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
   -- keep track of the current children
+  ---@type table<string, Node>
   local children = {}
   for _, child in ipairs(self.children) do
     children[child.path] = child
   end
 
-  self.children = vim.tbl_map(function(nodedata)
-    local child = children[nodedata.path]
+  self.children = vim.tbl_map(function(fs_node)
+    local child = children[fs_node.path]
     if child then
-      log.trace("_scandir: merging %q", nodedata.path)
-      child:_merge_new_data(nodedata)
-      children[nodedata.path] = nil -- the node is still present
+      log.trace("_scandir: merging %q", fs_node.path)
+      child:_merge_new_data(fs_node)
+      children[fs_node.path] = nil -- the node is still present
       return child
     else
-      log.trace("_scandir: creating new %q", nodedata.path)
-      return create_node(nodedata, self)
+      log.trace("_scandir: creating new %q", fs_node.path)
+      return create_node(fs_node, self)
     end
   end, fs.scan_dir(self.path))
 
@@ -239,14 +244,16 @@ do
     diagnostics = new_diagnostics
   end
 
-  ---@return number | nil
+  ---@return number|nil
   function Node:get_diagnostics_severity()
     return diagnostics[self.path]
   end
 end
 
 ---@param opts { reverse?: boolean, from?: Node }
----@return fun():Node | nil
+---  - {opts.reverse?} `boolean`
+---  - {opts.from?} `Node`
+---@return fun():Node|nil
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then
     return function() end, nil, nil
@@ -307,7 +314,7 @@ end
 ---@param opts {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan} `boolean`.
 ---  - {opts.to} `string` expand all the way to the specified path and returns it.
----@return Node | nil #if {opts.to} is specified, and found.
+---@return Node|nil #if {opts.to} is specified, and found.
 function Node:expand(opts)
   opts = opts or {}
   if self:is_directory() then
@@ -339,7 +346,7 @@ end
 
 --- Returns the child node specified by `path` if it has been loaded.
 ---@param path string
----@return Node | nil
+---@return Node|nil
 function Node:get_child_if_loaded(path)
   if self.path == path then
     return self
@@ -360,7 +367,7 @@ end
 ---@private
 ---@param node Node
 ---@param recurse boolean
----@param refreshed_git_repos table<string, boolean> | nil
+---@param refreshed_git_repos table<string, boolean>|nil
 local function refresh_node(node, recurse, refreshed_git_repos)
   refreshed_git_repos = refreshed_git_repos or {}
 
@@ -395,6 +402,7 @@ function Node:create_search_tree(search_results)
     children = {},
     expanded = true,
   }, nil)
+  ---@type table<string, Node>
   local node_map = {}
   node_map[self.path] = search_root
 
@@ -408,12 +416,12 @@ function Node:create_search_tree(search_results)
         local parent = node_map[parent_path]
         if not parent then
           local grand_parent = node_map[parents[i + 1]]
-          local nodedata = fs.node_for(parent_path)
-          if nodedata then
-            parent = create_node(nodedata, grand_parent)
+          local fs_node = fs.node_for(parent_path)
+          if fs_node then
+            parent = create_node(fs_node, grand_parent)
             parent.expanded = true
             grand_parent.children[#grand_parent.children + 1] = parent
-            table.sort(grand_parent.children, fs.file_item_sorter)
+            table.sort(grand_parent.children, fs.fs_node_comparator)
             node_map[parent_path] = parent
           end
         end
@@ -421,12 +429,12 @@ function Node:create_search_tree(search_results)
     end
 
     local parent = node_map[parents[1]]
-    local nodedata = fs.node_for(path)
-    if nodedata then
-      local node = create_node(nodedata, parent)
+    local fs_node = fs.node_for(path)
+    if fs_node then
+      local node = create_node(fs_node, parent)
       node.expanded = true
       parent.children[#parent.children + 1] = node
-      table.sort(parent.children, fs.file_item_sorter)
+      table.sort(parent.children, fs.fs_node_comparator)
       node_map[node.path] = node
     end
   end

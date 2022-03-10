@@ -17,7 +17,16 @@ local M = {
 }
 local helpers = M.helpers
 
+---@class RenderResult
+---@field padding string
+---@field text string
+---@field highlight string
+
 local marker_at = {}
+---@param node Node
+---@param _ YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Indentation
+---@return RenderResult
 function M.indentation(node, _, renderer)
   if node.depth == 0 then
     return
@@ -46,6 +55,10 @@ function M.indentation(node, _, renderer)
   }
 end
 
+---@param node Node
+---@param _ YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Icon
+---@return RenderResult
 function M.icon(node, _, renderer)
   if node.depth == 0 then
     return
@@ -76,8 +89,8 @@ function M.icon(node, _, renderer)
         if node.link_name and node.link_extension then
           icon, highlight = get_icon(node.link_name, node.link_extension)
         else
-          icon = renderer.symlink and renderer.symlink or renderer.default
-          highlight = renderer.symlink and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
+          icon = renderer.file.symlink and renderer.file.symlink or renderer.file.default
+          highlight = renderer.file.symlink and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
         end
       else
         icon, highlight = get_icon(node.name, node.extension)
@@ -103,6 +116,9 @@ function M.icon(node, _, renderer)
   }
 end
 
+---@param node Node
+---@param _ YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Filter
 function M.filter(node, _, renderer)
   if node.search_term then
     return {
@@ -125,6 +141,9 @@ function M.filter(node, _, renderer)
   end
 end
 
+---@param node Node
+---@param config YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Name
 function M.name(node, config, renderer)
   if node.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
@@ -174,6 +193,9 @@ function M.name(node, config, renderer)
   }
 end
 
+---@param node Node
+---@param _ YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Repository
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() then
     return {
@@ -184,6 +206,9 @@ function M.repository(node, _, renderer)
   end
 end
 
+---@param node Node
+---@param _ YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.SymlinkTarget
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
     return {
@@ -194,6 +219,9 @@ function M.symlink_target(node, _, renderer)
   end
 end
 
+---@param node Node
+---@param config YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.GitStatus
 function M.git_status(node, config, renderer)
   if config.git.enable then
     local git_status = node:get_git_status()
@@ -215,6 +243,9 @@ function M.git_status(node, config, renderer)
   end
 end
 
+---@param node Node
+---@param config YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Diagnostics
 function M.diagnostics(node, config, renderer)
   if config.diagnostics.enable then
     local severity = node:get_diagnostics_severity()
@@ -233,6 +264,9 @@ function M.diagnostics(node, config, renderer)
   end
 end
 
+---@param node Node
+---@param _ YaTreeConfig
+---@param renderer YaTreeConfig.Renderers.Clipboard
 function M.clipboard(node, _, renderer)
   if node.clipboard_status then
     return {
@@ -245,6 +279,8 @@ end
 
 do
   local git_staus_to_hl = {}
+  ---@param status string
+  ---@return string
   function M.helpers.get_git_status_hl(status)
     return git_staus_to_hl[status]
   end
@@ -259,6 +295,7 @@ do
     return diagnostic_icon_and_hl[severity]
   end
 
+---@param config YaTreeConfig
   function M.setup(config)
     local icons = config.renderers.git_status.icons
     git_icons_and_hl = {

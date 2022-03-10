@@ -8,15 +8,7 @@ local log = require("ya-tree.log")
 
 local M = {}
 
----@class action_mapping
----@field mode string[]
----@field keys string[]
----@field name string
----@field action? function
----@field func? function
----@field command? string
-
----@type table<string, action_mapping>
+---@type table<string, ActionMapping>
 local commands = {}
 
 ---@type table<string, function>
@@ -78,7 +70,8 @@ function M.execute(id)
 end
 
 local next_handler_id = 1
----@param mapping action_mapping
+---@param mapping ActionMapping
+---@return string
 local function assing_handler(mapping)
   local handler_id = tostring(next_handler_id)
   local action = mapping.action
@@ -125,6 +118,8 @@ function M.apply_mappings(bufnr)
   end
 end
 
+---@param mappings table<string|string[], YaTreeConfig.Mappings.Action>
+---@return ActionMapping[]
 local function validate_and_create_mappings(mappings)
   local valid = {}
   for k, m in pairs(mappings) do
@@ -166,7 +161,14 @@ local function validate_and_create_mappings(mappings)
 
     if nr_of_mappings == 1 then
       for _, v in ipairs(mode) do
-        valid[#valid + 1] = {
+        ---@class ActionMapping
+        ---@field mode string
+        ---@field keys string[]
+        ---@field name string
+        ---@field action? string
+        ---@field func? function(node: Node, config: YaTreeConfig)
+        ---@field command? string
+        local mapping = {
           mode = v,
           keys = keys,
           name = action and action or (func and "'<function>'") or (command and ('"' .. command .. '"')),
@@ -174,6 +176,7 @@ local function validate_and_create_mappings(mappings)
           func = func,
           command = command,
         }
+        valid[#valid + 1] = mapping
       end
     else
       log.error("Key %s is mapped to mutliple effect, ignoring key", keys)

@@ -8,12 +8,21 @@ local uv = vim.loop
 
 local M = {}
 
+---@class FsNode
+---@field name string
+---@field type string
+---@field path string
+
+---@class FsDirectoryNode : FsNode
+---@field type string
+---@field empty boolean
+
 --- creates a directory node
----@param cwd string the directory containing the directory
+---@param dir string the directory containing the directory
 ---@param name string the name of the directory
----@return table { name: string, type: string, path: string, empty: boolean }
-local function directory_node(cwd, name)
-  local path = utils.join_path(cwd, name)
+---@return FsDirectoryNode
+local function directory_node(dir, name)
+  local path = utils.join_path(dir, name)
   local handle = uv.fs_scandir(path)
   local empty = handle and uv.fs_scandir_next(handle) == nil or false
 
@@ -25,12 +34,17 @@ local function directory_node(cwd, name)
   }
 end
 
+---@class FsFileNode : FsNode
+---@field type string
+---@field extension string
+---@field executable boolean
+
 --- creates a file node
----@param cwd string the directory containing the file
+---@param dir string the directory containing the file
 ---@param name string the name of the file
----@return table { name: string, type: string, path: string, extension: string, executable: boolean }
-local function file_node(cwd, name)
-  local path = utils.join_path(cwd, name)
+---@return FsFileNode
+local function file_node(dir, name)
+  local path = utils.join_path(dir, name)
   local extension = string.match(name, ".?[^.]+%.(.*)") or ""
   local executable
   if utils.is_windows then
@@ -48,11 +62,21 @@ local function file_node(cwd, name)
   }
 end
 
----@param cwd string the directory containing the link
+---@class FsDirectoryLinkNode : FsDirectoryNode
+---@field link boolean
+---@field link_to string
+
+---@class FsFileLinkNode : FsFileNode
+---@field link boolean
+---@field link_to string
+---@field link_name string
+---@field link_extension string
+
+---@param dir string the directory containing the link
 ---@param name string name of the link
----@return table { name: string, type: string, link: boolean, path: string, link_to: string, empty: boolean, link_name: string, link_extension: string, extension: string, executable: boolean }
-local function link_node(cwd, name)
-  local path = utils.join_path(cwd, name)
+---@return FsDirectoryLinkNode|FsFileLinkNode|nil
+local function link_node(dir, name)
+  local path = utils.join_path(dir, name)
   local link_to = uv.fs_realpath(path)
   if not link_to then
     -- don't create nodes for links that have no target
@@ -63,18 +87,19 @@ local function link_node(cwd, name)
   local p = Path:new(link_to)
   link_to = Path:new(link_to):make_relative()
 
-  local nodedata
+  ---@type FsDirectoryLinkNode|FsFileLinkNode|nil
+  local node
   if stat and stat.type == "directory" then
     local handle = uv.fs_scandir(path)
     local empty = handle and uv.fs_scandir_next(handle) == nil
 
-    nodedata = {
+    node = {
       name = name,
       type = "directory",
-      link = true,
       path = path,
-      link_to = link_to,
       empty = empty,
+      link = true,
+      link_to = link_to,
     }
   elseif stat and stat.type == "file" then
     local extension = string.match(name, ".?[^.]+%.(.*)") or ""
@@ -88,23 +113,27 @@ local function link_node(cwd, name)
       executable = uv.fs_access(path, "X")
     end
 
-    nodedata = {
+    node = {
       name = name,
       type = "file",
-      link = true,
       path = path,
+      link = true,
+      extension = extension,
+      executable = executable,
       link_to = link_to,
       link_name = link_name,
       link_extension = link_extension,
-      extension = extension,
-      executable = executable,
     }
   end
 
-  return nodedata
+  return node
 end
 
-function M.file_item_sorter(a, b)
+--- `FsNode` comparator
+---@param a FsNode
+---@param b FsNode
+---@return boolean
+function M.fs_node_comparator(a, b)
   if a.type == b.type then
     return a.path < b.path
   else
@@ -112,6 +141,8 @@ function M.file_item_sorter(a, b)
   end
 end
 
+---@param path string
+---@return FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode|nil
 function M.node_for(path)
   local stat = uv.fs_stat(path)
   local _type = stat and stat.type or nil
@@ -133,7 +164,11 @@ function M.node_for(path)
   end
 end
 
+--- Scans a directory.
+---@param dir string the directory to scan.
+---@return FsNode[]
 function M.scan_dir(dir)
+  ---@type FsNode[]
   local nodes = {}
   local fd = uv.fs_scandir(dir)
   if fd then
@@ -142,6 +177,7 @@ function M.scan_dir(dir)
       if name == nil then
         break
       end
+      ---@type FsNode
       local node
       if _type == "directory" then
         node = directory_node(dir, name)
@@ -156,26 +192,33 @@ function M.scan_dir(dir)
     end
   end
 
-  table.sort(nodes, M.file_item_sorter)
+  table.sort(nodes, M.fs_node_comparator)
   return nodes
 end
 
+---@vararg string path elements
+---@return boolean #whether the path exists.
 function M.exists(...)
   return Path:new(...):exists()
 end
 
+--- Recursively copy a directory.
+---@param source string source path.
+---@param destination string destination path.
+---@param replace boolean whether to replace existing files.
+---@return boolean #success or not
 function M.copy_dir(source, destination, replace)
-  source = Path:new(source)
-  destination = Path:new(destination)
+  local source_path = Path:new(source)
+  local destination_path = Path:new(destination)
 
-  local fd = uv.fs_scandir(source:absolute())
+  local fd = uv.fs_scandir(source_path:absolute())
   if not fd then
     return false
   end
 
-  local mode = uv.fs_stat(source:absolute()).mode
+  local mode = uv.fs_stat(source_path:absolute()).mode
   -- fs_mkdir returns nil if dir alrady exists
-  if replace or uv.fs_mkdir(destination:absolute(), mode) then
+  if replace or uv.fs_mkdir(destination_path:absolute(), mode) then
     while true do
       local name, _type = uv.fs_scandir_next(fd)
       if not name then
@@ -183,11 +226,11 @@ function M.copy_dir(source, destination, replace)
       end
 
       if _type == "directory" then
-        if not M.copy_dir({ source, name }, { destination, name }) then
+        if not M.copy_dir({ source_path, name }, { destination_path, name }) then
           return false
         end
       else
-        if not M.copy_file({ source, name }, { destination, name }) then
+        if not M.copy_file({ source_path, name }, { destination_path, name }) then
           return false
         end
       end
@@ -198,19 +241,27 @@ function M.copy_dir(source, destination, replace)
   return true
 end
 
-function M.copy_file(source, destination, override)
-  source = Path:new(source)
-  destination = Path:new(destination)
-  log.debug("copying %s to %s", source.filename, destination.filename)
-  return uv.fs_copyfile(source:absolute(), destination:absolute(), { excl = not override or false })
+--- Copy a file.
+---@param source string source path.
+---@param destination string destination path.
+---@param replace boolean whether to replace an existing file.
+---@return boolean #success or not.
+function M.copy_file(source, destination, replace)
+  log.debug("copying %s to %s", source, destination)
+  return uv.fs_copyfile(Path:new(source):absolute(), Path:new(destination):absolute(), { excl = not replace or false })
 end
 
+--- Rename file or directory.
+---@param old string old name.
+---@param new string new name.
+---@return boolean #success or not.
 function M.rename(old, new)
-  old = Path:new(old)
-  new = Path:new(new)
-  return uv.fs_rename(old:absolute(), new:absolute())
+  return uv.fs_rename(Path:new(old):absolute(), Path:new(new):absolute())
 end
 
+--- Create a directory.
+---@param path string the directory to create
+---@return boolean #success or not.
 function M.create_dir(path)
   local p = Path:new(path)
 
@@ -241,6 +292,9 @@ function M.create_dir(path)
   return true
 end
 
+--- Create a new file.
+---@param file string path.
+---@return boolean #success or not.
 function M.create_file(file)
   local path = Path:new(file)
 
@@ -257,6 +311,9 @@ function M.create_file(file)
   end
 end
 
+--- Recusively remove a directory.
+---@param path string the path to remove.
+---@return boolean #success or not.
 function M.remove_dir(path)
   local fd = uv.fs_scandir(path)
   if not fd then
@@ -283,6 +340,9 @@ function M.remove_dir(path)
   return uv.fs_rmdir(path)
 end
 
+--- Remove a file.
+---@param path string the path to remove.
+---@return boolean #success or not.
 function M.remove_file(path)
   return uv.fs_unlink(path)
 end

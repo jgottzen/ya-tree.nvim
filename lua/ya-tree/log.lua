@@ -1,5 +1,34 @@
+---@class YaTreeLogger
+---@field config YaTreeLoggerConfig
 local logger = {}
 
+---@param msg string
+---@vararg any
+---@overload fun(...)
+---@diagnostic disable-next-line: unused-local, unused-vararg
+function logger.trace(msg, ...) end
+---@param msg string
+---@vararg any
+---@overload fun(...)
+---@diagnostic disable-next-line: unused-local, unused-vararg
+function logger.debug(msg, ...) end
+---@param msg string
+---@vararg any
+---@overload fun(...)
+---@diagnostic disable-next-line: unused-local, unused-vararg
+function logger.info(msg, ...) end
+---@param msg string
+---@vararg any
+---@overload fun(...)
+---@diagnostic disable-next-line: unused-local, unused-vararg
+function logger.warn(msg, ...) end
+---@param msg string
+---@vararg any
+---@overload fun(...)
+---@diagnostic disable-next-line: unused-local, unused-vararg
+function logger.error(msg, ...) end
+
+---@class YaTreeLoggerConfig
 local default = {
   name = "ya-tree",
   to_console = true,
@@ -22,18 +51,22 @@ local fmt = string.format
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 
+---@param config YaTreeLoggerConfig
+---@return YaTreeLogger
 function logger.new(config)
   config = vim.tbl_deep_extend("force", default, config or {})
 
   local log_file = fmt("%s/%s.log", vim.fn.stdpath("data"), config.name)
-  local this = {
+  local self = {
     config = config,
   }
   local levels = {}
-  for k, v in ipairs(this.config.levels) do
+  for k, v in ipairs(self.config.levels) do
     levels[v.level] = k
   end
 
+  ---@param value any
+  ---@return string
   local function str(value)
     local _type = type(value)
     if _type == "table" then
@@ -50,6 +83,8 @@ function logger.new(config)
     end
   end
 
+  ---@vararg any
+  ---@return any[]
   local function pack(...)
     local rest = {}
     local list = { n = select("#", ...), ... }
@@ -59,12 +94,18 @@ function logger.new(config)
     return rest
   end
 
+  ---@param arg any
+  ---@param ... any
+  ---@return string
   local function concat(arg, ...)
     local t = pack(...)
     tbl_insert(t, 1, str(arg))
     return tbl_concat(t, " ")
   end
 
+  ---@param arg string
+  ---@param ... any
+  ---@return string?
   local function format(arg, ...)
     if type(arg) == "string" then
       if arg:find("%%s") or arg:find("%%q") then
@@ -81,8 +122,13 @@ function logger.new(config)
     return concat(arg, ...)
   end
 
+  ---@param level number
+  ---@param name string
+  ---@param highlight string
+  ---@param arg any
+  ---@vararg any
   local function log(level, name, highlight, arg, ...)
-    if level < levels[config.level] or not (this.config.to_console or this.config.to_file) then
+    if level < levels[config.level] or not (self.config.to_console or self.config.to_file) then
       return
     end
 
@@ -91,16 +137,16 @@ function logger.new(config)
     local timestamp = os.date("%H:%M:%S")
     local fmt_message = fmt("[%-6s%s] %s:%s: %s", name, timestamp, info.short_src, info.currentline, message)
 
-    if this.config.to_console then
+    if self.config.to_console then
       vim.schedule(function()
         for _, m in ipairs(vim.split(fmt_message, "\n")) do
           m = fmt("[%s] %s", config.name, m)
-          local chunk = (this.config.highlight and highlight) and { m, highlight } or { m }
+          local chunk = (self.config.highlight and highlight) and { m, highlight } or { m }
           vim.api.nvim_echo({ chunk }, true, {})
         end
       end)
     end
-    if this.config.to_file then
+    if self.config.to_file then
       vim.schedule(function()
         local file = io.open(log_file, "a")
         if file then
@@ -108,19 +154,19 @@ function logger.new(config)
           file:close()
         else
           error("[simple-log] Could not open log file: " .. log_file)
-          this.config.to_file = false
+          self.config.to_file = false
         end
       end)
     end
   end
 
   for k, v in ipairs(config.levels) do
-    this[v.level] = function(arg, ...)
+    self[v.level] = function(arg, ...)
       return log(k, v.level:upper(), v.highlight, arg, ...)
     end
   end
 
-  return this
+  return self
 end
 
 return logger.new()

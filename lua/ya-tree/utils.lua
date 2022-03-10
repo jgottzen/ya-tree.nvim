@@ -12,29 +12,37 @@ M.is_windows = vim.fn.has("win32") ==  1 or vim.fn.has("win32unix") ==  1
 M.is_macos = vim.fn.has("mac") ==  1 or vim.fn.has("macunix") ==  1
 M.is_linux = vim.fn.has("unix") ==  1
 
----Matching executable files in Windows.
----@param ext string
----@return boolean
 local PATHEXT = vim.env.PATHEXT or ""
 local wexe = vim.split(PATHEXT:gsub("%.", ""), ";")
+---@type table<string, boolean>
 local pathexts = {}
 for _, v in pairs(wexe) do
   pathexts[v] = true
 end
 
-function M.is_windows_exe(ext)
-  return pathexts[ext:upper()]
+---@param extension string
+---@return boolean
+function M.is_windows_exe(extension)
+  return pathexts[extension:upper()]
 end
 
-function M.is_readable_file(name)
-  local stat = uv.fs_stat(name)
-  return stat and stat.type == "file" and uv.fs_access(name, "R")
+---@param path string
+---@return boolean
+function M.is_readable_file(path)
+  local stat = uv.fs_stat(path)
+  return stat and stat.type == "file" and uv.fs_access(path, "R")
 end
 
+---@param first string
+---@param second string
+---@return string
 function M.join_path(first, second)
   return string.format("%s%s%s", first, os_sep, second)
 end
 
+---@param path string
+---@param root string
+---@return string
 function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
@@ -45,10 +53,12 @@ function M.feed_esc()
 end
 
 local prefix = "[ya-tree] "
+---@param message string
 function M.print(message)
   print(prefix .. message)
 end
 
+---@param message string
 function M.print_error(message)
   api.nvim_err_writeln(prefix .. message)
 end

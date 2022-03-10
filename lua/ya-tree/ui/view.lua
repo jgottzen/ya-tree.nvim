@@ -41,6 +41,12 @@ local buf_options = {
   { name = "swapfile", value = false },
 }
 
+---@class TabData
+---@field bufnr number
+---@field winid number
+---@field edit_winid number
+
+---@return TabData
 local function get_or_create_tab_data()
   local tabpage = api.nvim_get_current_tabpage()
   local tab = M.tabs[tabpage]
@@ -52,30 +58,38 @@ local function get_or_create_tab_data()
   return tab
 end
 
+---@param tab? TabData
+---@return boolean
 function M.is_open(tab)
   tab = tab or get_or_create_tab_data()
   return tab.winid ~= nil and api.nvim_win_is_valid(tab.winid)
 end
 
+---@param bufnr? number
+---@return boolean
 local function is_buffer_loaded(bufnr)
   return bufnr ~= nil and api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr)
 end
 
+---@return number?
 function M.bufnr()
   local tab = get_or_create_tab_data()
   return is_buffer_loaded(tab.bufnr) and tab.bufnr
 end
 
+---@return number?
 function M.winid()
   local tab = M.tabs[api.nvim_get_current_tabpage()]
   return M.is_open(tab) and tab.winid
 end
 
+---@return boolean
 function M.is_current_win_ui_win()
   local tab = get_or_create_tab_data()
   return api.nvim_get_current_win() == tab.winid
 end
 
+---@return number winid, number height, number width
 function M.get_winid_and_size()
   local winid = M.winid()
   if winid then
@@ -85,6 +99,8 @@ function M.get_winid_and_size()
   end
 end
 
+---@param key string
+---@param value boolean|string
 local function format_option(key, value)
   if value == true then
     return key
@@ -102,6 +118,8 @@ function M.reset_ui_window()
   end
 end
 
+---@param tab TabData
+---@param hijack_buffer boolean
 local function create_buffer(tab, hijack_buffer)
   tab.bufnr = hijack_buffer and api.nvim_get_current_buf() or api.nvim_create_buf(false, false)
   api.nvim_buf_set_name(tab.bufnr, "YaTree")
@@ -113,6 +131,7 @@ local function create_buffer(tab, hijack_buffer)
   require("ya-tree.actions").apply_mappings(tab.bufnr)
 end
 
+---@param tab TabData
 local function set_window_options_and_size(tab)
   api.nvim_win_set_buf(tab.winid, tab.bufnr)
   api.nvim_command("noautocmd wincmd " .. (config.view.side == "right" and "L" or "H"))
@@ -127,6 +146,7 @@ local function set_window_options_and_size(tab)
   M.resize(tab.winid)
 end
 
+---@param tab TabData
 local function create_window(tab)
   local edit_winid = api.nvim_get_current_win()
   api.nvim_command("noautocmd vsplit")
@@ -137,6 +157,8 @@ local function create_window(tab)
   set_window_options_and_size(tab)
 end
 
+---@param hijack_buffer boolean
+---@return boolean redraw, number bufnr
 function M.open(hijack_buffer)
   local redraw = false
   local tab = get_or_create_tab_data()
@@ -160,6 +182,7 @@ function M.open(hijack_buffer)
   return redraw, tab.bufnr
 end
 
+---@param winid number
 function M.resize(winid)
   api.nvim_win_set_width(winid, config.view.width)
   vim.cmd("wincmd =")
@@ -190,10 +213,12 @@ function M.close()
   end
 end
 
+---@return number?
 function M.get_edit_winid()
   return get_or_create_tab_data().edit_winid
 end
 
+---@param winid number
 function M.set_edit_winid(winid)
   local tab = get_or_create_tab_data()
   log.debug("view.set_edit_winid: setting edit_winid to %s, old=%s", api.nvim_get_current_win(), tab.edit_winid)
