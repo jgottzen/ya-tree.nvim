@@ -102,6 +102,7 @@ function M.move_cursor_to_name()
   canvas.move_cursor_to_name(view.winid())
 end
 
+---@return YaTreeNode[]
 function M.get_selected_nodes()
   -- see https://github.com/neovim/neovim/pull/13896
   local from = fn.getpos("v")
@@ -170,16 +171,18 @@ do
     end
   end
 
+  ---@return boolean
   function M.is_help_open()
     return showing_help
   end
 
-  ---@param search_root YaTreeNode
+  ---@param search_root YaTreeSearchNode
   function M.search(search_root)
     in_search = true
     canvas.render_search(view.bufnr(), search_root)
   end
 
+  ---@return boolean
   function M.is_search_open()
     return in_search
   end
@@ -192,8 +195,8 @@ do
   end
 end
 
----@type fun(opts: table): string
----@see vim.ui.input
+---@type fun(opts: table): string?
+---@see |vim.ui.input()|
 M.input = wrap(function(opts, callback)
   vim.ui.input(opts, callback)
 end, 2)

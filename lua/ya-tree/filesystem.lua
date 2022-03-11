@@ -238,6 +238,7 @@ function M.copy_dir(source, destination, replace)
   else
     return false
   end
+
   return true
 end
 

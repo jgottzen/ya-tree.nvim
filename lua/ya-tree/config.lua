@@ -1,12 +1,12 @@
 ---@class YaTreeConfig
----@field log_level string
----@field log_to_console boolean
----@field log_to_file boolean
----@field auto_close boolean
----@field auto_reload_on_write boolean
----@field follow_focused_file boolean
----@field hijack_cursor boolean
----@field replace_netrw boolean
+---@field log_level "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'" the logging level used.
+---@field log_to_console boolean whether to log to the console.
+---@field log_to_file boolean whether to log the the log file.
+---@field auto_close boolean force closing Neovim when YaTree is the last window.
+---@field auto_reload_on_write boolean reloads the tree and the directory of the file changed.
+---@field follow_focused_file boolean update the focused file in the tree on `BufEnter`
+---@field hijack_cursor boolean keep the cursor on the name in tree.
+---@field replace_netrw boolean replace `netrw` windows.
 ---@field cwd YaTreeConfig.Cwd
 ---@field search YaTreeConfig.Search
 ---@field filters YaTreeConfig.Filters
@@ -19,50 +19,50 @@
 ---@field mappings table<string|string[], YaTreeConfig.Mappings.Action>
 
 ---@class YaTreeConfig.Cwd
----@field follow boolean
----@field update_from_tree boolean
+---@field follow boolean update the tree root directory on `DirChanged`.
+---@field update_from_tree boolean update the tab cwd when changing root directory in the tree.
 
 ---@class YaTreeConfig.Search
----@field max_results number
----@field cmd string|nil
----@field args string[]|nil
+---@field max_results number max number of search results.
+---@field cmd string|nil override the search command to use.
+---@field args string[]|fun(cmd: string, term: string, path:string, config: YaTreeConfig):string[]|nil override the search command arguments to use.
 
 ---@class YaTreeConfig.Filters
----@field enable boolean
----@field dotfiles boolean
----@field custom string[]
+---@field enable boolean if filters are enabled, toggleable.
+---@field dotfiles boolean if dotfiles should be hidden.
+---@field custom string[] custom file/directory names to hide.
 
 ---@class YaTreeConfig.Git
----@field enable boolean
----@field show_ignored boolean
+---@field enable boolean if git should be enabled.
+---@field show_ignored boolean whethet to show git ignored files in the tree, toggleable.
 ---@field yadm YaTreeConfig.Git.Yadm
 
 ---@class YaTreeConfig.Git.Yadm
----@field enable boolean
+---@field enable boolean whether yadm is enabled, requires git to be enabled.
 
 ---@class YaTreeConfig.Diagnostics
----@field enable boolean
----@field debounce_time number
----@field propagate_to_parents boolean
+---@field enable boolean show lsp diagnostics in the tree.
+---@field debounce_time number debounce time for how often `DiagnosticChanged` are processed.
+---@field propagate_to_parents boolean if the diagnostic status should be propagated to parents.
 
 ---@class YaTreeConfig.SystemOpen
----@field cmd string
----@field args string[]
+---@field cmd string|nil the system open command.
+---@field args string[]|nil any arguments for the system open command.
 
 ---@class YaTreeConfig.Trash
----@field enable boolean
----@field require_confirm boolean
+---@field enable boolean the command used to trash items (must be installed), default: `trash`.
+---@field require_confirm boolean confirm before `trash`ing file(s), default: `false`.
 
 ---@class YaTreeConfig.View
----@field width number
----@field side string
----@field number boolean
----@field relativenumber boolean
+---@field width number widht of the tree panel, default: `40`.
+---@field side "'left'"|"'right'" where the tree panel is placed, default: `left`.
+---@field number boolean whether to show the number column, default: `false`.
+---@field relativenumber boolean whether to show relative numbers, default: `false`.
 ---@field renderers YaTreeConfig.View.Renderers
 
 ---@class YaTreeConfig.View.Renderers
----@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[]
----@field file YaTreeConfig.View.Renderers.FileRenderer[]
+---@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[] which renderers to use for directories.
+---@field file YaTreeConfig.View.Renderers.FileRenderer[] which renderers to use for files.
 
 ---@alias YaTreeConfig.View.Renderers.DirectoryRenderer table
 ---@alias YaTreeConfig.View.Renderers.FileRenderer table
@@ -79,10 +79,10 @@
 ---@field clipboard YaTreeConfig.Renderers.Clipboard
 
 ---@class YaTreeRendererConfig
----@field padding string
+---@field padding string the padding to use to the left of the renderer.
 
 ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig
----@field use_marker boolean
+---@field use_marker boolean whether to show indent markers, default: `false`.
 ---@field indent_marker string
 ---@field last_indent_marker string
 
@@ -91,53 +91,53 @@
 ---@field file YaTreeConfig.Renderers.Icon.File
 
 ---@class YaTreeConfig.Renderers.Icon.Directory
----@field default string
----@field expanded string
----@field empty string
----@field empty_expanded string
----@field symlink string
----@field symlink_expanded string
----@field custom table<string, string>
+---@field default string the icon for closed directories.
+---@field expanded string the icon for openned directories.
+---@field empty string the icon for closed empty directories.
+---@field empty_expanded string the icon for openned empty directories.
+---@field symlink string the icon for closed symbolic link directories.
+---@field symlink_expanded string the icon for openned symbolic link directories.
+---@field custom table<string, string> map of directory names to custom icons.
 
 ---@class YaTreeConfig.Renderers.Icon.File
----@field default string
----@field symlink string
+---@field default string the default icon for files.
+---@field symlink string the icon for symbolic link files.
 
 ---@class YaTreeConfig.Renderers.Filter : YaTreeRendererConfig
 
 ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig
----@field trailing_slash boolean
----@field use_git_status_colors boolean
----@field root_folder_format string
+---@field trailing_slash boolean whether to show a trailing os directory separator after directory names.
+---@field use_git_status_colors boolean whether to color the name with the git status color.
+---@field root_folder_format string the root folder format as per `fnamemodify`.
 
 ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig
----@field icon string
+---@field icon string the icon for marking the git toplevel directory.
 
 ---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig
----@field arrow_icon string
+---@field arrow_icon string the icon to use before the sybolic link target.
 
 ---@class YaTreeConfig.Renderers.GitStatus : YaTreeRendererConfig
 ---@field icons YaTreeConfig.Renderers.GitStatus.Icons
 
 ---@class YaTreeConfig.Renderers.GitStatus.Icons
----@field unstaged string
----@field staged string
----@field unmerged string
----@field renamed string
----@field untracked string
----@field deleted string
----@field ignored string
+---@field unstaged string the icon for unstaged changes.
+---@field staged string the icon for staged changes.
+---@field unmerged string the icon for unmerged changes.
+---@field renamed string the icon for a renamed file/directory.
+---@field untracked string the icon for untracked changes.
+---@field deleted string the icon for a deleted file/directory.
+---@field ignored string the icon for an ignored file/directory.
 
 ---@class YaTreeConfig.Renderers.Diagnostics : YaTreeRendererConfig
----@field min_severity number
+---@field min_severity number the minimum severity necessary to show, see `|vim.diagnostic.severity|`.
 
 ---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig
 
 ---@class YaTreeConfig.Mappings.Action
----@field mode string|string[]
----@field action? string
----@field func? function(node: Node, config: YaTreeConfig)
----@field command? string
+---@field mode? string|string[] the mode(s) for the keybinding.
+---@field action? string the YaTree action to bind to.
+---@field func? fun(node: Node, config: YaTreeConfig) custom function.
+---@field command? string lua command string.
 
 local M = {
   ---@type YaTreeConfig
@@ -323,7 +323,7 @@ function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.default, opts or {})
 
   -- convert the list of custom filters to a table for quicker lookups
-  ---@type table<string, boolean>
+
   M.config.filters.custom = M.default.filters.custom
   local custom_filters = (opts and opts.filters and opts.filters.custom) or {}
   for _, v in ipairs(custom_filters) do

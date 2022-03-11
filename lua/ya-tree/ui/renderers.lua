@@ -22,7 +22,9 @@ local helpers = M.helpers
 ---@field text string
 ---@field highlight string
 
+---@type table<number, boolean>
 local marker_at = {}
+
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Indentation
@@ -116,9 +118,10 @@ function M.icon(node, _, renderer)
   }
 end
 
----@param node YaTreeNode
+---@param node YaTreeSearchNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Filter
+---@return RenderResult[]
 function M.filter(node, _, renderer)
   if node.search_term then
     return {
@@ -144,6 +147,7 @@ end
 ---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Name
+---@return RenderResult
 function M.name(node, config, renderer)
   if node.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
@@ -157,11 +161,12 @@ function M.name(node, config, renderer)
     }
   end
 
+  ---@type string
   local highlight
   if renderer.use_git_status_colors then
     local git_status = node:get_git_status()
     if git_status then
-      highlight = helpers.get_git_status_hl(git_status)
+      highlight = helpers.get_git_status_highlight(git_status)
     end
   end
 
@@ -196,6 +201,7 @@ end
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Repository
+---@return RenderResult
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() then
     return {
@@ -209,6 +215,7 @@ end
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.SymlinkTarget
+---@return RenderResult
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
     return {
@@ -222,18 +229,20 @@ end
 ---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.GitStatus
+---@return RenderResult[]
 function M.git_status(node, config, renderer)
   if config.git.enable then
     local git_status = node:get_git_status()
     if git_status then
+      ---@type RenderResult[]
       local result = {}
-      local icons_and_hl = helpers.get_git_icons_and_hls(git_status)
+      local icons_and_hl = helpers.get_git_icons_and_highlights(git_status)
       if icons_and_hl then
         for _, v in ipairs(icons_and_hl) do
           result[#result + 1] = {
             padding = renderer.padding,
             text = v.icon,
-            highlight = v.hl,
+            highlight = v.highlight,
           }
         end
       end
@@ -246,12 +255,13 @@ end
 ---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Diagnostics
+---@return RenderResult
 function M.diagnostics(node, config, renderer)
   if config.diagnostics.enable then
     local severity = node:get_diagnostics_severity()
     if severity then
       if renderer.min_severity == nil or severity <= renderer.min_severity then
-        local diagnostic = helpers.get_diagnostic_icon_and_hl(severity)
+        local diagnostic = helpers.get_diagnostic_icon_and_highligt(severity)
         if diagnostic then
           return {
             padding = renderer.padding,
@@ -267,6 +277,7 @@ end
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Clipboard
+---@return RenderResult
 function M.clipboard(node, _, renderer)
   if node.clipboard_status then
     return {
@@ -281,17 +292,31 @@ do
   local git_staus_to_hl = {}
   ---@param status string
   ---@return string
-  function M.helpers.get_git_status_hl(status)
+  function M.helpers.get_git_status_highlight(status)
     return git_staus_to_hl[status]
   end
 
+  ---@class icon_and_highligt
+  ---@field icon string
+  ---@field highlight string
+
+  ---@type table<string, icon_and_highligt[]>
   local git_icons_and_hl
-  function M.helpers.get_git_icons_and_hls(status)
+  ---@param status string
+  ---@return icon_and_highligt[]
+  function M.helpers.get_git_icons_and_highlights(status)
     return git_icons_and_hl[status] or git_icons_and_hl.dirty
   end
 
+  ---@class text_and_highlight
+  ---@field text string
+  ---@field highlight string
+
+  ---@type table<number, text_and_highlight>
   local diagnostic_icon_and_hl = {}
-  function M.helpers.get_diagnostic_icon_and_hl(severity)
+  ---@param severity number
+  ---@return text_and_highlight
+  function M.helpers.get_diagnostic_icon_and_highligt(severity)
     return diagnostic_icon_and_hl[severity]
   end
 
@@ -299,59 +324,59 @@ do
   function M.setup(config)
     local icons = config.renderers.git_status.icons
     git_icons_and_hl = {
-      ["M "] = { { icon = icons.staged, hl = hl.GIT_STAGED } },
-      [" M"] = { { icon = icons.unstaged, hl = hl.GIT_DIRTY } },
-      ["C "] = { { icon = icons.staged, hl = hl.GIT_STAGED } },
-      [" C"] = { { icon = icons.unstaged, hl = hl.GIT_DIRTY } },
-      ["CM"] = { { icon = icons.unstaged, hl = hl.GIT_DIRTY } },
-      [" T"] = { { icon = icons.unstaged, hl = hl.GIT_DIRTY } },
+      ["M "] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+      [" M"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
+      ["C "] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+      [" C"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
+      ["CM"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
+      [" T"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
       ["MM"] = {
-        { icon = icons.staged, hl = hl.GIT_STAGED },
-        { icon = icons.unstaged, hl = hl.GIT_DIRTY },
+        { icon = icons.staged, highlight = hl.GIT_STAGED },
+        { icon = icons.unstaged, highlight = hl.GIT_DIRTY },
       },
-      ["MD"] = { { icon = icons.staged, hl = hl.GIT_STAGED } },
-      ["A "] = { { icon = icons.staged, hl = hl.GIT_STAGED } },
-      ["AD"] = { { icon = icons.staged, hl = hl.GIT_STAGED } },
-      [" A"] = { { icon = icons.untracked, hl = hl.GIT_NEW } },
+      ["MD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+      ["A "] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+      ["AD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+      [" A"] = { { icon = icons.untracked, highlight = hl.GIT_NEW } },
       ["AA"] = {
-        { icon = icons.unmerged, hl = hl.GIT_MERGE },
-        { icon = icons.untracked, hl = hl.GIT_STAGED },
+        { icon = icons.unmerged, highlight = hl.GIT_MERGE },
+        { icon = icons.untracked, highlight = hl.GIT_STAGED },
       },
       ["AU"] = {
-        { icon = icons.unmerged, hl = hl.GIT_MERGE },
-        { icon = icons.untracked, hl = hl.GIT_STAGED },
+        { icon = icons.unmerged, highlight = hl.GIT_MERGE },
+        { icon = icons.untracked, highlight = hl.GIT_STAGED },
       },
       ["AM"] = {
-        { icon = icons.staged, hl = hl.GIT_STAGED },
-        { icon = icons.unstaged, hl = hl.GIT_DIRTY },
+        { icon = icons.staged, highlight = hl.GIT_STAGED },
+        { icon = icons.unstaged, highlight = hl.GIT_DIRTY },
       },
-      ["??"] = { { icon = icons.untracked, hl = hl.GIT_NEW } },
-      ["R "] = { { icon = icons.renamed, hl = hl.GIT_RENAMED } },
-      [" R"] = { { icon = icons.renamed, hl = hl.GIT_RENAMED } },
+      ["??"] = { { icon = icons.untracked, highlight = hl.GIT_NEW } },
+      ["R "] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } },
+      [" R"] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } },
       ["RM"] = {
-        { icon = icons.unstaged, hl = hl.GIT_DIRTY },
-        { icon = icons.renamed, hl = hl.GIT_RENAMED },
+        { icon = icons.unstaged, highlight = hl.GIT_DIRTY },
+        { icon = icons.renamed, highlight = hl.GIT_RENAMED },
       },
-      ["UU"] = { { icon = icons.unmerged, hl = hl.GIT_MERGE } },
-      ["UD"] = { { icon = icons.unmerged, hl = hl.GIT_MERGE } },
-      ["UA"] = { { icon = icons.unmerged, hl = hl.GIT_MERGE } },
-      [" D"] = { { icon = icons.deleted, hl = hl.GIT_DELETED } },
-      ["D "] = { { icon = icons.deleted, hl = hl.GIT_DELETED } },
-      ["RD"] = { { icon = icons.deleted, hl = hl.GIT_DELETED } },
-      ["DD"] = { { icon = icons.deleted, hl = hl.GIT_DELETED } },
+      ["UU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE } },
+      ["UD"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE } },
+      ["UA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE } },
+      [" D"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
+      ["D "] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
+      ["RD"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
+      ["DD"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
       ["DU"] = {
-        { icon = icons.deleted, hl = hl.GIT_DELETED },
-        { icon = icons.unmerged, hl = hl.GIT_MERGE },
+        { icon = icons.deleted, highlight = hl.GIT_DELETED },
+        { icon = icons.unmerged, highlight = hl.GIT_MERGE },
       },
-      ["!!"] = { { icon = icons.ignored, hl = hl.GIT_IGNORED } },
-      dirty = { { icon = icons.unstaged, hl = hl.GIT_DIRTY } },
+      ["!!"] = { { icon = icons.ignored, highlight = hl.GIT_IGNORED } },
+      dirty = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
     }
 
     for k, v in pairs(git_icons_and_hl) do
       if #v == 1 then
-        git_staus_to_hl[k] = v[1].hl
+        git_staus_to_hl[k] = v[1].highlight
       elseif #v == 2 then
-        git_staus_to_hl[k] = v[2].hl
+        git_staus_to_hl[k] = v[2].highlight
       end
     end
 

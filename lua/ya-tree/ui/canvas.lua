@@ -4,15 +4,14 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
-local fn = vim.fn
 
 local M = {}
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
----@type Renderer[]
+---@type YaTreeViewRenderer[]
 local directory_renderers = {}
----@type Renderer[]
+---@type YaTreeViewRenderer[]
 local file_renderers = {}
 
 ---@class highlight_group
@@ -39,11 +38,14 @@ end
 ---@param node YaTreeNode
 ---@return string, highlight_group[]
 local function render_node(node)
+  ---@type string[]
   local content = {}
+  ---@type highlight_group[]
   local highlights = {}
 
   local renderers = node:is_directory() and directory_renderers or file_renderers
   local pos = 0
+  ---@type YaTreeViewRenderer
   for _, renderer in ipairs(renderers) do
     local result = renderer.fun(node, config, renderer.config)
     if result then
@@ -83,7 +85,14 @@ local function should_display_node(node)
   return true
 end
 
-local nodes, node_path_to_index_lookup, node_lines, node_highlights
+---@type YaTreeNode[]
+local nodes
+---@type table<string, number>
+local node_path_to_index_lookup
+---@type string[]
+local node_lines
+---@type highlight_group[][]
+local node_highlights
 
 ---@param root YaTreeNode
 local function create_tree(root)
@@ -133,7 +142,10 @@ local function draw(bufnr, opts)
   api.nvim_buf_set_option(bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
 
-  local lines, highlights
+  ---@type string[]
+  local lines
+  ---@type highlight_group[][]
+  local highlights
   if opts and opts.help then
     lines, highlights = help.create_help()
   else
@@ -174,7 +186,7 @@ function M.render_help(bufnr)
 end
 
 ---@param bufnr number
----@param search_root YaTreeNode
+---@param search_root YaTreeSearchNode
 function M.render_search(bufnr, search_root)
   create_tree(search_root)
   draw(bufnr)
@@ -195,6 +207,7 @@ function M.get_current_node_and_position(winid)
 end
 
 do
+  ---@type number
   local previous_row
   ---@param winid number
   function M.move_cursor_to_name(winid)
@@ -204,8 +217,9 @@ do
     end
 
     previous_row = row
+    ---@type string
     local line = api.nvim_get_current_line()
-    local pos = fn.stridx(line, node.name)
+    local pos = line:find(node.name, 1, true) - 1
     if pos > 0 then
       api.nvim_win_set_cursor(winid or 0, { row, pos })
     end
@@ -240,10 +254,9 @@ function M.focus_node(winid, node)
     if index then
       local column = 0
       if config.hijack_cursor then
-        column = fn.stridx(node_lines[index], node.name)
+        column = node_lines[index]:find(node.name, 1, true) - 1
       end
       set_cursor_position(winid, index, column)
-      return
     end
   end
 end
@@ -329,6 +342,10 @@ end
 ---@return YaTreeNode[]
 function M.get_nodes_for_lines(first, last)
   local result = {}
+  if first > #nodes then
+    return result
+  end
+
   for index = first, last do
     local node = nodes[index]
     if node then
@@ -338,17 +355,17 @@ function M.get_nodes_for_lines(first, last)
   return result
 end
 
----@class Renderer
+---@class YaTreeViewRenderer
 ---@field name string
----@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig)
+---@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]
 ---@field config? YaTreeRendererConfig
 
 do
   local renderers = require("ya-tree.ui.renderers")
   ---@param view_renderer YaTreeConfig.View.Renderers.DirectoryRenderer|YaTreeConfig.View.Renderers.FileRenderer
-  ---@return Renderer?
+  ---@return YaTreeViewRenderer?
   local function create_renderer(view_renderer)
-    ---@type Renderer
+    ---@type YaTreeViewRenderer
     local renderer = {}
 
     local name = view_renderer[1]

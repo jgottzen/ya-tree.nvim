@@ -71,7 +71,7 @@ local hl_links = {
 
 ---@param name string
 ---@param link? string
----@param highlight table
+---@param highlight {fg: string, bg?: string, gui?: string}
 local function create_highlight(name, link, highlight)
   if link then
     api.nvim_command("hi def link " .. name .. " " .. link)
@@ -100,6 +100,7 @@ local function get_color_from_hl(name, fallback)
   return fg
 end
 
+---@return table<"'red'"|"'green'"|"'yellow'"|"'blue'"|"'purple'"|"'cyan'"|"'dark_red'"|"'orange'", string>
 local function get_colors()
   return {
     red = vim.g.terminal_color_1 or get_color_from_hl("Identifier", "Red"),
@@ -113,7 +114,7 @@ local function get_colors()
   }
 end
 
----@return table<string, table>
+---@return table<string, {fg: string, gui?: string}>
 local function get_groups()
   local colors = get_colors()
 

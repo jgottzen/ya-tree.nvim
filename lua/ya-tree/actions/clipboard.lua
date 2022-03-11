@@ -22,7 +22,7 @@ local copy_action, cut_action = "copy", "cut"
 
 ---@param node YaTreeNode
 ---@param action clipboard_action
-local function add_or_remove_from_queue(node, action)
+local function add_or_remove_or_replace_in_queue(node, action)
   for i, v in ipairs(M.queue) do
     if v.node.path == node.path then
       if v.action == action then
@@ -49,6 +49,7 @@ function M.copy_node(node)
     return
   end
 
+  ---@type YaTreeNode[]
   local nodes
   local mode = vim.api.nvim_get_mode().mode
   if mode == "v" or mode == "V" then
@@ -59,7 +60,7 @@ function M.copy_node(node)
   end
 
   for _, v in ipairs(nodes) do
-    add_or_remove_from_queue(v, copy_action)
+    add_or_remove_or_replace_in_queue(v, copy_action)
   end
 
   lib.redraw()
@@ -71,10 +72,11 @@ function M.cut_node(node)
     return
   end
   -- cutting the root node will not work
-  if lib.is_node_root(node)then
+  if lib.is_node_root(node) then
     return
   end
 
+  ---@type YaTreeNode[]
   local nodes = {}
   local mode = vim.api.nvim_get_mode().mode
   if mode == "v" or mode == "V" then
@@ -85,7 +87,7 @@ function M.cut_node(node)
   end
 
   for _, v in ipairs(nodes) do
-    add_or_remove_from_queue(v, cut_action)
+    add_or_remove_or_replace_in_queue(v, cut_action)
   end
 
   lib.redraw()
@@ -123,6 +125,7 @@ local function paste_node(dest_node, node, action)
     end
   end
 
+  ---@type boolean
   local ok
   if action == copy_action then
     if node:is_directory() then
@@ -172,6 +175,7 @@ function M.paste_from_clipboard(node)
     scheduler()
 
     if #M.queue > 0 then
+      ---@type string
       local first_file
       for _, v in ipairs(M.queue) do
         local ok, result = paste_node(node, v.node, v.action)

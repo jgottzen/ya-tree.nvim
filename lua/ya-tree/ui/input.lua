@@ -12,8 +12,10 @@ local fn = vim.fn
 ---@field private win_config table<string, any>
 ---@field private callbacks table<string, function>
 local Input = {}
+---@private
 Input.__index = Input
 
+---@type {name: string, value: string|boolean}[]
 local buf_options = {
   { name = "bufhidden", value = "wipe" },
   { name = "buflisted", value = false },
@@ -41,6 +43,8 @@ local win_options = {
   }, ","),
 }
 
+--- Create a new `Input`.
+---
 ---@param opts {prompt?: string, title: string, win: number, anchor: string, row: number, col: number}
 ---  - {opts.prompt?} `string`
 ---  - {opts.title} `string`
@@ -48,7 +52,8 @@ local win_options = {
 ---  - {opts.anchor} `string`
 ---  - {opts.row} `number`
 ---  - {opts.col} `number`
----@param callbacks {on_submit: function, on_close: function, on_change: function}
+---
+---@param callbacks {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}
 ---  - {callbacks.on_submit?} `function(text: string): void`
 ---  - {callbacks.on_close?} `function(): void`
 ---  - {callbacks.on_change?} `function(text: string): void`
@@ -77,18 +82,14 @@ function Input:new(opts, callbacks)
       this:close()
 
       if callbacks.on_submit then
-        vim.schedule(function()
-          callbacks.on_submit(text)
-        end)
+        callbacks.on_submit(text)
       end
     end,
     on_close = function()
       this:close()
 
       if callbacks.on_close then
-        vim.schedule(function()
-          callbacks.on_close()
-        end)
+        callbacks.on_close()
       end
     end,
   }
@@ -105,6 +106,7 @@ end
 
 ---@param key string
 ---@param value boolean|string
+---@return string
 local function format_option(key, value)
   if value == true then
     return key
@@ -210,7 +212,7 @@ do
   ---@param mode string
   ---@param key string
   ---@param handler function|string
-  ---@param opts? table
+  ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
   local function set_key_map(bufnr, mode, key, handler, opts)
     opts = opts or {}
 
@@ -243,7 +245,7 @@ do
   ---@param mode string
   ---@param key string
   ---@param handler function|string
-  ---@param opts table
+  ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
   function Input:map(mode, key, handler, opts)
     if not self.winid then
       error("Popup not shown yet, call Input:open()")

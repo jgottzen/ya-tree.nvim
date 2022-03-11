@@ -2,10 +2,14 @@ local hl = require("ya-tree.ui.highlights")
 
 local M = {}
 
+---@return string[] lines, highlight_group[][] highlights
 function M.create_help()
   local mappings = require("ya-tree.actions").mappings
 
-  local lines, highlights
+  ---@type string[]
+  local lines
+  ---@type highlight_group[][]
+  local highlights
   ---@type ActionMapping[]
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
@@ -24,9 +28,9 @@ function M.create_help()
   lines = { " HELP", "", " Normal Mode:" }
   highlights = { { { name = hl.ROOT_NAME, from = 0, to = -1 } }, {}, { { name = hl.ROOT_NAME, from = 0, to = -1 } } }
 
-  for _, m in ipairs(insert) do
-    for _, key in ipairs(m.keys) do
-      lines[#lines + 1] = string.format("%7s : %s", key, m.name)
+  for _, mapping in ipairs(insert) do
+    for _, key in ipairs(mapping.keys) do
+      lines[#lines + 1] = string.format("%7s : %s", key, mapping.name)
       local key_len = math.max(7, #key)
       highlights[#highlights + 1] = {
         {
@@ -48,9 +52,9 @@ function M.create_help()
   lines[#lines + 1] = " Visual Mode:"
   highlights[#highlights + 1] = { { name = hl.ROOT_NAME, from = 0, to = -1 } }
 
-  for _, m in ipairs(visual) do
-    for _, key in ipairs(m.keys) do
-      lines[#lines + 1] = string.format("%7s : %s", key, m.name)
+  for _, mapping in ipairs(visual) do
+    for _, key in ipairs(mapping.keys) do
+      lines[#lines + 1] = string.format("%7s : %s", key, mapping.name)
       local key_len = math.max(7, #key)
       highlights[#highlights + 1] = {
         {

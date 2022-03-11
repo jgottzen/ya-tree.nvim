@@ -28,8 +28,10 @@ local M = {}
 ---@field public expanded? boolean
 ---@field public depth number
 ---@field public last_child boolean
----@field public search_term? string
 local Node = {}
+
+---@class YaTreeSearchNode : YaTreeNode
+---@field public search_term string
 
 --- Creates a new node.
 ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
@@ -203,7 +205,7 @@ end
 ---@param path string
 ---@return boolean
 function Node:is_ancestor_of(path)
-  return self:is_directory() and #self.path <= #path and path:find(self.path .. utils.os_sep, 1, true)
+  return self:is_directory() and #self.path <= #path and path:find(self.path .. utils.os_sep, 1, true) ~= nil
 end
 
 ---@return boolean
@@ -221,7 +223,7 @@ function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self.type)
 end
 
----@return string
+---@return string|nil
 function Node:get_git_status()
   return self.repo and self.repo:status_of(self.path)
 end
@@ -231,7 +233,7 @@ function Node:is_git_repository_root()
   return self.repo and self.repo.toplevel == self.path
 end
 
----@param status clipboard_action
+---@param status? clipboard_action
 function Node:set_clipboard_status(status)
   self.clipboard_status = status
 end
@@ -393,7 +395,7 @@ end
 
 --- Creates a separate node search tree from the `search_result`.
 ---@param search_results string[]
----@return YaTreeNode search_root, YaTreeNode first_node
+---@return YaTreeSearchNode search_root, YaTreeSearchNode first_node
 function Node:create_search_tree(search_results)
   local search_root = create_node({
     name = self.name,

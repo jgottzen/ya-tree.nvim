@@ -8,10 +8,10 @@ local log = require("ya-tree.log")
 
 local M = {}
 
----@type table<string, ActionMapping>
+---@type table<string, ActionCommand>
 local commands = {}
 
----@type table<string, function>
+---@type table<string, fun(node: YaTreeNode, config: YaTreeConfig)>
 local actions = {
   ["open"] = file_actions.open,
   ["vsplit"] = file_actions.vsplit,
@@ -69,6 +69,11 @@ function M.execute(id)
   end
 end
 
+---@class ActionCommand
+---@field name string
+---@field action? fun(node: YaTreeNode, config: YaTreeConfig)
+---@field func? fun(node: YaTreeNode, config: YaTreeConfig)
+
 local next_handler_id = 1
 ---@param mapping ActionMapping
 ---@return string
@@ -121,9 +126,12 @@ end
 ---@param mappings table<string|string[], YaTreeConfig.Mappings.Action>
 ---@return ActionMapping[]
 local function validate_and_create_mappings(mappings)
+  ---@type ActionMapping[]
   local valid = {}
   for k, m in pairs(mappings) do
+    ---@type string[]
     local mode = type(m.mode) == "table" and m.mode or (m.mode and { m.mode } or { "n" })
+    ---@type string[]
     local keys = type(k) == "table" and k or { k }
     local action = m.action
     local func = m.func
@@ -179,7 +187,7 @@ local function validate_and_create_mappings(mappings)
         valid[#valid + 1] = mapping
       end
     else
-      log.error("Key %s is mapped to mutliple effect, ignoring key", keys)
+      log.error("Key(s) %s is mapped to mutliple effect, ignoring key", keys)
     end
   end
 

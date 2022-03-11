@@ -4,6 +4,7 @@ local log = require("ya-tree.log")
 local api = vim.api
 
 local M = {
+  ---@type table<number, TabData>
   tabs = {},
 }
 
@@ -32,6 +33,7 @@ local win_options = {
   }, ","),
 }
 
+---@type {name: string, value: string|boolean}[]
 local buf_options = {
   { name = "bufhidden", value = "hide" },
   { name = "buflisted", value = false },
@@ -48,6 +50,7 @@ local buf_options = {
 
 ---@return TabData
 local function get_or_create_tab_data()
+  ---@type number
   local tabpage = api.nvim_get_current_tabpage()
   local tab = M.tabs[tabpage]
   if not tab then
@@ -93,7 +96,9 @@ end
 function M.get_winid_and_size()
   local winid = M.winid()
   if winid then
+    ---@type number
     local height = api.nvim_win_get_height(winid)
+    ---@type number
     local width = api.nvim_win_get_width(winid)
     return winid, height, width
   end
@@ -121,6 +126,7 @@ end
 ---@param tab TabData
 ---@param hijack_buffer boolean
 local function create_buffer(tab, hijack_buffer)
+  ---@type number
   tab.bufnr = hijack_buffer and api.nvim_get_current_buf() or api.nvim_create_buf(false, false)
   api.nvim_buf_set_name(tab.bufnr, "YaTree")
 
@@ -148,9 +154,11 @@ end
 
 ---@param tab TabData
 local function create_window(tab)
+  ---@type number
   local edit_winid = api.nvim_get_current_win()
   api.nvim_command("noautocmd vsplit")
 
+  ---@type number
   local winid = api.nvim_get_current_win()
   tab.winid = winid
   tab.edit_winid = edit_winid
@@ -169,6 +177,7 @@ function M.open(hijack_buffer)
 
   if hijack_buffer then
     log.debug("view.open: setting edit_winid to nil")
+    ---@type number
     tab.winid = api.nvim_get_current_win()
     tab.edit_winid = nil
     set_window_options_and_size(tab)
@@ -191,6 +200,7 @@ end
 function M.focus()
   local tab = get_or_create_tab_data()
   if tab.winid then
+    ---@type number
     local current_winid = api.nvim_get_current_win()
     if current_winid ~= tab.winid then
       log.debug("view.focus: winid=%s setting edit_winid to %s, old=%s", tab.winid, current_winid, tab.edit_winid)

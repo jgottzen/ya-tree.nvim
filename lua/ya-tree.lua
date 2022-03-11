@@ -3,6 +3,7 @@ local log = require("ya-tree.log")
 local M = {}
 
 -- use indirection so the config can be required as is for live changes to it
+---@module"ya-tree.lib"
 local function lib()
   return require("ya-tree.lib")
 end
@@ -76,14 +77,17 @@ function M.focus()
   lib().focus()
 end
 
+---@param file string
 function M.find_file(file)
   lib().open({ file = file, focus = true })
 end
 
+---@param level "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'"
 function M.set_log_level(level)
   log.config.level = level
 end
 
+---@param opts YaTreeConfig
 function M.setup(opts)
   local config = require("ya-tree.config").setup(opts)
 
@@ -94,7 +98,7 @@ function M.setup(opts)
   log.trace("using config=%s", config)
 
   require("ya-tree.actions").setup()
-  require("ya-tree.git").setup(config)
+  require("ya-tree.git").setup()
   require("ya-tree.ui").setup()
 
   setup_commands()

@@ -24,13 +24,13 @@ function M.is_node_root(node)
   return tree ~= nil and tree.root.path == node.path
 end
 
----@return boolean
+---@return string|nil
 function M.get_root_node_path()
   local tree = Tree.get_current_tree()
   return tree ~= nil and tree.root.path
 end
 
----@return string|nil the path fo the current buffer
+---@return string|nil #the path fo the current buffer
 local function get_current_buffer_path()
   local bufname = fn.bufname()
   local file = fn.fnamemodify(bufname, ":p")
@@ -121,6 +121,7 @@ function M.redraw()
   end
 end
 
+---@return YaTreeNode
 function M.get_current_node()
   return ui.get_current_node()
 end
@@ -218,33 +219,38 @@ function M.change_root_node(tree, new_root)
 
   async.run(function()
     if type(new_root) == "string" then
-      ---@type YaTreeNode
-      local root
-      if tree.root:is_ancestor_of(new_root) then
-        local node = tree.root:get_child_if_loaded(new_root)
-        if node then
-          root = node
-          root:expand({ force_scan = true })
+      if tree.root.path ~= new_root then
+        ---@type YaTreeNode
+        local root
+        if tree.root:is_ancestor_of(new_root) then
+          local node = tree.root:get_child_if_loaded(new_root)
+          if node then
+            root = node
+            root:expand({ force_scan = true })
+          end
+        elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
+          local parent = tree.root.parent
+          while parent and parent.path ~= new_root do
+            parent = parent.parent
+          end
+          if parent and parent.path == new_root then
+            root = parent
+            root:expand({ force_scan = true })
+          end
         end
-      elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
-        local parent = tree.root.parent
-        while parent and parent.path ~= new_root do
-          parent = parent.parent
-        end
-        if parent and parent.path == new_root then
-          root = parent
-          root:expand({ force_scan = true })
-        end
-      end
 
-      if not root then
-        root = Nodes.root(new_root, tree.root)
+        if not root then
+          root = Nodes.root(new_root, tree.root)
+        end
+        tree.root = root
       end
-      tree.root = root
     else
-      ---@type YaTreeNode
-      tree.root = new_root
-      tree.root:expand({ force_scan = true })
+      ---@diagnostic disable-next-line: undefined-field
+      if tree.root.path ~= new_root.path then
+        ---@type YaTreeNode
+        tree.root = new_root
+        tree.root:expand({ force_scan = true })
+      end
     end
 
     vim.schedule(function()

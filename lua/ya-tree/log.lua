@@ -29,9 +29,10 @@ function logger.warn(msg, ...) end
 function logger.error(msg, ...) end
 
 ---@class YaTreeLoggerConfig
+---@field level "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'"
 local default = {
   name = "ya-tree",
-  to_console = true,
+  to_console = false,
   highlight = true,
   to_file = false,
   level = "warn",
@@ -51,15 +52,17 @@ local fmt = string.format
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 
----@param config YaTreeLoggerConfig
+---@param config? YaTreeLoggerConfig
 ---@return YaTreeLogger
 function logger.new(config)
   config = vim.tbl_deep_extend("force", default, config or {})
 
   local log_file = fmt("%s/%s.log", vim.fn.stdpath("data"), config.name)
+  ---@type YaTreeLogger
   local self = {
     config = config,
   }
+  ---@type table<string, number>
   local levels = {}
   for k, v in ipairs(self.config.levels) do
     levels[v.level] = k
@@ -95,7 +98,7 @@ function logger.new(config)
   end
 
   ---@param arg any
-  ---@param ... any
+  ---@vararg any
   ---@return string
   local function concat(arg, ...)
     local t = pack(...)
@@ -104,7 +107,7 @@ function logger.new(config)
   end
 
   ---@param arg string
-  ---@param ... any
+  ---@vararg any
   ---@return string?
   local function format(arg, ...)
     if type(arg) == "string" then

@@ -12,13 +12,13 @@ local uv = vim.loop
 ---@field tabpage number the current tabpage.
 
 ---@class SearchTree
----@field result YaTreeNode the root of the search tree.
----@field current_node YaTreeNode the currently selected node.
+---@field result YaTreeSearchNode the root of the search tree.
+---@field current_node YaTreeSearchNode the currently selected node.
 
 local M = {
   ---@private
   ---@type table<number, YaTree>
-  _trees = {}
+  _trees = {},
 }
 
 local trees = M._trees
@@ -27,7 +27,7 @@ local trees = M._trees
 ---  - {opts.tabpage?} `number`
 ---  - {opts.create_if_missing?} `boolean`
 ---  - {opts.root_path?} `string`
----@return YaTree
+---@return YaTree?
 function M.get_current_tree(opts)
   opts = opts or {}
   local tabpage = opts.tabpage or api.nvim_get_current_tabpage()

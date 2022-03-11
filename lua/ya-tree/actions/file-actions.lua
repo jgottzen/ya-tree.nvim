@@ -151,8 +151,9 @@ function M.rename(node)
 end
 
 ---@param node YaTreeNode
----@return YaTreeNode[], string
+---@return YaTreeNode[], YaTreeNode
 local function get_nodes_to_delete(node)
+  ---@type YaTreeNode[]
   local nodes = {}
   local mode = api.nvim_get_mode().mode
   if mode == "v" or mode == "V" then
@@ -162,7 +163,8 @@ local function get_nodes_to_delete(node)
     nodes = { node }
   end
 
-  local parents = {}
+  ---@type table<string, YaTreeNode>
+  local parents_map = {}
   for _, v in ipairs(nodes) do
     -- prohibit deleting the root node
     if lib.is_node_root(v) then
@@ -172,12 +174,14 @@ local function get_nodes_to_delete(node)
 
     -- if this node is a parent of one of the nodes to delete,
     -- remove it from the list
-    parents[v.path] = nil
+    parents_map[v.path] = nil
     if v.parent then
-      parents[v.parent.path] = v.parent
+      parents_map[v.parent.path] = v.parent
     end
   end
-  table.sort(vim.tbl_values(parents), function(a, b)
+  ---@type YaTreeNode[]
+  local parents = vim.tbl_values(parents_map)
+  table.sort(parents, function(a, b)
     return a.path < b.path
   end)
 
@@ -236,6 +240,7 @@ function M.trash(node, config)
   async.run(function()
     scheduler()
 
+    ---@type string[]
     local files = {}
     if config.trash.require_confirm then
       for _, v in ipairs(nodes) do

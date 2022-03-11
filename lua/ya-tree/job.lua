@@ -10,7 +10,7 @@ local M = {}
 ---  - {opts.cwd?} `string`
 ---  - {opts.detached?} `boolean`
 ---@param on_complete fun(code: number, stdout?: string, stderr?: string): nil
----@return table
+---@return userdata handle, number pid
 function M.run(opts, on_complete)
   local state = {
     stdout = uv.new_pipe(false),
@@ -59,7 +59,7 @@ function M.run(opts, on_complete)
     state.stderr_data[#state.stderr_data + 1] = data
   end)
 
-  return state
+  return state.handle, state.pid
 end
 
 return M

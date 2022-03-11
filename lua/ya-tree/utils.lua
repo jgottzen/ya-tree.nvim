@@ -8,16 +8,18 @@ local M = {}
 
 M.os_sep = os_sep
 M.os_root = Path.path.root
-M.is_windows = vim.fn.has("win32") ==  1 or vim.fn.has("win32unix") ==  1
-M.is_macos = vim.fn.has("mac") ==  1 or vim.fn.has("macunix") ==  1
-M.is_linux = vim.fn.has("unix") ==  1
+M.is_windows = vim.fn.has("win32") == 1 or vim.fn.has("win32unix") == 1
+M.is_macos = vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1
+M.is_linux = vim.fn.has("unix") == 1
 
-local PATHEXT = vim.env.PATHEXT or ""
-local wexe = vim.split(PATHEXT:gsub("%.", ""), ";")
 ---@type table<string, boolean>
 local pathexts = {}
-for _, v in pairs(wexe) do
-  pathexts[v] = true
+do
+  local pathext = vim.env.PATHEXT or ""
+  local wexe = vim.split(pathext:gsub("%.", ""), ";")
+  for _, v in pairs(wexe) do
+    pathexts[v] = true
+  end
 end
 
 ---@param extension string
@@ -52,15 +54,17 @@ function M.feed_esc()
   api.nvim_feedkeys(keys, "n", true)
 end
 
-local prefix = "[ya-tree] "
----@param message string
-function M.print(message)
-  print(prefix .. message)
-end
+do
+  local prefix = "[ya-tree] "
+  ---@param message string
+  function M.print(message)
+    print(prefix .. message)
+  end
 
----@param message string
-function M.print_error(message)
-  api.nvim_err_writeln(prefix .. message)
+  ---@param message string
+  function M.print_error(message)
+    api.nvim_err_writeln(prefix .. message)
+  end
 end
 
 return M

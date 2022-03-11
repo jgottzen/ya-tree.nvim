@@ -2,6 +2,7 @@ local Path = require("plenary.path")
 local wrap = require("plenary.async.async").wrap
 local scheduler = require("plenary.async.util").scheduler
 
+local config = require("ya-tree.config").config
 local job = require("ya-tree.job")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
@@ -10,12 +11,10 @@ local os_sep = Path.path.sep
 
 local M = {
   Repo = {},
-  config = {
-    yadm_enabled = false,
-  },
   repos = {},
 }
 
+---@private
 M.repos.__mode = "v"
 
 ---@type fun(args: string[], cmd: string): string[], string
@@ -33,13 +32,15 @@ local command = wrap(function(args, cmd, callback)
   end)
 end, 3)
 
+---@param path string
+---@return string
 local function windowize_path(path)
   return path:gsub("/", "\\")
 end
 
 ---@param path string
 ---@param cmd string
----@return string, string
+---@return string git_root, string toplevel
 local function get_repo_info(path, cmd)
   local args = {
     "-C",
@@ -69,8 +70,8 @@ end
 ---@class Repo
 ---@field public toplevel string
 ---@field private _git_dir string
----@field private _git_status table
----@field private _ignored table
+---@field private _git_status table<string, string>
+---@field private _ignored string[]
 ---@field private _is_yadm boolean
 local Repo = M.Repo
 Repo.__index = Repo
@@ -85,9 +86,13 @@ function Repo:new(path)
     return cached
   end
 
+  if not config.git.enable then
+    return
+  end
+
   local toplevel, git_dir = get_repo_info(path)
   local is_yadm = false
-  if M.config.yadm_enabled and not git_dir then
+  if config.git.yadm.enable and not git_dir then
     if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, "yadm") ~= 0 then
       toplevel, git_dir = get_repo_info(path, "yadm")
       if toplevel then
@@ -127,7 +132,6 @@ function Repo:command(args)
   -- this way we can just concatenate the paths returned by git with the toplevel
   return command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) })
 end
-
 
 ---@param opts { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
@@ -192,13 +196,11 @@ function Repo:refresh_status(opts)
   end
 end
 
-
 ---@param path string
 ---@return string|nil
 function Repo:status_of(path)
   return self._git_status[path]
 end
-
 
 ---@param path string
 ---@param _type "'directory'"|"'file'"
@@ -206,7 +208,7 @@ end
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path
   for _, ignored in ipairs(self._ignored) do
-    if ignored:len() > 0 and ignored:sub(-1) == os_sep then
+    if #ignored > 0 and ignored:sub(-1) == os_sep then
       -- directory ignore
       if vim.startswith(path, ignored) then
         return true
@@ -231,11 +233,10 @@ function M.get_repo_for_path(path)
   end
 end
 
-function M.setup(config)
+function M.setup()
   if config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
-    utils.print("yadm not in PATH. Ignoring 'git.yadm.enable' in config")
-  else
-    M.config.yadm_enabled = config.git.yadm.enable
+    utils.print("yadm not in PATH. Disabling 'git.yadm.enable' in config")
+    config.git.yadm.enable = false
   end
 end
 
