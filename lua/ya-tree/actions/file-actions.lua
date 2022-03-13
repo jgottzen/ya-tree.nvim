@@ -5,6 +5,7 @@ local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
 local ui = require("ya-tree.ui")
+local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
@@ -88,39 +89,52 @@ function M.add(node)
       node = node.parent
     end
 
-    local name = ui.input({ prompt = "Create new file (an ending " .. utils.os_sep .. " will create a directory):" })
-    if not name then
-      utils.print("No name given, not creating new file/directory")
-      return
-    end
-    local new_path = utils.join_path(node.path, name)
+    local prompt = "New file (an ending " .. utils.os_sep .. " will create a directory):"
+    local winid = ui.get_ui_winid()
+    local row, column = unpack(api.nvim_win_get_cursor(winid))
 
-    if vim.endswith(new_path, utils.os_sep) then
-      new_path = new_path:sub(1, -2)
-      if fs.exists(new_path) then
-        utils.print_error(string.format("%q already exists!", new_path))
-        return
-      end
+    local input = Input:new({ title = prompt, row = row, col = column, width = #prompt + 4 }, {
+      on_submit = function(name)
+        vim.schedule(function()
+          ui.reset_ui_window()
 
-      if fs.create_dir(new_path) then
-        utils.print(string.format("Created directory %q", new_path))
-        lib.refresh_and_navigate(new_path)
-      else
-        utils.print_error(string.format("Failed to create directory %q", new_path))
-      end
-    else
-      if fs.exists(new_path) then
-        utils.print_error(string.format("%q already exists!", new_path))
-        return
-      end
+          if not name then
+            utils.print("No name given, not creating new file/directory")
+            return
+          end
 
-      if fs.create_file(new_path) then
-        utils.print(string.format("Created file %q", new_path))
-        lib.refresh_and_navigate(new_path)
-      else
-        utils.print_error(string.format("Failed to create file %q", new_path))
-      end
-    end
+          local new_path = utils.join_path(node.path, name)
+
+          if vim.endswith(new_path, utils.os_sep) then
+            new_path = new_path:sub(1, -2)
+            if fs.exists(new_path) then
+              utils.print_error(string.format("%q already exists!", new_path))
+              return
+            end
+
+            if fs.create_dir(new_path) then
+              utils.print(string.format("Created directory %q", new_path))
+              lib.refresh_and_navigate(new_path)
+            else
+              utils.print_error(string.format("Failed to create directory %q", new_path))
+            end
+          else
+            if fs.exists(new_path) then
+              utils.print_error(string.format("%q already exists!", new_path))
+              return
+            end
+
+            if fs.create_file(new_path) then
+              utils.print(string.format("Created file %q", new_path))
+              lib.refresh_and_navigate(new_path)
+            else
+              utils.print_error(string.format("Failed to create file %q", new_path))
+            end
+          end
+        end)
+      end,
+    })
+    input:open()
   end)
 end
 

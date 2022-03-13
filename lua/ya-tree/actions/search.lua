@@ -185,7 +185,7 @@ function M.live_search(node, config)
 
   local term = ""
   local anchor = config.view.side == "left" and "SW" or "SE"
-  local input = Input:new({ title = "Search:", win = winid, anchor = anchor, row = height, col = 0, size = width - 2 }, {
+  local input = Input:new({ title = "Search:", win = winid, anchor = anchor, row = height, col = 0, width = width - 2 }, {
     ---@param text string
     on_change = function(text)
       if text == term or text == nil then

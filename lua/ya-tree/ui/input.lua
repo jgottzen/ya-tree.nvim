@@ -45,13 +45,14 @@ local win_options = {
 
 --- Create a new `Input`.
 ---
----@param opts {prompt?: string, title: string, win: number, anchor: string, row: number, col: number}
+---@param opts {prompt?: string, title: string, win?: number, anchor?: string, row: number, col: number, width?: number}
 ---  - {opts.prompt?} `string`
 ---  - {opts.title} `string`
----  - {opts.win} `number`
----  - {opts.anchor} `string`
+---  - {opts.win?} `number`
+---  - {opts.anchor?} `string`
 ---  - {opts.row} `number`
 ---  - {opts.col} `number`
+---  - {opts.width} `number`
 ---
 ---@param callbacks {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}
 ---  - {callbacks.on_submit?} `function(text: string): void`
@@ -68,7 +69,7 @@ function Input:new(opts, callbacks)
       anchor = opts.anchor,
       row = opts.row,
       col = opts.col,
-      width = opts.size or 40,
+      width = opts.width or 40,
       height = 1,
       style = "minimal",
       zindex = 150,
@@ -123,7 +124,7 @@ function Input:_create_title()
     -- See https://github.com/neovim/neovim/issues/13403
     vim.cmd("redraw")
 
-    local width = math.min(api.nvim_win_get_width(self.winid) - 4, 2 + api.nvim_strwidth(self.title))
+    local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.title))
     local bufnr = api.nvim_create_buf(false, true)
     self.title_winid = api.nvim_open_win(bufnr, false, {
       relative = "win",
@@ -139,7 +140,8 @@ function Input:_create_title()
     })
     api.nvim_win_set_option(self.title_winid, "winblend", api.nvim_win_get_option(self.winid, "winblend"))
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
-    api.nvim_buf_set_lines(bufnr, 0, -1, true, { " " .. self.title .. " " })
+    local title = " " .. self.title:sub(1, math.min(width - 2, api.nvim_strwidth(self.title))) .. " "
+    api.nvim_buf_set_lines(bufnr, 0, -1, true, { title })
     local ns = api.nvim_create_namespace("YaTreeInput")
     api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
     api.nvim_buf_add_highlight(bufnr, ns, "FloatTitle", 0, 0, -1)
