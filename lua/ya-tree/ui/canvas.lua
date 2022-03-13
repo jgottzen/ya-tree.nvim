@@ -219,7 +219,7 @@ do
     previous_row = row
     ---@type string
     local line = api.nvim_get_current_line()
-    local pos = line:find(node.name, 1, true) - 1
+    local pos = (line:find(node.name, 1, true) or 0) - 1
     if pos > 0 then
       api.nvim_win_set_cursor(winid or 0, { row, pos })
     end
@@ -254,7 +254,7 @@ function M.focus_node(winid, node)
     if index then
       local column = 0
       if config.hijack_cursor then
-        column = node_lines[index]:find(node.name, 1, true) - 1
+        column = (node_lines[index]:find(node.name, 1, true) or 0) - 1
       end
       set_cursor_position(winid, index, column)
     end
