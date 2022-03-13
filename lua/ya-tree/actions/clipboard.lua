@@ -50,15 +50,7 @@ function M.copy_node(node)
   end
 
   ---@type YaTreeNode[]
-  local nodes
-  local mode = vim.api.nvim_get_mode().mode
-  if mode == "v" or mode == "V" then
-    nodes = ui.get_selected_nodes()
-    utils.feed_esc()
-  else
-    nodes = { node }
-  end
-
+  local nodes = ui.get_selected_nodes() or { node }
   for _, v in ipairs(nodes) do
     add_or_remove_or_replace_in_queue(v, copy_action)
   end
@@ -77,15 +69,7 @@ function M.cut_node(node)
   end
 
   ---@type YaTreeNode[]
-  local nodes = {}
-  local mode = vim.api.nvim_get_mode().mode
-  if mode == "v" or mode == "V" then
-    nodes = ui.get_selected_nodes()
-    utils.feed_esc()
-  else
-    nodes = { node }
-  end
-
+  local nodes = ui.get_selected_nodes() or { node }
   for _, v in ipairs(nodes) do
     add_or_remove_or_replace_in_queue(v, cut_action)
   end

@@ -280,7 +280,7 @@ local M = {
       [{ "<CR>", "o", "<2-LeftMouse>" }] = { action = "open" },
       ["<C-v>"] = { action = "vsplit" },
       ["<C-s>"] = { action = "split" },
-      ["<Tab>"] = { action = "preview" },
+      ["<Tab>"] = { mode = { "n", "v" }, action = "preview" },
       ["<BS>"] = { action = "close_node" },
       ["z"] = { action = "close_all_nodes" },
       [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to" },

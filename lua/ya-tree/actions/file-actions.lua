@@ -74,9 +74,13 @@ end
 ---@param node YaTreeNode
 ---@param config YaTreeConfig
 function M.preview(node, config)
-  if node:is_file() then
-    open_file(node, "edit", config)
-    lib.focus()
+  ---@type YaTreeNode[]
+  local nodes = ui.get_selected_nodes() or { node }
+  for _, v in ipairs(nodes) do
+    if v:is_file() then
+      open_file(v, "edit", config)
+      lib.focus()
+    end
   end
 end
 
@@ -168,14 +172,7 @@ end
 ---@return YaTreeNode[], YaTreeNode
 local function get_nodes_to_delete(node)
   ---@type YaTreeNode[]
-  local nodes = {}
-  local mode = api.nvim_get_mode().mode
-  if mode == "v" or mode == "V" then
-    nodes = ui.get_selected_nodes()
-    utils.feed_esc()
-  else
-    nodes = { node }
-  end
+  local nodes = ui.get_selected_nodes() or { node }
 
   ---@type table<string, YaTreeNode>
   local parents_map = {}

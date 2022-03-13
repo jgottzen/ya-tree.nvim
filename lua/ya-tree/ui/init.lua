@@ -102,16 +102,24 @@ function M.move_cursor_to_name()
   canvas.move_cursor_to_name(view.winid())
 end
 
----@return YaTreeNode[]
+---@return YaTreeNode[]|nil
 function M.get_selected_nodes()
-  -- see https://github.com/neovim/neovim/pull/13896
-  local from = fn.getpos("v")
-  local to = fn.getcurpos()
-  if from[2] > to[2] then
-    from, to = to, from
-  end
+  ---@type YaTreeNode[]
+  local mode = vim.api.nvim_get_mode().mode
+  if mode == "v" or mode == "V" then
+    -- see https://github.com/neovim/neovim/pull/13896
+    local from = fn.getpos("v")
+    local to = fn.getcurpos()
+    if from[2] > to[2] then
+      from, to = to, from
+    end
 
-  return canvas.get_nodes_for_lines(from[2], to[2])
+    local nodes = canvas.get_nodes_for_lines(from[2], to[2])
+    local keys = api.nvim_replace_termcodes("<ESC>", true, false, true)
+    api.nvim_feedkeys(keys, "n", true)
+
+    return nodes
+  end
 end
 
 M.get_edit_winid = view.get_edit_winid
@@ -204,7 +212,7 @@ end, 2)
 
 ---@type fun(items: string[], opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
 ---@see |vim.ui.select()|
-M.select = wrap(function (items, opts, on_choice)
+M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)
 

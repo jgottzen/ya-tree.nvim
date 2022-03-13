@@ -49,11 +49,6 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
-function M.feed_esc()
-  local keys = api.nvim_replace_termcodes("<ESC>", true, false, true)
-  api.nvim_feedkeys(keys, "n", true)
-end
-
 do
   local prefix = "[ya-tree] "
   ---@param message string
