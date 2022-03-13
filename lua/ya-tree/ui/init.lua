@@ -132,6 +132,7 @@ function M.is_buffer_yatree(bufnr)
 end
 
 M.is_current_win_ui_win = view.is_current_win_ui_win
+M.get_ui_winid = view.winid
 M.get_ui_winid_and_size = view.get_winid_and_size
 M.reset_ui_window = view.reset_ui_window
 
@@ -195,11 +196,17 @@ do
   end
 end
 
----@type fun(opts: table): string?
+---@type fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()}): string?
 ---@see |vim.ui.input()|
-M.input = wrap(function(opts, callback)
-  vim.ui.input(opts, callback)
+M.input = wrap(function(opts, on_confirm)
+  vim.ui.input(opts, on_confirm)
 end, 2)
+
+---@type fun(items: string[], opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
+---@see |vim.ui.select()|
+M.select = wrap(function (items, opts, on_choice)
+  vim.ui.select(items, opts, on_choice)
+end, 3)
 
 function M.setup()
   M.setup_highlights()

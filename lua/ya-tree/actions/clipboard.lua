@@ -106,11 +106,16 @@ local function paste_node(dest_node, node, action)
   local destination = utils.join_path(dest_node.path, node.name)
   local replace = false
   if fs.exists(destination) then
-    local response = ui.input({ prompt = string.format("%q already exists, write anyway? (y/N/r):", destination) })
-    if response and response:match("^[yY]") then
+    local response = ui.select({ "Yes", "Rename", "No" }, { prompt = destination .. " already exists" })
+
+    vim.schedule(function()
+      ui.reset_ui_window()
+    end)
+
+    if response == "Yes" then
       utils.print('Will replace "' .. destination .. '"')
       replace = true
-    elseif response and response:match("^[rR]") then
+    elseif response == "Rename" then
       local name = ui.input({ prompt = "New name: ", default = node.name })
       if not name then
         utils.print('No new name given, not pasting file "' .. node.name .. '" to "' .. destination .. '"')
@@ -148,6 +153,7 @@ local function paste_node(dest_node, node, action)
       utils.print_error(string.format("Failed to move %q to %q", node.path, destination))
     end
   end
+
   return ok, destination
 end
 

@@ -190,8 +190,8 @@ end
 
 ---@param node YaTreeNode
 local function delete_node(node)
-  local response = ui.input({ prompt = "Delete " .. node.path .. "? y/N:" })
-  if response and response:match("^[yY]") then
+  local response = ui.select({ "Yes", "No" }, { prompt = "Delete " .. node.path .. "?" })
+  if response == "Yes" then
     local ok
     if node:is_directory() then
       ok = fs.remove_dir(node.path)
@@ -205,6 +205,10 @@ local function delete_node(node)
       utils.print_error("Failed to delete " .. node.path)
     end
   end
+
+  vim.schedule(function()
+    ui.reset_ui_window()
+  end)
 end
 
 ---@param node YaTreeNode
@@ -244,8 +248,8 @@ function M.trash(node, config)
     local files = {}
     if config.trash.require_confirm then
       for _, v in ipairs(nodes) do
-        local response = ui.input({ prompt = "Trash " .. v.path .. "? y/N:" })
-        if response and response:match("^[yY]") then
+        local response = ui.select({ "Yes", "No" }, { prompt = "Trash " .. node.path .. "?" })
+        if response == "Yes" then
           files[#files + 1] = v.path
         end
       end
@@ -260,13 +264,13 @@ function M.trash(node, config)
     if #files > 0 then
       log.debug("trashing files %s", files)
       job.run({ cmd = "trash", args = files }, function(code, _, error)
-        if code == 0 then
-          lib.refresh(selected_node)
-        else
-          vim.schedule(function()
+        vim.schedule(function()
+          if code == 0 then
+            lib.refresh(selected_node)
+          else
             utils.print_error(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), error))
-          end)
-        end
+          end
+        end)
       end)
     end
   end)
