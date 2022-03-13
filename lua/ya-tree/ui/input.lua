@@ -11,6 +11,8 @@ local fn = vim.fn
 ---@field private title_winid? number
 ---@field private win_config table<string, any>
 ---@field private callbacks table<string, function>
+---@field private orig_row number
+---@field private orig_col number
 local Input = {}
 ---@private
 Input.__index = Input
@@ -153,6 +155,8 @@ function Input:open()
     return
   end
 
+  self.orig_row, self.orig_col = unpack(api.nvim_win_get_cursor(self.win_config.win or 0))
+
   self.bufnr = api.nvim_create_buf(false, true)
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
@@ -203,6 +207,9 @@ function Input:close()
   end
 
   self.winid = nil
+
+  -- fix the cursor being moved on character to the left after leaving the input
+  api.nvim_win_set_cursor(0, { self.orig_row, self.orig_col + 1 })
 end
 
 do

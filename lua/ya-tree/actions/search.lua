@@ -232,7 +232,6 @@ function M.live_search(node, config)
       lib.clear_search()
     end,
   })
-
   input:open()
 end
 
