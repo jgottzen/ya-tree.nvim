@@ -1,57 +1,72 @@
 local wrap = require("plenary.async").wrap
 
+local Canvas = require("ya-tree.ui.canvas")
 local hl = require("ya-tree.ui.highlights")
-local view = require("ya-tree.ui.view")
-local canvas = require("ya-tree.ui.canvas")
+local log = require("ya-tree.log")
 
 local api = vim.api
-local fn = vim.fn
 
-local M = {}
+---@class TabData
+---@field tabpage number
+---@field canvas YaTreeCanvas
 
-M.is_open = view.is_open
+local M = {
+  ---@private
+  ---@type table<number, TabData>
+  _tabs = {},
+}
+
+---@return TabData|nil tab
+local function get_tab()
+  return M._tabs[api.nvim_get_current_tabpage()]
+end
+
+---@return boolean
+function M.is_open()
+  local tab = get_tab()
+  return tab and tab.canvas:is_open()
+end
 
 ---@param root YaTreeNode
----@param opts {redraw: boolean, hijack_buffer: boolean, focus: boolean}
----  - {opts.redraw} `boolean`
----  - {opts.hijack_buffer} `boolean`
----  - {opts.focus} `boolean`
----@param node YaTreeNode
+---@param opts? {hijack_buffer?: boolean, focus?: boolean}
+---  - {opts.hijack_buffer?} `boolean`
+---  - {opts.focus?} `boolean`
+---@param node? YaTreeNode
 function M.open(root, opts, node)
   opts = opts or {}
-  local is_open = view.is_open()
-  if is_open and not opts.redraw and not node then
+  local tabpage = api.nvim_get_current_tabpage()
+  local tab = M._tabs[tabpage]
+  if not tab then
+    tab = {
+      tabpage = tabpage,
+      canvas = Canvas:new(),
+    }
+    M._tabs[tabpage] = tab
+  end
+
+  local canvas = tab.canvas
+  opts.redraw = canvas:open(opts.hijack_buffer)
+  if not opts.redraw and not node and not opts.focus then
     return
   end
 
-  ---@type number
-  local bufnr
-  if not is_open then
-    local redraw
-    redraw, bufnr = view.open(opts.hijack_buffer)
-    opts.redraw = redraw or opts.redraw
-  else
-    bufnr = view.bufnr()
-  end
-  canvas.render(bufnr, root, opts)
+  canvas:render(root, opts)
+
   if node then
-    M.focus_node(node)
+    canvas:focus_node(node)
   end
+
   if opts.focus then
-    view.focus()
+    canvas:focus()
   else
-    api.nvim_set_current_win(view.get_edit_winid())
+    canvas:focus_edit_window()
   end
 end
 
-M.close = view.close
-
----@param root YaTreeNode
-function M.focus(root)
-  if not view.is_open() then
-    M.open(root, { focus = true })
-  else
-    view.focus()
+function M.close()
+  local tab = get_tab()
+  if tab then
+    tab.canvas:close()
   end
 end
 
@@ -59,71 +74,101 @@ end
 ---@param node? YaTreeNode
 ---@param focus? boolean
 function M.update(root, node, focus)
-  if not view.is_open() then
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.update called when tab=%s", tab and "not open" or "nil")
     return
   end
 
-  canvas.render(view.bufnr(), root, { redraw = true })
+  local canvas = tab.canvas
+  canvas:render(root, { redraw = true })
   -- only update the focused node if the current window is the view window
-  if node then
-    local winid = view.winid()
-    if focus or winid == api.nvim_get_current_win() then
-      canvas.focus_node(winid, node)
-    end
+  if node and (focus or canvas:has_focus()) then
+    canvas:focus_node(node)
   end
 end
 
 ---@param node YaTreeNode
 function M.focus_node(node)
-  canvas.focus_node(view.winid(), node)
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.focus_node called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_node(node)
 end
 
 function M.focus_prev_sibling()
-  canvas.focus_prev_sibling(view.winid())
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.focus_prev_sibling called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_prev_sibling()
 end
 
 function M.focus_next_sibling()
-  canvas.focus_next_sibling(view.winid())
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.focus_next_sibling called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_next_sibling()
 end
 
 function M.focus_first_sibling()
-  canvas.focus_first_sibling(view.winid())
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.focus_first_sibling called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_first_sibling()
 end
 
 function M.focus_last_sibling()
-  canvas.focus_last_sibling(view.winid())
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.focus_last_sibling called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_last_sibling()
 end
 
 function M.get_current_node()
-  return canvas.get_current_node(view.winid())
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.get_current_node called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  return tab.canvas:get_current_node()
 end
 
 function M.move_cursor_to_name()
-  canvas.move_cursor_to_name(view.winid())
-end
-
----@return YaTreeNode[]|nil
-function M.get_selected_nodes()
-  ---@type YaTreeNode[]
-  local mode = vim.api.nvim_get_mode().mode
-  if mode == "v" or mode == "V" then
-    -- see https://github.com/neovim/neovim/pull/13896
-    local from = fn.getpos("v")
-    local to = fn.getcurpos()
-    if from[2] > to[2] then
-      from, to = to, from
-    end
-
-    local nodes = canvas.get_nodes_for_lines(from[2], to[2])
-    local keys = api.nvim_replace_termcodes("<ESC>", true, false, true)
-    api.nvim_feedkeys(keys, "n", true)
-
-    return nodes
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.move_cursor_to_name called when tab=%s", tab and "not open" or "nil")
+    return
   end
+
+  tab.canvas:move_cursor_to_name()
 end
 
-M.get_edit_winid = view.get_edit_winid
-M.set_edit_winid = view.set_edit_winid
+---@return YaTreeNode[]
+function M.get_selected_nodes()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.get_selected_nodes called when tab=%s", tab)
+    return
+  end
+
+  return tab.canvas:get_selected_nodes()
+end
 
 ---@param winid number
 ---@return boolean
@@ -139,16 +184,75 @@ function M.is_buffer_yatree(bufnr)
   return ok and filetype == "YaTree"
 end
 
-M.is_current_win_ui_win = view.is_current_win_ui_win
-M.get_ui_winid = view.winid
-M.get_ui_winid_and_size = view.get_winid_and_size
-M.reset_ui_window = view.reset_ui_window
-
----@param winid number
-function M.resize(winid)
-  if view.is_open() then
-    view.resize(winid)
+---@return number edit_winid
+function M.get_edit_winid()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.get_edit_winid called when tab=%s", tab)
+    return
   end
+
+  return tab.canvas:get_edit_winid()
+end
+
+function M.set_edit_winid(edit_winid)
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.set_edit_winid called when tab=%s", tab)
+    return
+  end
+
+  tab.canvas:set_edit_winid(edit_winid)
+end
+
+function M.get_ui_winid()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.get_ui_winid called when tab=%s", tab)
+    return
+  end
+
+  return tab.canvas:get_winid()
+end
+
+function M.get_ui_winid_and_size()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.get_ui_winid_and_size called when tab=%s", tab)
+    return
+  end
+
+  return tab.canvas:get_winid_and_size()
+end
+
+function M.is_current_window_ui_window()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.is_current_window_ui_window called when tab=%s", tab)
+    return
+  end
+
+  return tab.canvas:is_current_window_canvas()
+end
+
+function M.reset_ui_window()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.reset_ui_window called when tab=%s", tab)
+    return
+  end
+
+  tab.canvas:reset_canvas()
+end
+
+function M.resize()
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.resize called when tab=%s", tab)
+    return
+  end
+
+  tab.canvas:resize()
 end
 
 do
@@ -158,24 +262,23 @@ do
   ---@param root YaTreeNode
   ---@param node YaTreeNode
   function M.toggle_help(root, node)
-    ---@type number
-    local bufnr
-    if not view.is_open() then
-      local _
-      _, bufnr = view.open()
-    else
-      bufnr = view.bufnr()
+    local tab = get_tab()
+    if not tab then
+      log.error("ui.toggle_help called when tab=%s", tab)
+      return
     end
+
+    local canvas = tab.canvas
 
     showing_help = not showing_help
     if showing_help then
-      canvas.render_help(bufnr)
+      canvas:render_help()
     else
       if in_search then
-        canvas.render(bufnr)
+        canvas:render()
       else
-        canvas.render(bufnr, root, { redraw = true })
-        M.focus_node(node)
+        canvas:render(root, { redraw = true })
+        canvas:focus_node(node)
       end
     end
   end
@@ -188,7 +291,13 @@ do
   ---@param search_root YaTreeSearchNode
   function M.search(search_root)
     in_search = true
-    canvas.render_search(view.bufnr(), search_root)
+    local tab = get_tab()
+    if not tab then
+      log.error("ui.search called when tab=%s", tab)
+      return
+    end
+
+    tab.canvas:render_search(search_root)
   end
 
   ---@return boolean
@@ -218,7 +327,7 @@ end, 3)
 
 function M.setup()
   M.setup_highlights()
-  canvas.setup()
+  Canvas.setup()
 end
 
 function M.setup_highlights()

@@ -4,10 +4,236 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
-
-local M = {}
+local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
+
+local win_options = {
+  -- number and relativenumber are taken directly from config
+  -- number = false,
+  -- relativenumber = false,
+  list = false,
+  winfixwidth = true,
+  winfixheight = true,
+  foldenable = false,
+  spell = false,
+  signcolumn = "no",
+  foldmethod = "manual",
+  foldcolumn = "0",
+  cursorcolumn = false,
+  cursorlineopt = "line",
+  wrap = false,
+  winhl = table.concat({
+    "Normal:YaTreeNormal",
+    "NormalNC:YaTreeNormalNC",
+    "CursorLine:YaTreeCursorLine",
+    "VertSplit:YaTreeVertSplit",
+    "StatusLine:YaTreeStatusLine",
+    "StatusLineNC:YaTreeStatuslineNC",
+  }, ","),
+}
+
+---@type {name: string, value: string|boolean}[]
+local buf_options = {
+  { name = "bufhidden", value = "hide" },
+  { name = "buflisted", value = false },
+  { name = "filetype", value = "YaTree" },
+  { name = "buftype", value = "nofile" },
+  { name = "modifiable", value = false },
+  { name = "swapfile", value = false },
+}
+
+---@class YaTreeCanvas
+---@field private winid number
+---@field private edit_winid number
+---@field private bufnr number
+---@field private nodes YaTreeNode[]
+---@field private node_path_to_index_lookup table<string, number>
+---@field private node_lines string[]
+---@field private node_highlights highlight_group[][]
+local Canvas = {}
+Canvas.__index = Canvas
+
+function Canvas:new()
+  return setmetatable({}, Canvas)
+end
+
+---@return number winid
+function Canvas:get_winid()
+  return self.winid
+end
+
+---@return number winid, number height, number width
+function Canvas:get_winid_and_size()
+  if self.winid then
+    ---@type number
+    local height = api.nvim_win_get_height(self.winid)
+    ---@type number
+    local width = api.nvim_win_get_width(self.winid)
+    return self.winid, height, width
+  end
+end
+
+---@return number winid
+function Canvas:get_edit_winid()
+  return self.edit_winid
+end
+
+---@param winid number
+function Canvas:set_edit_winid(winid)
+  self.edit_winid = winid
+end
+
+---@return boolean is_open
+function Canvas:is_open()
+  return self.winid ~= nil and api.nvim_win_is_valid(self.winid)
+end
+
+---@return boolean
+function Canvas:is_current_window_canvas()
+  if self.winid then
+    return self.winid == api.nvim_get_current_win()
+  end
+end
+
+---@private
+---@return boolean
+function Canvas:_is_buffer_loaded()
+  return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr)
+end
+
+---@private
+---@param hijack_buffer boolean
+function Canvas:_create_buffer(hijack_buffer)
+  ---@type number
+  self.bufnr = hijack_buffer and api.nvim_get_current_buf() or api.nvim_create_buf(false, false)
+  api.nvim_buf_set_name(self.bufnr, "YaTree")
+  log.debug("created buffer %s", self.bufnr)
+
+  for _, v in ipairs(buf_options) do
+    api.nvim_buf_set_option(self.bufnr, v.name, v.value)
+  end
+
+  require("ya-tree.actions").apply_mappings(self.bufnr)
+end
+
+---@param key string
+---@param value boolean|string
+local function format_option(key, value)
+  if value == true then
+    return key
+  elseif value == false then
+    return string.format("no%s", key)
+  else
+    return string.format("%s=%s", key, value)
+  end
+end
+
+---@private
+function Canvas:_set_window_options_and_size()
+  api.nvim_win_set_buf(self.winid, self.bufnr)
+  api.nvim_command("noautocmd wincmd " .. (config.view.side == "right" and "L" or "H"))
+  api.nvim_command("noautocmd vertical resize " .. config.view.width)
+
+  for k, v in pairs(win_options) do
+    api.nvim_command(string.format("noautocmd setlocal %s", format_option(k, v)))
+  end
+  api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
+  api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
+
+  self:resize()
+end
+
+---@private
+function Canvas:_create_window()
+  ---@type number
+  local edit_winid = api.nvim_get_current_win()
+  log.debug("setting edit_winid to %s, old=%s", edit_winid, self.edit_winid)
+  api.nvim_command("noautocmd vsplit")
+
+  ---@type number
+  self.winid = api.nvim_get_current_win()
+  log.debug("created window %s", self.winid)
+  self.edit_winid = edit_winid
+  self:_set_window_options_and_size()
+end
+
+---@param hijack_buffer? boolean
+---@return boolean redraw
+function Canvas:open(hijack_buffer)
+  if self:is_open() then
+    return false
+  end
+
+  local redraw = false
+  if not self:_is_buffer_loaded() then
+    redraw = true
+    self:_create_buffer(hijack_buffer)
+  end
+
+  if hijack_buffer then
+    log.debug("setting edit_winid to nil")
+    ---@type number
+    self.winid = api.nvim_get_current_win()
+    self.edit_winid = nil
+    self:_set_window_options_and_size()
+  elseif not Canvas:is_open() then
+    self:_create_window()
+  end
+
+  return redraw
+end
+
+function Canvas:focus()
+  if self.winid then
+    ---@type number
+    local current_winid = api.nvim_get_current_win()
+    if current_winid ~= self.winid then
+      log.debug("winid=%s setting edit_winid to %s, old=%s", self.winid, current_winid, self.edit_winid)
+      self.edit_winid = current_winid
+      api.nvim_set_current_win(self.winid)
+    end
+  end
+end
+
+function Canvas:focus_edit_window()
+  if self.edit_winid then
+    api.nvim_set_current_win(self.edit_winid)
+  end
+end
+
+---@return boolean has_focus
+function Canvas:has_focus()
+  return self.winid and self.winid == api.nvim_get_current_win()
+end
+
+function Canvas:close()
+  if not self.winid then
+    return
+  end
+
+  local ok = pcall(api.nvim_win_close, self.winid, true)
+  if not ok then
+    self.winid = nil
+    log.error("error closing window %q", self.winid)
+  end
+end
+
+function Canvas:resize()
+  if not self.winid then
+    return
+  end
+
+  api.nvim_win_set_width(self.winid, config.view.width)
+  vim.cmd("wincmd =")
+end
+
+function Canvas:reset_canvas()
+  if self.winid and not config.view.number and not config.view.relativenumber then
+    api.nvim_command("stopinsert")
+    api.nvim_command("noautocmd setlocal norelativenumber")
+  end
+end
 
 ---@type YaTreeViewRenderer[]
 local directory_renderers = {}
@@ -23,7 +249,7 @@ local file_renderers = {}
 ---@param padding string
 ---@param text string
 ---@param hl_name string
----@return number, string, highlight_group
+---@return number end_position, string content, highlight_group highlight
 local function line_part(pos, padding, text, hl_name)
   local from = pos + #padding
   local size = #text
@@ -36,7 +262,7 @@ local function line_part(pos, padding, text, hl_name)
 end
 
 ---@param node YaTreeNode
----@return string, highlight_group[]
+---@return string content, highlight_group[] highlights
 local function render_node(node)
   ---@type string[]
   local content = {}
@@ -85,26 +311,18 @@ local function should_display_node(node)
   return true
 end
 
----@type YaTreeNode[]
-local nodes
----@type table<string, number>
-local node_path_to_index_lookup
----@type string[]
-local node_lines
----@type highlight_group[][]
-local node_highlights
-
+---@private
 ---@param root YaTreeNode
-local function create_tree(root)
-  nodes, node_path_to_index_lookup, node_lines, node_highlights = {}, {}, {}, {}
+function Canvas:_create_tree(root)
+  self.nodes, self.node_lines, self.node_highlights, self.node_path_to_index_lookup = {}, {}, {}, {}
 
   root.depth = 0
   local content, highlights = render_node(root)
 
-  nodes[#nodes + 1] = root
-  node_path_to_index_lookup[root.path] = #nodes
-  node_lines[#node_lines + 1] = content
-  node_highlights[#node_highlights + 1] = highlights
+  self.nodes[#self.nodes + 1] = root
+  self.node_path_to_index_lookup[root.path] = #self.nodes
+  self.node_lines[#self.node_lines + 1] = content
+  self.node_highlights[#self.node_highlights + 1] = highlights
 
   ---@param node YaTreeNode
   ---@param depth number
@@ -115,10 +333,10 @@ local function create_tree(root)
       node.last_child = last_child
       content, highlights = render_node(node)
 
-      nodes[#nodes + 1] = node
-      node_path_to_index_lookup[node.path] = #nodes
-      node_lines[#node_lines + 1] = content
-      node_highlights[#node_highlights + 1] = highlights
+      self.nodes[#self.nodes + 1] = node
+      self.node_path_to_index_lookup[node.path] = #self.nodes
+      self.node_lines[#self.node_lines + 1] = content
+      self.node_highlights[#self.node_highlights + 1] = highlights
 
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
@@ -135,12 +353,12 @@ local function create_tree(root)
   end
 end
 
----@param bufnr number
----@param opts {help: boolean}
+---@private
+---@param opts? {help: boolean}
 ---  - {opts.help} `boolean`
-local function draw(bufnr, opts)
-  api.nvim_buf_set_option(bufnr, "modifiable", true)
-  api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+function Canvas:_draw(opts)
+  api.nvim_buf_set_option(self.bufnr, "modifiable", true)
+  api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
 
   ---@type string[]
   local lines
@@ -149,69 +367,101 @@ local function draw(bufnr, opts)
   if opts and opts.help then
     lines, highlights = help.create_help()
   else
-    lines = node_lines
-    highlights = node_highlights
+    lines = self.node_lines
+    highlights = self.node_highlights
   end
 
-  api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
 
-  for index, chunk in ipairs(highlights) do
+  for linenr, chunk in ipairs(highlights) do
     for _, highlight in ipairs(chunk) do
       -- guard against bugged out renderer highlights, which will cause an avalanche of errors...
       if not highlight.name then
-        log.error("missing highlight name for node=%q, hl=%s", nodes[index].path, highlight)
+        log.error("missing highlight name for node=%q, hl=%s", self.nodes[linenr].path, highlight)
       else
-        api.nvim_buf_add_highlight(bufnr, ns, highlight.name, index - 1, highlight.from, highlight.to)
+        api.nvim_buf_add_highlight(self.bufnr, ns, highlight.name, linenr - 1, highlight.from, highlight.to)
       end
     end
   end
 
-  api.nvim_buf_set_option(bufnr, "modifiable", false)
+  api.nvim_buf_set_option(self.bufnr, "modifiable", false)
 end
 
----@param bufnr number
 ---@param root YaTreeNode
----@param opts {redraw: boolean}
+---@param opts? {redraw: boolean}
 ---  - {opts.redraw} `boolean`
-function M.render(bufnr, root, opts)
+function Canvas:render(root, opts)
   if opts and opts.redraw then
-    create_tree(root)
+    self:_create_tree(root)
   end
-  draw(bufnr)
+  self:_draw()
 end
 
----@param bufnr number
-function M.render_help(bufnr)
-  draw(bufnr, { help = true })
+function Canvas:render_help()
+  self:_draw({ help = true })
 end
 
----@param bufnr number
 ---@param search_root YaTreeSearchNode
-function M.render_search(bufnr, search_root)
-  create_tree(search_root)
-  draw(bufnr)
+function Canvas:render_search(search_root)
+  self:_create_tree(search_root)
+  self:_draw()
 end
 
----@param winid number
----@return YaTreeNode?
-function M.get_current_node(winid)
-  local node = M.get_current_node_and_position(winid)
+---@private
+---@return YaTreeNode node, number row, number column
+function Canvas:_get_current_node_and_position()
+  local row, column = unpack(api.nvim_win_get_cursor(self.winid))
+  local node = self.nodes[row]
+  return node, row, column
+end
+
+---@return YaTreeNode? node
+function Canvas:get_current_node()
+  local node = self:_get_current_node_and_position()
   return node
 end
 
----@param winid number
----@return YaTreeNode, number, number
-function M.get_current_node_and_position(winid)
-  local row, column = unpack(api.nvim_win_get_cursor(winid))
-  return nodes[row], row, column
+---@return YaTreeNode[] nodes
+function Canvas:get_selected_nodes()
+  local mode = vim.api.nvim_get_mode().mode
+  if mode == "v" or mode == "V" then
+    -- see https://github.com/neovim/neovim/pull/13896
+    local from = fn.getpos("v")
+    local to = fn.getcurpos()
+    if from[2] > to[2] then
+      from, to = to, from
+    end
+
+    ---@type number
+    local first = from[2]
+    ---@type number
+    local last = to[2]
+    ---@type YaTreeNode
+    local nodes = {}
+    if first <= #self.nodes then
+      for index = first, last do
+        local node = self.nodes[index]
+        if node then
+          nodes[#nodes + 1] = node
+        end
+      end
+    end
+
+    local keys = api.nvim_replace_termcodes("<ESC>", true, false, true)
+    api.nvim_feedkeys(keys, "n", true)
+
+    return nodes
+  else
+    return { self:get_current_node() }
+  end
 end
 
 do
   ---@type number
   local previous_row
-  ---@param winid number
-  function M.move_cursor_to_name(winid)
-    local node, row, _ = M.get_current_node_and_position(winid)
+
+  function Canvas:move_cursor_to_name()
+    local node, row = self:_get_current_node_and_position()
     if not node or row == previous_row then
       return
     end
@@ -221,7 +471,7 @@ do
     local line = api.nvim_get_current_line()
     local pos = (line:find(node.name, 1, true) or 0) - 1
     if pos > 0 then
-      api.nvim_win_set_cursor(winid or 0, { row, pos })
+      api.nvim_win_set_cursor(self.winid or 0, { row, pos })
     end
   end
 end
@@ -241,29 +491,27 @@ local function set_cursor_position(winid, row, col)
   end
 end
 
----@param winid number
 ---@param node YaTreeNode
-function M.focus_node(winid, node)
+function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
   while not should_display_node(node) and node.parent do
     node = node.parent
   end
   if node then
-    local index = node_path_to_index_lookup[node.path]
+    local index = self.node_path_to_index_lookup[node.path]
     if index then
       local column = 0
       if config.hijack_cursor then
-        column = (node_lines[index]:find(node.name, 1, true) or 0) - 1
+        column = (self.node_lines[index]:find(node.name, 1, true) or 0) - 1
       end
-      set_cursor_position(winid, index, column)
+      set_cursor_position(self.winid, index, column)
     end
   end
 end
 
----@param winid number
-function M.focus_prev_sibling(winid)
-  local node, _, col = M.get_current_node_and_position()
+function Canvas:focus_prev_sibling()
+  local node, _, col = self:_get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -271,18 +519,17 @@ function M.focus_prev_sibling(winid)
 
   for prev in parent:iterate_children({ reverse = true, from = node }) do
     if should_display_node(prev) then
-      local index = node_path_to_index_lookup[prev.path]
+      local index = self.node_path_to_index_lookup[prev.path]
       if index then
-        set_cursor_position(winid, index, col)
+        set_cursor_position(self.winid, index, col)
         return
       end
     end
   end
 end
 
----@param winid number
-function M.focus_next_sibling(winid)
-  local node, _, col = M.get_current_node_and_position()
+function Canvas:focus_next_sibling()
+  local node, _, col = self:_get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -290,18 +537,17 @@ function M.focus_next_sibling(winid)
 
   for next in parent:iterate_children({ from = node }) do
     if should_display_node(next) then
-      local index = node_path_to_index_lookup[next.path]
+      local index = self.node_path_to_index_lookup[next.path]
       if index then
-        set_cursor_position(winid, index, col)
+        set_cursor_position(self.winid, index, col)
         return
       end
     end
   end
 end
 
----@param winid number
-function M.focus_first_sibling(winid)
-  local node, _, col = M.get_current_node_and_position()
+function Canvas:focus_first_sibling()
+  local node, _, col = self:_get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -309,18 +555,17 @@ function M.focus_first_sibling(winid)
 
   for next in parent:iterate_children() do
     if should_display_node(next) then
-      local index = node_path_to_index_lookup[next.path]
+      local index = self.node_path_to_index_lookup[next.path]
       if index then
-        set_cursor_position(winid, index, col)
+        set_cursor_position(self.winid, index, col)
         return
       end
     end
   end
 end
 
----@param winid number
-function M.focus_last_sibling(winid)
-  local node, _, col = M.get_current_node_and_position()
+function Canvas:focus_last_sibling()
+  local node, _, col = self:_get_current_node_and_position()
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -328,31 +573,13 @@ function M.focus_last_sibling(winid)
 
   for prev in parent:iterate_children({ reverse = true }) do
     if should_display_node(prev) then
-      local index = node_path_to_index_lookup[prev.path]
+      local index = self.node_path_to_index_lookup[prev.path]
       if index then
-        set_cursor_position(winid, index, col)
+        set_cursor_position(self.winid, index, col)
         return
       end
     end
   end
-end
-
----@param first number
----@param last number
----@return YaTreeNode[]
-function M.get_nodes_for_lines(first, last)
-  local result = {}
-  if first > #nodes then
-    return result
-  end
-
-  for index = first, last do
-    local node = nodes[index]
-    if node then
-      result[#result + 1] = node
-    end
-  end
-  return result
 end
 
 ---@class YaTreeViewRenderer
@@ -398,7 +625,7 @@ do
     end
   end
 
-  function M.setup()
+  function Canvas.setup()
     renderers.setup(config)
 
     for _, directory_renderer in pairs(config.view.renderers.directory) do
@@ -419,4 +646,4 @@ do
   end
 end
 
-return M
+return Canvas

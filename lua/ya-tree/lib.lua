@@ -101,14 +101,7 @@ function M.toggle()
 end
 
 function M.focus()
-  if not ui.is_open() then
-    M.open({ focus = true })
-  else
-    local tree = Tree.get_current_tree()
-    if tree then
-      ui.focus(tree.root)
-    end
-  end
+  M.open({ focus = true })
 end
 
 function M.redraw()
@@ -516,11 +509,8 @@ function M.on_win_leave(bufnr)
     tree.current_node = M.get_current_node()
   else
     local edit_winid = ui.get_edit_winid()
-    local winid = api.nvim_get_current_win()
-    log.debug("on_win_leave edit_winid=%s, current_winid=%s, ui_winid=%s", edit_winid, winid, require("ya-tree.ui.view").winid())
-
     local is_floating_win = ui.is_window_floating()
-    local is_ui_win = ui.is_current_win_ui_win()
+    local is_ui_win = ui.is_current_window_ui_window()
     if not (is_floating_win or is_ui_win) then
       log.debug("on_win_leave ui.is_floating=%s, ui.is_view_win=%s, setting edit_winid to=%s", is_floating_win, is_ui_win, edit_winid)
       ui.set_edit_winid(api.nvim_get_current_win())

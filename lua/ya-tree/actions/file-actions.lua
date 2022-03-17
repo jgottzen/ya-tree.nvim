@@ -21,21 +21,15 @@ local M = {}
 ---@param config YaTreeConfig
 local function open_file(node, mode, config)
   local edit_winid = ui.get_edit_winid()
-  log.debug(
-    "open_file: edit_winid=%s, current_winid=%s, ui_winid=%s",
-    edit_winid,
-    api.nvim_get_current_win(),
-    require("ya-tree.ui.view").winid()
-  )
+  log.debug("open_file: edit_winid=%s, current_winid=%s", edit_winid, api.nvim_get_current_win())
   if not edit_winid then
     -- only the tree window is open, i.e. netrw replacement
     -- create a new window for buffers
     local position = config.view.side == "left" and "belowright" or "aboveleft"
-    local current_winid = api.nvim_get_current_win()
     vim.cmd(position .. " vsp")
     edit_winid = api.nvim_get_current_win()
     ui.set_edit_winid(edit_winid)
-    ui.resize(current_winid)
+    ui.resize()
     if mode == "split" or mode == "vsplit" then
       mode = "edit"
     end
@@ -71,14 +65,13 @@ function M.split(node, config)
   end
 end
 
----@param node YaTreeNode
+---@param _ YaTreeNode
 ---@param config YaTreeConfig
-function M.preview(node, config)
-  ---@type YaTreeNode[]
-  local nodes = ui.get_selected_nodes() or { node }
-  for _, v in ipairs(nodes) do
-    if v:is_file() then
-      open_file(v, "edit", config)
+function M.preview(_, config)
+  local nodes = ui.get_selected_nodes()
+  for _, node in ipairs(nodes) do
+    if node:is_file() then
+      open_file(node, "edit", config)
       lib.focus()
     end
   end
@@ -168,26 +161,24 @@ function M.rename(node)
   end)
 end
 
----@param node YaTreeNode
 ---@return YaTreeNode[], YaTreeNode
-local function get_nodes_to_delete(node)
-  ---@type YaTreeNode[]
-  local nodes = ui.get_selected_nodes() or { node }
+local function get_nodes_to_delete()
+  local nodes = ui.get_selected_nodes()
 
   ---@type table<string, YaTreeNode>
   local parents_map = {}
-  for _, v in ipairs(nodes) do
+  for _, node in ipairs(nodes) do
     -- prohibit deleting the root node
-    if lib.is_node_root(v) then
-      utils.print_error(string.format("path %s is the root of the tree, aborting.", v.path))
+    if lib.is_node_root(node) then
+      utils.print_error(string.format("path %s is the root of the tree, aborting.", node.path))
       return
     end
 
     -- if this node is a parent of one of the nodes to delete,
     -- remove it from the list
-    parents_map[v.path] = nil
-    if v.parent then
-      parents_map[v.parent.path] = v.parent
+    parents_map[node.path] = nil
+    if node.parent then
+      parents_map[node.parent.path] = node.parent
     end
   end
   ---@type YaTreeNode[]
@@ -222,9 +213,8 @@ local function delete_node(node)
   end)
 end
 
----@param node YaTreeNode
-function M.delete(node)
-  local nodes, selected_node = get_nodes_to_delete(node)
+function M.delete()
+  local nodes, selected_node = get_nodes_to_delete()
   if not nodes then
     return
   end
@@ -232,22 +222,22 @@ function M.delete(node)
   async.run(function()
     scheduler()
 
-    for _, v in ipairs(nodes) do
-      delete_node(v)
+    for _, node in ipairs(nodes) do
+      delete_node(node)
     end
 
     lib.refresh(selected_node)
   end)
 end
 
----@param node YaTreeNode
+---@param _ YaTreeNode
 ---@param config YaTreeConfig
-function M.trash(node, config)
+function M.trash(_, config)
   if not M.trash.enabled then
     return
   end
 
-  local nodes, selected_node = get_nodes_to_delete(node)
+  local nodes, selected_node = get_nodes_to_delete()
   if not nodes then
     return
   end
@@ -258,10 +248,10 @@ function M.trash(node, config)
     ---@type string[]
     local files = {}
     if config.trash.require_confirm then
-      for _, v in ipairs(nodes) do
+      for _, node in ipairs(nodes) do
         local response = ui.select({ "Yes", "No" }, { prompt = "Trash " .. node.path .. "?" })
         if response == "Yes" then
-          files[#files + 1] = v.path
+          files[#files + 1] = node.path
         end
       end
     else

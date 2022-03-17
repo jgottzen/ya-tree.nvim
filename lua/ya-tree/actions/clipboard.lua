@@ -39,39 +39,25 @@ local function add_or_remove_or_replace_in_queue(node, action)
   node:set_clipboard_status(action)
 end
 
----@param node YaTreeNode
-function M.copy_node(node)
-  if not node then
-    return
-  end
-  -- copying the root node will not work
-  if lib.is_node_root(node) then
-    return
-  end
-
-  ---@type YaTreeNode[]
-  local nodes = ui.get_selected_nodes() or { node }
-  for _, v in ipairs(nodes) do
-    add_or_remove_or_replace_in_queue(v, copy_action)
+function M.copy_node()
+  local nodes = ui.get_selected_nodes()
+  for _, node in ipairs(nodes) do
+    -- copying the root node will not work
+    if not lib.is_node_root(node) then
+      add_or_remove_or_replace_in_queue(node, copy_action)
+    end
   end
 
   lib.redraw()
 end
 
----@param node YaTreeNode
-function M.cut_node(node)
-  if not node then
-    return
-  end
-  -- cutting the root node will not work
-  if lib.is_node_root(node) then
-    return
-  end
-
-  ---@type YaTreeNode[]
-  local nodes = ui.get_selected_nodes() or { node }
-  for _, v in ipairs(nodes) do
-    add_or_remove_or_replace_in_queue(v, cut_action)
+function M.cut_node()
+  local nodes = ui.get_selected_nodes()
+  for _, node in ipairs(nodes) do
+    -- cutting the root node will not work
+    if not lib.is_node_root(node) then
+      add_or_remove_or_replace_in_queue(node, cut_action)
+    end
   end
 
   lib.redraw()
