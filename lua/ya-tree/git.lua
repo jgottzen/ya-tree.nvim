@@ -235,7 +235,7 @@ end
 
 function M.setup()
   if config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
-    utils.print("yadm not in PATH. Disabling 'git.yadm.enable' in config")
+    utils.print("yadm not in the PATH. Disabling 'git.yadm.enable' in config")
     config.git.yadm.enable = false
   end
 end

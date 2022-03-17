@@ -1,6 +1,7 @@
 local async = require("plenary.async")
 local scheduler = require("plenary.async.util").scheduler
 
+local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
@@ -18,8 +19,7 @@ local M = {}
 
 ---@param node YaTreeNode
 ---@param mode editmode
----@param config YaTreeConfig
-local function open_file(node, mode, config)
+local function open_file(node, mode)
   local edit_winid = ui.get_edit_winid()
   log.debug("open_file: edit_winid=%s, current_winid=%s", edit_winid, api.nvim_get_current_win())
   if not edit_winid then
@@ -40,38 +40,33 @@ local function open_file(node, mode, config)
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
-function M.open(node, config)
+function M.open(node)
   if node:is_file() then
-    open_file(node, "edit", config)
+    open_file(node, "edit")
   else
     lib.toggle_directory(node)
   end
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
-function M.vsplit(node, config)
+function M.vsplit(node)
   if node:is_file() then
-    open_file(node, "vsplit", config)
+    open_file(node, "vsplit")
   end
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
-function M.split(node, config)
+function M.split(node)
   if node:is_file() then
-    open_file(node, "split", config)
+    open_file(node, "split")
   end
 end
 
----@param _ YaTreeNode
----@param config YaTreeConfig
-function M.preview(_, config)
+function M.preview()
   local nodes = ui.get_selected_nodes()
   for _, node in ipairs(nodes) do
     if node:is_file() then
-      open_file(node, "edit", config)
+      open_file(node, "edit")
       lib.focus()
     end
   end
@@ -230,10 +225,8 @@ function M.delete()
   end)
 end
 
----@param _ YaTreeNode
----@param config YaTreeConfig
-function M.trash(_, config)
-  if not M.trash.enabled then
+function M.trash()
+  if not config.trash.enable then
     return
   end
 
@@ -278,9 +271,10 @@ function M.trash(_, config)
 end
 
 function M.setup()
-  M.trash = {
-    enabled = fn.executable("trash") == 1,
-  }
+  if config.trash.enable and fn.executable("trash") == 0 then
+    utils.print("trash is not in the PATH. Disabling 'trash.enable' in the config")
+    config.trash.enable = false
+  end
 end
 
 return M
