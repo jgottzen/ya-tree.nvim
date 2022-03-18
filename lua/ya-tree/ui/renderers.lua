@@ -289,7 +289,7 @@ function M.clipboard(node, _, renderer)
 end
 
 do
-  local git_staus_to_hl = {}
+  local git_staus_to_hl
   ---@param status string
   ---@return string
   function M.helpers.get_git_status_highlight(status)
@@ -313,7 +313,7 @@ do
   ---@field highlight string
 
   ---@type table<number, text_and_highlight>
-  local diagnostic_icon_and_hl = {}
+  local diagnostic_icon_and_hl
   ---@param severity number
   ---@return text_and_highlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
@@ -372,6 +372,7 @@ do
       dirty = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
     }
 
+    git_staus_to_hl = {}
     for k, v in pairs(git_icons_and_hl) do
       if #v == 1 then
         git_staus_to_hl[k] = v[1].highlight
@@ -380,6 +381,7 @@ do
       end
     end
 
+    diagnostic_icon_and_hl = {}
     local map = {}
     map[vim.diagnostic.severity.ERROR] = { "Error", "Error" }
     map[vim.diagnostic.severity.WARN] = { "Warn", "Warning" }

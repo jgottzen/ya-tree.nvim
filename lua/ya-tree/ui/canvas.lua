@@ -236,9 +236,9 @@ function Canvas:reset_canvas()
 end
 
 ---@type YaTreeViewRenderer[]
-local directory_renderers = {}
+local directory_renderers
 ---@type YaTreeViewRenderer[]
-local file_renderers = {}
+local file_renderers
 
 ---@class highlight_group
 ---@field name string
@@ -627,6 +627,10 @@ do
 
   function Canvas.setup()
     renderers.setup(config)
+
+    -- reset the renderer arrays, since the setup can be called repeatedly
+    directory_renderers = {}
+    file_renderers = {}
 
     for _, directory_renderer in pairs(config.view.renderers.directory) do
       local renderer = create_renderer(directory_renderer)
