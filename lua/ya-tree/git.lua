@@ -40,7 +40,7 @@ end
 
 ---@param path string
 ---@param cmd string
----@return string git_root, string toplevel
+---@return string toplevel, string git_root
 local function get_repo_info(path, cmd)
   local args = {
     "-C",
@@ -56,15 +56,15 @@ local function get_repo_info(path, cmd)
   if #result == 0 then
     return nil
   end
-  local git_root = result[1]
-  local toplevel = result[2]
+  local toplevel = result[1]
+  local git_root = result[2]
 
   if utils.is_windows then
-    git_root = windowize_path(git_root)
     toplevel = windowize_path(toplevel)
+    git_root = windowize_path(git_root)
   end
 
-  return git_root, toplevel
+  return toplevel, git_root
 end
 
 ---@class Repo
