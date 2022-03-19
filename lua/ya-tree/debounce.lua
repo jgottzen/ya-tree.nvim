@@ -1,7 +1,5 @@
 local M = {}
 
-local unpack = unpack or table.unpack
-
 ---@param fun function
 ---@param ms number
 ---@return function

@@ -2,26 +2,36 @@
 ---@field config YaTreeLoggerConfig
 local logger = {}
 
+-- selene: allow(unused_variable)
+
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
 ---@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.trace(msg, ...) end
+-- selene: allow(unused_variable)
+
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
 ---@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.debug(msg, ...) end
+-- selene: allow(unused_variable)
+
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
 ---@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.info(msg, ...) end
+-- selene: allow(unused_variable)
+
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
 ---@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.warn(msg, ...) end
+-- selene: allow(unused_variable)
+
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
@@ -46,7 +56,6 @@ local default = {
   },
 }
 
-local unpack = unpack or table.unpack
 local inspect = vim.inspect
 local fmt = string.format
 local tbl_concat = table.concat
