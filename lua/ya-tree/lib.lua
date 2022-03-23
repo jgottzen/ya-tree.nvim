@@ -507,8 +507,7 @@ end
 
 ---@param bufnr number
 function M.on_win_leave(bufnr)
-  local tree = Tree.get_current_tree()
-  if not tree then
+  if not Tree.get_current_tree() then
     return
   end
 
@@ -553,10 +552,12 @@ function M.on_buf_write_post(file)
       Tree.for_each_tree(function(tree)
         if tree.root:is_ancestor_of(file) then
           log.debug("changed file %q is in tree %q and tab %s", file, tree.root.path, tree.tabpage)
+
           local parent_path = Path:new(file):parent():absolute()
           local node = tree.root:get_child_if_loaded(parent_path)
           if node then
             node:refresh()
+
             vim.schedule(function()
               ui.update(tree.root, nil, { tabpage = tree.tabpage })
             end)
@@ -588,6 +589,21 @@ function M.on_buf_enter(file, bufnr)
       end)
     end
   end)
+end
+
+---@param file string
+---@param bufnr number
+function M.on_buf_new_file(file, bufnr)
+  if not ui.is_open() or not file or file == "" or ui.is_buffer_yatree(bufnr) then
+    return
+  end
+
+  local tree = Tree.get_current_tree()
+  if not tree then
+    return
+  end
+
+  ui.move_buffer_to_edit_window(bufnr, tree.root)
 end
 
 function M.on_cursor_moved()

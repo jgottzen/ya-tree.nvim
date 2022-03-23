@@ -6,6 +6,7 @@
 ---@field auto_reload_on_write boolean reloads the tree and the directory of the file changed.
 ---@field follow_focused_file boolean update the focused file in the tree on `BufEnter`.
 ---@field hijack_cursor boolean keep the cursor on the name in tree.
+---@field move_buffers_from_tree_window boolean move buffers from the tree window to the last used window.
 ---@field replace_netrw boolean replace `netrw` windows.
 ---@field cwd YaTreeConfig.Cwd
 ---@field search YaTreeConfig.Search
@@ -151,6 +152,7 @@ local M = {
 
     follow_focused_file = false,
     hijack_cursor = false,
+    move_buffers_from_tree_window = true,
 
     replace_netrw = true,
     cwd = {

@@ -277,16 +277,23 @@ end
 ---@param bufnr number
 function M.on_win_leave(bufnr)
   local tab = get_tab()
-  if not tab then
+  if not tab or M.is_buffer_yatree(bufnr) then
     return
   end
 
-  if not M.is_buffer_yatree(bufnr) then
-    local is_floating_win = M.is_window_floating()
-    local is_ui_win = tab.canvas:is_current_window_canvas()
-    if not (is_floating_win or is_ui_win) then
-      tab.canvas:set_edit_winid(api.nvim_get_current_win())
-    end
+  if not (M.is_window_floating() or tab.canvas:is_current_window_canvas()) then
+    tab.canvas:set_edit_winid(api.nvim_get_current_win())
+  end
+end
+
+function M.move_buffer_to_edit_window(bufnr, root)
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() or M.is_buffer_yatree(bufnr) then
+    return
+  end
+
+  if tab.canvas:is_current_window_canvas() then
+    tab.canvas:move_buffer_to_edit_window(bufnr, root)
   end
 end
 

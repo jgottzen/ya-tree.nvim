@@ -48,6 +48,11 @@ local function setup_autocommands(config)
   if config.follow_focused_file then
     vim.cmd([[autocmd BufEnter * lua require('ya-tree.lib').on_buf_enter(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
   end
+  if config.move_buffers_from_tree_window then
+    vim.cmd(
+      [[autocmd BufEnter,BufNewFile * lua require('ya-tree.lib').on_buf_new_file(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]]
+    )
+  end
   if config.hijack_cursor then
     vim.cmd([[autocmd CursorMoved YaTree* lua require('ya-tree.lib').on_cursor_moved()]])
   end

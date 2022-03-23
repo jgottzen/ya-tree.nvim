@@ -136,6 +136,19 @@ local function format_option(key, value)
   end
 end
 
+---@param bufnr number
+---@param root YaTreeNode
+function Canvas:move_buffer_to_edit_window(bufnr, root)
+  if self.winid and self.edit_winid and self.bufnr then
+    log.debug("moving buffer %s from window %s to window %s", bufnr, api.nvim_get_current_win(), self.edit_winid)
+
+    api.nvim_win_set_buf(self.winid, self.bufnr)
+    self:render_tree(root)
+    api.nvim_win_set_buf(self.edit_winid, bufnr)
+    api.nvim_set_current_win(self.edit_winid)
+  end
+end
+
 ---@private
 function Canvas:_set_window_options_and_size()
   api.nvim_win_set_buf(self.winid, self.bufnr)
