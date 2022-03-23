@@ -4,7 +4,7 @@
 ---@field log_to_file boolean whether to log the the log file.
 ---@field auto_close boolean force closing Neovim when YaTree is the last window.
 ---@field auto_reload_on_write boolean reloads the tree and the directory of the file changed.
----@field follow_focused_file boolean update the focused file in the tree on `BufEnter`
+---@field follow_focused_file boolean update the focused file in the tree on `BufEnter`.
 ---@field hijack_cursor boolean keep the cursor on the name in tree.
 ---@field replace_netrw boolean replace `netrw` windows.
 ---@field cwd YaTreeConfig.Cwd

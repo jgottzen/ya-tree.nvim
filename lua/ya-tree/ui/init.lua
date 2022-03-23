@@ -228,7 +228,7 @@ function M.toggle_help(root, node)
   local canvas = tab.canvas
 
   if canvas.in_help then
-    if canvas.mode == 'search' then
+    if canvas.mode == "search" then
       canvas:render_search(root)
       canvas:focus_node(node)
     else
