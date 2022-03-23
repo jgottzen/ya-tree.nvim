@@ -117,7 +117,7 @@ function logger.new(config)
 
   ---@param arg string
   ---@vararg any
-  ---@return string?
+  ---@return string
   local function format(arg, ...)
     if type(arg) == "string" then
       if arg:find("%%s") or arg:find("%%q") then

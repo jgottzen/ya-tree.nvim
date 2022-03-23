@@ -33,21 +33,19 @@ local Node = {}
 ---@class YaTreeSearchNode : YaTreeNode
 ---@field public search_term string
 
---- Creates a new node.
+---Creates a new node.
 ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
 ---@param parent? YaTreeNode the parent node.
----@return YaTreeNode
+---@return YaTreeNode node
 local function create_node(fs_node, parent)
-  log.trace("creating node for %q", fs_node.path)
-
   ---@type YaTreeNode
   local self = setmetatable(fs_node, {
     __index = Node,
     __eq = function(n1, n2)
       return n1 and n2 and n1.path ~= nil and n1.path == n2.path
     end,
-    __tostring = function(self)
-      return self.path
+    __tostring = function(node)
+      return node.path
     end,
   })
   self.parent = parent
@@ -60,13 +58,15 @@ local function create_node(fs_node, parent)
     self.repo = parent.repo
   end
 
+  log.trace("created node %s", self)
+
   return self
 end
 
---- Creates a new node tree root.
+---Creates a new node tree root.
 ---@param path string the path
 ---@param old_root? YaTreeNode the previous root
----@return YaTreeNode
+---@return YaTreeNode root
 function M.root(path, old_root)
   local root = create_node({
     name = fn.fnamemodify(path, ":t"),
@@ -239,6 +239,7 @@ function Node:set_clipboard_status(status)
 end
 
 do
+  ---@type table<string, number>
   local diagnostics = {}
 
   ---@param new_diagnostics table<string, number>
@@ -252,13 +253,15 @@ do
   end
 end
 
+---Returns an iterator function for this `Node`s children.
+--
 ---@param opts { reverse?: boolean, from?: YaTreeNode }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} `Node`
----@return fun():YaTreeNode|nil
+---@return fun():YaTreeNode|nil iterator
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then
-    return function() end, nil, nil
+    return function() end
   end
 
   opts = opts or {}
@@ -267,9 +270,9 @@ function Node:iterate_children(opts)
     start = #self.children + 1
   end
   if opts.from then
-    for k, v in ipairs(self.children) do
-      if v == opts.from then
-        start = k
+    for i, child in ipairs(self.children) do
+      if child == opts.from then
+        start = i
         break
       end
     end
@@ -293,10 +296,11 @@ function Node:iterate_children(opts)
   end
 end
 
---- Collapses the node, it it is a directory.
+---Collapses the node, if it is a directory.
+--
 ---@param opts {children_only?: boolean, recursive?: boolean}
----  - {opts.children_only} `boolean`
----  - {opts.recursive} `boolean`
+---  - {opts.children_only?} `boolean`
+---  - {opts.recursive?} `boolean`
 function Node:collapse(opts)
   opts = opts or {}
   if self:is_directory() then
@@ -312,11 +316,12 @@ function Node:collapse(opts)
   end
 end
 
---- Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
----@param opts {force_scan?: boolean, to?: string}
----  - {opts.force_scan} `boolean`.
----  - {opts.to} `string` expand all the way to the specified path and returns it.
----@return YaTreeNode|nil #if {opts.to} is specified, and found.
+---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+--
+---@param opts? {force_scan?: boolean, to?: string}
+---  - {opts.force_scan?} `boolean` rescan directories.
+---  - {opts.to?} `string` recursively expand to the specified path and return it.
+---@return YaTreeNode|nil node #if {opts.to} is specified, and found.
 function Node:expand(opts)
   opts = opts or {}
   if self:is_directory() then
@@ -327,18 +332,17 @@ function Node:expand(opts)
   end
 
   if opts.to then
-    local to = opts.to
-    log.debug("node %q is expanding to path=%q", self.path, to)
-    if self.path == to then
-      log.debug("self %q is equal to path=%q", self.path, to)
+    log.debug("node %q is expanding to path=%q", self.path, opts.to)
+    if self.path == opts.to then
+      log.debug("self %q is equal to path=%q", self.path, opts.to)
       return self
     elseif self:is_directory() then
       for _, node in ipairs(self.children) do
-        if node:is_ancestor_of(to) then
-          log.debug("child node %q is parent of %q, expanding...", node.path, to)
+        if node:is_ancestor_of(opts.to) then
+          log.debug("child node %q is parent of %q, expanding...", node.path, opts.to)
           return node:expand(opts)
-        elseif node.path == to then
-          log.debug("found node %q equal to path=%q", node.path, to)
+        elseif node.path == opts.to then
+          log.debug("found node %q equal to path=%q", node.path, opts.to)
           return node
         end
       end
@@ -346,7 +350,8 @@ function Node:expand(opts)
   end
 end
 
---- Returns the child node specified by `path` if it has been loaded.
+---Returns the child node specified by `path` if it has been loaded.
+--
 ---@param path string
 ---@return YaTreeNode|nil
 function Node:get_child_if_loaded(path)
@@ -366,7 +371,6 @@ function Node:get_child_if_loaded(path)
   end
 end
 
----@private
 ---@param node YaTreeNode
 ---@param recurse boolean
 ---@param refreshed_git_repos table<string, boolean>|nil
@@ -393,7 +397,8 @@ function Node:refresh()
   refresh_node(self, true)
 end
 
---- Creates a separate node search tree from the `search_result`.
+---Creates a separate node search tree from the `search_result`.
+--
 ---@param search_results string[]
 ---@return YaTreeSearchNode search_root, YaTreeSearchNode first_node
 function Node:create_search_tree(search_results)
@@ -410,6 +415,7 @@ function Node:create_search_tree(search_results)
 
   local min_path_size = #self.path
   for _, path in ipairs(search_results) do
+    ---@type string[]
     local parents = Path:new(path):parents()
     for i = #parents, 1, -1 do
       local parent_path = parents[i]

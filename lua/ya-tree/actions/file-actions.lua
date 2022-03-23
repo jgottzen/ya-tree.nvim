@@ -67,9 +67,9 @@ function M.preview()
   for _, node in ipairs(nodes) do
     if node:is_file() then
       open_file(node, "edit")
-      lib.focus()
     end
   end
+  lib.focus()
 end
 
 ---@param node YaTreeNode
@@ -210,9 +210,6 @@ end
 
 function M.delete()
   local nodes, selected_node = get_nodes_to_delete()
-  if not nodes then
-    return
-  end
 
   async.run(function()
     scheduler()
@@ -231,9 +228,6 @@ function M.trash()
   end
 
   local nodes, selected_node = get_nodes_to_delete()
-  if not nodes then
-    return
-  end
 
   async.run(function()
     scheduler()

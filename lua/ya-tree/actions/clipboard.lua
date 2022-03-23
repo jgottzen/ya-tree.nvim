@@ -12,6 +12,7 @@ local log = require("ya-tree.log")
 ---@field action clipboard_action
 
 local M = {
+  ---@private
   ---@type ClipboardItem[]
   queue = {},
 }
@@ -23,13 +24,13 @@ local copy_action, cut_action = "copy", "cut"
 ---@param node YaTreeNode
 ---@param action clipboard_action
 local function add_or_remove_or_replace_in_queue(node, action)
-  for i, v in ipairs(M.queue) do
-    if v.node.path == node.path then
-      if v.action == action then
+  for i, item in ipairs(M.queue) do
+    if item.node.path == node.path then
+      if item.action == action then
         table.remove(M.queue, i)
         node:set_clipboard_status(nil)
       else
-        v.action = action
+        item.action = action
         node:set_clipboard_status(action)
       end
       return
@@ -66,7 +67,7 @@ end
 ---@param dest_node YaTreeNode
 ---@param node YaTreeNode
 ---@param action clipboard_action
----@return boolean, string?
+---@return boolean success, string? destination_path
 local function paste_node(dest_node, node, action)
   if not fs.exists(node.path) then
     utils.print_error(string.format("Item %q does not exist, cannot %s!", node.path, action))
@@ -128,8 +129,8 @@ local function paste_node(dest_node, node, action)
 end
 
 local function clear_clipboard()
-  for _, v in ipairs(M.queue) do
-    v.node:set_clipboard_status(nil)
+  for _, item in ipairs(M.queue) do
+    item.node:set_clipboard_status(nil)
   end
   M.queue = {}
 end
@@ -153,8 +154,8 @@ function M.paste_from_clipboard(node)
     if #M.queue > 0 then
       ---@type string
       local first_file
-      for _, v in ipairs(M.queue) do
-        local ok, result = paste_node(node, v.node, v.action)
+      for _, item in ipairs(M.queue) do
+        local ok, result = paste_node(node, item.node, item.action)
         if ok and not first_file then
           first_file = result
         end
@@ -170,8 +171,8 @@ end
 function M.show_clipboard()
   if #M.queue > 0 then
     utils.print("The following file/directories are in the clipboard:")
-    for _, v in ipairs(M.queue) do
-      utils.print("  " .. v.action .. ": " .. v.node.path)
+    for _, item in ipairs(M.queue) do
+      utils.print("  " .. item.action .. ": " .. item.node.path)
     end
   else
     utils.print("The clipboard is empty")

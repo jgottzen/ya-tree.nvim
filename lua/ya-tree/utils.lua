@@ -37,14 +37,14 @@ end
 
 ---@param first string
 ---@param second string
----@return string
+---@return string path
 function M.join_path(first, second)
   return string.format("%s%s%s", first, os_sep, second)
 end
 
 ---@param path string
 ---@param root string
----@return string
+---@return string relative_path
 function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end

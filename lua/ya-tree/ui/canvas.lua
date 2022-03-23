@@ -82,6 +82,9 @@ end
 ---@param winid number
 function Canvas:set_edit_winid(winid)
   self.edit_winid = winid
+  if self.edit_winid ~= nil and self.edit_winid == self.winid then
+    log.error("setting edit_winid to %s, the same as winid", self.edit_winid)
+  end
 end
 
 ---@return boolean is_open
@@ -97,7 +100,7 @@ function Canvas:is_current_window_canvas()
 end
 
 ---@private
----@return boolean
+---@return boolean is_loaded
 function Canvas:_is_buffer_loaded()
   return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr)
 end
@@ -119,6 +122,7 @@ end
 
 ---@param key string
 ---@param value boolean|string
+---@return string
 local function format_option(key, value)
   if value == true then
     return key
@@ -147,14 +151,14 @@ end
 ---@private
 function Canvas:_create_window()
   ---@type number
-  local edit_winid = api.nvim_get_current_win()
-  log.debug("setting edit_winid to %s, old=%s", edit_winid, self.edit_winid)
-  api.nvim_command("noautocmd vsplit")
+  local old_edit_winid = self.edit_winid
+  self.edit_winid = api.nvim_get_current_win()
+  log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
 
+  api.nvim_command("noautocmd vsplit")
   ---@type number
   self.winid = api.nvim_get_current_win()
   log.debug("created window %s", self.winid)
-  self.edit_winid = edit_winid
   self:_set_window_options_and_size()
 end
 
@@ -189,8 +193,10 @@ function Canvas:focus()
     ---@type number
     local current_winid = api.nvim_get_current_win()
     if current_winid ~= self.winid then
-      log.debug("winid=%s setting edit_winid to %s, old=%s", self.winid, current_winid, self.edit_winid)
-      self.edit_winid = current_winid
+      if current_winid ~= self.edit_winid then
+        log.debug("winid=%s setting edit_winid to %s, old=%s", self.winid, current_winid, self.edit_winid)
+        self.edit_winid = current_winid
+      end
       api.nvim_set_current_win(self.winid)
     end
   end
@@ -213,10 +219,12 @@ function Canvas:close()
   end
 
   local ok = pcall(api.nvim_win_close, self.winid, true)
-  if not ok then
-    self.winid = nil
+  if ok then
+    log.debug("closed canvas window=%s", self.winid)
+  else
     log.error("error closing window %q", self.winid)
   end
+  self.winid = nil
 end
 
 function Canvas:resize()
@@ -423,7 +431,7 @@ end
 
 ---@return YaTreeNode[] nodes
 function Canvas:get_selected_nodes()
-  local mode = vim.api.nvim_get_mode().mode
+  local mode = api.nvim_get_mode().mode
   if mode == "v" or mode == "V" then
     -- see https://github.com/neovim/neovim/pull/13896
     local from = fn.getpos("v")
@@ -461,16 +469,21 @@ do
   local previous_row
 
   function Canvas:move_cursor_to_name()
-    local node, row = self:_get_current_node_and_position()
+    local node, row, col = self:_get_current_node_and_position()
     if not node or row == previous_row then
       return
     end
 
     previous_row = row
+    -- don't move the cursor on the first line
+    if row == 1 then
+      return
+    end
+
     ---@type string
     local line = api.nvim_get_current_line()
     local pos = (line:find(node.name, 1, true) or 0) - 1
-    if pos > 0 then
+    if pos > 0 and pos ~= col then
       api.nvim_win_set_cursor(self.winid or 0, { row, pos })
     end
   end

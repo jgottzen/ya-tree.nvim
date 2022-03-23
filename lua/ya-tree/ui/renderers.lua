@@ -1,4 +1,7 @@
-local icons_availble, get_icon
+---@type boolean
+local icons_availble
+---@type fun(filename: string, extension: string, opts?: {default?: boolean}): string, string
+local get_icon
 do
   local icons
   icons_availble, icons = pcall(require, "nvim-web-devicons")
@@ -66,6 +69,7 @@ function M.icon(node, _, renderer)
     return
   end
 
+  ---@type string
   local icon, highlight
   if node:is_directory() then
     local custom_icon = renderer.directory.custom[node.name]
@@ -154,6 +158,7 @@ function M.name(node, config, renderer)
     if not text:sub(-1) == utils.os_sep then
       text = text .. utils.os_sep
     end
+
     return {
       padding = "",
       text = text .. "..",

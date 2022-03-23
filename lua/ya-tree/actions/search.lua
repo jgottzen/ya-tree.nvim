@@ -36,7 +36,7 @@ end
 ---@param term string
 ---@param path string
 ---@param config YaTreeConfig
----@return string, string[]
+---@return string cmd, string[] arguments
 local function build_search(term, path, config)
   ---@type string
   local cmd
@@ -86,13 +86,15 @@ local function build_search(term, path, config)
       table.insert(args, term)
     elseif cmd == "where" then
       args = { "/r", path, term }
-    else
+    elseif not config.search.cmd then
+      -- no search command available
       return
     end
-  end
-  if type(config.search.args) == "table" then
-    for _, v in ipairs(config.search.args) do
-      table.insert(args, v)
+
+    if type(config.search.args) == "table" then
+      for _, arg in ipairs(config.search.args) do
+        table.insert(args, arg)
+      end
     end
   end
 
@@ -121,12 +123,12 @@ local function search(term, node, config, focus_node)
   job.run({ cmd = cmd, args = args, cwd = node.path }, function(code, stdout, stderr)
     vim.schedule(function()
       if code == 0 then
-        log.debug("search result: %s", stdout)
         ---@type string[]
         local lines = vim.split(stdout or "", "\n", true)
         if lines[#lines] == "" then
           lines[#lines] = nil
         end
+        log.debug("%q found %s matches", cmd, #lines)
         lib.display_search_result(node, term, lines)
 
         if focus_node then
@@ -179,7 +181,7 @@ function M.live_search(node, config)
   ---@type fun(term: string, ms: number)
   local search_debounced = debounce(function(term)
     async.run(function()
-      search(term, node, config)
+      search(term, node, config, false)
     end)
   end)
 
@@ -200,16 +202,13 @@ function M.live_search(node, config)
       else
         term = text
         local length = #term
-        ---@type number
-        local delay
+        local delay = 500
         if length > 5 then
           delay = 100
         elseif length > 3 then
           delay = 200
         elseif length > 2 then
           delay = 400
-        else
-          delay = 500
         end
 
         search_debounced(delay, term)

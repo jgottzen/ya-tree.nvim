@@ -75,6 +75,7 @@ end
 ---@field func? fun(node: YaTreeNode, config: YaTreeConfig)
 
 local next_handler_id = 1
+
 ---@param mapping ActionMapping
 ---@return string
 local function assing_handler(mapping)
@@ -104,18 +105,22 @@ end
 ---@param bufnr number
 function M.apply_mappings(bufnr)
   local opts = { noremap = true, silent = true, nowait = true }
-  for _, m in pairs(M.mappings) do
-    for _, key in ipairs(m.keys) do
+  for _, mapping in pairs(M.mappings) do
+    for _, key in ipairs(mapping.keys) do
       local rhs
-      if m.command then
-        rhs = m.command
+      if mapping.command then
+        rhs = mapping.command
       else
-        local handler = assing_handler(m)
-        rhs = string.format("<cmd>lua require('ya-tree.actions').execute('%s')<CR>", handler)
+        local handler = assing_handler(mapping)
+        if handler then
+          rhs = string.format("<cmd>lua require('ya-tree.actions').execute('%s')<CR>", handler)
+        end
       end
 
       if rhs then
-        vim.api.nvim_buf_set_keymap(bufnr, m.mode, key, rhs, opts)
+        if not pcall(vim.api.nvim_buf_set_keymap, bufnr, mapping.mode, key, rhs, opts) then
+          log.error("cannot construct mapping for key=%s", key)
+        end
       else
         log.error("cannot construct mapping for key=%s", key)
       end
@@ -130,7 +135,7 @@ local function validate_and_create_mappings(mappings)
   local valid = {}
   for k, m in pairs(mappings) do
     ---@type string[]
-    local mode = type(m.mode) == "table" and m.mode or (m.mode and { m.mode } or { "n" })
+    local modes = type(m.mode) == "table" and m.mode or (m.mode and { m.mode } or { "n" })
     ---@type string[]
     local keys = type(k) == "table" and k or { k }
     local action = m.action
@@ -168,7 +173,7 @@ local function validate_and_create_mappings(mappings)
     end
 
     if nr_of_mappings == 1 then
-      for _, v in ipairs(mode) do
+      for _, mode in ipairs(modes) do
         ---@class ActionMapping
         ---@field mode string
         ---@field keys string[]
@@ -177,7 +182,7 @@ local function validate_and_create_mappings(mappings)
         ---@field func? function(node: Node, config: YaTreeConfig)
         ---@field command? string
         local mapping = {
-          mode = v,
+          mode = mode,
           keys = keys,
           name = action and action or (func and "'<function>'") or (command and ('"' .. command .. '"')),
           action = action,

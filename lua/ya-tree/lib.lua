@@ -18,19 +18,19 @@ local uv = vim.loop
 local M = {}
 
 ---@param node YaTreeNode
----@return boolean
+---@return boolean is_node_root
 function M.is_node_root(node)
   local tree = Tree.get_current_tree()
   return tree ~= nil and tree.root.path == node.path
 end
 
----@return string|nil
+---@return string|nil root_path
 function M.get_root_node_path()
   local tree = Tree.get_current_tree()
   return tree ~= nil and tree.root.path
 end
 
----@return string|nil #the path fo the current buffer
+---@return string|nil buffer_path #the path fo the current buffer
 local function get_current_buffer_path()
   local bufname = fn.bufname()
   local file = fn.fnamemodify(bufname, ":p")
@@ -39,10 +39,10 @@ local function get_current_buffer_path()
   return utils.is_readable_file(file) and file
 end
 
---- Resolves the `path` in the speicfied `tree`.
+--- Resolves the `path` in the speicfied `tree`. If `path` is `nil`, instead resolves the path of the current buffer.
 ---@param tree YaTree
 ---@param path? string
----@return string|nil #the fully resolved path, or `nil`
+---@return string|nil path #the fully resolved path, or `nil`
 local function resolve_path(tree, path)
   if not path or path == "" then
     path = get_current_buffer_path()
@@ -53,10 +53,8 @@ local function resolve_path(tree, path)
     log.debug("expanded cwd relative path to %s", path)
   end
 
-  if not path or not path:find(tree.root.path, 1, true) then
-    -- the path is not located in the tree
-    return
-  else
+  if path and path:find(tree.root.path, 1, true) then
+    -- the path is located in the tree
     return path
   end
 end
@@ -69,9 +67,10 @@ end
 function M.open(opts)
   async.run(function()
     opts = opts or {}
+    ---@type YaTree
     local tree = opts.tree or Tree.get_current_tree({ create_if_missing = true })
 
-    ---@type string|nil
+    ---@type string
     local file
     if opts.file then
       file = resolve_path(tree, opts.file)
@@ -80,10 +79,10 @@ function M.open(opts)
       file = resolve_path(tree)
     end
 
-    local node_to_focus = file and tree.root:expand({ to = file })
+    tree.current_node = file and tree.root:expand({ to = file }) or tree.current_node
 
     vim.schedule(function()
-      ui.open(tree.root, { hijack_buffer = opts.hijack_buffer, focus = opts.focus }, node_to_focus)
+      ui.open(tree.root, { hijack_buffer = opts.hijack_buffer, focus = opts.focus }, tree.current_node)
     end)
   end)
 end
@@ -206,7 +205,7 @@ function M.cd_up(node)
 end
 
 ---@param tree YaTree
----@param new_root string|YaTree
+---@param new_root string|YaTreeNode
 function M.change_root_node(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
 
@@ -238,7 +237,6 @@ function M.change_root_node(tree, new_root)
         tree.root = root
       end
     else
-      ---@diagnostic disable-next-line: undefined-field
       if tree.root.path ~= new_root.path then
         ---@type YaTreeNode
         tree.root = new_root

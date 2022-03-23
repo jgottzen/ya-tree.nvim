@@ -88,7 +88,7 @@ function M.update(root, node, focus)
   end
 end
 
----@param node YaTreeNode
+---@param node YaTreeNode|YaTreeSearchNode
 function M.focus_node(node)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
@@ -162,9 +162,9 @@ end
 ---@return YaTreeNode[]
 function M.get_selected_nodes()
   local tab = get_tab()
-  if not tab then
-    log.error("ui.get_selected_nodes called when tab=%s", tab)
-    return
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.get_selected_nodes called when tab=%s", tab and "not open" or "nil")
+    return {}
   end
 
   return tab.canvas:get_selected_nodes()
