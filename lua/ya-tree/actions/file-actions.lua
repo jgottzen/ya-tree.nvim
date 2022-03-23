@@ -10,33 +10,16 @@ local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
-local api = vim.api
 local fn = vim.fn
 
 local M = {}
 
----@alias editmode "'edit'"|"'vsplit'"|"'split'"
+---@alias cmdmode "'edit'"|"'vsplit'"|"'split'"
 
 ---@param node YaTreeNode
----@param mode editmode
-local function open_file(node, mode)
-  local edit_winid = ui.get_edit_winid()
-  log.debug("open_file: edit_winid=%s, current_winid=%s", edit_winid, api.nvim_get_current_win())
-  if not edit_winid then
-    -- only the tree window is open, i.e. netrw replacement
-    -- create a new window for buffers
-    local position = config.view.side == "left" and "belowright" or "aboveleft"
-    vim.cmd(position .. " vsp")
-    edit_winid = api.nvim_get_current_win()
-    ui.set_edit_winid(edit_winid)
-    ui.resize()
-    if mode == "split" or mode == "vsplit" then
-      mode = "edit"
-    end
-  end
-
-  api.nvim_set_current_win(edit_winid)
-  vim.cmd(mode .. " " .. fn.fnameescape(node.path))
+---@param cmd cmdmode
+local function open_file(node, cmd)
+  ui.open_file(node.path, cmd)
 end
 
 ---@param node YaTreeNode
@@ -81,14 +64,13 @@ function M.add(node)
       node = node.parent
     end
 
+    ---@type string
     local prompt = "New file (an ending " .. utils.os_sep .. " will create a directory):"
-    local winid = ui.get_ui_winid()
-    local row, column = unpack(api.nvim_win_get_cursor(winid))
-
-    local input = Input:new({ title = prompt, row = row, col = column, width = #prompt + 4 }, {
+    local input = Input:new({ title = prompt, width = #prompt + 4 }, {
+      ---@param name string
       on_submit = function(name)
         vim.schedule(function()
-          ui.reset_ui_window()
+          ui.reset_window()
 
           if not name then
             utils.print("No name given, not creating new file/directory")
@@ -204,7 +186,7 @@ local function delete_node(node)
   end
 
   vim.schedule(function()
-    ui.reset_ui_window()
+    ui.reset_window()
   end)
 end
 

@@ -80,7 +80,7 @@ local function paste_node(dest_node, node, action)
     local response = ui.select({ "Yes", "Rename", "No" }, { prompt = destination .. " already exists" })
 
     vim.schedule(function()
-      ui.reset_ui_window()
+      ui.reset_window()
     end)
 
     if response == "Yes" then

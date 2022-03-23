@@ -245,7 +245,7 @@ function M.change_root_node(tree, new_root)
     end
 
     vim.schedule(function()
-      ui.update(tree.root, tree.current_node)
+      ui.update(tree.root, tree.current_node, { tabpage = tree.tabpage })
     end)
   end)
 end
@@ -352,7 +352,7 @@ do
       end
 
       vim.schedule(function()
-        ui.update(tree.root, tree.current_node)
+        ui.update(tree.root, tree.current_node, { tabpage = tree.tabpage })
         refreshing = false
       end)
     end)
@@ -383,6 +383,9 @@ do
     end
     refreshing = true
 
+    local tree = Tree.get_current_tree()
+    tree.current_node = ui.get_current_node()
+
     async.run(function()
       for _, repo in pairs(git.repos) do
         if repo then
@@ -390,10 +393,9 @@ do
         end
       end
 
-      local tree = Tree.get_current_tree()
       if tree then
         vim.schedule(function()
-          ui.update(tree.root)
+          ui.update(tree.root, tree.current_node, { tabpage = tree.tabpage })
         end)
       end
       refreshing = false
@@ -417,7 +419,7 @@ function M.rescan_dir_for_git(node)
     node:check_for_git_repo()
 
     vim.schedule(function()
-      ui.update(tree.root)
+      ui.update(tree.root, tree.current_node)
     end)
   end)
 end
@@ -434,7 +436,7 @@ function M.display_search_result(node, term, search_result)
   tree.search.result.search_term = term
 
   vim.schedule(function()
-    ui.search(tree.search.result)
+    ui.open_search(tree.search.result)
   end)
 end
 
@@ -467,8 +469,18 @@ function M.toggle_help(node)
     return
   end
 
-  tree.current_node = ui.is_help_open() and tree.current_node or node
-  ui.toggle_help(tree.root, tree.current_node)
+  ---@type YaTreeNode|YaTreeSearchNode
+  local root, current_node
+  if ui.is_search_open() then
+    root = tree.search.result
+    current_node = ui.is_help_open() and tree.search.current_node or node
+    tree.search.current_node = current_node
+  else
+    root = tree.root
+    current_node = ui.is_help_open() and tree.current_node or node
+    tree.current_node = current_node
+  end
+  ui.toggle_help(root, current_node)
 end
 
 ---@param node YaTreeNode
@@ -500,25 +512,20 @@ function M.on_win_leave(bufnr)
     return
   end
 
-  if ui.is_buffer_yatree(bufnr) then
-    if not ui.is_open() then
-      return
-    end
-    tree.current_node = M.get_current_node()
-  else
-    local edit_winid = ui.get_edit_winid()
-    local is_floating_win = ui.is_window_floating()
-    local is_ui_win = ui.is_current_window_ui_window()
-    if not (is_floating_win or is_ui_win) then
-      log.debug("on_win_leave ui.is_floating=%s, ui.is_view_win=%s, setting edit_winid to=%s", is_floating_win, is_ui_win, edit_winid)
-      ui.set_edit_winid(api.nvim_get_current_win())
-    end
-  end
+  ui.on_win_leave(bufnr)
 end
 
 function M.on_color_scheme()
-  log.debug("on_color_scheme")
   ui.setup_highlights()
+end
+
+function M.on_tab_enter()
+  M.redraw()
+end
+
+function M.on_tab_closed(tabpage)
+  Tree.delete_tree(tabpage)
+  ui.delete_tab(tabpage)
 end
 
 ---@param closed_winid number
@@ -550,9 +557,8 @@ function M.on_buf_write_post(file)
           local node = tree.root:get_child_if_loaded(parent_path)
           if node then
             node:refresh()
-            -- FIXME: only update any visible ui
             vim.schedule(function()
-              ui.update(tree.root)
+              ui.update(tree.root, nil, { tabpage = tree.tabpage })
             end)
           end
         end
@@ -578,7 +584,7 @@ function M.on_buf_enter(file, bufnr)
 
     if not (ui.is_help_open() or ui.is_search_open()) then
       vim.schedule(function()
-        ui.update(tree.root, tree.current_node, true)
+        ui.update(tree.root, tree.current_node, { focus = true })
       end)
     end
   end)
@@ -649,17 +655,15 @@ M.on_diagnostics_changed = debounce_trailing(function()
   end
   Nodes.set_diagnostics(diagnostics)
 
-  -- FIXME: how to handle uis not currently shown
-  local tree = Tree.get_current_tree()
-  if tree then
-    if not ui.is_help_open() then
-      if ui.is_search_open() then
-        ui.update(tree.search.result)
-      elseif ui.is_open() then
-        ui.update(tree.root)
+  Tree.for_each_tree(function(tree)
+    if not ui.is_help_open(tree.tabpage) then
+      if ui.is_search_open(tree.tabpage) then
+        ui.update(tree.search.result, nil, { tabpage = tree.tabpage })
+      elseif ui.is_open(tree.tabpage) then
+        ui.update(tree.root, nil, { tabpage = tree.tabpage })
       end
     end
-  end
+  end)
 end, config.diagnostics.debounce_time)
 
 ---@return boolean, string?

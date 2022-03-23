@@ -47,6 +47,8 @@ local buf_options = {
 ---@field private winid number
 ---@field private edit_winid number
 ---@field private bufnr number
+---@field private mode "'tree'"|"'search'"
+---@field private in_help boolean
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
 ---@field private node_lines string[]
@@ -58,19 +60,14 @@ function Canvas:new()
   return setmetatable({}, Canvas)
 end
 
----@return number winid
-function Canvas:get_winid()
-  return self.winid
-end
-
----@return number winid, number height, number width
-function Canvas:get_winid_and_size()
+---@return number number height, number width
+function Canvas:get_size()
   if self.winid then
     ---@type number
     local height = api.nvim_win_get_height(self.winid)
     ---@type number
     local width = api.nvim_win_get_width(self.winid)
-    return self.winid, height, width
+    return height, width
   end
 end
 
@@ -108,10 +105,16 @@ end
 ---@private
 ---@param hijack_buffer boolean
 function Canvas:_create_buffer(hijack_buffer)
-  ---@type number
-  self.bufnr = hijack_buffer and api.nvim_get_current_buf() or api.nvim_create_buf(false, false)
-  api.nvim_buf_set_name(self.bufnr, "YaTree")
-  log.debug("created buffer %s", self.bufnr)
+  if hijack_buffer then
+    ---@type number
+    self.bufnr = api.nvim_get_current_buf()
+    log.debug("hijacked buffer %s", self.bufnr)
+  else
+    ---@type number
+    self.bufnr = api.nvim_create_buf(false, false)
+    log.debug("created buffer %s", self.bufnr)
+  end
+  api.nvim_buf_set_name(self.bufnr, "YaTree" .. self.bufnr)
 
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
@@ -162,30 +165,32 @@ function Canvas:_create_window()
   self:_set_window_options_and_size()
 end
 
----@param hijack_buffer? boolean
----@return boolean redraw
-function Canvas:open(hijack_buffer)
+---@param root YaTreeNode
+---@param opts {hijack_buffer?: boolean}
+function Canvas:open(root, opts)
   if self:is_open() then
-    return false
+    return
   end
 
-  local redraw = false
+  opts.redraw = false
   if not self:_is_buffer_loaded() then
-    redraw = true
-    self:_create_buffer(hijack_buffer)
+    opts.redraw = true
+    self:_create_buffer(opts.hijack_buffer)
   end
 
-  if hijack_buffer then
-    log.debug("setting edit_winid to nil")
+  if opts.hijack_buffer then
     ---@type number
     self.winid = api.nvim_get_current_win()
+    log.debug("hijacking current window %s for canvas", self.winid)
     self.edit_winid = nil
     self:_set_window_options_and_size()
-  elseif not Canvas:is_open() then
+  else
     self:_create_window()
   end
 
-  return redraw
+  if opts.redraw then
+    self:render_tree(root, opts)
+  end
 end
 
 function Canvas:focus()
@@ -225,6 +230,19 @@ function Canvas:close()
     log.error("error closing window %q", self.winid)
   end
   self.winid = nil
+end
+
+function Canvas:delete()
+  self:close()
+  if self.bufnr then
+    local ok = pcall(api.nvim_buf_delete, self.bufnr, { force = true })
+    if ok then
+      log.debug("deleted canvas buffer %s", self.bufnr)
+    else
+      log.error("error deleting buffer %s", self.bufnr)
+    end
+    self.bufnr = nil
+  end
 end
 
 function Canvas:resize()
@@ -362,9 +380,7 @@ function Canvas:_create_tree(root)
 end
 
 ---@private
----@param opts? {help: boolean}
----  - {opts.help} `boolean`
-function Canvas:_draw(opts)
+function Canvas:_draw()
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
 
@@ -372,7 +388,7 @@ function Canvas:_draw(opts)
   local lines
   ---@type highlight_group[][]
   local highlights
-  if opts and opts.help then
+  if self.in_help then
     lines, highlights = help.create_help()
   else
     lines = self.node_lines
@@ -398,20 +414,27 @@ end
 ---@param root YaTreeNode
 ---@param opts? {redraw: boolean}
 ---  - {opts.redraw} `boolean`
-function Canvas:render(root, opts)
+function Canvas:render_tree(root, opts)
   if opts and opts.redraw then
     self:_create_tree(root)
   end
+  self.in_help = false
+  self.mode = "tree"
   self:_draw()
 end
 
 function Canvas:render_help()
-  self:_draw({ help = true })
+  self.in_help = true
+  self:_draw()
 end
 
 ---@param search_root YaTreeSearchNode
 function Canvas:render_search(search_root)
-  self:_create_tree(search_root)
+  if search_root then
+    self:_create_tree(search_root)
+  end
+  self.in_help = false
+  self.mode = "search"
   self:_draw()
 end
 
@@ -469,6 +492,9 @@ do
   local previous_row
 
   function Canvas:move_cursor_to_name()
+    if self.in_help then
+      return
+    end
     local node, row, col = self:_get_current_node_and_position()
     if not node or row == previous_row then
       return

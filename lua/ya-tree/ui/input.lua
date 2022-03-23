@@ -47,14 +47,15 @@ local win_options = {
 
 --- Create a new `Input`.
 ---
----@param opts {prompt?: string, title: string, win?: number, anchor?: string, row: number, col: number, width?: number}
----  - {opts.prompt?} `string`
+---@param opts {title: string, prompt?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number}
 ---  - {opts.title} `string`
+---  - {opts.prompt?} `string` defaults to an empty string.
 ---  - {opts.win?} `number`
----  - {opts.anchor?} `string`
----  - {opts.row} `number`
----  - {opts.col} `number`
----  - {opts.width} `number`
+---  - {opts.relative?} `string` defaults to `"cursor"`.
+---  - {opts.anchor?} `string` defaults to `"SW"`.
+---  - {opts.row?} `number` defaults to `1`.
+---  - {opts.col?} `number` defaults to `1`.
+---  - {opts.width?} `number` defaults to `30`.
 ---
 ---@param callbacks {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}
 ---  - {callbacks.on_submit?} `function(text: string): void`
@@ -66,12 +67,12 @@ function Input:new(opts, callbacks)
     prompt = opts.prompt or "",
     title = opts.title,
     win_config = {
-      relative = "win",
+      relative = opts.relative or "cursor",
       win = opts.win,
-      anchor = opts.anchor,
-      row = opts.row,
-      col = opts.col,
-      width = opts.width or 40,
+      anchor = opts.anchor or "SW",
+      row = opts.row or 1,
+      col = opts.col or 1,
+      width = opts.width or 30,
       height = 1,
       style = "minimal",
       zindex = 150,
@@ -178,7 +179,7 @@ function Input:open()
   fn.prompt_setinterrupt(self.bufnr, self.callbacks.on_close)
 
   self:map("i", "<Esc>", function()
-    -- just calling input:close() and then ui.reset_ui_window() will still leave
+    -- just calling input:close() and then ui.reset_window() will still leave
     -- the tree window with relativenumber, forcing the interrupt handler set by
     -- prompt_setinterrupt solves it...
     local keys = api.nvim_replace_termcodes("<C-c>", true, false, true)
@@ -200,15 +201,16 @@ function Input:close()
 
   if self.title_winid and api.nvim_win_is_valid(self.title_winid) then
     api.nvim_win_close(self.title_winid, true)
-    self.title_winid = nil
   end
+  self.title_winid = nil
+
   if api.nvim_win_is_valid(self.winid) then
     api.nvim_win_close(self.winid, true)
   end
 
   self.winid = nil
 
-  -- fix the cursor being moved on character to the left after leaving the input
+  -- fix the cursor being moved one character to the left after leaving the input
   api.nvim_win_set_cursor(0, { self.orig_row, self.orig_col + 1 })
 end
 
@@ -257,7 +259,7 @@ do
   ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
   function Input:map(mode, key, handler, opts)
     if not self.winid then
-      error("Popup not shown yet, call Input:open()")
+      error("Input not shown yet, call Input:open()")
     end
 
     set_key_map(self.bufnr, mode, key, handler, opts)

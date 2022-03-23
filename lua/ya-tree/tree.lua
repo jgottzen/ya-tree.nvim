@@ -17,11 +17,9 @@ local uv = vim.loop
 
 local M = {
   ---@private
-  ---@type table<number, YaTree>
+  ---@type table<string, YaTree>
   _trees = {},
 }
-
-local trees = M._trees
 
 ---@param opts {tabpage?: number, create_if_missing?: boolean, root_path?: string}
 ---  - {opts.tabpage?} `number`
@@ -31,7 +29,7 @@ local trees = M._trees
 function M.get_current_tree(opts)
   opts = opts or {}
   local tabpage = opts.tabpage or api.nvim_get_current_tabpage()
-  local tree = trees[tabpage]
+  local tree = M._trees[tostring(tabpage)]
   if not tree and (opts.create_if_missing or opts.root_path) then
     ---@type string
     local cwd = uv.cwd()
@@ -48,7 +46,7 @@ function M.get_current_tree(opts)
       },
       tabpage = tabpage,
     }
-    trees[tabpage] = tree
+    M._trees[tostring(tabpage)] = tree
   end
 
   return tree
@@ -56,9 +54,14 @@ end
 
 ---@param cb fun(tree: YaTree): nil
 function M.for_each_tree(cb)
-  for _, tree in pairs(trees) do
+  for _, tree in pairs(M._trees) do
     cb(tree)
   end
+end
+
+---@param tabpage number
+function M.delete_tree(tabpage)
+  M._trees[tostring(tabpage)] = nil
 end
 
 return M

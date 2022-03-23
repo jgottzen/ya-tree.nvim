@@ -153,11 +153,6 @@ function M.live_search(node, config)
     node = node.parent
   end
 
-  local winid, height, width = ui.get_ui_winid_and_size()
-  if not winid then
-    return
-  end
-
   local timer = uv.new_timer()
   ---@param fun function
   ---@return function
@@ -186,8 +181,8 @@ function M.live_search(node, config)
   end)
 
   local term = ""
-  local anchor = config.view.side == "left" and "SW" or "SE"
-  local input = Input:new({ title = "Search:", win = winid, anchor = anchor, row = height, col = 0, width = width - 2 }, {
+  local height, width = ui.get_size()
+  local input = Input:new({ title = "Search:", relative = "win", row = height, col = 0, width = width - 2 }, {
     ---@param text string
     on_change = function(text)
       if text == term or text == nil then
@@ -217,7 +212,8 @@ function M.live_search(node, config)
     ---@param text string
     on_submit = function(text)
       vim.schedule(function()
-        ui.reset_ui_window()
+        ui.reset_window()
+
         if text ~= term then
           term = text
           timer:stop()

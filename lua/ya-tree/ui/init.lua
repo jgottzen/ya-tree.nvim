@@ -1,5 +1,6 @@
 local wrap = require("plenary.async").wrap
 
+local config = require("ya-tree.config").config
 local Canvas = require("ya-tree.ui.canvas")
 local hl = require("ya-tree.ui.highlights")
 local log = require("ya-tree.log")
@@ -12,18 +13,29 @@ local api = vim.api
 
 local M = {
   ---@private
-  ---@type table<number, TabData>
+  ---@type table<string, TabData>
   _tabs = {},
 }
 
+---@param tabpage? number
 ---@return TabData|nil tab
-local function get_tab()
-  return M._tabs[api.nvim_get_current_tabpage()]
+local function get_tab(tabpage)
+  return M._tabs[tostring(tabpage or api.nvim_get_current_tabpage())]
 end
 
+---@param tabpage number
+function M.delete_tab(tabpage)
+  tabpage = tostring(tabpage)
+  if M._tabs[tabpage] then
+    M._tabs[tabpage].canvas:delete()
+    M._tabs[tabpage] = nil
+  end
+end
+
+---@param tabpage? number
 ---@return boolean
-function M.is_open()
-  local tab = get_tab()
+function M.is_open(tabpage)
+  local tab = get_tab(tabpage)
   return tab and tab.canvas:is_open()
 end
 
@@ -35,22 +47,19 @@ end
 function M.open(root, opts, node)
   opts = opts or {}
   local tabpage = api.nvim_get_current_tabpage()
-  local tab = M._tabs[tabpage]
+  local tab = M._tabs[tostring(tabpage)]
   if not tab then
     tab = {
       tabpage = tabpage,
       canvas = Canvas:new(),
+      in_help = false,
+      in_search = false,
     }
-    M._tabs[tabpage] = tab
+    M._tabs[tostring(tabpage)] = tab
   end
-
   local canvas = tab.canvas
-  opts.redraw = canvas:open(opts.hijack_buffer)
-  if not opts.redraw and not node and not opts.focus then
-    return
-  end
 
-  canvas:render(root, opts)
+  canvas:open(root, opts)
 
   if node then
     canvas:focus_node(node)
@@ -72,18 +81,21 @@ end
 
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
----@param focus? boolean
-function M.update(root, node, focus)
-  local tab = get_tab()
+---@param opts {focus?: boolean, tabpage?: number}
+---  - {opts.focus?} `boolean` focuse `node`
+---  - {opts.tabpage?} `number`
+function M.update(root, node, opts)
+  opts = opts or {}
+  local tab = get_tab(opts.tabpage)
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.update called when tab=%s", tab and "not open" or "nil")
     return
   end
 
   local canvas = tab.canvas
-  canvas:render(root, { redraw = true })
-  -- only update the focused node if the current window is the view window
-  if node and (focus or canvas:has_focus()) then
+  canvas:render_tree(root, { redraw = true })
+  -- only update the focused node if the current window is the view window,
+  -- or explicitly requested
+  if node and (opts.focus or canvas:has_focus()) then
     canvas:focus_node(node)
   end
 end
@@ -170,11 +182,11 @@ function M.get_selected_nodes()
   return tab.canvas:get_selected_nodes()
 end
 
----@param winid number
----@return boolean
+---@param winid? number
+---@return boolean is_floating
 function M.is_window_floating(winid)
-  local config = api.nvim_win_get_config(winid or 0)
-  return config.relative > "" or config.external
+  local win_config = api.nvim_win_get_config(winid or 0)
+  return win_config.relative > "" or win_config.external
 end
 
 ---@param bufnr number
@@ -184,58 +196,17 @@ function M.is_buffer_yatree(bufnr)
   return ok and filetype == "YaTree"
 end
 
----@return number edit_winid
-function M.get_edit_winid()
-  local tab = get_tab()
-  if not tab then
-    log.error("ui.get_edit_winid called when tab=%s", tab)
-    return
-  end
-
-  return tab.canvas:get_edit_winid()
-end
-
-function M.set_edit_winid(edit_winid)
-  local tab = get_tab()
-  if not tab then
-    log.error("ui.set_edit_winid called when tab=%s", tab)
-    return
-  end
-
-  tab.canvas:set_edit_winid(edit_winid)
-end
-
-function M.get_ui_winid()
-  local tab = get_tab()
-  if not tab then
-    log.error("ui.get_ui_winid called when tab=%s", tab)
-    return
-  end
-
-  return tab.canvas:get_winid()
-end
-
-function M.get_ui_winid_and_size()
+function M.get_size()
   local tab = get_tab()
   if not tab then
     log.error("ui.get_ui_winid_and_size called when tab=%s", tab)
     return
   end
 
-  return tab.canvas:get_winid_and_size()
+  return tab.canvas:get_size()
 end
 
-function M.is_current_window_ui_window()
-  local tab = get_tab()
-  if not tab then
-    log.error("ui.is_current_window_ui_window called when tab=%s", tab)
-    return
-  end
-
-  return tab.canvas:is_current_window_canvas()
-end
-
-function M.reset_ui_window()
+function M.reset_window()
   local tab = get_tab()
   if not tab then
     log.error("ui.reset_ui_window called when tab=%s", tab)
@@ -245,72 +216,106 @@ function M.reset_ui_window()
   tab.canvas:reset_canvas()
 end
 
-function M.resize()
+---@param root YaTreeNode|YaTreeSearchNode
+---@param node YaTreeNode|YaTreeSearchNode
+function M.toggle_help(root, node)
   local tab = get_tab()
   if not tab then
-    log.error("ui.resize called when tab=%s", tab)
+    log.error("ui.toggle_help called when tab=%s", tab)
     return
   end
 
-  tab.canvas:resize()
+  local canvas = tab.canvas
+
+  if canvas.in_help then
+    if canvas.mode == 'search' then
+      canvas:render_search(root)
+      canvas:focus_node(node)
+    else
+      canvas:render_tree(root, { redraw = true })
+      canvas:focus_node(node)
+    end
+  else
+    canvas:render_help()
+  end
 end
 
-do
-  local showing_help = false
-  local in_search = false
+---@param tabpage? number
+---@return boolean
+function M.is_help_open(tabpage)
+  local tab = get_tab(tabpage)
+  return tab and tab.canvas.in_help
+end
 
-  ---@param root YaTreeNode
-  ---@param node YaTreeNode
-  function M.toggle_help(root, node)
-    local tab = get_tab()
-    if not tab then
-      log.error("ui.toggle_help called when tab=%s", tab)
-      return
-    end
-
-    local canvas = tab.canvas
-
-    showing_help = not showing_help
-    if showing_help then
-      canvas:render_help()
-    else
-      if in_search then
-        canvas:render()
-      else
-        canvas:render(root, { redraw = true })
-        canvas:focus_node(node)
-      end
-    end
+---@param search_root YaTreeSearchNode
+function M.open_search(search_root)
+  local tab = get_tab()
+  if not tab then
+    log.error("ui.search called when tab=%s", tab)
+    return
   end
 
-  ---@return boolean
-  function M.is_help_open()
-    return showing_help
-  end
+  tab.canvas:render_search(search_root)
+end
 
-  ---@param search_root YaTreeSearchNode
-  function M.search(search_root)
-    in_search = true
-    local tab = get_tab()
-    if not tab then
-      log.error("ui.search called when tab=%s", tab)
-      return
-    end
+---@param tabpage? number
+---@return boolean
+function M.is_search_open(tabpage)
+  local tab = get_tab(tabpage)
+  return tab and tab.canvas.mode == "search"
+end
 
-    tab.canvas:render_search(search_root)
-  end
-
-  ---@return boolean
-  function M.is_search_open()
-    return in_search
-  end
-
-  ---@param root YaTreeNode
-  ---@param node YaTreeNode
-  function M.close_search(root, node)
-    in_search = false
+---@param root YaTreeNode
+---@param node YaTreeNode
+function M.close_search(root, node)
+  local tab = get_tab()
+  if tab and tab.canvas.mode == "search" then
     M.update(root, node)
   end
+end
+
+---@param bufnr number
+function M.on_win_leave(bufnr)
+  local tab = get_tab()
+  if not tab then
+    return
+  end
+
+  if not M.is_buffer_yatree(bufnr) then
+    local is_floating_win = M.is_window_floating()
+    local is_ui_win = tab.canvas:is_current_window_canvas()
+    if not (is_floating_win or is_ui_win) then
+      tab.canvas:set_edit_winid(api.nvim_get_current_win())
+    end
+  end
+end
+
+---@param file string the file path to open
+---@param cmd cmdmode
+function M.open_file(file, cmd)
+  local tab = get_tab()
+  if not tab then
+    log.error("ui is not present, cannot open file %q with command %q", file, cmd)
+    return
+  end
+  local canvas = tab.canvas
+
+  local winid = canvas:get_edit_winid()
+  if not winid then
+    -- only the tree window is open, i.e. netrw replacement
+    -- create a new window for buffers
+
+    local position = config.view.side == "left" and "belowright" or "aboveleft"
+    vim.cmd(position .. " vsp")
+    canvas:set_edit_winid(winid)
+    canvas:resize()
+    if cmd == "split" or cmd == "vsplit" then
+      cmd = "edit"
+    end
+  end
+
+  api.nvim_set_current_win(winid)
+  vim.cmd(cmd .. " " .. vim.fn.fnameescape(file))
 end
 
 ---@type fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()}): string?
