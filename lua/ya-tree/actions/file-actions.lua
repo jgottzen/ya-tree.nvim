@@ -192,6 +192,9 @@ end
 
 function M.delete()
   local nodes, selected_node = get_nodes_to_delete()
+  if not nodes then
+    return
+  end
 
   async.run(function()
     scheduler()
@@ -210,6 +213,9 @@ function M.trash()
   end
 
   local nodes, selected_node = get_nodes_to_delete()
+  if not nodes then
+    return
+  end
 
   async.run(function()
     scheduler()
