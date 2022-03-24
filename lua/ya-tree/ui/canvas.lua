@@ -136,6 +136,13 @@ local function format_option(key, value)
   end
 end
 
+function Canvas:restore()
+  if self.winid and self.bufnr then
+    log.debug("restoring canvas buffer to buffer %s", self.bufnr)
+    api.nvim_win_set_buf(self.winid, self.bufnr)
+  end
+end
+
 ---@param bufnr number
 ---@param root YaTreeNode
 function Canvas:move_buffer_to_edit_window(bufnr, root)

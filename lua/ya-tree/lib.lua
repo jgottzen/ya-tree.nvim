@@ -594,16 +594,60 @@ end
 ---@param file string
 ---@param bufnr number
 function M.on_buf_new_file(file, bufnr)
-  if not ui.is_open() or not file or file == "" or ui.is_buffer_yatree(bufnr) then
+  if not file or file == "" or ui.is_buffer_yatree(bufnr) then
     return
   end
 
-  local tree = Tree.get_current_tree()
-  if not tree then
+  local ok, value = pcall(api.nvim_buf_get_var, bufnr, "YaTree_on_buf_new_file")
+  if ok and value == 1 then
     return
   end
 
-  ui.move_buffer_to_edit_window(bufnr, tree.root)
+  api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
+
+  async.run(function()
+    local tree = Tree.get_current_tree()
+
+    local is_directory, path = M.get_path_from_directory_buffer()
+    if is_directory and config.replace_netrw then
+      if ui.is_current_window_ui() then
+        ui.restore()
+      else
+        -- unless switching back to the previous buffer, deleting it will close the
+        -- window as well... why, oh why!
+        vim.cmd("bprevious")
+      end
+      log.debug("deleting buffer %s with file %s", bufnr, file)
+      api.nvim_buf_delete(bufnr, { force = true })
+
+      if not tree then
+        tree = Tree.get_current_tree({ root_path = path })
+        vim.schedule(function()
+          M.focus()
+        end)
+      elseif not tree.root:is_ancestor_of(path) then
+        M.change_root_node(tree, path)
+        vim.schedule(function ()
+          M.focus()
+        end)
+      else
+        tree.current_node = tree.root:expand({ to = path })
+        ui.update(tree.root, tree.current_node, { focus = true })
+        M.focus()
+      end
+    else
+      if tree then
+        if ui.is_current_window_ui() and config.move_buffers_from_tree_window then
+          ui.move_buffer_to_edit_window(bufnr, tree.root)
+        end
+      end
+
+      ok = pcall(api.nvim_buf_del_var, bufnr, "YaTree_on_buf_new_file")
+      if not ok then
+        log.error("couldn't delete YaTree_on_buf_new_file var on buffer %s, file %s", bufnr, file)
+      end
+    end
+  end)
 end
 
 function M.on_cursor_moved()
@@ -682,12 +726,8 @@ M.on_diagnostics_changed = debounce_trailing(function()
   end)
 end, config.diagnostics.debounce_time)
 
----@return boolean, string?
-local function get_netrw_dir()
-  if not config.replace_netrw then
-    return false
-  end
-
+---@return boolean is_directory, string? path
+function M.get_path_from_directory_buffer()
   local bufnr = api.nvim_get_current_buf()
   local bufname = api.nvim_buf_get_name(bufnr)
   local stat = uv.fs_stat(bufname)
@@ -699,10 +739,9 @@ local function get_netrw_dir()
     return false
   end
 
-  log.debug("get_netrw_dir: bufnr=%s, bufname=%s, buftype=%s, stat.type=%s", bufnr, bufname, buftype, stat.type)
+  log.debug("buffer %s (%s) is buftype %s and stat.type %s", bufnr, bufname, buftype, stat.type)
   local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
   if #lines == 0 or (#lines == 1 and lines[1] == "") then
-    log.debug("get_netrw_dir: returning %s", fn.expand(bufname))
     return true, fn.expand(bufname)
   else
     return false
@@ -710,7 +749,11 @@ local function get_netrw_dir()
 end
 
 function M.setup()
-  local netrw, root_path = get_netrw_dir()
+  ---@type boolean, string
+  local netrw, root_path
+  if config.replace_netrw then
+    netrw, root_path = M.get_path_from_directory_buffer()
+  end
   if not netrw then
     root_path = uv.cwd()
   end

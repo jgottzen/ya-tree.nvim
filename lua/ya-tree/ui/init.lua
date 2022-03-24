@@ -189,6 +189,16 @@ function M.is_window_floating(winid)
   return win_config.relative > "" or win_config.external
 end
 
+---@return boolean
+function M.is_current_window_ui()
+  local tab = get_tab()
+  if not tab then
+    return false
+  end
+
+  return api.nvim_get_current_win() == tab.canvas.winid
+end
+
 ---@param bufnr number
 ---@return boolean
 function M.is_buffer_yatree(bufnr)
@@ -286,6 +296,17 @@ function M.on_win_leave(bufnr)
   end
 end
 
+function M.restore()
+  local tab = get_tab()
+  if not tab then
+    return
+  end
+
+  tab.canvas:restore()
+end
+
+---@param bufnr number
+---@param root YaTreeNode
 function M.move_buffer_to_edit_window(bufnr, root)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() or M.is_buffer_yatree(bufnr) then
