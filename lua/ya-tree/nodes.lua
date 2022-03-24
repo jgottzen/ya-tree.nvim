@@ -33,34 +33,43 @@ local Node = {}
 ---@class YaTreeSearchNode : YaTreeNode
 ---@field public search_term string
 
+---@param n1 YaTreeNode
+---@param n2 YaTreeNode
+---@return boolean
+local function node_eq(n1, n2)
+  return n1 and n2 and n1.path ~= nil and n1.path == n2.path
+end
+
+---@param node YaTreeNode
+---@return string
+local function node_tostring(node)
+  return node.path
+end
+
 ---Creates a new node.
 ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
 ---@param parent? YaTreeNode the parent node.
 ---@return YaTreeNode node
-local function create_node(fs_node, parent)
+function Node:new(fs_node, parent)
   ---@type YaTreeNode
-  local self = setmetatable(fs_node, {
-    __index = Node,
-    __eq = function(n1, n2)
-      return n1 and n2 and n1.path ~= nil and n1.path == n2.path
-    end,
-    __tostring = function(node)
-      return node.path
-    end,
-  })
-  self.parent = parent
-  if self:is_directory() then
-    self.children = {}
+  local this = setmetatable(fs_node, self)
+  self.__index = self
+  self.__eq = node_eq
+  self.__tostring = node_tostring
+
+  this.parent = parent
+  if this:is_directory() then
+    this.children = {}
   end
 
   -- inherit any git repo
   if parent and parent.repo then
-    self.repo = parent.repo
+    this.repo = parent.repo
   end
 
-  log.trace("created node %s", self)
+  log.trace("created node %s", this)
 
-  return self
+  return this
 end
 
 ---Creates a new node tree root.
@@ -68,7 +77,7 @@ end
 ---@param old_root? YaTreeNode the previous root
 ---@return YaTreeNode root
 function M.root(path, old_root)
-  local root = create_node({
+  local root = Node:new({
     name = fn.fnamemodify(path, ":t"),
     type = "directory",
     path = path,
@@ -127,7 +136,7 @@ function Node:_scandir()
       return child
     else
       log.trace("_scandir: creating new %q", fs_node.path)
-      return create_node(fs_node, self)
+      return Node:new(fs_node, self)
     end
   end, fs.scan_dir(self.path))
 
@@ -403,7 +412,7 @@ end
 ---@param search_results string[]
 ---@return YaTreeSearchNode search_root, YaTreeSearchNode first_node
 function Node:create_search_tree(search_results)
-  local search_root = create_node({
+  local search_root = Node:new({
     name = self.name,
     type = self.type,
     path = self.path,
@@ -427,7 +436,7 @@ function Node:create_search_tree(search_results)
           local grand_parent = node_map[parents[i + 1]]
           local fs_node = fs.node_for(parent_path)
           if fs_node then
-            parent = create_node(fs_node, grand_parent)
+            parent = Node:new(fs_node, grand_parent)
             parent.expanded = true
             grand_parent.children[#grand_parent.children + 1] = parent
             table.sort(grand_parent.children, fs.fs_node_comparator)
@@ -440,7 +449,7 @@ function Node:create_search_tree(search_results)
     local parent = node_map[parents[1]]
     local fs_node = fs.node_for(path)
     if fs_node then
-      local node = create_node(fs_node, parent)
+      local node = Node:new(fs_node, parent)
       node.expanded = true
       parent.children[#parent.children + 1] = node
       table.sort(parent.children, fs.fs_node_comparator)

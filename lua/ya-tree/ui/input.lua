@@ -14,8 +14,6 @@ local fn = vim.fn
 ---@field private orig_row number
 ---@field private orig_col number
 local Input = {}
----@private
-Input.__index = Input
 
 ---@type {name: string, value: string|boolean}[]
 local buf_options = {
@@ -78,7 +76,8 @@ function Input:new(opts, callbacks)
       zindex = 150,
       border = "rounded",
     },
-  }, Input)
+  }, self)
+  self.__index = self
 
   callbacks = callbacks or {}
   this.callbacks = {

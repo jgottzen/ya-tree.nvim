@@ -57,10 +57,11 @@ local buf_options = {
 ---@field private node_lines string[]
 ---@field private node_highlights highlight_group[][]
 local Canvas = {}
-Canvas.__index = Canvas
 
 function Canvas:new()
-  return setmetatable({}, Canvas)
+  local this = setmetatable({}, self)
+  self.__index = self
+  return this
 end
 
 ---@return number number height, number width

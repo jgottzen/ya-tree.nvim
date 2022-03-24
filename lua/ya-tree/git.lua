@@ -76,8 +76,6 @@ end
 ---@field private _ignored string[]
 ---@field private _is_yadm boolean
 local Repo = M.Repo
----@private
-Repo.__index = Repo
 
 ---@param path string
 ---@return Repo|nil repo #a `Repo` object or `nil` if the path is not in a git repo.
@@ -115,7 +113,8 @@ function Repo:new(path)
     _git_status = {},
     _ignored = {},
     _is_yadm = is_yadm,
-  }, Repo)
+  }, self)
+  self.__index = self
 
   log.debug("created Repo for %q, toplevel=%q, gitdir=%q, is_yamd=%q", path, toplevel, git_dir, is_yadm)
   M.repos[this.toplevel] = this
