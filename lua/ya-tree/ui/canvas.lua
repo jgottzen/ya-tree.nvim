@@ -257,6 +257,10 @@ function Canvas:close()
   if config.view.bufferline.barbar then
     bufferline_state.set_offset(0)
   end
+
+  if type(config.view.on_close) == "function" then
+    config.view.on_close(config)
+  end
 end
 
 function Canvas:delete()
@@ -282,6 +286,10 @@ function Canvas:resize()
 
   if config.view.bufferline.barbar and barbar_exists then
     bufferline_state.set_offset(config.view.width, config.view.bufferline.title or "")
+  end
+
+  if type(config.view.on_open) == "function" then
+    config.view.on_open(config)
   end
 end
 

@@ -59,6 +59,8 @@
 ---@field side "'left'"|"'right'" where the tree panel is placed, default: `left`.
 ---@field number boolean whether to show the number column, default: `false`.
 ---@field relativenumber boolean whether to show relative numbers, default: `false`.
+---@field on_open fun(config: YaTreeConfig):nil|nil callback function when the tree view is opened, default: `nil`.
+---@field on_close fun(config: YaTreeConfig):nil|nil callback function when the tree view is closed, default: `nil`.
 ---@field bufferline YaTreeConfig.View.BufferLine
 ---@field renderers YaTreeConfig.View.Renderers
 
@@ -98,11 +100,11 @@
 
 ---@class YaTreeConfig.Renderers.Icon.Directory
 ---@field default string the icon for closed directories.
----@field expanded string the icon for openned directories.
+---@field expanded string the icon for opened directories.
 ---@field empty string the icon for closed empty directories.
----@field empty_expanded string the icon for openned empty directories.
+---@field empty_expanded string the icon for opened empty directories.
 ---@field symlink string the icon for closed symbolic link directories.
----@field symlink_expanded string the icon for openned symbolic link directories.
+---@field symlink_expanded string the icon for opened symbolic link directories.
 ---@field custom table<string, string> map of directory names to custom icons.
 
 ---@class YaTreeConfig.Renderers.Icon.File
@@ -199,6 +201,8 @@ local M = {
       side = "left",
       number = false,
       relativenumber = false,
+      on_open = nil,
+      on_close = nil,
       bufferline = {
         barbar = false,
         title = "YaTree",
