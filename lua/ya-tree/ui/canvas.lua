@@ -186,6 +186,20 @@ function Canvas:_create_window()
   self.winid = api.nvim_get_current_win()
   log.debug("created window %s", self.winid)
   self:_set_window_options_and_size()
+
+  if config.view.bufferline.barbar or type(config.view.on_close) == "function" then
+    vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas')._on_win_closed()", self.winid))
+  end
+end
+
+function Canvas:_on_win_closed()
+  if config.view.bufferline.barbar then
+    bufferline_state.set_offset(0)
+  end
+
+  if type(config.view.on_close) == "function" then
+    config.view.on_close(config)
+  end
 end
 
 ---@param root YaTreeNode
@@ -253,14 +267,6 @@ function Canvas:close()
     log.error("error closing window %q", self.winid)
   end
   self.winid = nil
-
-  if config.view.bufferline.barbar then
-    bufferline_state.set_offset(0)
-  end
-
-  if type(config.view.on_close) == "function" then
-    config.view.on_close(config)
-  end
 end
 
 function Canvas:delete()
