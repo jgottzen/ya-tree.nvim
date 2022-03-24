@@ -25,7 +25,6 @@ local actions = {
   ["copy_node"] = clipboard.copy_node,
   ["cut_node"] = clipboard.cut_node,
   ["paste_from_clipboard"] = clipboard.paste_from_clipboard,
-  ["show_clipboard"] = clipboard.show_clipboard,
   ["clear_clipboard"] = clipboard.clear_clipboard,
   ["copy_name_to_clipboard"] = clipboard.copy_name_to_clipboard,
   ["copy_root_relative_path_to_clipboard"] = clipboard.copy_root_relative_path_to_clipboard,

@@ -5,8 +5,6 @@ local git = require("ya-tree.git")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
-local fn = vim.fn
-
 local M = {}
 
 ---@class YaTreeNode
@@ -78,7 +76,7 @@ end
 ---@return YaTreeNode root
 function M.root(path, old_root)
   local root = Node:new({
-    name = fn.fnamemodify(path, ":t"),
+    name = vim.fn.fnamemodify(path, ":t"),
     type = "directory",
     path = path,
     children = {},

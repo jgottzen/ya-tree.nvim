@@ -319,7 +319,6 @@ local M = {
       ["c"] = { mode = { "n", "v" }, action = "copy_node" },
       ["x"] = { mode = { "n", "v" }, action = "cut_node" },
       ["p"] = { action = "paste_from_clipboard" },
-      ["C"] = { action = "show_clipboard" },
       ["<C-c>"] = { action = "clear_clipboard" },
       ["y"] = { action = "copy_name_to_clipboard" },
       ["Y"] = { action = "copy_root_relative_path_to_clipboard" },

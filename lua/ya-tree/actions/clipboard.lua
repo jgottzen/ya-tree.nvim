@@ -168,17 +168,6 @@ function M.paste_from_clipboard(node)
   end)
 end
 
-function M.show_clipboard()
-  if #M.queue > 0 then
-    utils.print("The following file/directories are in the clipboard:")
-    for _, item in ipairs(M.queue) do
-      utils.print("  " .. item.action .. ": " .. item.node.path)
-    end
-  else
-    utils.print("The clipboard is empty")
-  end
-end
-
 function M.clear_clipboard()
   clear_clipboard()
   lib.redraw()
