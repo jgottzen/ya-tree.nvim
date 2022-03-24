@@ -59,7 +59,12 @@
 ---@field side "'left'"|"'right'" where the tree panel is placed, default: `left`.
 ---@field number boolean whether to show the number column, default: `false`.
 ---@field relativenumber boolean whether to show relative numbers, default: `false`.
+---@field bufferline YaTreeConfig.View.BufferLine
 ---@field renderers YaTreeConfig.View.Renderers
+
+---@class YaTreeConfig.View.BufferLine
+---@field barbar boolean integrate with `romgrk/barbar.nvim` and adjust the tabline, default: `false`.
+---@field title string|nil buffer line title, default "YaTree".
 
 ---@class YaTreeConfig.View.Renderers
 ---@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[] which renderers to use for directories.
@@ -194,6 +199,10 @@ local M = {
       side = "left",
       number = false,
       relativenumber = false,
+      bufferline = {
+        barbar = false,
+        title = "YaTree",
+      },
       renderers = {
         directory = {
           { "indentation" },

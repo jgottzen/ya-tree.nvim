@@ -8,6 +8,9 @@ local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
+local barbar_exists, bufferline_state = pcall(require, "bufferline.state")
+barbar_exists = barbar_exists and type(bufferline_state.set_offset) == "function"
+
 local win_options = {
   -- number and relativenumber are taken directly from config
   -- number = false,
@@ -250,6 +253,10 @@ function Canvas:close()
     log.error("error closing window %q", self.winid)
   end
   self.winid = nil
+
+  if config.view.bufferline.barbar then
+    bufferline_state.set_offset(0)
+  end
 end
 
 function Canvas:delete()
@@ -272,6 +279,10 @@ function Canvas:resize()
 
   api.nvim_win_set_width(self.winid, config.view.width)
   vim.cmd("wincmd =")
+
+  if config.view.bufferline.barbar and barbar_exists then
+    bufferline_state.set_offset(config.view.width, config.view.bufferline.title or "")
+  end
 end
 
 function Canvas:reset_canvas()
