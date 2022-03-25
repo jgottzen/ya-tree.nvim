@@ -145,9 +145,9 @@ function logger.new(config)
     end
 
     local message = format(arg, ...)
-    local info = debug.getinfo(2, "Sl")
+    local info = debug.getinfo(2, "nSl")
     local timestamp = os.date("%H:%M:%S")
-    local fmt_message = fmt("[%-6s%s] %s:%s: %s", name, timestamp, info.short_src, info.currentline, message)
+    local fmt_message = fmt("[%-6s%s] %s:%s:%s: %s", name, timestamp, info.short_src, info.name or "<anonymous>", info.currentline, message)
 
     if self.config.to_console then
       vim.schedule(function()
