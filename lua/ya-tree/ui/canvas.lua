@@ -8,8 +8,12 @@ local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
-local barbar_exists, bufferline_state = pcall(require, "bufferline.state")
-barbar_exists = barbar_exists and type(bufferline_state.set_offset) == "function"
+---@type boolean
+local barbar_exists
+
+---@class BarBarState
+---@field set_offset fun(width: number, text?: string):nil
+local bufferline_state
 
 local win_options = {
   -- number and relativenumber are taken directly from config
@@ -172,6 +176,13 @@ function Canvas:_set_window_options_and_size()
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
 
+  if (config.view.bufferline.barbar and barbar_exists) or type(config.view.on_close) == "function" then
+    vim.cmd(string.format("augroup YaTreeCanvas%s", self.winid))
+    vim.cmd([[autocmd!]])
+    vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas')._on_win_closed()", self.winid))
+    vim.cmd("augroup END")
+  end
+
   self:resize()
 end
 
@@ -187,14 +198,10 @@ function Canvas:_create_window()
   self.winid = api.nvim_get_current_win()
   log.debug("created window %s", self.winid)
   self:_set_window_options_and_size()
-
-  if config.view.bufferline.barbar or type(config.view.on_close) == "function" then
-    vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas')._on_win_closed()", self.winid))
-  end
 end
 
 function Canvas:_on_win_closed()
-  if config.view.bufferline.barbar then
+  if config.view.bufferline.barbar and barbar_exists then
     bufferline_state.set_offset(0)
   end
 
@@ -228,6 +235,14 @@ function Canvas:open(root, opts)
 
   if opts.redraw then
     self:render_tree(root, opts)
+  end
+
+  if config.view.bufferline.barbar and barbar_exists then
+    bufferline_state.set_offset(config.view.width, config.view.bufferline.title or "")
+  end
+
+  if type(config.view.on_open) == "function" then
+    config.view.on_open(config)
   end
 end
 
@@ -290,14 +305,6 @@ function Canvas:resize()
 
   api.nvim_win_set_width(self.winid, config.view.width)
   vim.cmd("wincmd =")
-
-  if config.view.bufferline.barbar and barbar_exists then
-    bufferline_state.set_offset(config.view.width, config.view.bufferline.title or "")
-  end
-
-  if type(config.view.on_open) == "function" then
-    config.view.on_open(config)
-  end
 end
 
 function Canvas:reset_canvas()
@@ -733,6 +740,9 @@ do
     end
     log.trace("file renderers=%s", file_renderers)
   end
+
+  barbar_exists, bufferline_state = pcall(require, "bufferline.state")
+  barbar_exists = barbar_exists and type(bufferline_state.set_offset) == "function"
 end
 
 return Canvas
