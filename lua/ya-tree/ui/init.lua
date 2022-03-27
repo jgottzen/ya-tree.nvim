@@ -82,7 +82,7 @@ end
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
 ---@param opts {focus?: boolean, tabpage?: number}
----  - {opts.focus?} `boolean` focuse `node`
+---  - {opts.focus_node?} `boolean` focuse `node`
 ---  - {opts.tabpage?} `number`
 function M.update(root, node, opts)
   opts = opts or {}
@@ -95,7 +95,7 @@ function M.update(root, node, opts)
   canvas:render_tree(root, { redraw = true })
   -- only update the focused node if the current window is the view window,
   -- or explicitly requested
-  if node and (opts.focus or canvas:has_focus()) then
+  if node and (opts.focus_node or canvas:has_focus()) then
     canvas:focus_node(node)
   end
 end

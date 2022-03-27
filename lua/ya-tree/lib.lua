@@ -527,6 +527,79 @@ function M.on_tab_closed(tabpage)
   ui.delete_tab(tabpage)
 end
 
+---@param file string
+---@param bufnr number
+function M.on_buf_new_file(file, bufnr)
+  if not file or file == "" or ui.is_buffer_yatree(bufnr) then
+    return
+  end
+
+  if not (config.follow_focused_file or config.replace_netrw or config.move_buffers_from_tree_window) then
+    return
+  end
+
+  -- this event might be called multiple times, in succession, for the same buffer,
+  -- use a buffer variable to keep track of it
+  local ok, value = pcall(api.nvim_buf_get_var, bufnr, "YaTree_on_buf_new_file")
+  if ok and value == 1 then
+    return
+  end
+
+  local tree = Tree.get_tree()
+  api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
+
+  async.run(function()
+    local is_directory, path = M.get_path_from_directory_buffer()
+    if is_directory and config.replace_netrw then
+      if ui.is_current_window_ui() then
+        ui.restore()
+      else
+        -- switch back to the previous buffer so the window isn't closed
+        vim.cmd("bprevious")
+      end
+      log.debug("deleting buffer %s with file %s and path %s", bufnr, file, path)
+      api.nvim_buf_delete(bufnr, { force = true })
+      -- force barbar update, otherwise a ghost tab for the buffer can remain
+      if fn.exists("bufferline#update") == 1 then
+        vim.cmd("call bufferline#update()")
+      end
+
+      if not tree then
+        log.debug("no tree for current tab")
+        tree = Tree.get_tree({ root_path = path })
+        vim.schedule(function()
+          M.focus()
+        end)
+      elseif not tree.root:is_ancestor_of(path) and tree.root.path ~= path then
+        log.debug("the current tree is not a parent for directory %s", path)
+        M.change_root_node(tree, path)
+        vim.schedule(function()
+          M.focus()
+        end)
+      else
+        log.debug("current tree is parent of directory %s", path)
+        tree.current_node = tree.root:expand({ to = path })
+        ui.update(tree.root, tree.current_node, { focus_node = true })
+        M.focus()
+      end
+    else
+      if tree and ui.is_current_window_ui() and config.move_buffers_from_tree_window then
+        log.debug("moving buffer %s to edit window", bufnr)
+        ui.move_buffer_to_edit_window(bufnr, tree.root)
+      end
+      if config.follow_focused_file and ui.is_open() and not (ui.is_help_open() or ui.is_search_open()) then
+        tree.current_node = tree.root:expand({ to = file })
+        ui.update(tree.root, tree.current_node, { focus_node = true })
+      end
+
+      ok = pcall(api.nvim_buf_del_var, bufnr, "YaTree_on_buf_new_file")
+      if not ok then
+        log.error("couldn't delete YaTree_on_buf_new_file var on buffer %s, file %s", bufnr, file)
+      end
+    end
+  end)
+end
+
 ---@param closed_winid number
 function M.on_win_closed(closed_winid)
   -- if the closed window was a floating window, do nothing.
@@ -568,92 +641,11 @@ function M.on_buf_write_post(file)
   end
 end
 
----@param file string
----@param bufnr number
-function M.on_buf_enter(file, bufnr)
-  if not ui.is_open() or file == nil or file == "" or ui.is_buffer_yatree(bufnr) then
-    return
-  end
-
-  local tree = Tree.get_tree()
-  if not tree then
-    return
-  end
-
-  async.run(function()
-    tree.current_node = tree.root:expand({ to = file })
-
-    if not (ui.is_help_open() or ui.is_search_open()) then
-      vim.schedule(function()
-        ui.update(tree.root, tree.current_node, { focus = true })
-      end)
-    end
-  end)
-end
-
----@param file string
----@param bufnr number
-function M.on_buf_new_file(file, bufnr)
-  if not file or file == "" or ui.is_buffer_yatree(bufnr) then
-    return
-  end
-
-  local ok, value = pcall(api.nvim_buf_get_var, bufnr, "YaTree_on_buf_new_file")
-  if ok and value == 1 then
-    return
-  end
-
-  api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
-
-  async.run(function()
-    local tree = Tree.get_tree()
-
-    local is_directory, path = M.get_path_from_directory_buffer()
-    if is_directory and config.replace_netrw then
-      if ui.is_current_window_ui() then
-        ui.restore()
-      else
-        -- unless switching back to the previous buffer, deleting it will close the
-        -- window as well... why, oh why!
-        vim.cmd("bprevious")
-      end
-      log.debug("deleting buffer %s with file %s", bufnr, file)
-      api.nvim_buf_delete(bufnr, { force = true })
-
-      if not tree then
-        tree = Tree.get_tree({ root_path = path })
-        vim.schedule(function()
-          M.focus()
-        end)
-      elseif not tree.root:is_ancestor_of(path) then
-        M.change_root_node(tree, path)
-        vim.schedule(function ()
-          M.focus()
-        end)
-      else
-        tree.current_node = tree.root:expand({ to = path })
-        ui.update(tree.root, tree.current_node, { focus = true })
-        M.focus()
-      end
-    else
-      if tree then
-        if ui.is_current_window_ui() and config.move_buffers_from_tree_window then
-          ui.move_buffer_to_edit_window(bufnr, tree.root)
-        end
-      end
-
-      ok = pcall(api.nvim_buf_del_var, bufnr, "YaTree_on_buf_new_file")
-      if not ok then
-        log.error("couldn't delete YaTree_on_buf_new_file var on buffer %s, file %s", bufnr, file)
-      end
-    end
-  end)
-end
-
 function M.on_cursor_moved()
   if not ui.is_open() then
     return
   end
+
   ui.move_cursor_to_name()
 end
 
@@ -662,9 +654,10 @@ function M.on_dir_changed()
   if window_change then
     return
   end
+
   local new_cwd = vim.v.event.cwd
   local scope = vim.v.event.scope
-  log.debug("on_dir_changed: event.scope=%s, event.changed_window=%s, event.cwd=%s", scope, window_change, new_cwd)
+  log.debug("event.scope=%s, event.changed_window=%s, event.cwd=%s", scope, window_change, new_cwd)
 
   if scope == "tabpage" then
     local tree = Tree.get_tree()
@@ -775,9 +768,6 @@ local function setup_autocommands()
   if config.auto_reload_on_write then
     vim.cmd([[autocmd BufWritePost * lua require('ya-tree.lib').on_buf_write_post(vim.fn.expand('<afile>:p'))]])
   end
-  if config.follow_focused_file then
-    vim.cmd([[autocmd BufEnter * lua require('ya-tree.lib').on_buf_enter(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
-  end
   if config.hijack_cursor then
     vim.cmd([[autocmd CursorMoved YaTree* lua require('ya-tree.lib').on_cursor_moved()]])
   end
@@ -808,6 +798,7 @@ function M.setup()
 
   async.run(function()
     -- create the tree for the current tabpage
+    log.debug("creating tree in lib.setup")
     local tree = Tree.get_tree({ root_path = root_path })
     -- the autocmd must be set up last, this avoids triggering the BufNewFile event if the initial buffer
     -- is a directory
