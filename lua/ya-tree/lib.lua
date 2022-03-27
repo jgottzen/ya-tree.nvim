@@ -748,7 +748,55 @@ function M.get_path_from_directory_buffer()
   end
 end
 
+local function setup_netrw()
+  if config.replace_netrw then
+    vim.cmd([[silent! autocmd! FileExplorer *]])
+    vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
+    vim.g.loaded_netrw = 1
+    vim.g.loaded_netrwPlugin = 1
+  end
+end
+
+local function setup_autocommands()
+  vim.cmd("augroup YaTree")
+  vim.cmd("autocmd!")
+
+  vim.cmd([[autocmd WinLeave * lua require('ya-tree.lib').on_win_leave(vim.fn.expand('<abuf>'))]])
+  vim.cmd([[autocmd ColorScheme * lua require('ya-tree.lib').on_color_scheme()]])
+
+  vim.cmd([[autocmd TabEnter * lua require('ya-tree.lib').on_tab_enter()]])
+  vim.cmd([[autocmd TabClosed * lua require('ya-tree.lib').on_tab_closed(vim.fn.expand('<afile>'))]])
+
+  vim.cmd([[autocmd BufEnter,BufNewFile * lua require('ya-tree.lib').on_buf_new_file(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
+
+  if config.auto_close then
+    vim.cmd([[autocmd WinClosed * lua require('ya-tree.lib').on_win_closed(vim.fn.expand('<amatch>'))]])
+  end
+  if config.auto_reload_on_write then
+    vim.cmd([[autocmd BufWritePost * lua require('ya-tree.lib').on_buf_write_post(vim.fn.expand('<afile>:p'))]])
+  end
+  if config.follow_focused_file then
+    vim.cmd([[autocmd BufEnter * lua require('ya-tree.lib').on_buf_enter(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
+  end
+  if config.hijack_cursor then
+    vim.cmd([[autocmd CursorMoved YaTree* lua require('ya-tree.lib').on_cursor_moved()]])
+  end
+  if config.cwd.follow then
+    vim.cmd([[autocmd DirChanged * lua require('ya-tree.lib').on_dir_changed()]])
+  end
+  if config.git.enable then
+    vim.cmd([[autocmd User FugitiveChanged,NeogitStatusRefreshed lua require('ya-tree.lib').on_git_event()]])
+  end
+  if config.diagnostics.enable then
+    vim.cmd([[autocmd DiagnosticChanged * lua require('ya-tree.lib').on_diagnostics_changed()]])
+  end
+
+  vim.cmd("augroup END")
+end
+
 function M.setup()
+  setup_netrw()
+
   ---@type boolean, string
   local netrw, root_path
   if config.replace_netrw then
@@ -761,9 +809,16 @@ function M.setup()
   async.run(function()
     -- create the tree for the current tabpage
     local tree = Tree.get_tree({ root_path = root_path })
+    -- the autocmd must be set up last, this avoids triggering the BufNewFile event if the initial buffer
+    -- is a directory
     if netrw then
       vim.schedule(function()
         M.open({ tree = tree, hijack_buffer = true })
+        setup_autocommands()
+      end)
+    else
+      vim.schedule(function()
+        setup_autocommands()
       end)
     end
   end)
