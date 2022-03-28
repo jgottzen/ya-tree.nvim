@@ -136,7 +136,7 @@ local function clear_clipboard()
 end
 
 ---@param node YaTreeNode
-function M.paste_from_clipboard(node)
+function M.paste_nodes(node)
   if not node then
     return
   end

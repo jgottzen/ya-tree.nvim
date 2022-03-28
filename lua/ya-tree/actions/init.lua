@@ -24,11 +24,15 @@ local actions = {
 
   ["copy_node"] = clipboard.copy_node,
   ["cut_node"] = clipboard.cut_node,
-  ["paste_from_clipboard"] = clipboard.paste_from_clipboard,
+  ["paste_nodes"] = clipboard.paste_nodes,
   ["clear_clipboard"] = clipboard.clear_clipboard,
   ["copy_name_to_clipboard"] = clipboard.copy_name_to_clipboard,
   ["copy_root_relative_path_to_clipboard"] = clipboard.copy_root_relative_path_to_clipboard,
   ["copy_absolute_path_to_clipboard"] = clipboard.copy_absolute_path_to_clipboard,
+
+  ["live_search"] = search.live_search,
+  ["search"] = search.search,
+  ["clear_search"] = lib.clear_search,
 
   ["close_window"] = lib.close,
   ["close_node"] = lib.close_node,
@@ -43,9 +47,6 @@ local actions = {
   ["toggle_ignored"] = lib.toggle_ignored,
   ["toggle_filter"] = lib.toggle_filter,
   ["refresh"] = lib.refresh,
-  ["live_search"] = search.live_search,
-  ["search"] = search.search,
-  ["clear_search"] = lib.clear_search,
   ["rescan_dir_for_git"] = lib.rescan_dir_for_git,
   ["toggle_help"] = lib.toggle_help,
   ["system_open"] = lib.system_open,
