@@ -144,7 +144,7 @@
 ---@class YaTreeConfig.Mappings.Action
 ---@field mode? string|string[] the mode(s) for the keybinding.
 ---@field action? string the YaTree action to bind to.
----@field func? fun(node: Node, config: YaTreeConfig) custom function.
+---@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil custom function.
 ---@field command? string lua command string.
 
 local M = {

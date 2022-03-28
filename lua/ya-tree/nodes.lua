@@ -260,11 +260,11 @@ do
   end
 end
 
----Returns an iterator function for this `Node`s children.
+---Returns an iterator function for this `node`s children.
 --
 ---@param opts { reverse?: boolean, from?: YaTreeNode }
 ---  - {opts.reverse?} `boolean`
----  - {opts.from?} `Node`
+---  - {opts.from?} `YatreeNode`
 ---@return fun():YaTreeNode|nil iterator
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then

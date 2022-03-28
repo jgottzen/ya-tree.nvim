@@ -11,7 +11,7 @@ local M = {}
 ---@type table<string, ActionCommand>
 local commands = {}
 
----@type table<string, fun(node: YaTreeNode, config: YaTreeConfig)>
+---@type table<string, fun(node: YaTreeNode, config: YaTreeConfig):nil>
 local actions = {
   ["open"] = file_actions.open,
   ["vsplit"] = file_actions.vsplit,
@@ -71,8 +71,8 @@ end
 
 ---@class ActionCommand
 ---@field name string
----@field action? fun(node: YaTreeNode, config: YaTreeConfig)
----@field func? fun(node: YaTreeNode, config: YaTreeConfig)
+---@field action? fun(node: YaTreeNode, config: YaTreeConfig):nil
+---@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil
 
 local next_handler_id = 1
 
@@ -179,7 +179,7 @@ local function validate_and_create_mappings(mappings)
         ---@field keys string[]
         ---@field name string
         ---@field action? string
-        ---@field func? function(node: Node, config: YaTreeConfig)
+        ---@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil
         ---@field command? string
         local mapping = {
           mode = mode,
