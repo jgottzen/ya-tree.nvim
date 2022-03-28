@@ -1,6 +1,7 @@
 local async = require("plenary.async")
 local scheduler = require("plenary.async.util").scheduler
 
+local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local ui = require("ya-tree.ui")
@@ -24,6 +25,8 @@ local fd_has_max_results
 ---@type boolean
 local fdfind_has_max_results
 do
+  ---@param cmd string
+  ---@return boolean
   local function has_max_results(cmd)
     local test = fn.system(cmd .. " this_is_only_a_test_search --max-depth=1 --max-results=1")
     return not test:match("^error:")
@@ -35,9 +38,8 @@ end
 
 ---@param term string
 ---@param path string
----@param config YaTreeConfig
 ---@return string cmd, string[] arguments
-local function build_search(term, path, config)
+local function build_search(term, path)
   ---@type string
   local cmd
   if config.search.cmd then
@@ -67,8 +69,8 @@ local function build_search(term, path, config)
       if config.git.show_ignored then
         table.insert(args, "--no-ignore")
       end
-      if fd_has_max_results or fdfind_has_max_results then
-        table.insert(args, "--max-results=" .. (config.search.max_results or 200))
+      if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results then
+        table.insert(args, "--max-results=" .. config.search.max_results)
       end
       table.insert(args, "--glob")
       table.insert(args, term)
@@ -103,14 +105,13 @@ end
 
 ---@param term string
 ---@param node YaTreeNode
----@param config YaTreeConfig
 ---@param focus_node boolean
-local function search(term, node, config, focus_node)
+local function search(term, node, focus_node)
   local search_term = term
   if term ~= "*" and not term:find("*") then
     search_term = "*" .. term .. "*"
   end
-  local cmd, args = build_search(search_term, node.path, config)
+  local cmd, args = build_search(search_term, node.path)
   if not cmd then
     utils.print_error("No suitable search command found!")
     return
@@ -142,8 +143,7 @@ local function search(term, node, config, focus_node)
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
-function M.live_search(node, config)
+function M.live_search(node)
   if not node then
     return
   end
@@ -159,6 +159,8 @@ function M.live_search(node, config)
   local function debounce(fun)
     local started = false
 
+    ---@param ms number
+    ---@vararg any
     return function(ms, ...)
       local args = { ... }
       if started then
@@ -176,7 +178,7 @@ function M.live_search(node, config)
   ---@type fun(term: string, ms: number)
   local search_debounced = debounce(function(term)
     async.run(function()
-      search(term, node, config, false)
+      search(term, node, false)
     end)
   end)
 
@@ -217,7 +219,7 @@ function M.live_search(node, config)
         if text ~= term then
           term = text
           timer:stop()
-          search(text, node, config, true)
+          search(text, node, true)
         else
           lib.focus_first_search_result()
         end
@@ -231,8 +233,7 @@ function M.live_search(node, config)
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
-function M.search(node, config)
+function M.search(node)
   if not node then
     return
   end
@@ -250,7 +251,7 @@ function M.search(node, config)
       return
     end
 
-    search(term, node, config, true)
+    search(term, node, true)
   end)
 end
 

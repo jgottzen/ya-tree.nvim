@@ -99,6 +99,7 @@ function Input:new(opts, callbacks)
 
   if callbacks.on_change then
     this.callbacks.on_change = function()
+      ---@type string
       local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1]
       callbacks.on_change(value:sub(#this.prompt + 1))
     end
@@ -128,6 +129,7 @@ function Input:_create_title()
 
     local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.title))
     local bufnr = api.nvim_create_buf(false, true)
+    ---@type number
     self.title_winid = api.nvim_open_win(bufnr, false, {
       relative = "win",
       win = self.winid,
@@ -157,11 +159,13 @@ function Input:open()
 
   self.orig_row, self.orig_col = unpack(api.nvim_win_get_cursor(self.win_config.win or 0))
 
+  ---@type number
   self.bufnr = api.nvim_create_buf(false, true)
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
 
+  ---@type number
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
   for k, v in pairs(win_options) do
     api.nvim_command(string.format("noautocmd setlocal %s", format_option(k, v)))
@@ -181,6 +185,7 @@ function Input:open()
     -- just calling input:close() and then ui.reset_window() will still leave
     -- the tree window with relativenumber, forcing the interrupt handler set by
     -- prompt_setinterrupt solves it...
+    ---@type string
     local keys = api.nvim_replace_termcodes("<C-c>", true, false, true)
     api.nvim_feedkeys(keys, "n", true)
   end, { noremap = true })

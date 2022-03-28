@@ -93,7 +93,7 @@ function Repo:new(path)
 
   local toplevel, git_dir = get_repo_info(path)
   local is_yadm = false
-  if config.git.yadm.enable and not git_dir then
+  if config.git.yadm.enable and not toplevel then
     if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, "yadm") ~= 0 then
       toplevel, git_dir = get_repo_info(path, "yadm")
       if toplevel then
@@ -135,7 +135,7 @@ function Repo:command(args)
   return command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) })
 end
 
----@param opts { ignored?: boolean }
+---@param opts? { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
 function Repo:refresh_status(opts)
   opts = opts or {}
@@ -164,7 +164,7 @@ function Repo:refresh_status(opts)
     local status = line:sub(1, 2)
     local relative_path = line:sub(4)
     local arrow_pos = relative_path:find(" -> ")
-    if arrow_pos ~= nil then
+    if arrow_pos then
       relative_path = line:sub(arrow_pos + 5)
     end
     -- remove any " due to whitespace in the path
@@ -205,7 +205,7 @@ function Repo:status_of(path)
 end
 
 ---@param path string
----@param _type "'directory'"|"'file'"
+---@param _type file_type
 ---@return boolean ignored
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path

@@ -39,12 +39,12 @@ function M.find_file(file)
   lib().open({ file = file, focus = true })
 end
 
----@param level "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'"
+---@param level LogLevel
 function M.set_log_level(level)
   log.config.level = level
 end
 
----@param opts YaTreeConfig
+---@param opts? YaTreeConfig
 function M.setup(opts)
   local config = require("ya-tree.config").setup(opts)
 

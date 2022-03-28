@@ -8,7 +8,6 @@ local log = require("ya-tree.log")
 local api = vim.api
 
 ---@class TabData
----@field tabpage number
 ---@field canvas YaTreeCanvas
 
 local M = {
@@ -46,20 +45,23 @@ end
 ---@param node? YaTreeNode
 function M.open(root, opts, node)
   opts = opts or {}
+  ---@type number
   local tabpage = api.nvim_get_current_tabpage()
   local tab = M._tabs[tostring(tabpage)]
   if not tab then
     tab = {
-      tabpage = tabpage,
       canvas = Canvas:new(),
-      in_help = false,
-      in_search = false,
     }
     M._tabs[tostring(tabpage)] = tab
   end
   local canvas = tab.canvas
 
-  canvas:open(root, opts)
+  if not canvas:is_open() then
+    canvas:open(root, opts)
+  elseif node then
+    -- the tree might need to be redrawn if a specific node is to be focused
+    canvas:render_tree(root, { redraw = true })
+  end
 
   if node then
     canvas:focus_node(node)
@@ -81,7 +83,7 @@ end
 
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
----@param opts {focus?: boolean, tabpage?: number}
+---@param opts? {focus_node?: boolean, tabpage?: number}
 ---  - {opts.focus_node?} `boolean` focuse `node`
 ---  - {opts.tabpage?} `number`
 function M.update(root, node, opts)
@@ -98,6 +100,28 @@ function M.update(root, node, opts)
   if node and (opts.focus_node or canvas:has_focus()) then
     canvas:focus_node(node)
   end
+end
+
+---@return YaTreeNode? current_node
+function M.get_current_node()
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.get_current_node called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  return tab.canvas:get_current_node()
+end
+
+---@return YaTreeNode[] selected_nodes
+function M.get_selected_nodes()
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("ui.get_selected_nodes called when tab=%s", tab and "not open" or "nil")
+    return {}
+  end
+
+  return tab.canvas:get_selected_nodes()
 end
 
 ---@param node YaTreeNode|YaTreeSearchNode
@@ -151,16 +175,6 @@ function M.focus_last_sibling()
   tab.canvas:focus_last_sibling()
 end
 
-function M.get_current_node()
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("ui.get_current_node called when tab=%s", tab and "not open" or "nil")
-    return
-  end
-
-  return tab.canvas:get_current_node()
-end
-
 function M.move_cursor_to_name()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
@@ -169,17 +183,6 @@ function M.move_cursor_to_name()
   end
 
   tab.canvas:move_cursor_to_name()
-end
-
----@return YaTreeNode[]
-function M.get_selected_nodes()
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("ui.get_selected_nodes called when tab=%s", tab and "not open" or "nil")
-    return {}
-  end
-
-  return tab.canvas:get_selected_nodes()
 end
 
 ---@param winid? number
@@ -203,9 +206,10 @@ end
 ---@return boolean
 function M.is_buffer_yatree(bufnr)
   local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
-  return ok and filetype == "YaTree"
+  return ok and filetype == "YaTree" or false
 end
 
+---@return number height, number width
 function M.get_size()
   local tab = get_tab()
   if not tab then
@@ -224,6 +228,13 @@ function M.reset_window()
   end
 
   tab.canvas:reset_canvas()
+end
+
+---@param tabpage? number
+---@return boolean
+function M.is_help_open(tabpage)
+  local tab = get_tab(tabpage)
+  return tab and tab.canvas.in_help or false
 end
 
 ---@param root YaTreeNode|YaTreeSearchNode
@@ -252,9 +263,9 @@ end
 
 ---@param tabpage? number
 ---@return boolean
-function M.is_help_open(tabpage)
+function M.is_search_open(tabpage)
   local tab = get_tab(tabpage)
-  return tab and tab.canvas.in_help
+  return tab and tab.canvas.mode == "search" or false
 end
 
 ---@param search_root YaTreeSearchNode
@@ -266,13 +277,6 @@ function M.open_search(search_root)
   end
 
   tab.canvas:render_search(search_root)
-end
-
----@param tabpage? number
----@return boolean
-function M.is_search_open(tabpage)
-  local tab = get_tab(tabpage)
-  return tab and tab.canvas.mode == "search"
 end
 
 ---@param root YaTreeNode
@@ -346,13 +350,21 @@ function M.open_file(file, cmd)
   vim.cmd(cmd .. " " .. vim.fn.fnameescape(file))
 end
 
----@type fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()}): string?
+---@type fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
+---  - {opts.prompt?} `string|nil` Text of the prompt.
+---  - {opts.default?} `string|nil` Default reply to the input.
+---  - {opts.completion?} `string|nil` Specifies type of completion supported for input.
+---  - {opts.highlight?} `function|nil` Function that will be used for highlighting user input.
 ---@see |vim.ui.input()|
 M.input = wrap(function(opts, on_confirm)
   vim.ui.input(opts, on_confirm)
 end, 2)
 
----@type fun(items: string[], opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
+---@type fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
+---  - {items} `table` Arbitrary items.
+---  - {opts.prompt?} `string|nil` Text of the input.
+---  - {opts.format_item} `function(item: any):string` Function to format an individual item, defaults to `tostring`.
+---  - {opts.kind} `string|nil` Arbitrary item hinting the shape of an item.
 ---@see |vim.ui.select()|
 M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)

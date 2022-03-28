@@ -11,7 +11,7 @@ local M = {}
 ---@field public parent? YaTreeNode
 ---@field public name string
 ---@field public path string
----@field public type "'directory'"|"'file'"
+---@field public type file_type
 ---@field public children? YaTreeNode[]
 ---@field public empty? boolean
 ---@field public extension? string
@@ -35,7 +35,7 @@ local Node = {}
 ---@param n2 YaTreeNode
 ---@return boolean
 local function node_eq(n1, n2)
-  return n1 and n2 and n1.path ~= nil and n1.path == n2.path
+  return n1 and n2 and n1.path and n1.path == n2.path
 end
 
 ---@param node YaTreeNode
@@ -80,7 +80,7 @@ function M.root(path, old_root)
     type = "directory",
     path = path,
     children = {},
-  }, nil)
+  })
 
   root.repo = git.Repo:new(root.path)
   if root.repo then
@@ -104,7 +104,7 @@ function M.root(path, old_root)
 end
 
 ---@private
----@param fs_node FsNode
+---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
 function Node:_merge_new_data(fs_node)
   for k, v in pairs(fs_node) do
     if type(self[k]) ~= "function" then
@@ -125,6 +125,7 @@ function Node:_scandir()
     children[child.path] = child
   end
 
+  ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode
   self.children = vim.tbl_map(function(fs_node)
     local child = children[fs_node.path]
     if child then
@@ -167,7 +168,7 @@ function Node:check_for_git_repo()
         -- this node is below the git toplevel directory,
         -- walk the tree upwards until we hit the topmost node
         local node = self
-        while node.parent and toplevel < #node.parent.path do
+        while node.parent and #toplevel < #node.parent.path do
           node = node.parent
         end
         set_git_repo_on_node_and_children(repo, node)
@@ -212,7 +213,7 @@ end
 ---@param path string
 ---@return boolean
 function Node:is_ancestor_of(path)
-  return self:is_directory() and #self.path <= #path and path:find(self.path .. utils.os_sep, 1, true) ~= nil
+  return self:is_directory() and #self.path < #path and path:find(self.path .. utils.os_sep, 1, true) ~= nil
 end
 
 ---@return boolean
@@ -305,7 +306,7 @@ end
 
 ---Collapses the node, if it is a directory.
 --
----@param opts {children_only?: boolean, recursive?: boolean}
+---@param opts? {children_only?: boolean, recursive?: boolean}
 ---  - {opts.children_only?} `boolean`
 ---  - {opts.recursive?} `boolean`
 function Node:collapse(opts)
@@ -381,10 +382,8 @@ end
 
 ---@param node YaTreeNode
 ---@param recurse boolean
----@param refreshed_git_repos table<string, boolean>|nil
+---@param refreshed_git_repos table<string, boolean>
 local function refresh_node(node, recurse, refreshed_git_repos)
-  refreshed_git_repos = refreshed_git_repos or {}
-
   if node:is_directory() and node.scanned then
     if node.repo and not refreshed_git_repos[node.repo.toplevel] then
       node.repo:refresh_status({ ignored = true })
@@ -402,7 +401,7 @@ end
 
 function Node:refresh()
   log.debug("refreshing %q", self.path)
-  refresh_node(self, true)
+  refresh_node(self, true, {})
 end
 
 ---Creates a separate node search tree from the `search_result`.
@@ -416,7 +415,7 @@ function Node:create_search_tree(search_results)
     path = self.path,
     children = {},
     expanded = true,
-  }, nil)
+  })
   ---@type table<string, YaTreeNode>
   local node_map = {}
   node_map[self.path] = search_root

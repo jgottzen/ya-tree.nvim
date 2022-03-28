@@ -28,6 +28,7 @@ local M = {
 ---@return YaTree?
 function M.get_tree(opts)
   opts = opts or {}
+  ---@type number
   local tabpage = opts.tabpage or api.nvim_get_current_tabpage()
   local tree = M._trees[tostring(tabpage)]
   if not tree and (opts.create_if_missing or opts.root_path) then

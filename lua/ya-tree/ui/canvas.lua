@@ -13,7 +13,7 @@ local barbar_exists
 
 ---@class BarBarState
 ---@field set_offset fun(width: number, text?: string):nil
-local bufferline_state
+local barbar_state
 
 local win_options = {
   -- number and relativenumber are taken directly from config
@@ -68,7 +68,7 @@ function Canvas:new()
   return this
 end
 
----@return number number height, number width
+---@return number height, number width
 function Canvas:get_size()
   if self.winid then
     ---@type number
@@ -79,7 +79,7 @@ function Canvas:get_size()
   end
 end
 
----@return number winid
+---@return number? winid
 function Canvas:get_edit_winid()
   return self.edit_winid
 end
@@ -87,27 +87,25 @@ end
 ---@param winid number
 function Canvas:set_edit_winid(winid)
   self.edit_winid = winid
-  if self.edit_winid ~= nil and self.edit_winid == self.winid then
+  if self.edit_winid and self.edit_winid == self.winid then
     log.error("setting edit_winid to %s, the same as winid", self.edit_winid)
   end
 end
 
 ---@return boolean is_open
 function Canvas:is_open()
-  return self.winid ~= nil and api.nvim_win_is_valid(self.winid)
+  return self.winid and api.nvim_win_is_valid(self.winid) or false
 end
 
 ---@return boolean
 function Canvas:is_current_window_canvas()
-  if self.winid then
-    return self.winid == api.nvim_get_current_win()
-  end
+  return self.winid and self.winid == api.nvim_get_current_win() or false
 end
 
 ---@private
 ---@return boolean is_loaded
 function Canvas:_is_buffer_loaded()
-  return self.bufnr ~= nil and api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr)
+  return self.bufnr and (api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr)) or false
 end
 
 ---@private
@@ -205,7 +203,7 @@ end
 
 function Canvas:_on_win_closed()
   if config.view.bufferline.barbar and barbar_exists then
-    bufferline_state.set_offset(0)
+    barbar_state.set_offset(0)
   end
 
   if type(config.view.on_close) == "function" then
@@ -215,15 +213,16 @@ end
 
 ---@param root YaTreeNode
 ---@param opts? {hijack_buffer?: boolean}
+---  - {opts.hijack_buffer?} `boolean`
 function Canvas:open(root, opts)
   if self:is_open() then
     return
   end
 
+  local redraw = false
   opts = opts or {}
-  opts.redraw = false
   if not self:_is_buffer_loaded() then
-    opts.redraw = true
+    redraw = true
     self:_create_buffer(opts.hijack_buffer)
   end
 
@@ -237,12 +236,12 @@ function Canvas:open(root, opts)
     self:_create_window()
   end
 
-  if opts.redraw then
-    self:render_tree(root, opts)
+  if redraw then
+    self:render_tree(root, { redraw = true })
   end
 
   if config.view.bufferline.barbar and barbar_exists then
-    bufferline_state.set_offset(config.view.width, config.view.bufferline.title or "")
+    barbar_state.set_offset(config.view.width, config.view.bufferline.title or "")
   end
 
   if type(config.view.on_open) == "function" then
@@ -272,10 +271,11 @@ end
 
 ---@return boolean has_focus
 function Canvas:has_focus()
-  return self.winid and self.winid == api.nvim_get_current_win()
+  return self.winid and self.winid == api.nvim_get_current_win() or false
 end
 
 function Canvas:close()
+  -- if the canvas is the only window, it cannot be closed
   if not self.winid or #api.nvim_list_wins() == 1 then
     return
   end
@@ -352,19 +352,19 @@ local function render_node(node)
   ---@type highlight_group[]
   local highlights = {}
 
+  ---@type YaTreeViewRenderer[]
   local renderers = node:is_directory() and directory_renderers or file_renderers
   local pos = 0
-  ---@type YaTreeViewRenderer
   for _, renderer in ipairs(renderers) do
-    local result = renderer.fun(node, config, renderer.config)
-    if result then
-      result = result[1] and result or { result }
-      for _, v in ipairs(result) do
-        if v.text then
-          if not v.highlight then
-            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, v)
+    local results = renderer.fun(node, config, renderer.config)
+    if results then
+      results = results[1] and results or { results }
+      for _, result in ipairs(results) do
+        if result.text then
+          if not result.highlight then
+            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
           end
-          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, v.padding or "", v.text, v.highlight)
+          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
         end
       end
     end
@@ -498,6 +498,11 @@ end
 ---@private
 ---@return YaTreeNode node, number row, number column
 function Canvas:_get_current_node_and_position()
+  if not self.winid then
+    return nil
+  end
+
+  ---@type number
   local row, column = unpack(api.nvim_win_get_cursor(self.winid))
   local node = self.nodes[row]
   return node, row, column
@@ -511,23 +516,21 @@ end
 
 ---@return YaTreeNode[] nodes
 function Canvas:get_selected_nodes()
+  ---@type string
   local mode = api.nvim_get_mode().mode
   if mode == "v" or mode == "V" then
-    -- see https://github.com/neovim/neovim/pull/13896
-    local from = fn.getpos("v")
-    local to = fn.getcurpos()
-    if from[2] > to[2] then
+    ---@type number
+    local from = fn.getpos("v")[2]
+    ---@type number
+    local to = api.nvim_win_get_cursor(self.winid)[1]
+    if from > to then
       from, to = to, from
     end
 
-    ---@type number
-    local first = from[2]
-    ---@type number
-    local last = to[2]
-    ---@type YaTreeNode
+    ---@type YaTreeNode[]
     local nodes = {}
-    if first <= #self.nodes then
-      for index = first, last do
+    if from <= #self.nodes then
+      for index = from, to do
         local node = self.nodes[index]
         if node then
           nodes[#nodes + 1] = node
@@ -565,6 +568,7 @@ do
 
     ---@type string
     local line = api.nvim_get_current_line()
+    ---@type number
     local pos = (line:find(node.name, 1, true) or 0) - 1
     if pos > 0 and pos ~= col then
       api.nvim_win_set_cursor(self.winid or 0, { row, pos })
@@ -576,6 +580,7 @@ end
 ---@param row number
 ---@param col number
 local function set_cursor_position(winid, row, col)
+  ---@type number
   local win_height = api.nvim_win_get_height(winid)
   local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
   if ok then
@@ -596,6 +601,7 @@ function Canvas:focus_node(node)
   end
   if node then
     local index = self.node_path_to_index_lookup[node.path]
+    log.debug("node %s is at index %s", node.path, index)
     if index then
       local column = 0
       if config.hijack_cursor and node.depth > 0 then
@@ -608,6 +614,9 @@ end
 
 function Canvas:focus_prev_sibling()
   local node, _, col = self:_get_current_node_and_position()
+  if not node then
+    return
+  end
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -626,6 +635,9 @@ end
 
 function Canvas:focus_next_sibling()
   local node, _, col = self:_get_current_node_and_position()
+  if not node then
+    return
+  end
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -644,6 +656,9 @@ end
 
 function Canvas:focus_first_sibling()
   local node, _, col = self:_get_current_node_and_position()
+  if not node then
+    return
+  end
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -662,6 +677,9 @@ end
 
 function Canvas:focus_last_sibling()
   local node, _, col = self:_get_current_node_and_position()
+  if not node then
+    return
+  end
   local parent = node.parent
   if not parent or not parent.children then
     return
@@ -745,8 +763,8 @@ do
     log.trace("file renderers=%s", file_renderers)
   end
 
-  barbar_exists, bufferline_state = pcall(require, "bufferline.state")
-  barbar_exists = barbar_exists and type(bufferline_state.set_offset) == "function"
+  barbar_exists, barbar_state = pcall(require, "bufferline.state")
+  barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"
 end
 
 return Canvas

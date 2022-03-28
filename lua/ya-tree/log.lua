@@ -38,8 +38,11 @@ function logger.warn(msg, ...) end
 ---@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.error(msg, ...) end
 
+---@alias LogLevel "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'"
+
 ---@class YaTreeLoggerConfig
----@field level "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'"
+---@field level LogLevel
+---@field levels {level: LogLevel, highlight: string}[]
 local default = {
   name = "ya-tree",
   to_console = false,

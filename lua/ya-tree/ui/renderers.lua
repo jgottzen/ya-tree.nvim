@@ -18,7 +18,6 @@ local fn = vim.fn
 local M = {
   helpers = {},
 }
-local helpers = M.helpers
 
 ---@class RenderResult
 ---@field padding string
@@ -37,9 +36,9 @@ function M.indentation(node, _, renderer)
     return
   end
 
-  marker_at[node.depth] = not node.last_child
   local text = ""
   if renderer.use_marker then
+    marker_at[node.depth] = not node.last_child
     for i = 1, node.depth do
       local marker = (i == node.depth and node.last_child) and renderer.last_indent_marker or renderer.indent_marker
 
@@ -171,7 +170,7 @@ function M.name(node, config, renderer)
   if renderer.use_git_status_colors then
     local git_status = node:get_git_status()
     if git_status then
-      highlight = helpers.get_git_status_highlight(git_status)
+      highlight = M.helpers.get_git_status_highlight(git_status)
     end
   end
 
@@ -241,7 +240,7 @@ function M.git_status(node, config, renderer)
     if git_status then
       ---@type RenderResult[]
       local result = {}
-      local icons_and_hl = helpers.get_git_icons_and_highlights(git_status)
+      local icons_and_hl = M.helpers.get_git_icons_and_highlights(git_status)
       if icons_and_hl then
         for _, v in ipairs(icons_and_hl) do
           result[#result + 1] = {
@@ -266,7 +265,7 @@ function M.diagnostics(node, config, renderer)
     local severity = node:get_diagnostics_severity()
     if severity then
       if renderer.min_severity == nil or severity <= renderer.min_severity then
-        local diagnostic = helpers.get_diagnostic_icon_and_highligt(severity)
+        local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
         if diagnostic then
           return {
             padding = renderer.padding,
@@ -325,7 +324,7 @@ do
     return diagnostic_icon_and_hl[severity]
   end
 
----@param config YaTreeConfig
+  ---@param config YaTreeConfig
   function M.setup(config)
     local icons = config.renderers.git_status.icons
     git_icons_and_hl = {

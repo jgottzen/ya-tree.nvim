@@ -28,6 +28,7 @@ function M.run(opts, on_complete)
   }, function(code, signal)
     log.debug("%q completed with code=%s, signal=%s", opts.cmd, code, signal)
 
+    ---@type number
     state.code = code
     state.signal = signal
 
@@ -45,7 +46,9 @@ function M.run(opts, on_complete)
       state.stderr:close()
     end
 
+    ---@type string
     local stdout = #state.stdout_data > 0 and table.concat(state.stdout_data) or nil
+    ---@type string
     local stderr = #state.stderr_data > 0 and table.concat(state.stderr_data) or nil
 
     on_complete(state.code, stdout, stderr)

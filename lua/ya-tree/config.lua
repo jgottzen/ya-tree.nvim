@@ -1,5 +1,5 @@
 ---@class YaTreeConfig
----@field log_level "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'" the logging level used.
+---@field log_level LogLevel the logging level used.
 ---@field log_to_console boolean whether to log to the console.
 ---@field log_to_file boolean whether to log the the log file.
 ---@field auto_close boolean force closing Neovim when YaTree is the last window.
@@ -24,7 +24,7 @@
 ---@field update_from_tree boolean update the tab cwd when changing root directory in the tree.
 
 ---@class YaTreeConfig.Search
----@field max_results number max number of search results.
+---@field max_results number max number of search results, default: `200`.
 ---@field cmd string|nil override the search command to use.
 ---@field args string[]|fun(cmd: string, term: string, path:string, config: YaTreeConfig):string[]|nil override the search command arguments to use.
 
@@ -329,21 +329,22 @@ local M = {
   },
 }
 
----@param opts YaTreeConfig?
+---@param opts? YaTreeConfig?
 ---@return YaTreeConfig
 function M.setup(opts)
-  local utils = require("ya-tree.utils")
   ---@type YaTreeConfig
   M.config = vim.tbl_deep_extend("force", M.default, opts or {})
 
   -- convert the list of custom filters to a table for quicker lookups
 
   M.config.filters.custom = M.default.filters.custom
+  ---@type string[]
   local custom_filters = (opts and opts.filters and opts.filters.custom) or {}
   for _, v in ipairs(custom_filters) do
     M.config.filters.custom[v] = true
   end
 
+  local utils = require("ya-tree.utils")
   if not M.config.system_open.cmd then
     if utils.is_linux then
       M.config.system_open.cmd = "xdg-open"

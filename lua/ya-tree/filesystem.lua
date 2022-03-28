@@ -7,13 +7,14 @@ local uv = vim.loop
 
 local M = {}
 
+---@alias file_type "'directory'"|"'file'"
+
 ---@class FsNode
 ---@field name string
----@field type string
+---@field type file_type
 ---@field path string
 
 ---@class FsDirectoryNode : FsNode
----@field type string
 ---@field empty boolean
 
 ---Creates a directory node
@@ -34,7 +35,6 @@ local function directory_node(dir, name)
 end
 
 ---@class FsFileNode : FsNode
----@field type string
 ---@field extension string
 ---@field executable boolean
 
@@ -107,7 +107,7 @@ local function link_node(dir, name)
     local _, pos = p.filename:find(p:parent().filename, 1, true)
     local link_name = p.filename:sub(pos + 2)
     local link_extension = string.match(link_name, ".?[^.]+%.(.*)") or ""
-  ---@type boolean
+    ---@type boolean
     local executable
     if utils.is_windows then
       executable = utils.is_windows_exe(extension)
@@ -189,7 +189,7 @@ function M.scan_dir(dir)
       elseif _type == "link" then
         node = link_node(dir, name)
       end
-      if node ~= nil then
+      if node then
         nodes[#nodes + 1] = node
       end
     end

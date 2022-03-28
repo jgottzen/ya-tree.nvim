@@ -24,6 +24,10 @@ end
 
 ---@param node YaTreeNode
 function M.open(node)
+  if not node then
+    return
+  end
+
   if node:is_file() then
     open_file(node, "edit")
   else
@@ -33,6 +37,10 @@ end
 
 ---@param node YaTreeNode
 function M.vsplit(node)
+  if not node then
+    return
+  end
+
   if node:is_file() then
     open_file(node, "vsplit")
   end
@@ -40,6 +48,10 @@ end
 
 ---@param node YaTreeNode
 function M.split(node)
+  if not node then
+    return
+  end
+
   if node:is_file() then
     open_file(node, "split")
   end
@@ -57,12 +69,16 @@ end
 
 ---@param node YaTreeNode
 function M.add(node)
+  if not node then
+    return
+  end
+
+  if node:is_file() then
+    node = node.parent
+  end
+
   async.run(function()
     scheduler()
-
-    if node:is_file() then
-      node = node.parent
-    end
 
     ---@type string
     local prompt = "New file (an ending " .. utils.os_sep .. " will create a directory):"
@@ -114,6 +130,10 @@ end
 
 ---@param node YaTreeNode
 function M.rename(node)
+  if not node then
+    return
+  end
+
   -- prohibit renaming the root node
   if lib.is_node_root(node) then
     return

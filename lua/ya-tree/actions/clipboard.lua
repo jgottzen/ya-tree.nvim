@@ -19,6 +19,7 @@ local M = {
 
 ---@alias clipboard_action "'copy'"|"'cut'"
 
+---@type clipboard_action
 local copy_action, cut_action = "copy", "cut"
 
 ---@param node YaTreeNode
@@ -183,11 +184,19 @@ end
 
 ---@param node YaTreeNode
 function M.copy_name_to_clipboard(node)
+  if not node then
+    return
+  end
+
   copy_to_system_clipboard(node.name)
 end
 
 ---@param node YaTreeNode
 function M.copy_root_relative_path_to_clipboard(node)
+  if not node then
+    return
+  end
+
   local relative = utils.relative_path_for(node.path, lib.get_root_node_path())
   if node:is_directory() then
     relative = relative .. utils.os_sep
@@ -197,6 +206,10 @@ end
 
 ---@param node YaTreeNode
 function M.copy_absolute_path_to_clipboard(node)
+  if not node then
+    return
+  end
+
   copy_to_system_clipboard(node.path)
 end
 

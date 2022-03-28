@@ -71,7 +71,7 @@ local hl_links = {
 
 ---@param name string
 ---@param link? string
----@param highlight {fg: string, bg?: string, gui?: string}
+---@param highlight {fg?: string, bg?: string, gui?: string}
 local function create_highlight(name, link, highlight)
   if link then
     api.nvim_command("hi def link " .. name .. " " .. link)

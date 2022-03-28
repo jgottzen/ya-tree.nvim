@@ -21,13 +21,13 @@ local M = {}
 ---@return boolean is_node_root
 function M.is_node_root(node)
   local tree = Tree.get_tree()
-  return tree ~= nil and tree.root.path == node.path
+  return tree and tree.root.path == node.path or false
 end
 
 ---@return string|nil root_path
 function M.get_root_node_path()
   local tree = Tree.get_tree()
-  return tree ~= nil and tree.root.path
+  return tree and tree.root.path
 end
 
 ---@return string|nil buffer_path #the path fo the current buffer
@@ -79,7 +79,7 @@ function M.open(opts)
       file = resolve_path(tree)
     end
 
-    tree.current_node = file and tree.root:expand({ to = file }) or tree.current_node
+    tree.current_node = file and tree.root:expand({ to = file }) or (ui.is_open() and ui.get_current_node())
 
     vim.schedule(function()
       ui.open(tree.root, { hijack_buffer = opts.hijack_buffer, focus = opts.focus }, tree.current_node)
@@ -170,7 +170,7 @@ end
 ---@param node YaTreeNode
 function M.cd_to(node)
   local tree = Tree.get_tree()
-  if not tree or not node then
+  if not tree or not node or not node:is_directory() then
     return
   end
   log.debug("cd to %q", node.path)
@@ -188,10 +188,10 @@ end
 ---@param node YaTreeNode
 function M.cd_up(node)
   local tree = Tree.get_tree()
-  if not tree or not node then
+  if not tree or not node or not node:is_directory() then
     return
   end
-  local new_cwd = vim.fn.fnamemodify(tree.root.path, ":h")
+  local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
   log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
   -- save current position
