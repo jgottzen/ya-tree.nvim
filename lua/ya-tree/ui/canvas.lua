@@ -189,9 +189,12 @@ end
 ---@private
 function Canvas:_create_window()
   ---@type number
-  local old_edit_winid = self.edit_winid
-  self.edit_winid = api.nvim_get_current_win()
-  log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
+  local winid = api.nvim_get_current_win()
+  if winid ~= self.edit_winid then
+    local old_edit_winid = self.edit_winid
+    self.edit_winid = winid
+    log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
+  end
 
   api.nvim_command("noautocmd vsplit")
   ---@type number
@@ -211,12 +214,13 @@ function Canvas:_on_win_closed()
 end
 
 ---@param root YaTreeNode
----@param opts {hijack_buffer?: boolean}
+---@param opts? {hijack_buffer?: boolean}
 function Canvas:open(root, opts)
   if self:is_open() then
     return
   end
 
+  opts = opts or {}
   opts.redraw = false
   if not self:_is_buffer_loaded() then
     opts.redraw = true
@@ -272,7 +276,7 @@ function Canvas:has_focus()
 end
 
 function Canvas:close()
-  if not self.winid then
+  if not self.winid or #api.nvim_list_wins() == 1 then
     return
   end
 
@@ -594,7 +598,7 @@ function Canvas:focus_node(node)
     local index = self.node_path_to_index_lookup[node.path]
     if index then
       local column = 0
-      if config.hijack_cursor then
+      if config.hijack_cursor and node.depth > 0 then
         column = (self.node_lines[index]:find(node.name, 1, true) or 0) - 1
       end
       set_cursor_position(self.winid, index, column)

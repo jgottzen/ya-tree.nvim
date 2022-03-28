@@ -60,7 +60,7 @@ local function resolve_path(tree, path)
 end
 
 ---@param opts {tree?: YaTree, file?: string, hijack_buffer?: boolean, focus?: boolean}
----  - {opts.tree?} `Tree`
+---  - {opts.tree?} `YaTree`
 ---  - {opts.file?} `string`
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
@@ -107,13 +107,12 @@ function M.redraw()
   log.debug("redrawing tree")
 
   local tree = Tree.get_tree()
-  if tree then
-    tree.current_node = M.get_current_node()
-    ui.update(tree.root, tree.current_node)
+  if tree and ui.is_open() then
+    ui.update(tree.root)
   end
 end
 
----@return YaTreeNode
+---@return YaTreeNode? current_node
 function M.get_current_node()
   return ui.get_current_node()
 end
@@ -125,7 +124,6 @@ function M.toggle_directory(node)
     return
   end
 
-  tree.current_node = node
   async.run(function()
     if node.expanded then
       node:collapse()
@@ -134,7 +132,7 @@ function M.toggle_directory(node)
     end
 
     vim.schedule(function()
-      ui.update(tree.root, tree.current_node)
+      ui.update(tree.root)
     end)
   end)
 end
@@ -157,7 +155,7 @@ function M.close_node(node)
     end
   end
 
-  ui.update(tree.root, node)
+  ui.update(tree.root)
 end
 
 function M.close_all_nodes()
@@ -177,6 +175,7 @@ function M.cd_to(node)
   end
   log.debug("cd to %q", node.path)
 
+  -- save current position
   tree.current_node = node
 
   if config.cwd.update_from_tree then
@@ -195,6 +194,7 @@ function M.cd_up(node)
   local new_cwd = vim.fn.fnamemodify(tree.root.path, ":h")
   log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
+  -- save current position
   tree.current_node = node
 
   if config.cwd.update_from_tree then
@@ -370,7 +370,7 @@ do
   function M.refresh_and_navigate(path)
     local tree = Tree.get_tree()
     if tree then
-      tree.current_node = M.get_current_node()
+      tree.current_node = ui.is_open() and ui.get_current_node() or tree.current_node
       refresh_tree(tree, path)
     end
   end
@@ -432,6 +432,12 @@ function M.display_search_result(node, term, search_result)
   if not tree or not node then
     return
   end
+
+  -- store the current node only once, before the search is done
+  if not ui.is_search_open() then
+    tree.current_node = ui.get_current_node()
+  end
+
   tree.search.result, tree.search.current_node = node:create_search_tree(search_result)
   tree.search.result.search_term = term
 
@@ -522,6 +528,7 @@ function M.on_tab_enter()
   M.redraw()
 end
 
+---@param tabpage number
 function M.on_tab_closed(tabpage)
   Tree.delete_tree(tabpage)
   ui.delete_tab(tabpage)
@@ -650,22 +657,29 @@ function M.on_cursor_moved()
 end
 
 function M.on_dir_changed()
+  ---@type boolean
   local window_change = vim.v.event.changed_window
   if window_change then
     return
   end
 
+  ---@type string
   local new_cwd = vim.v.event.cwd
+  -- the documentation of DirChanged is incorrent it seems, the scope is not 'tab' but 'tabpage'
+  ---@type "'global'"|"'tabpage'"|"'window'"
   local scope = vim.v.event.scope
   log.debug("event.scope=%s, event.changed_window=%s, event.cwd=%s", scope, window_change, new_cwd)
 
   if scope == "tabpage" then
     local tree = Tree.get_tree()
+    -- since DirChanged is only subscribed to if conif.cwd.follow is enabled,
+    -- the tree.cwd is always bound to the tab cwd, and the root path of the
+    -- tree doens't have to be checked
     if not tree or new_cwd == tree.cwd then
       return
     end
 
-    tree.current_node = M.get_current_node()
+    tree.current_node = ui.is_open() and ui.get_current_node() or tree.current_node
     tree.cwd = new_cwd
     M.change_root_node(tree, new_cwd)
   elseif scope == "global" then
