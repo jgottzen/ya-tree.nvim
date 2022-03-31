@@ -106,7 +106,7 @@ end
 function M.get_current_node()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.get_current_node called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -117,7 +117,7 @@ end
 function M.get_selected_nodes()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.get_selected_nodes called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return {}
   end
 
@@ -128,7 +128,7 @@ end
 function M.focus_node(node)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.focus_node called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -138,7 +138,7 @@ end
 function M.focus_prev_sibling()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.focus_prev_sibling called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -148,7 +148,7 @@ end
 function M.focus_next_sibling()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.focus_next_sibling called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -158,7 +158,7 @@ end
 function M.focus_first_sibling()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.focus_first_sibling called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -168,17 +168,37 @@ end
 function M.focus_last_sibling()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.focus_last_sibling called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
   tab.canvas:focus_last_sibling()
 end
 
+function M.focus_prev_git_item()
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_prev_git_item()
+end
+
+function M.focus_next_git_item()
+  local tab = get_tab()
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
+    return
+  end
+
+  tab.canvas:focus_next_git_item()
+end
+
 function M.move_cursor_to_name()
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("ui.move_cursor_to_name called when tab=%s", tab and "not open" or "nil")
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -195,11 +215,7 @@ end
 ---@return boolean
 function M.is_current_window_ui()
   local tab = get_tab()
-  if not tab then
-    return false
-  end
-
-  return api.nvim_get_current_win() == tab.canvas.winid
+  return tab and tab.canvas.winid and tab.canvas.winid == api.nvim_get_current_win() or false
 end
 
 ---@param bufnr number
@@ -212,8 +228,8 @@ end
 ---@return number height, number width
 function M.get_size()
   local tab = get_tab()
-  if not tab then
-    log.error("ui.get_ui_winid_and_size called when tab=%s", tab)
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -222,8 +238,8 @@ end
 
 function M.reset_window()
   local tab = get_tab()
-  if not tab then
-    log.error("ui.reset_ui_window called when tab=%s", tab)
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -241,8 +257,8 @@ end
 ---@param node YaTreeNode|YaTreeSearchNode
 function M.toggle_help(root, node)
   local tab = get_tab()
-  if not tab then
-    log.error("ui.toggle_help called when tab=%s", tab)
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -271,8 +287,8 @@ end
 ---@param search_root YaTreeSearchNode
 function M.open_search(search_root)
   local tab = get_tab()
-  if not tab then
-    log.error("ui.search called when tab=%s", tab)
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
@@ -302,7 +318,8 @@ end
 
 function M.restore()
   local tab = get_tab()
-  if not tab then
+  if not tab or not tab.canvas:is_open() then
+    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 

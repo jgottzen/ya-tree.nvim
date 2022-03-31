@@ -696,6 +696,34 @@ function Canvas:focus_last_sibling()
   end
 end
 
+function Canvas:focus_prev_git_item()
+  local node, row, col = self:_get_current_node_and_position()
+  if not node then
+    return
+  end
+
+  for index = row - 1, 1, -1 do
+    if self.nodes[index]:get_git_status() then
+      set_cursor_position(self.winid, index, col)
+      return
+    end
+  end
+end
+
+function Canvas:focus_next_git_item()
+  local node, row, col = self:_get_current_node_and_position()
+  if not node then
+    return
+  end
+
+  for index = row + 1, #self.nodes do
+    if self.nodes[index]:get_git_status() then
+      set_cursor_position(self.winid, index, col)
+      return
+    end
+  end
+end
+
 ---@class YaTreeViewRenderer
 ---@field name string
 ---@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]

@@ -305,6 +305,8 @@ local M = {
       [">"] = { action = "next_sibling" },
       ["K"] = { action = "first_sibling" },
       ["J"] = { action = "last_sibling" },
+      ["[c"] = { action = "prev_git_item" },
+      ["]c"] = { action = "next_git_item" },
       ["I"] = { action = "toggle_ignored" },
       ["H"] = { action = "toggle_filter" },
       ["R"] = { action = "refresh" },

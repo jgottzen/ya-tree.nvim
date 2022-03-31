@@ -299,6 +299,24 @@ function M.last_sibling(node)
 end
 
 ---@param node YaTreeNode
+function M.prev_git_item(node)
+  if not node then
+    return
+  end
+
+  ui.focus_prev_git_item()
+end
+
+---@param node YaTreeNode
+function M.next_git_item(node)
+  if not node then
+    return
+  end
+
+  ui.focus_next_git_item()
+end
+
+---@param node YaTreeNode
 function M.toggle_ignored(node)
   local tree = Tree.get_tree()
   if not tree or not node then
