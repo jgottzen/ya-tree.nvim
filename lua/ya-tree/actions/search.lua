@@ -113,7 +113,7 @@ local function search(term, node, focus_node)
   end
   local cmd, args = build_search(search_term, node.path)
   if not cmd then
-    utils.print_error("No suitable search command found!")
+    utils.warn("No suitable search command found!")
     return
   end
 
@@ -136,7 +136,7 @@ local function search(term, node, focus_node)
           lib.focus_first_search_result()
         end
       else
-        utils.print_error(string.format("Search failed with code %s and message %s", code, stderr))
+        utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
       end
     end)
   end)

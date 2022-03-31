@@ -89,7 +89,7 @@ function M.add(node)
           ui.reset_window()
 
           if not name then
-            utils.print("No name given, not creating new file/directory")
+            utils.notify("No name given, not creating new file/directory")
             return
           end
 
@@ -98,27 +98,27 @@ function M.add(node)
           if vim.endswith(new_path, utils.os_sep) then
             new_path = new_path:sub(1, -2)
             if fs.exists(new_path) then
-              utils.print_error(string.format("%q already exists!", new_path))
+              utils.warn(string.format("%q already exists!", new_path))
               return
             end
 
             if fs.create_dir(new_path) then
-              utils.print(string.format("Created directory %q", new_path))
+              utils.notify(string.format("Created directory %q", new_path))
               lib.refresh_and_navigate(new_path)
             else
-              utils.print_error(string.format("Failed to create directory %q", new_path))
+              utils.warn(string.format("Failed to create directory %q", new_path))
             end
           else
             if fs.exists(new_path) then
-              utils.print_error(string.format("%q already exists!", new_path))
+              utils.warn(string.format("%q already exists!", new_path))
               return
             end
 
             if fs.create_file(new_path) then
-              utils.print(string.format("Created file %q", new_path))
+              utils.notify(string.format("Created file %q", new_path))
               lib.refresh_and_navigate(new_path)
             else
-              utils.print_error(string.format("Failed to create file %q", new_path))
+              utils.warn(string.format("Failed to create file %q", new_path))
             end
           end
         end)
@@ -144,16 +144,16 @@ function M.rename(node)
 
     local name = ui.input({ prompt = "New name:", default = node.name })
     if not name then
-      utils.print('No new name given, not renaming file "' .. node.name .. '"')
+      utils.notify('No new name given, not renaming file "' .. node.name .. '"')
       return
     end
 
     local new_name = utils.join_path(node.parent.path, name)
     if fs.rename(node.path, new_name) then
-      utils.print(string.format("Renamed %q to %q", node.path, new_name))
+      utils.notify(string.format("Renamed %q to %q", node.path, new_name))
       lib.refresh_and_navigate(new_name)
     else
-      utils.print_error(string.format("Failed to rename %q to %q", node.path, new_name))
+      utils.warn(string.format("Failed to rename %q to %q", node.path, new_name))
     end
   end)
 end
@@ -167,7 +167,7 @@ local function get_nodes_to_delete()
   for _, node in ipairs(nodes) do
     -- prohibit deleting the root node
     if lib.is_node_root(node) then
-      utils.print_error(string.format("path %s is the root of the tree, aborting.", node.path))
+      utils.warn(string.format("path %s is the root of the tree, aborting.", node.path))
       return
     end
 
@@ -199,9 +199,9 @@ local function delete_node(node)
     end
 
     if ok then
-      utils.print("Deleted " .. node.path)
+      utils.notify("Deleted " .. node.path)
     else
-      utils.print_error("Failed to delete " .. node.path)
+      utils.warn("Failed to delete " .. node.path)
     end
   end
 
@@ -264,7 +264,7 @@ function M.trash()
           if code == 0 then
             lib.refresh(selected_node)
           else
-            utils.print_error(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), error))
+            utils.warn(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), error))
           end
         end)
       end)
@@ -274,7 +274,7 @@ end
 
 function M.setup()
   if config.trash.enable and fn.executable("trash") == 0 then
-    utils.print("trash is not in the PATH. Disabling 'trash.enable' in the config")
+    utils.notify("trash is not in the PATH. Disabling 'trash.enable' in the config")
     config.trash.enable = false
   end
 end

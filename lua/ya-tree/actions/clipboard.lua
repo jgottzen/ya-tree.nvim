@@ -71,7 +71,7 @@ end
 ---@return boolean success, string? destination_path
 local function paste_node(dest_node, node, action)
   if not fs.exists(node.path) then
-    utils.print_error(string.format("Item %q does not exist, cannot %s!", node.path, action))
+    utils.warn(string.format("Item %q does not exist, cannot %s!", node.path, action))
     return false
   end
 
@@ -85,19 +85,19 @@ local function paste_node(dest_node, node, action)
     end)
 
     if response == "Yes" then
-      utils.print('Will replace "' .. destination .. '"')
+      utils.notify('Will replace "' .. destination .. '"')
       replace = true
     elseif response == "Rename" then
       local name = ui.input({ prompt = "New name: ", default = node.name })
       if not name then
-        utils.print('No new name given, not pasting file "' .. node.name .. '" to "' .. destination .. '"')
+        utils.notify('No new name given, not pasting file "' .. node.name .. '" to "' .. destination .. '"')
         return false
       else
         destination = utils.join_path(dest_node.path, name)
         log.debug("new destination=%q", destination)
       end
     else
-      utils.print('Skipping file "' .. node.path .. '"')
+      utils.notify('Skipping file "' .. node.path .. '"')
       return false
     end
   end
@@ -112,17 +112,17 @@ local function paste_node(dest_node, node, action)
     end
 
     if ok then
-      utils.print(string.format("Copied %q to %q", node.path, destination))
+      utils.notify(string.format("Copied %q to %q", node.path, destination))
     else
-      utils.print_error(string.format("Failed to copy %q to %q", node.path, destination))
+      utils.warn(string.format("Failed to copy %q to %q", node.path, destination))
     end
   else
     ok = fs.rename(node.path, destination)
 
     if ok then
-      utils.print(string.format("Moved %q to %q", node.path, destination))
+      utils.notify(string.format("Moved %q to %q", node.path, destination))
     else
-      utils.print_error(string.format("Failed to move %q to %q", node.path, destination))
+      utils.warn(string.format("Failed to move %q to %q", node.path, destination))
     end
   end
 
@@ -164,7 +164,7 @@ function M.paste_nodes(node)
       clear_clipboard()
       lib.refresh_and_navigate(first_file)
     else
-      utils.print("Nothing in clipboard")
+      utils.notify("Nothing in clipboard")
     end
   end)
 end
@@ -172,14 +172,14 @@ end
 function M.clear_clipboard()
   clear_clipboard()
   lib.redraw()
-  utils.print("Clipboard cleared!")
+  utils.notify("Clipboard cleared!")
 end
 
 ---@param content string
 local function copy_to_system_clipboard(content)
   vim.fn.setreg("+", content)
   vim.fn.setreg('"', content)
-  utils.print(string.format("Copied %s to system clipboad", content))
+  utils.notify(string.format("Copied %s to system clipboad", content))
 end
 
 ---@param node YaTreeNode

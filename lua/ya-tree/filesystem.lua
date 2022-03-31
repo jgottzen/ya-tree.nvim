@@ -149,7 +149,7 @@ function M.node_for(path)
   local stat = uv.fs_stat(path)
   local _type = stat and stat.type or nil
   if not _type then
-    utils.print_error("cannot determine type for path " .. path)
+    utils.warn("cannot determine type for path " .. path)
     return
   end
 

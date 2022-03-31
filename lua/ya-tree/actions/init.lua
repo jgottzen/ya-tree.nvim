@@ -57,7 +57,7 @@ local actions = {
 function M.execute(id)
   local command = commands[id]
   if not command then
-    utils.print_error(string.format("no command for id %q found", id))
+    utils.warn(string.format("no command for id %q found", id))
     return
   end
   if ui.is_help_open() and command.name ~= "toggle_help" then
@@ -98,7 +98,7 @@ local function assing_handler(mapping)
     }
     next_handler_id = next_handler_id + 1
   else
-    utils.print_error(string.format("mapping for key %s doesn't have an action or func assigned", vim.inspect(mapping.keys)))
+    utils.warn(string.format("mapping for key %s doesn't have an action or func assigned", vim.inspect(mapping.keys)))
     return
   end
 
@@ -122,10 +122,10 @@ function M.apply_mappings(bufnr)
 
       if rhs then
         if not pcall(vim.api.nvim_buf_set_keymap, bufnr, mapping.mode, key, rhs, opts) then
-          utils.print_error(string.format("cannot construct mapping for key=%s", key))
+          utils.warn(string.format("cannot construct mapping for key=%s", key))
         end
       else
-        utils.print_error(string.format("cannot construct mapping for key=%s", key))
+        utils.warn(string.format("cannot construct mapping for key=%s", key))
       end
     end
   end
@@ -152,31 +152,27 @@ local function validate_and_create_mappings(mappings)
         log.debug("key %s is disabled by user config", keys)
       elseif not actions[action] then
         action = nil
-        utils.print_error(
-          string.format("key %s is mapped to 'action' %s, which does not exist, mapping ignored!", vim.inspect(keys), m.action)
-        )
+        utils.warn(string.format("key %s is mapped to 'action' %s, which does not exist, mapping ignored!", vim.inspect(keys), m.action))
       else
         nr_of_mappings = nr_of_mappings + 1
       end
     elseif action then
       action = nil
-      utils.print_error(string.format("key %s is not mapped to an action string, mapping ignored!", vim.inspect(keys)))
+      utils.warn(string.format("key %s is not mapped to an action string, mapping ignored!", vim.inspect(keys)))
     end
 
     if type(func) == "function" then
       nr_of_mappings = nr_of_mappings + 1
     elseif func then
       func = nil
-      utils.print_error(string.format("key %s is mapped to 'func' %s, which is not a function, mapping ignored!", vim.inspect(keys), func))
+      utils.warn(string.format("key %s is mapped to 'func' %s, which is not a function, mapping ignored!", vim.inspect(keys), func))
     end
 
     if type(command) == "string" then
       nr_of_mappings = nr_of_mappings + 1
     elseif command then
       command = nil
-      utils.print_error(
-        string.format("key %s is mapped to 'command' %s, which is not a string, mapping ignored!", vim.inspect(keys), command)
-      )
+      utils.warn(string.format("key %s is mapped to 'command' %s, which is not a string, mapping ignored!", vim.inspect(keys), command))
     end
 
     if nr_of_mappings == 1 then
@@ -199,9 +195,9 @@ local function validate_and_create_mappings(mappings)
         valid[#valid + 1] = mapping
       end
     elseif nr_of_mappings > 1 then
-      utils.print_error(string.format("Key(s) %s is mapped to mutliple action, ignoring key", vim.inspect(keys)))
+      utils.warn(string.format("Key(s) %s is mapped to mutliple action, ignoring key", vim.inspect(keys)))
     else
-      utils.print_error(string.format("Key(s) %s is not mapped to anything, ignoring key", vim.inspect(keys)))
+      utils.warn(string.format("Key(s) %s is not mapped to anything, ignoring key", vim.inspect(keys)))
     end
   end
 

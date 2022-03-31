@@ -1,6 +1,5 @@
 local Path = require("plenary.path")
 
-local api = vim.api
 local uv = vim.loop
 local os_sep = Path.path.sep
 
@@ -50,15 +49,22 @@ function M.relative_path_for(path, root)
 end
 
 do
-  local prefix = "[ya-tree] "
-  ---@param message string
-  function M.print(message)
-    print(prefix .. message)
+  local has_notify_plugin, notify = pcall(require, "notify")
+
+  ---@param message string message
+  ---@param level? number default: vim.log.levels.INFO
+  function M.notify(message, level)
+    level = level or vim.log.levels.INFO
+    if has_notify_plugin and notify == vim.notify then
+      vim.notify(message, level, { title = "YaTree" })
+    else
+      vim.notify(string.format("[ya-tree] %s", message), level)
+    end
   end
 
-  ---@param message string
-  function M.print_error(message)
-    api.nvim_err_writeln(prefix .. message)
+  ---@param message string message
+  function M.warn(message)
+    M.notify(message, vim.log.levels.WARN)
   end
 end
 

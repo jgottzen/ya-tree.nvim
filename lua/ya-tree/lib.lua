@@ -496,7 +496,7 @@ function M.system_open(node)
   end
 
   if not config.system_open.cmd then
-    utils.print_error("No sytem open command set, or OS cannot be recognized!")
+    utils.warn("No sytem open command set, or OS cannot be recognized!")
     return
   end
 
@@ -505,7 +505,7 @@ function M.system_open(node)
   job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, error)
     if code ~= 0 then
       vim.schedule(function()
-        utils.print_error(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, error))
+        utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, error))
       end)
     end
   end)
