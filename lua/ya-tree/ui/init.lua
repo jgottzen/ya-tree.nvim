@@ -54,8 +54,8 @@ function M.open(root, opts, node)
     }
     M._tabs[tostring(tabpage)] = tab
   end
-  local canvas = tab.canvas
 
+  local canvas = tab.canvas
   if not canvas:is_open() then
     canvas:open(root, opts)
   elseif node then
@@ -215,7 +215,7 @@ end
 ---@return boolean
 function M.is_current_window_ui()
   local tab = get_tab()
-  return tab and tab.canvas.winid and tab.canvas.winid == api.nvim_get_current_win() or false
+  return tab and tab.canvas:is_current_window_canvas() or false
 end
 
 ---@param bufnr number
@@ -263,7 +263,6 @@ function M.toggle_help(root, node)
   end
 
   local canvas = tab.canvas
-
   if canvas.in_help then
     if canvas.mode == "search" then
       canvas:render_search(root)
@@ -326,6 +325,18 @@ function M.restore()
   tab.canvas:restore()
 end
 
+---@param canvas YaTreeCanvas
+---@return number winid the winid of the created edit window
+local function create_edit_window(canvas)
+  local position = config.view.side ~= "left" and "aboveleft" or "belowright"
+  vim.cmd(position .. " vsplit")
+  local winid = api.nvim_get_current_win()
+  canvas:set_edit_winid(winid)
+  canvas:resize()
+
+  return winid
+end
+
 ---@param bufnr number
 ---@param root YaTreeNode
 function M.move_buffer_to_edit_window(bufnr, root)
@@ -334,8 +345,12 @@ function M.move_buffer_to_edit_window(bufnr, root)
     return
   end
 
-  if tab.canvas:is_current_window_canvas() then
-    tab.canvas:move_buffer_to_edit_window(bufnr, root)
+  local canvas = tab.canvas
+  if canvas:is_current_window_canvas() then
+    if not canvas:get_edit_winid() then
+      create_edit_window(canvas)
+    end
+    canvas:move_buffer_to_edit_window(bufnr, root)
   end
 end
 
@@ -347,17 +362,14 @@ function M.open_file(file, cmd)
     log.error("ui is not present, cannot open file %q with command %q", file, cmd)
     return
   end
-  local canvas = tab.canvas
 
+  local canvas = tab.canvas
   local winid = canvas:get_edit_winid()
   if not winid then
-    -- only the tree window is open, i.e. netrw replacement
+    -- only the tree window is open, e.g. netrw replacement
     -- create a new window for buffers
 
-    local position = config.view.side == "left" and "belowright" or "aboveleft"
-    vim.cmd(position .. " vsp")
-    canvas:set_edit_winid(winid)
-    canvas:resize()
+    winid = create_edit_window(canvas)
     if cmd == "split" or cmd == "vsplit" then
       cmd = "edit"
     end

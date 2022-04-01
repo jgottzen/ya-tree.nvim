@@ -670,6 +670,13 @@ function M.on_win_closed(closed_winid)
   -- we can check only the remaining windows
   vim.defer_fn(function()
     if #api.nvim_list_wins() == 1 and vim.bo.filetype == "YaTree" then
+      -- check that there are no buffers with unsaved modifications,
+      -- if so, just return
+      for _, bufnr in ipairs(api.nvim_list_bufs()) do
+        if api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr) and api.nvim_buf_get_option(bufnr, "modified") then
+          return
+        end
+      end
       api.nvim_command(":silent q!")
     end
   end, 50)

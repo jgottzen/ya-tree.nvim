@@ -53,8 +53,8 @@ local buf_options = {
 ---@field private winid number
 ---@field private edit_winid number
 ---@field private bufnr number
----@field private mode "'tree'"|"'search'"
----@field private in_help boolean
+---@field mode "'tree'"|"'search'"
+---@field in_help boolean
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
 ---@field private node_lines string[]
@@ -69,7 +69,7 @@ end
 
 ---@return number height, number width
 function Canvas:get_size()
-  if self.winid then
+  if self:get_edit_winid() then
     ---@type number
     local height = api.nvim_win_get_height(self.winid)
     ---@type number
@@ -80,11 +80,19 @@ end
 
 ---@return number? winid
 function Canvas:get_edit_winid()
+  if self.edit_winid then
+    if not api.nvim_win_is_valid(self.edit_winid) then
+      self.edit_winid = nil
+    end
+  end
   return self.edit_winid
 end
 
 ---@param winid number
 function Canvas:set_edit_winid(winid)
+  if not winid then
+    log.error("setting edit_winid to nil!")
+  end
   self.edit_winid = winid
   if self.edit_winid and self.edit_winid == self.winid then
     log.error("setting edit_winid to %s, the same as winid", self.edit_winid)
@@ -183,6 +191,22 @@ function Canvas:_set_window_options_and_size()
   self:resize()
 end
 
+function Canvas:_on_win_closed()
+  if config.view.bufferline.barbar and barbar_exists then
+    local ok, result = pcall(barbar_state.set_offset, 0)
+    if not ok then
+      log.error("error calling barbar to update offset: %", result)
+    end
+  end
+
+  if type(config.view.on_close) == "function" then
+    local ok, result = pcall(config.view.on_close, config)
+    if not ok then
+      log.error("error calling user supplied on_close function: %", result)
+    end
+  end
+end
+
 ---@private
 function Canvas:_create_window()
   ---@type number
@@ -198,22 +222,6 @@ function Canvas:_create_window()
   self.winid = api.nvim_get_current_win()
   log.debug("created window %s", self.winid)
   self:_set_window_options_and_size()
-end
-
-function Canvas:_on_win_closed()
-  if config.view.bufferline.barbar and barbar_exists then
-    local ok, result = pcall(barbar_state.set_offset, 0)
-    if not ok then
-      log.error("error calling barbar to update offset: %", result)
-    end
-  end
-
-  if type(config.view.on_close) == "function" then
-    local ok, result = pcall(config.view.on_close, config)
-    if not ok then
-      log.error("error calling user supplied on_close function: %", result)
-    end
-  end
 end
 
 ---@param root YaTreeNode
