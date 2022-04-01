@@ -8,12 +8,11 @@ local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
----@type boolean
-local barbar_exists
+local barbar_exists = false
 
 ---@class BarBarState
 ---@field set_offset fun(width: number, text?: string):nil
-local barbar_state
+local barbar_state = {}
 
 local win_options = {
   -- number and relativenumber are taken directly from config
@@ -203,11 +202,17 @@ end
 
 function Canvas:_on_win_closed()
   if config.view.bufferline.barbar and barbar_exists then
-    barbar_state.set_offset(0)
+    local ok, result = pcall(barbar_state.set_offset, 0)
+    if not ok then
+      log.error("error calling barbar to update offset: %", result)
+    end
   end
 
   if type(config.view.on_close) == "function" then
-    config.view.on_close(config)
+    local ok, result = pcall(config.view.on_close, config)
+    if not ok then
+      log.error("error calling user supplied on_close function: %", result)
+    end
   end
 end
 
@@ -241,11 +246,17 @@ function Canvas:open(root, opts)
   end
 
   if config.view.bufferline.barbar and barbar_exists then
-    barbar_state.set_offset(config.view.width, config.view.bufferline.title or "")
+    local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.bufferline.title or "")
+    if not ok then
+      log.error("error calling barbar to update offset: %", result)
+    end
   end
 
   if type(config.view.on_open) == "function" then
-    config.view.on_open(config)
+    local ok, result = pcall(config.view.on_open, config)
+    if not ok then
+      log.error("error calling user supplied on_open function: %", result)
+    end
   end
 end
 
@@ -319,9 +330,9 @@ function Canvas:reset_canvas()
 end
 
 ---@type YaTreeViewRenderer[]
-local directory_renderers
+local directory_renderers = {}
 ---@type YaTreeViewRenderer[]
-local file_renderers
+local file_renderers = {}
 
 ---@class highlight_group
 ---@field name string
@@ -767,6 +778,8 @@ do
     end
   end
 
+  local highlight_open_file = false
+
   function Canvas.setup()
     renderers.setup(config)
 
@@ -786,13 +799,26 @@ do
       local renderer = create_renderer(file_renderer)
       if renderer then
         file_renderers[#file_renderers + 1] = renderer
+
+        if renderer.name == "name" then
+          ---@type YaTreeConfig.Renderers.Name
+          local renderer_config = renderer.config
+          highlight_open_file = renderer_config.highlight_open_file
+        end
       end
     end
     log.trace("file renderers=%s", file_renderers)
+
+    barbar_exists, barbar_state = pcall(require, "bufferline.state")
+    barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"
+    local msg = "barbar has " .. (barbar_exists and "successfully" or "not") .. " been detected"
+    log.debug(msg)
   end
 
-  barbar_exists, barbar_state = pcall(require, "bufferline.state")
-  barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"
+  ---@return boolean enabled
+  function Canvas.is_highlight_open_file_enabled()
+    return highlight_open_file
+  end
 end
 
 return Canvas

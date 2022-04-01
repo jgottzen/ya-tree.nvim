@@ -559,7 +559,8 @@ function M.on_buf_new_file(file, bufnr)
     return
   end
 
-  if not (config.follow_focused_file or config.replace_netrw or config.move_buffers_from_tree_window) then
+  local highlight_open_file = ui.is_highlight_open_file_enabled()
+  if not (config.follow_focused_file or config.replace_netrw or config.move_buffers_from_tree_window or highlight_open_file) then
     return
   end
 
@@ -592,29 +593,42 @@ function M.on_buf_new_file(file, bufnr)
       if not tree then
         log.debug("no tree for current tab")
         tree = Tree.get_tree({ root_path = path })
+
         vim.schedule(function()
           M.focus()
         end)
       elseif not tree.root:is_ancestor_of(path) and tree.root.path ~= path then
         log.debug("the current tree is not a parent for directory %s", path)
         M.change_root_node(tree, path)
+
         vim.schedule(function()
           M.focus()
         end)
       else
         log.debug("current tree is parent of directory %s", path)
         tree.current_node = tree.root:expand({ to = path })
+
         ui.update(tree.root, tree.current_node, { focus_node = true })
         M.focus()
       end
     else
+      local repaint_node = false
       if tree and ui.is_current_window_ui() and config.move_buffers_from_tree_window then
         log.debug("moving buffer %s to edit window", bufnr)
         ui.move_buffer_to_edit_window(bufnr, tree.root)
+        repaint_node = highlight_open_file
       end
-      if config.follow_focused_file and ui.is_open() and not (ui.is_help_open() or ui.is_search_open()) then
-        tree.current_node = tree.root:expand({ to = file })
-        ui.update(tree.root, tree.current_node, { focus_node = true })
+      if tree and ui.is_open() and not (ui.is_help_open() or ui.is_search_open()) then
+        if config.follow_focused_file then
+          tree.current_node = tree.root:expand({ to = file })
+          ui.update(tree.root, tree.current_node, { focus_node = true })
+        else
+          repaint_node = highlight_open_file
+        end
+      end
+
+      if repaint_node then
+        ui.update(tree.root)
       end
 
       ok = pcall(api.nvim_buf_del_var, bufnr, "YaTree_on_buf_new_file")
@@ -623,6 +637,24 @@ function M.on_buf_new_file(file, bufnr)
       end
     end
   end)
+end
+
+---@param file string
+---@param bufnr number
+function M.on_buf_delete(file, bufnr)
+  if not ui.is_open() or not file or file == "" or ui.is_buffer_yatree(bufnr) then
+    return
+  end
+
+  local tree = Tree.get_tree()
+  if not tree or not tree.root:is_ancestor_of(file) then
+    return
+  end
+
+  -- defer the ui update since the BufDelete event is called _before_ the buffer is deleted
+  vim.defer_fn(function()
+    ui.update(tree.root)
+  end, 50)
 end
 
 ---@param closed_winid number
@@ -793,6 +825,9 @@ local function setup_autocommands()
   vim.cmd([[autocmd TabClosed * lua require('ya-tree.lib').on_tab_closed(vim.fn.expand('<afile>'))]])
 
   vim.cmd([[autocmd BufEnter,BufNewFile * lua require('ya-tree.lib').on_buf_new_file(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
+  if ui.is_highlight_open_file_enabled() then
+    vim.cmd([[autocmd BufDelete * lua require('ya-tree.lib').on_buf_delete(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
+  end
 
   if config.auto_close then
     vim.cmd([[autocmd WinClosed * lua require('ya-tree.lib').on_win_closed(vim.fn.expand('<amatch>'))]])

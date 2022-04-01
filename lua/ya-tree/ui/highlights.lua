@@ -19,6 +19,7 @@ local M = {
   FILE_NAME = "YaTreeFileName",
   SYMBOLIC_FILE_NAME = "YaTreeSymbolicFileName",
   EXECUTABLE_FILE_NAME = "YaTreeExecutableFileName",
+  OPENED_FILE_NAME = "YaTreeOpenedFileName",
 
   SYMBOLIC_LINK = "YaTreeSymbolicLink",
 
@@ -122,6 +123,9 @@ local function get_groups()
     [M.ROOT_NAME] = { fg = colors.purple, gui = "bold,italic" },
 
     [M.INDENT_MARKER] = { fg = "#5a524c" },
+
+    [M.OPENED_FILE_NAME] = { fg = "#d3869b" },
+
     [M.SYMBOLIC_LINK] = { fg = colors.blue, gui = "italic" },
 
     [M.GIT_REPO_TOPLEVEL] = { fg = colors.red },

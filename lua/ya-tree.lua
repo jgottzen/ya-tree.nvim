@@ -3,7 +3,7 @@ local log = require("ya-tree.log")
 local M = {}
 
 -- use indirection so the config can be required as is for live changes to it
----@module"ya-tree.lib"
+---@module "ya-tree.lib"
 local function lib()
   return require("ya-tree.lib")
 end

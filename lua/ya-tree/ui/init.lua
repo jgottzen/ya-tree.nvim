@@ -396,4 +396,9 @@ function M.setup_highlights()
   hl.setup()
 end
 
+---@return boolean enabled
+function M.is_highlight_open_file_enabled()
+  return Canvas.is_highlight_open_file_enabled()
+end
+
 return M

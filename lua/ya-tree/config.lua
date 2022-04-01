@@ -35,7 +35,7 @@
 
 ---@class YaTreeConfig.Git
 ---@field enable boolean if git should be enabled.
----@field show_ignored boolean whethet to show git ignored files in the tree, toggleable.
+---@field show_ignored boolean whether to show git ignored files in the tree, toggleable.
 ---@field yadm YaTreeConfig.Git.Yadm
 
 ---@class YaTreeConfig.Git.Yadm
@@ -66,7 +66,7 @@
 
 ---@class YaTreeConfig.View.BufferLine
 ---@field barbar boolean integrate with `romgrk/barbar.nvim` and adjust the tabline, default: `false`.
----@field title string|nil buffer line title, default "YaTree".
+---@field title string|nil buffer line title, default: `nil`.
 
 ---@class YaTreeConfig.View.Renderers
 ---@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[] which renderers to use for directories.
@@ -91,8 +91,8 @@
 
 ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig
 ---@field use_marker boolean whether to show indent markers, default: `false`.
----@field indent_marker string
----@field last_indent_marker string
+---@field indent_marker string default: `"│"`.
+---@field last_indent_marker string default: `"└"`.
 
 ---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig
 ---@field directory YaTreeConfig.Renderers.Icon.Directory
@@ -114,9 +114,10 @@
 ---@class YaTreeConfig.Renderers.Filter : YaTreeRendererConfig
 
 ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig
----@field trailing_slash boolean whether to show a trailing os directory separator after directory names.
----@field use_git_status_colors boolean whether to color the name with the git status color.
----@field root_folder_format string the root folder format as per `fnamemodify`.
+---@field trailing_slash boolean whether to show a trailing os directory separator after directory names, default: `false.
+---@field use_git_status_colors boolean whether to color the name with the git status color, default: `false`.
+---@field root_folder_format string the root folder format as per `fnamemodify`, default: `":~"`.
+---@field highlight_open_file boolean whether to highlight the name if it's open in a buffer, default: `true`.
 
 ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig
 ---@field icon string the icon for marking the git toplevel directory.
@@ -205,7 +206,7 @@ local M = {
       on_close = nil,
       bufferline = {
         barbar = false,
-        title = "YaTree",
+        title = nil,
       },
       renderers = {
         directory = {
@@ -222,7 +223,7 @@ local M = {
         file = {
           { "indentation" },
           { "icon" },
-          { "name", use_git_status_colors = true },
+          { "name" },
           { "symlink_target" },
           { "git_status" },
           { "diagnostics" },
@@ -261,6 +262,7 @@ local M = {
         trailing_slash = false,
         use_git_status_colors = false,
         root_folder_format = ":~",
+        highlight_open_file = true,
       },
       repository = {
         padding = " ",
