@@ -48,9 +48,9 @@ end
 function M.setup(opts)
   local config = require("ya-tree.config").setup(opts)
 
-  log.config.level = config.log_level
-  log.config.to_console = config.log_to_console
-  log.config.to_file = config.log_to_file
+  log.config.level = config.log.level
+  log.config.to_console = config.log.to_console
+  log.config.to_file = config.log.to_file
 
   log.trace("using config=%s", config)
 

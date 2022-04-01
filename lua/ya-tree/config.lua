@@ -1,7 +1,4 @@
 ---@class YaTreeConfig
----@field log_level LogLevel the logging level used.
----@field log_to_console boolean whether to log to the console.
----@field log_to_file boolean whether to log the the log file.
 ---@field auto_close boolean force closing Neovim when YaTree is the last window.
 ---@field auto_reload_on_write boolean reloads the tree and the directory of the file changed.
 ---@field follow_focused_file boolean update the focused file in the tree on `BufEnter`.
@@ -18,6 +15,11 @@
 ---@field view YaTreeConfig.View
 ---@field renderers YaTreeConfig.Renderers
 ---@field mappings table<string|string[], YaTreeConfig.Mappings.Action>
+
+---@class YaTreeConfig.Log
+---@field level LogLevel the logging level used, default `"warn"`.
+---@field to_console boolean whether to log to the console, default: `false`.
+---@field to_file boolean whether to log the the log file, default: `false`.
 
 ---@class YaTreeConfig.Cwd
 ---@field follow boolean update the tree root directory on `DirChanged`.
@@ -151,10 +153,6 @@
 local M = {
   ---@type YaTreeConfig
   default = {
-    log_level = "warn",
-    log_to_console = false,
-    log_to_file = false,
-
     auto_close = false,
     auto_reload_on_write = true,
 
@@ -163,6 +161,12 @@ local M = {
     move_buffers_from_tree_window = true,
 
     replace_netrw = true,
+
+    log = {
+      level = "warn",
+      to_console = false,
+      to_file = false,
+    },
     cwd = {
       follow = false,
       update_from_tree = false,
