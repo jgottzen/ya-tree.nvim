@@ -181,7 +181,7 @@ function Canvas:_set_window_options_and_size()
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
 
-  if (config.view.bufferline.barbar and barbar_exists) or type(config.view.on_close) == "function" then
+  if (config.view.barbar.enable and barbar_exists) or type(config.view.on_close) == "function" then
     vim.cmd(string.format("augroup YaTreeCanvas%s", self.winid))
     vim.cmd([[autocmd!]])
     vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas')._on_win_closed()", self.winid))
@@ -192,7 +192,7 @@ function Canvas:_set_window_options_and_size()
 end
 
 function Canvas:_on_win_closed()
-  if config.view.bufferline.barbar and barbar_exists then
+  if config.view.barbar.enable and barbar_exists then
     local ok, result = pcall(barbar_state.set_offset, 0)
     if not ok then
       log.error("error calling barbar to update offset: %", result)
@@ -253,8 +253,8 @@ function Canvas:open(root, opts)
     self:render_tree(root, { redraw = true })
   end
 
-  if config.view.bufferline.barbar and barbar_exists then
-    local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.bufferline.title or "")
+  if config.view.barbar.enable and barbar_exists then
+    local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.barbar.title or "")
     if not ok then
       log.error("error calling barbar to update offset: %", result)
     end

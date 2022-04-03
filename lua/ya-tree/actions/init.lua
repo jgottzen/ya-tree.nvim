@@ -133,7 +133,7 @@ function M.apply_mappings(bufnr)
   end
 end
 
----@param mappings table<string|string[], YaTreeConfig.Mappings.Action>
+---@param mappings table<string|string[], YaTreeConfig.Mapping>
 ---@return ActionMapping[]
 local function validate_and_create_mappings(mappings)
   ---@type ActionMapping[]

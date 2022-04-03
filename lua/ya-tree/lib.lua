@@ -874,7 +874,7 @@ function M.setup()
     -- create the tree for the current tabpage
     log.debug("creating tree in lib.setup")
     local tree = Tree.get_tree({ root_path = root_path })
-    -- the autocmd must be set up last, this avoids triggering the BufNewFile event if the initial buffer
+    -- the autocmds must be set up last, this avoids triggering the BufNewFile event if the initial buffer
     -- is a directory
     if netrw then
       vim.schedule(function()
