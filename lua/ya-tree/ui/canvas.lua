@@ -421,10 +421,11 @@ function Canvas:_create_tree(root)
   root.depth = 0
   local content, highlights = render_node(root)
 
-  self.nodes[#self.nodes + 1] = root
-  self.node_path_to_index_lookup[root.path] = #self.nodes
-  self.node_lines[#self.node_lines + 1] = content
-  self.node_highlights[#self.node_highlights + 1] = highlights
+  local linenr = 1
+  self.nodes[linenr] = root
+  self.node_path_to_index_lookup[root.path] = linenr
+  self.node_lines[linenr] = content
+  self.node_highlights[linenr] = highlights
 
   ---@param node YaTreeNode
   ---@param depth number
@@ -435,10 +436,11 @@ function Canvas:_create_tree(root)
       node.last_child = last_child
       content, highlights = render_node(node)
 
-      self.nodes[#self.nodes + 1] = node
-      self.node_path_to_index_lookup[node.path] = #self.nodes
-      self.node_lines[#self.node_lines + 1] = content
-      self.node_highlights[#self.node_highlights + 1] = highlights
+      linenr = linenr + 1
+      self.nodes[linenr] = node
+      self.node_path_to_index_lookup[node.path] = linenr
+      self.node_lines[linenr] = content
+      self.node_highlights[linenr] = highlights
 
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
