@@ -210,6 +210,8 @@ function M.change_root_node(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
 
   async.run(function()
+    ---@type number
+    local tabpage = api.nvim_get_current_tabpage()
     if type(new_root) == "string" then
       if tree.root.path ~= new_root then
         ---@type YaTreeNode
@@ -244,9 +246,11 @@ function M.change_root_node(tree, new_root)
       end
     end
 
-    vim.schedule(function()
-      ui.update(tree.root, tree.current_node, { tabpage = tree.tabpage })
-    end)
+    if tree.tabpage == tabpage then
+      vim.schedule(function()
+        ui.update(tree.root, tree.current_node, { tabpage = tree.tabpage })
+      end)
+    end
   end)
 end
 
@@ -685,6 +689,8 @@ end
 ---@param file string
 function M.on_buf_write_post(file)
   if file then
+    ---@type number
+    local tabpage = api.nvim_get_current_tabpage()
     async.run(function()
       Tree.for_each_tree(function(tree)
         if tree.root:is_ancestor_of(file) then
@@ -695,9 +701,11 @@ function M.on_buf_write_post(file)
           if node then
             node:refresh()
 
-            vim.schedule(function()
-              ui.update(tree.root, nil, { tabpage = tree.tabpage })
-            end)
+            if tree.tabpage == tabpage then
+              vim.schedule(function()
+                ui.update(tree.root, nil, { tabpage = tree.tabpage })
+              end)
+            end
           end
         end
       end)
@@ -779,15 +787,10 @@ M.on_diagnostics_changed = debounce_trailing(function()
   end
   Nodes.set_diagnostics(diagnostics)
 
-  Tree.for_each_tree(function(tree)
-    if not ui.is_help_open(tree.tabpage) then
-      if ui.is_search_open(tree.tabpage) then
-        ui.update(tree.search.result, nil, { tabpage = tree.tabpage })
-      elseif ui.is_open(tree.tabpage) then
-        ui.update(tree.root, nil, { tabpage = tree.tabpage })
-      end
-    end
-  end)
+  local tree = Tree.get_tree()
+  if tree then
+    ui.update(tree.root)
+  end
 end, config.diagnostics.debounce_time)
 
 ---@return boolean is_directory, string? path
