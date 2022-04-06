@@ -16,10 +16,9 @@ local M = {
   _tabs = {},
 }
 
----@param tabpage? number
 ---@return TabData|nil tab
-local function get_tab(tabpage)
-  return M._tabs[tostring(tabpage or api.nvim_get_current_tabpage())]
+local function get_tab()
+  return M._tabs[tostring(api.nvim_get_current_tabpage())]
 end
 
 ---@param tabpage number
@@ -31,10 +30,9 @@ function M.delete_tab(tabpage)
   end
 end
 
----@param tabpage? number
 ---@return boolean
-function M.is_open(tabpage)
-  local tab = get_tab(tabpage)
+function M.is_open()
+  local tab = get_tab()
   return tab and tab.canvas:is_open()
 end
 
@@ -45,14 +43,13 @@ end
 ---@param node? YaTreeNode
 function M.open(root, opts, node)
   opts = opts or {}
-  ---@type number
-  local tabpage = api.nvim_get_current_tabpage()
-  local tab = M._tabs[tostring(tabpage)]
+  local tabpage = tostring(api.nvim_get_current_tabpage())
+  local tab = M._tabs[tabpage]
   if not tab then
     tab = {
       canvas = Canvas:new(),
     }
-    M._tabs[tostring(tabpage)] = tab
+    M._tabs[tabpage] = tab
   end
 
   local canvas = tab.canvas
@@ -60,7 +57,7 @@ function M.open(root, opts, node)
     canvas:open(root, opts)
   elseif node then
     -- the tree might need to be redrawn if a specific node is to be focused
-    canvas:render_tree(root, { redraw = true })
+    canvas:render(root)
   end
 
   if node then
@@ -83,18 +80,17 @@ end
 
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
----@param opts? {focus_node?: boolean, tabpage?: number}
+---@param opts? {focus_node?: boolean}
 ---  - {opts.focus_node?} `boolean` focuse `node`
----  - {opts.tabpage?} `number`
 function M.update(root, node, opts)
   opts = opts or {}
-  local tab = get_tab(opts.tabpage)
+  local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
     return
   end
 
   local canvas = tab.canvas
-  canvas:render_tree(root, { redraw = true })
+  canvas:render(root)
   -- only update the focused node if the current window is the view window,
   -- or explicitly requested
   if node and (opts.focus_node or canvas:has_focus()) then
@@ -124,7 +120,7 @@ function M.get_selected_nodes()
   return tab.canvas:get_selected_nodes()
 end
 
----@param node YaTreeNode|YaTreeSearchNode
+---@param node YaTreeNode
 function M.focus_node(node)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
@@ -246,15 +242,14 @@ function M.reset_window()
   tab.canvas:reset_canvas()
 end
 
----@param tabpage? number
 ---@return boolean
-function M.is_help_open(tabpage)
-  local tab = get_tab(tabpage)
+function M.is_help_open()
+  local tab = get_tab()
   return tab and tab.canvas.in_help or false
 end
 
 ---@param root YaTreeNode|YaTreeSearchNode
----@param node YaTreeNode|YaTreeSearchNode
+---@param node YaTreeNode
 function M.toggle_help(root, node)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
@@ -264,22 +259,16 @@ function M.toggle_help(root, node)
 
   local canvas = tab.canvas
   if canvas.in_help then
-    if canvas.mode == "search" then
-      canvas:render_search(root)
-      canvas:focus_node(node)
-    else
-      canvas:render_tree(root, { redraw = true })
-      canvas:focus_node(node)
-    end
+    canvas:render(root)
+    canvas:focus_node(node)
   else
     canvas:render_help()
   end
 end
 
----@param tabpage? number
 ---@return boolean
-function M.is_search_open(tabpage)
-  local tab = get_tab(tabpage)
+function M.is_search_open()
+  local tab = get_tab()
   return tab and tab.canvas.mode == "search" or false
 end
 
@@ -291,15 +280,23 @@ function M.open_search(search_root)
     return
   end
 
-  tab.canvas:render_search(search_root)
+  tab.canvas.mode = "search"
+  tab.canvas:render(search_root)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_search(root, node)
   local tab = get_tab()
-  if tab and tab.canvas.mode == "search" then
-    M.update(root, node)
+  if not tab then
+    return
+  end
+
+  local canvas = tab.canvas
+  canvas.mode = "tree"
+  canvas:render(root)
+  if node and canvas:has_focus() then
+    canvas:focus_node(node)
   end
 end
 

@@ -6,14 +6,20 @@ local uv = vim.loop
 
 ---@class YaTree
 ---@field cwd string the workding directory of the tabpage.
----@field root YaTreeNode the root of the tree.
+---@field refreshing boolean if the tree is currently refreshing.
+---@field root YaTreeNode|YaTreeSearchNode the root of the current tree.
 ---@field current_node YaTreeNode the currently selected node.
----@field search? SearchTree the current search tree.
+---@field tree YaTreeRoot the current tree.
+---@field search SearchTree the current search tree.
 ---@field tabpage number the current tabpage.
 
+---@class YaTreeRoot
+---@field root YaTreeNode the root fo the tree.
+---@field current_node YaTreeNode the currently selected node.
+
 ---@class SearchTree
----@field result YaTreeSearchNode the root of the search tree.
----@field current_node YaTreeSearchNode the currently selected node.
+---@field result? YaTreeSearchNode the root of the search tree.
+---@field current_node? YaTreeNode the currently selected node.
 
 local M = {
   ---@private
@@ -39,14 +45,20 @@ function M.get_tree(opts)
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
     tree = {
       cwd = cwd,
-      root = Nodes.root(root),
+      refreshing = false,
+      root = nil,
       current_node = nil,
+      tree = {
+        root = Nodes.root(root),
+        current_node = nil,
+      },
       search = {
         result = nil,
         current_node = nil,
       },
       tabpage = tabpage,
     }
+    tree.root = tree.tree.root
     M._trees[tostring(tabpage)] = tree
   end
 

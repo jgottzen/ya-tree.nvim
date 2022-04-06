@@ -155,7 +155,12 @@ local function set_git_repo_on_node_and_children(repo, node)
   end
 end
 
+---@return boolean is_git_repo whether a git repo was detected
 function Node:check_for_git_repo()
+  if self.repo then
+    return false
+  end
+
   local repo = git.Repo:new(self.path)
   if repo then
     repo:refresh_status({ ignored = true })
@@ -168,7 +173,7 @@ function Node:check_for_git_repo()
         -- this node is below the git toplevel directory,
         -- walk the tree upwards until we hit the topmost node
         local node = self
-        while node.parent and #toplevel < #node.parent.path do
+        while node.parent and #toplevel <= #node.parent.path do
           node = node.parent
         end
         set_git_repo_on_node_and_children(repo, node)
@@ -178,8 +183,10 @@ function Node:check_for_git_repo()
         log.error("repo=%s", repo)
       end
     end
+    return true
   else
     log.debug("path %s is not in a git repository", self.path)
+    return false
   end
 end
 
@@ -399,15 +406,16 @@ local function refresh_node(node, recurse, refreshed_git_repos)
   end
 end
 
-function Node:refresh()
+---@param recurse? boolean whether to perform a recursive refresh
+function Node:refresh(recurse)
   log.debug("refreshing %q", self.path)
-  refresh_node(self, true, {})
+  refresh_node(self, recurse or false, {})
 end
 
 ---Creates a separate node search tree from the `search_result`.
 --
 ---@param search_results string[]
----@return YaTreeSearchNode search_root, YaTreeSearchNode first_node
+---@return YaTreeSearchNode search_root, YaTreeNode first_node
 function Node:create_search_tree(search_results)
   local search_root = Node:new({
     name = self.name,
@@ -419,6 +427,17 @@ function Node:create_search_tree(search_results)
   ---@type table<string, YaTreeNode>
   local node_map = {}
   node_map[self.path] = search_root
+
+  ---@param fs_node FsNode
+  ---@param parent YaTreeNode
+  local function add_node(fs_node, parent)
+    local node = Node:new(fs_node, parent)
+    node.expanded = true
+    parent.scanned = true
+    parent.children[#parent.children + 1] = node
+    table.sort(parent.children, fs.fs_node_comparator)
+    node_map[node.path] = node
+  end
 
   local min_path_size = #self.path
   for _, path in ipairs(search_results) do
@@ -433,11 +452,7 @@ function Node:create_search_tree(search_results)
           local grand_parent = node_map[parents[i + 1]]
           local fs_node = fs.node_for(parent_path)
           if fs_node then
-            parent = Node:new(fs_node, grand_parent)
-            parent.expanded = true
-            grand_parent.children[#grand_parent.children + 1] = parent
-            table.sort(grand_parent.children, fs.fs_node_comparator)
-            node_map[parent_path] = parent
+            add_node(fs_node, grand_parent)
           end
         end
       end
@@ -446,17 +461,17 @@ function Node:create_search_tree(search_results)
     local parent = node_map[parents[1]]
     local fs_node = fs.node_for(path)
     if fs_node then
-      local node = Node:new(fs_node, parent)
-      node.expanded = true
-      parent.children[#parent.children + 1] = node
-      table.sort(parent.children, fs.fs_node_comparator)
-      node_map[node.path] = node
+      add_node(fs_node, parent)
     end
   end
 
   local first_node = search_root
   while first_node and first_node:is_directory() do
-    first_node = first_node.children and first_node.children[1]
+    if first_node.children and first_node.children[1] then
+      first_node = first_node.children and first_node.children[1]
+    else
+      break
+    end
   end
 
   return search_root, first_node

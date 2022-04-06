@@ -149,7 +149,8 @@ function M.node_for(path)
   local stat = uv.fs_stat(path)
   local _type = stat and stat.type or nil
   if not _type then
-    utils.warn("cannot determine type for path " .. path)
+    -- this is most likely caused by a symbolic link pointing to a non-existing file and not really a problem,
+    -- or nothing we can do anything about, so just ignore it
     return
   end
 

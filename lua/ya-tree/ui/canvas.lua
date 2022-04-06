@@ -49,11 +49,13 @@ local buf_options = {
   { name = "swapfile", value = false },
 }
 
+---@alias YaTreeCanvasMode '"tree"'|'"search"'
+
 ---@class YaTreeCanvas
 ---@field private winid number
 ---@field private edit_winid number
 ---@field private bufnr number
----@field mode "'tree'"|"'search'"
+---@field mode YaTreeCanvasMode
 ---@field in_help boolean
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
@@ -64,6 +66,7 @@ local Canvas = {}
 function Canvas:new()
   local this = setmetatable({}, self)
   self.__index = self
+  this.mode = "tree"
   return this
 end
 
@@ -163,7 +166,7 @@ function Canvas:move_buffer_to_edit_window(bufnr, root)
     log.debug("moving buffer %s from window %s to window %s", bufnr, api.nvim_get_current_win(), self.edit_winid)
 
     api.nvim_win_set_buf(self.winid, self.bufnr)
-    self:render_tree(root)
+    self:render(root)
     api.nvim_win_set_buf(self.edit_winid, bufnr)
     api.nvim_set_current_win(self.edit_winid)
   end
@@ -232,10 +235,8 @@ function Canvas:open(root, opts)
     return
   end
 
-  local redraw = false
   opts = opts or {}
   if not self:_is_buffer_loaded() then
-    redraw = true
     self:_create_buffer(opts.hijack_buffer)
   end
 
@@ -249,9 +250,7 @@ function Canvas:open(root, opts)
     self:_create_window()
   end
 
-  if redraw then
-    self:render_tree(root, { redraw = true })
-  end
+  self:render(root)
 
   if config.view.barbar.enable and barbar_exists then
     local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.barbar.title or "")
@@ -414,8 +413,9 @@ local function should_display_node(node)
 end
 
 ---@private
----@param root YaTreeNode
+---@param root YaTreeNode|YaTreeSearchNode
 function Canvas:_create_tree(root)
+  log.debug("creating canvas tree with root node %s", root.path)
   self.nodes, self.node_lines, self.node_highlights, self.node_path_to_index_lookup = {}, {}, {}, {}
 
   root.depth = 0
@@ -489,30 +489,15 @@ function Canvas:_draw()
   api.nvim_buf_set_option(self.bufnr, "modifiable", false)
 end
 
----@param root YaTreeNode
----@param opts? {redraw: boolean}
----  - {opts.redraw} `boolean`
-function Canvas:render_tree(root, opts)
-  if opts and opts.redraw then
-    self:_create_tree(root)
-  end
+---@param root YaTreeNode|YaTreeSearchNode
+function Canvas:render(root)
   self.in_help = false
-  self.mode = "tree"
+  self:_create_tree(root)
   self:_draw()
 end
 
 function Canvas:render_help()
   self.in_help = true
-  self:_draw()
-end
-
----@param search_root YaTreeSearchNode
-function Canvas:render_search(search_root)
-  if search_root then
-    self:_create_tree(search_root)
-  end
-  self.in_help = false
-  self.mode = "search"
   self:_draw()
 end
 
@@ -573,7 +558,7 @@ do
   local previous_row
 
   function Canvas:move_cursor_to_name()
-    if self.in_help then
+    if self.in_help or not self.winid then
       return
     end
     local node, row, col = self:_get_current_node_and_position()
@@ -592,7 +577,7 @@ do
     ---@type number
     local pos = (line:find(node.name, 1, true) or 0) - 1
     if pos > 0 and pos ~= col then
-      api.nvim_win_set_cursor(self.winid or 0, { row, pos })
+      api.nvim_win_set_cursor(self.winid, { row, pos })
     end
   end
 end

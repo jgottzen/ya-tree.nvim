@@ -130,11 +130,7 @@ local function search(term, node, focus_node)
           lines[#lines] = nil
         end
         log.debug("%q found %s matches", cmd, #lines)
-        lib.display_search_result(node, term, lines)
-
-        if focus_node then
-          lib.focus_first_search_result()
-        end
+        lib.display_search_result(node, term, lines, focus_node)
       else
         utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
       end
@@ -244,8 +240,6 @@ function M.search(node)
   end
 
   async.run(function()
-    scheduler()
-
     local term = ui.input({ prompt = "Search:" })
     if not term then
       return
