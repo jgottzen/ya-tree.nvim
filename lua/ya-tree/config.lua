@@ -303,7 +303,7 @@ local M = {
       ["/"] = { action = "live_search", views = { "tree", "search" } },
       ["f"] = { action = "search", views = { "tree", "search" } },
       ["<C-x>"] = { action = "clear_search", views = { "search" } },
-      ["G"] = { action = "rescan_dir_for_git", views = { "tree" } },
+      ["<C-g>"] = { action = "rescan_dir_for_git", views = { "tree" } },
       ["a"] = { action = "add", views = { "tree" } },
       ["r"] = { action = "rename", views = { "tree" } },
       ["d"] = { mode = { "n", "v" }, action = "delete", views = { "tree" } },
