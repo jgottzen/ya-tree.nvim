@@ -507,15 +507,8 @@ function M.clear_search()
   ui.close_search(tree.root, tree.current_node)
 end
 
----@param node YaTreeNode
-function M.toggle_help(node)
-  local tree = Tree.get_tree()
-  if not tree then
-    return
-  end
-
-  tree.current_node = ui.is_help_open() and tree.current_node or node
-  ui.toggle_help(tree.root, tree.current_node)
+function M.open_help()
+  ui.open_help()
 end
 
 ---@param node YaTreeNode
@@ -603,7 +596,7 @@ function M.on_buf_new_file(file, bufnr)
       log.debug("deleting buffer %s with file %s and path %s", bufnr, file, file)
       api.nvim_buf_delete(bufnr, { force = true })
       -- force barbar update, otherwise a ghost tab for the buffer can remain
-      if fn.exists("bufferline#update") == 1 then
+      if type(fn["bufferline#update"]) == "function" then
         vim.cmd("call bufferline#update()")
       end
 
@@ -638,10 +631,10 @@ function M.on_buf_new_file(file, bufnr)
       local update_tree = false
       if tree and ui.is_current_window_ui() and config.move_buffers_from_tree_window then
         log.debug("moving buffer %s to edit window", bufnr)
-        ui.move_buffer_to_edit_window(bufnr, tree.root)
+        ui.move_buffer_to_edit_window(bufnr)
         update_tree = highlight_open_file
       end
-      if tree and ui.is_open() and not (ui.is_help_open() or ui.is_search_open()) then
+      if tree and ui.is_open() and not ui.is_search_open() then
         if config.follow_focused_file then
           tree.current_node = tree.root:expand({ to = file })
           ui.update(tree.root, tree.current_node, { focus_node = true })

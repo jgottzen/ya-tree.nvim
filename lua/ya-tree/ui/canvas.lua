@@ -1,5 +1,4 @@
 local config = require("ya-tree.config").config
-local help = require("ya-tree.ui.help")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
@@ -56,11 +55,8 @@ local buf_options = {
 ---@field private edit_winid number
 ---@field private bufnr number
 ---@field mode YaTreeCanvasMode
----@field in_help boolean
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
----@field private node_lines string[]
----@field private node_highlights highlight_group[][]
 local Canvas = {}
 
 function Canvas:new()
@@ -83,10 +79,8 @@ end
 
 ---@return number? winid
 function Canvas:get_edit_winid()
-  if self.edit_winid then
-    if not api.nvim_win_is_valid(self.edit_winid) then
-      self.edit_winid = nil
-    end
+  if self.edit_winid and not api.nvim_win_is_valid(self.edit_winid) then
+    self.edit_winid = nil
   end
   return self.edit_winid
 end
@@ -104,7 +98,11 @@ end
 
 ---@return boolean is_open
 function Canvas:is_open()
-  return self.winid and api.nvim_win_is_valid(self.winid) or false
+  if self.winid and not api.nvim_win_is_valid(self.winid) then
+    log.error("canvas winid is %s, but is not valid, setting to nil!", self.winid)
+    self.winid = nil
+  end
+  return self.winid ~= nil
 end
 
 ---@return boolean
@@ -115,7 +113,7 @@ end
 ---@private
 ---@return boolean is_loaded
 function Canvas:_is_buffer_loaded()
-  return self.bufnr and (api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr)) or false
+  return self.bufnr and api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr) or false
 end
 
 ---@private
@@ -160,13 +158,11 @@ function Canvas:restore()
 end
 
 ---@param bufnr number
----@param root YaTreeNode
-function Canvas:move_buffer_to_edit_window(bufnr, root)
+function Canvas:move_buffer_to_edit_window(bufnr)
   if self.winid and self.edit_winid and self.bufnr then
     log.debug("moving buffer %s from window %s to window %s", bufnr, api.nvim_get_current_win(), self.edit_winid)
 
-    api.nvim_win_set_buf(self.winid, self.bufnr)
-    self:render(root)
+    self:restore()
     api.nvim_win_set_buf(self.edit_winid, bufnr)
     api.nvim_set_current_win(self.edit_winid)
   end
@@ -414,18 +410,23 @@ end
 
 ---@private
 ---@param root YaTreeNode|YaTreeSearchNode
+---@return string[] lines, highlight_group[][] highlights
 function Canvas:_create_tree(root)
   log.debug("creating canvas tree with root node %s", root.path)
-  self.nodes, self.node_lines, self.node_highlights, self.node_path_to_index_lookup = {}, {}, {}, {}
+  self.nodes, self.node_path_to_index_lookup = {}, {}
+  ---@type string[]
+  local lines = {}
+  ---@type highlight_group[][]
+  local highlights = {}
 
   root.depth = 0
-  local content, highlights = render_node(root)
+  local content, highlight_groups = render_node(root)
 
   local linenr = 1
   self.nodes[linenr] = root
   self.node_path_to_index_lookup[root.path] = linenr
-  self.node_lines[linenr] = content
-  self.node_highlights[linenr] = highlights
+  lines[linenr] = content
+  highlights[linenr] = highlight_groups
 
   ---@param node YaTreeNode
   ---@param depth number
@@ -434,13 +435,13 @@ function Canvas:_create_tree(root)
     if should_display_node(node) then
       node.depth = depth
       node.last_child = last_child
-      content, highlights = render_node(node)
+      content, highlight_groups = render_node(node)
 
       linenr = linenr + 1
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      self.node_lines[linenr] = content
-      self.node_highlights[linenr] = highlights
+      lines[linenr] = content
+      highlights[linenr] = highlight_groups
 
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
@@ -455,23 +456,16 @@ function Canvas:_create_tree(root)
   for i, node in ipairs(root.children) do
     append_node(node, 1, i == nr_of_children)
   end
+
+  return lines, highlights
 end
 
----@private
-function Canvas:_draw()
+---@param root YaTreeNode|YaTreeSearchNode
+function Canvas:render(root)
+  local lines, highlights = self:_create_tree(root)
+
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
-
-  ---@type string[]
-  local lines
-  ---@type highlight_group[][]
-  local highlights
-  if self.in_help then
-    lines, highlights = help.create_help()
-  else
-    lines = self.node_lines
-    highlights = self.node_highlights
-  end
 
   api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
 
@@ -487,18 +481,6 @@ function Canvas:_draw()
   end
 
   api.nvim_buf_set_option(self.bufnr, "modifiable", false)
-end
-
----@param root YaTreeNode|YaTreeSearchNode
-function Canvas:render(root)
-  self.in_help = false
-  self:_create_tree(root)
-  self:_draw()
-end
-
-function Canvas:render_help()
-  self.in_help = true
-  self:_draw()
 end
 
 ---@private
@@ -558,7 +540,7 @@ do
   local previous_row
 
   function Canvas:move_cursor_to_name()
-    if self.in_help or not self.winid then
+    if not self.winid then
       return
     end
     local node, row, col = self:_get_current_node_and_position()
@@ -609,10 +591,8 @@ function Canvas:focus_node(node)
     local index = self.node_path_to_index_lookup[node.path]
     log.debug("node %s is at index %s", node.path, index)
     if index then
-      local column = 0
-      if config.hijack_cursor and node.depth > 0 then
-        column = (self.node_lines[index]:find(node.name, 1, true) or 0) - 1
-      end
+      ---@type number
+      local _, column = unpack(api.nvim_win_get_cursor(self.winid))
       set_cursor_position(self.winid, index, column)
     end
   end
@@ -806,8 +786,7 @@ do
 
     barbar_exists, barbar_state = pcall(require, "bufferline.state")
     barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"
-    local msg = "barbar has " .. (barbar_exists and "successfully" or "not") .. " been detected"
-    log.debug(msg)
+    log.debug("barbar has " .. (barbar_exists and "successfully" or "not") .. " been detected")
   end
 
   ---@return boolean enabled

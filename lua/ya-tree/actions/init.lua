@@ -51,7 +51,7 @@ local actions = {
   ["toggle_filter"] = lib.toggle_filter,
   ["refresh"] = lib.refresh,
   ["rescan_dir_for_git"] = lib.rescan_dir_for_git,
-  ["toggle_help"] = lib.toggle_help,
+  ["open_help"] = lib.open_help,
   ["system_open"] = lib.system_open,
 }
 
@@ -62,7 +62,7 @@ function M.execute(id)
     utils.warn(string.format("no command for id %q found", id))
     return
   end
-  if ui.is_help_open() and command.name ~= "toggle_help" then
+  if not command.views[ui.get_view_mode()] then
     return
   end
 
@@ -76,13 +76,14 @@ end
 
 ---@class ActionCommand
 ---@field name string
+---@field views table<YaTreeCanvasMode, boolean>
 ---@field action? fun(node: YaTreeNode):nil
 ---@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil
 
 local next_handler_id = 1
 
 ---@param mapping ActionMapping
----@return string
+---@return string handler_id
 local function assing_handler(mapping)
   local handler_id = tostring(next_handler_id)
   local action = mapping.action
@@ -92,11 +93,13 @@ local function assing_handler(mapping)
     commands[handler_id] = {
       name = action,
       action = actions[action],
+      views = mapping.views,
     }
   elseif func then
     commands[handler_id] = {
       name = mapping.name or "function",
       func = func,
+      views = mapping.views,
     }
     next_handler_id = next_handler_id + 1
   else
@@ -146,6 +149,18 @@ local function validate_and_create_mappings(mappings)
     local action = m.action
     local func = m.func
     local command = m.command
+    ---@type table<YaTreeCanvasMode, boolean>
+    local views = {}
+    if not m.views or m.views == { "all" } then
+      views = {
+        tree = true,
+        search = true,
+      }
+    else
+      for _, view in ipairs(m.views) do
+        views[view] = true
+      end
+    end
 
     local nr_of_mappings = 0
     if type(action) == "string" then
@@ -180,6 +195,7 @@ local function validate_and_create_mappings(mappings)
     if nr_of_mappings == 1 then
       for _, mode in ipairs(modes) do
         ---@class ActionMapping
+        ---@field views table<YaTreeCanvasMode, boolean>
         ---@field mode string
         ---@field keys string[]
         ---@field name string
@@ -187,6 +203,7 @@ local function validate_and_create_mappings(mappings)
         ---@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil
         ---@field command? string
         local mapping = {
+          views = views,
           mode = mode,
           keys = keys,
           name = action and action or (func and "'<function>'") or (command and ('"' .. command .. '"')),

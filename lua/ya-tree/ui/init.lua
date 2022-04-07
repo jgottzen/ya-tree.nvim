@@ -2,6 +2,7 @@ local wrap = require("plenary.async").wrap
 
 local config = require("ya-tree.config").config
 local Canvas = require("ya-tree.ui.canvas")
+local help = require("ya-tree.ui.help")
 local hl = require("ya-tree.ui.highlights")
 local log = require("ya-tree.log")
 
@@ -242,28 +243,14 @@ function M.reset_window()
   tab.canvas:reset_canvas()
 end
 
----@return boolean
-function M.is_help_open()
+---@return YaTreeCanvasMode mode
+function M.get_view_mode()
   local tab = get_tab()
-  return tab and tab.canvas.in_help or false
+  return tab and tab.canvas.mode
 end
 
----@param root YaTreeNode|YaTreeSearchNode
----@param node YaTreeNode
-function M.toggle_help(root, node)
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
-  end
-
-  local canvas = tab.canvas
-  if canvas.in_help then
-    canvas:render(root)
-    canvas:focus_node(node)
-  else
-    canvas:render_help()
-  end
+function M.open_help()
+  help.show()
 end
 
 ---@return boolean
@@ -335,8 +322,7 @@ local function create_edit_window(canvas)
 end
 
 ---@param bufnr number
----@param root YaTreeNode
-function M.move_buffer_to_edit_window(bufnr, root)
+function M.move_buffer_to_edit_window(bufnr)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() or M.is_buffer_yatree(bufnr) then
     return
@@ -347,7 +333,7 @@ function M.move_buffer_to_edit_window(bufnr, root)
     if not canvas:get_edit_winid() then
       create_edit_window(canvas)
     end
-    canvas:move_buffer_to_edit_window(bufnr, root)
+    canvas:move_buffer_to_edit_window(bufnr)
   end
 end
 
