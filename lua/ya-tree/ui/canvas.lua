@@ -98,11 +98,9 @@ end
 
 ---@return boolean is_open
 function Canvas:is_open()
-  if self.winid and not api.nvim_win_is_valid(self.winid) then
-    log.error("canvas winid is %s, but is not valid, setting to nil!", self.winid)
-    self.winid = nil
-  end
-  return self.winid ~= nil
+  -- as opposed to Canvas:get_edit_winid, we don't need to nil winid if it's not valid,
+  -- this is done by the WinClosed autocommand handler set up when creating a Canvas window.
+  return self.winid and api.nvim_win_is_valid(self.winid) or false
 end
 
 ---@return boolean
@@ -180,17 +178,18 @@ function Canvas:_set_window_options_and_size()
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
 
-  if (config.view.barbar.enable and barbar_exists) or type(config.view.on_close) == "function" then
-    vim.cmd(string.format("augroup YaTreeCanvas%s", self.winid))
-    vim.cmd([[autocmd!]])
-    vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas')._on_win_closed()", self.winid))
-    vim.cmd("augroup END")
-  end
+  vim.cmd(string.format("augroup YaTreeCanvas%s", self.winid))
+  vim.cmd([[autocmd!]])
+  vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas'):_on_win_closed()", self.winid))
+  vim.cmd("augroup END")
 
   self:resize()
 end
 
+---@private
 function Canvas:_on_win_closed()
+  self.winid = nil
+
   if config.view.barbar.enable and barbar_exists then
     local ok, result = pcall(barbar_state.set_offset, 0)
     if not ok then

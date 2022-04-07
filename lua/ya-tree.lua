@@ -31,7 +31,7 @@ function M.toggle()
 end
 
 function M.focus()
-  lib().focus()
+  lib().open({ focus = true })
 end
 
 ---@param file string

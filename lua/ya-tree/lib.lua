@@ -39,7 +39,7 @@ local function get_current_buffer_path()
   return utils.is_readable_file(file) and file
 end
 
---- Resolves the `path` in the speicfied `tree`. If `path` is `nil`, instead resolves the path of the current buffer.
+--- Resolves the `path` in the speicfied `tree`. If `path` is `nil` or empty, instead resolves the path of the current buffer.
 ---@param tree YaTree
 ---@param path? string
 ---@return string|nil path #the fully resolved path, or `nil`
@@ -75,8 +75,6 @@ function M.open(opts)
     if opts.file then
       file = resolve_path(tree, opts.file)
       log.debug("navigating to %q", file)
-    elseif config.follow_focused_file then
-      file = resolve_path(tree)
     end
 
     local node = file and tree.root:expand({ to = file })
@@ -98,10 +96,6 @@ function M.toggle()
   else
     M.open()
   end
-end
-
-function M.focus()
-  M.open({ focus = true })
 end
 
 function M.redraw()
@@ -618,7 +612,7 @@ function M.on_buf_new_file(file, bufnr)
         log.debug("the current tree is not a parent for directory %s", file)
         M.change_root_node(tree, file)
 
-        M.focus()
+        M.open({ focus = true })
       else
         log.debug("current tree is parent of directory %s", file)
         tree.current_node = tree.root:expand({ to = file })
@@ -638,6 +632,8 @@ function M.on_buf_new_file(file, bufnr)
         if config.follow_focused_file then
           tree.current_node = tree.root:expand({ to = file })
           ui.update(tree.root, tree.current_node, { focus_node = true })
+          -- avoid updating twice
+          update_tree = false
         else
           update_tree = highlight_open_file
         end

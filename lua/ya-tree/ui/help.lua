@@ -71,22 +71,25 @@ function M.show()
   local ns = api.nvim_create_namespace("YaTreeKeyMaps")
   local bufnr = api.nvim_create_buf(false, true)
 
+  local mapping_col_start = max_key_width + 3 + max_mapping_width
   api.nvim_buf_set_lines(bufnr, 0, -1, true, lines)
 
-  api.nvim_buf_set_lines(bufnr, 0, -1, true, lines)
   api.nvim_buf_add_highlight(bufnr, ns, hl.ROOT_NAME, 0, 0, -1)
   api.nvim_buf_add_highlight(bufnr, ns, hl.SEARCH_TERM, 1, 0, -1)
   api.nvim_buf_add_highlight(bufnr, ns, hl.ROOT_NAME, 3, 0, -1)
+
   for linenr = insert_start_linenr, insert_end_linenr do
     api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_DIRTY, linenr - 1, 0, max_key_width)
-    api.nvim_buf_add_highlight(bufnr, ns, hl.SYMBOLIC_LINK, linenr - 1, max_key_width + 3, max_key_width + 3 + max_mapping_width)
-    api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_NEW, linenr - 1, max_key_width + 3 + max_mapping_width + 3, -1)
+    api.nvim_buf_add_highlight(bufnr, ns, hl.SYMBOLIC_LINK, linenr - 1, max_key_width, mapping_col_start)
+    api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_NEW, linenr - 1, mapping_col_start, -1)
   end
+
   api.nvim_buf_add_highlight(bufnr, ns, hl.ROOT_NAME, insert_end_linenr + 1, 0, -1)
+
   for linenr = visual_start_linenr, visual_end_linenr do
     api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_DIRTY, linenr - 1, 0, max_key_width)
-    api.nvim_buf_add_highlight(bufnr, ns, hl.SYMBOLIC_LINK, linenr - 1, max_key_width + 3, max_key_width + 3 + max_mapping_width)
-    api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_NEW, linenr - 1, max_key_width + 3 + max_mapping_width + 3, -1)
+    api.nvim_buf_add_highlight(bufnr, ns, hl.SYMBOLIC_LINK, linenr - 1, max_key_width, mapping_col_start)
+    api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_NEW, linenr - 1, mapping_col_start, -1)
   end
 
   local opts = { noremap = true, silent = true }
