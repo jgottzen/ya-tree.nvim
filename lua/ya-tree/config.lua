@@ -321,24 +321,27 @@ local M = {
   },
 }
 
+---@type YaTreeConfig
+M.config = vim.deepcopy(M.default)
+
 ---@param opts? YaTreeConfig
 ---@return YaTreeConfig config
 function M.setup(opts)
-  ---@type YaTreeConfig
-  M.config = vim.tbl_deep_extend("force", M.default, opts or {})
+  opts = opts or {}
+  M.config = vim.tbl_deep_extend("force", M.default, opts)
 
   local utils = require("ya-tree.utils")
 
   -- convert the list of custom filters to a table for quicker lookups
 
-  M.config.filters.custom = M.default.filters.custom
+  M.config.filters.custom = {}
   ---@type string[]
-  local custom_filters = (opts and opts.filters and opts.filters.custom) or {}
+  local custom_filters = opts.filters and opts.filters.custom or {}
   if not vim.tbl_islist(custom_filters) then
     utils.warn("filters.custom must be an array, ignoring the configuration.")
   else
-    for _, v in ipairs(custom_filters) do
-      M.config.filters.custom[v] = true
+    for _, name in ipairs(custom_filters) do
+      M.config.filters.custom[name] = true
     end
   end
 
@@ -353,6 +356,19 @@ function M.setup(opts)
         args = { "/c", "start" },
       }
     end
+  end
+
+  if M.config.git.yadm.enable and not M.config.git.enable then
+    utils.notify("git is not enabled. Disabling 'git.yadm.enable' in the configuration")
+    M.config.git.yadm.enable = false
+  elseif M.config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
+    utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in the configuration")
+    M.config.git.yadm.enable = false
+  end
+
+  if M.config.trash.enable and vim.fn.executable("trash") == 0 then
+    utils.notify("trash is not in the PATH. Disabling 'trash.enable' in the configuration")
+    M.config.trash.enable = false
   end
 
   return M.config

@@ -1,7 +1,6 @@
 local async = require("plenary.async")
 local scheduler = require("plenary.async.util").scheduler
 
-local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
@@ -9,8 +8,6 @@ local ui = require("ya-tree.ui")
 local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
-
-local fn = vim.fn
 
 local M = {}
 
@@ -227,7 +224,9 @@ function M.delete()
   end)
 end
 
-function M.trash()
+---@param _ YaTreeNode
+---@param config YaTreeConfig
+function M.trash(_, config)
   if not config.trash.enable then
     return
   end
@@ -270,13 +269,6 @@ function M.trash()
       end)
     end
   end)
-end
-
-function M.setup()
-  if config.trash.enable and fn.executable("trash") == 0 then
-    utils.notify("trash is not in the PATH. Disabling 'trash.enable' in the config")
-    config.trash.enable = false
-  end
 end
 
 return M

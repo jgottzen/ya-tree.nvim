@@ -10,7 +10,7 @@ local ns = api.nvim_create_namespace("YaTreeHighlights")
 local barbar_exists = false
 
 ---@class BarBarState
----@field set_offset fun(width: number, text?: string):nil
+---@field set_offset fun(width: number, text?: string): nil
 local barbar_state = {}
 
 ---@type {name: string, value: string|boolean}[]
@@ -768,6 +768,8 @@ do
   local highlight_open_file = false
 
   function Canvas.setup()
+    config = require("ya-tree.config").config
+
     renderers.setup(config)
 
     -- reset the renderer arrays, since the setup can be called repeatedly

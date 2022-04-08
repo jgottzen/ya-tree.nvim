@@ -878,7 +878,10 @@ local function setup_autocommands()
   vim.cmd("augroup END")
 end
 
-function M.setup()
+---@param on_complete? fun() function to call when setup has completed
+function M.setup(on_complete)
+  config = require("ya-tree.config").config
+
   setup_netrw()
 
   local is_directory = false
@@ -899,10 +902,12 @@ function M.setup()
       vim.schedule(function()
         M.open({ tree = tree, hijack_buffer = true })
         setup_autocommands()
+        on_complete()
       end)
     else
       vim.schedule(function()
         setup_autocommands()
+        on_complete()
       end)
     end
   end)

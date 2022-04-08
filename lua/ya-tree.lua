@@ -8,16 +8,6 @@ local function lib()
   return require("ya-tree.lib")
 end
 
-local function setup_commands()
-  vim.cmd([[
-    command! YaTreeOpen lua require('ya-tree').open()
-    command! YaTreeClose lua require('ya-tree').close()
-    command! YaTreeToggle lua require('ya-tree').toggle()
-    command! YaTreeFocus lua require('ya-tree').focus()
-    command! -nargs=? -complete=file YaTreeFindFile lua require('ya-tree').find_file('<args>')
-  ]])
-end
-
 function M.open()
   lib().open()
 end
@@ -44,6 +34,16 @@ function M.set_log_level(level)
   log.config.level = level
 end
 
+---@param to_console boolean
+function M.set_lot_to_console(to_console)
+  log.config.to_console = to_console
+end
+
+---@param to_file boolean
+function M.set_lot_to_file(to_file)
+  log.config.to_file = to_file
+end
+
 ---@param opts? YaTreeConfig
 function M.setup(opts)
   local config = require("ya-tree.config").setup(opts)
@@ -58,9 +58,15 @@ function M.setup(opts)
   require("ya-tree.git").setup()
   require("ya-tree.ui").setup()
 
-  setup_commands()
-
-  lib().setup()
+  lib().setup(function()
+    vim.cmd([[
+      command! YaTreeOpen lua require('ya-tree').open()
+      command! YaTreeClose lua require('ya-tree').close()
+      command! YaTreeToggle lua require('ya-tree').toggle()
+      command! YaTreeFocus lua require('ya-tree').focus()
+      command! -nargs=? -complete=file YaTreeFindFile lua require('ya-tree').find_file('<args>')
+    ]])
+  end)
 end
 
 return M

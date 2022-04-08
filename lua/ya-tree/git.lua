@@ -242,13 +242,7 @@ function M.get_repo_for_path(path)
 end
 
 function M.setup()
-  if config.git.yadm.enable and not config.git.enable then
-    utils.notify("git is not enabled. Disabling 'git.yadm.enable' in config")
-    config.git.yadm.enable = false
-  elseif config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
-    utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in config")
-    config.git.yadm.enable = false
-  end
+  config = require("ya-tree.config").config
 end
 
 return M

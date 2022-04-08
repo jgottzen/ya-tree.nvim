@@ -387,6 +387,8 @@ M.select = wrap(function(items, opts, on_choice)
 end, 3)
 
 function M.setup()
+  config = require("ya-tree.config").config
+
   M.setup_highlights()
   Canvas.setup()
 end

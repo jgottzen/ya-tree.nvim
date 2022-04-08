@@ -1,7 +1,6 @@
 local async = require("plenary.async")
 local scheduler = require("plenary.async.util").scheduler
 
-local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local ui = require("ya-tree.ui")
@@ -38,8 +37,9 @@ end
 
 ---@param term string
 ---@param path string
+---@param config YaTreeConfig
 ---@return string cmd, string[] arguments
-local function build_search(term, path)
+local function build_search(term, path, config)
   ---@type string
   local cmd
   if config.search.cmd then
@@ -106,12 +106,13 @@ end
 ---@param term string
 ---@param node YaTreeNode
 ---@param focus_node boolean
-local function search(term, node, focus_node)
+---@param config YaTreeConfig
+local function search(term, node, focus_node, config)
   local search_term = term
   if term ~= "*" and not term:find("*") then
     search_term = "*" .. term .. "*"
   end
-  local cmd, args = build_search(search_term, node.path)
+  local cmd, args = build_search(search_term, node.path, config)
   if not cmd then
     utils.warn("No suitable search command found!")
     return
@@ -139,7 +140,8 @@ local function search(term, node, focus_node)
 end
 
 ---@param node YaTreeNode
-function M.live_search(node)
+---@param config YaTreeConfig
+function M.live_search(node, config)
   if not node then
     return
   end
@@ -157,7 +159,7 @@ function M.live_search(node)
     timer:start(ms, 0, function()
       vim.schedule(function()
         async.run(function()
-          search(term, node, false)
+          search(term, node, false, config)
         end)
       end)
     end)
@@ -200,7 +202,7 @@ function M.live_search(node)
         if text ~= term then
           term = text
           timer:stop()
-          search(text, node, true)
+          search(text, node, true, config)
         else
           lib.focus_first_search_result()
         end
@@ -214,7 +216,8 @@ function M.live_search(node)
 end
 
 ---@param node YaTreeNode
-function M.search(node)
+---@param config YaTreeConfig
+function M.search(node, config)
   if not node then
     return
   end
@@ -230,7 +233,7 @@ function M.search(node)
       return
     end
 
-    search(term, node, true)
+    search(term, node, true, config)
   end)
 end
 

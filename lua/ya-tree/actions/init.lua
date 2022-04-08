@@ -2,7 +2,7 @@ local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local ui = require("ya-tree.ui")
 local clipboard = require("ya-tree.actions.clipboard")
-local file_actions = require("ya-tree.actions.file-actions")
+local files = require("ya-tree.actions.files")
 local search = require("ya-tree.actions.search")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
@@ -12,16 +12,16 @@ local M = {}
 ---@type table<string, ActionCommand>
 local commands = {}
 
----@type table<string, fun(node: YaTreeNode):nil>
+---@type table<string, fun(node: YaTreeNode, config: YaTreeConfig): nil>
 local actions = {
-  ["open"] = file_actions.open,
-  ["vsplit"] = file_actions.vsplit,
-  ["split"] = file_actions.split,
-  ["preview"] = file_actions.preview,
-  ["add"] = file_actions.add,
-  ["rename"] = file_actions.rename,
-  ["delete"] = file_actions.delete,
-  ["trash"] = file_actions.trash,
+  ["open"] = files.open,
+  ["vsplit"] = files.vsplit,
+  ["split"] = files.split,
+  ["preview"] = files.preview,
+  ["add"] = files.add,
+  ["rename"] = files.rename,
+  ["delete"] = files.delete,
+  ["trash"] = files.trash,
 
   ["copy_node"] = clipboard.copy_node,
   ["cut_node"] = clipboard.cut_node,
@@ -68,7 +68,7 @@ function M.execute(id)
 
   local node = ui.get_current_node()
   if command.action then
-    command.action(node)
+    command.action(node, config)
   elseif command.func then
     command.func(node, config)
   end
@@ -77,8 +77,8 @@ end
 ---@class ActionCommand
 ---@field name string
 ---@field views table<YaTreeCanvasMode, boolean>
----@field action? fun(node: YaTreeNode):nil
----@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil
+---@field action? fun(node: YaTreeNode, config: YaTreeConfig): nil
+---@field func? fun(node: YaTreeNode, config: YaTreeConfig): nil
 
 local next_handler_id = 1
 
@@ -141,6 +141,7 @@ end
 local function validate_and_create_mappings(mappings)
   ---@type ActionMapping[]
   local valid = {}
+
   for k, m in pairs(mappings) do
     ---@type string[]
     local modes = type(m.mode) == "table" and m.mode or (m.mode and { m.mode } or { "n" })
@@ -151,7 +152,7 @@ local function validate_and_create_mappings(mappings)
     local command = m.command
     ---@type table<YaTreeCanvasMode, boolean>
     local views = {}
-    if not m.views or m.views == { "all" } then
+    if not m.views or vim.tbl_contains(m.views, "all") then
       views = {
         tree = true,
         search = true,
@@ -200,7 +201,7 @@ local function validate_and_create_mappings(mappings)
         ---@field keys string[]
         ---@field name string
         ---@field action? string
-        ---@field func? fun(node: YaTreeNode, config: YaTreeConfig):nil
+        ---@field func? fun(node: YaTreeNode, config: YaTreeConfig): nil
         ---@field command? string
         local mapping = {
           views = views,
@@ -224,8 +225,8 @@ local function validate_and_create_mappings(mappings)
 end
 
 function M.setup()
+  config = require("ya-tree.config").config
   M.mappings = validate_and_create_mappings(config.mappings)
-  file_actions.setup()
 end
 
 return M
