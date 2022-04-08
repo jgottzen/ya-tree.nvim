@@ -14,6 +14,7 @@ local fn = vim.fn
 ---@field private orig_row number
 ---@field private orig_col number
 local Input = {}
+Input.__index = Input
 
 ---@type {name: string, value: string|boolean}[]
 local buf_options = {
@@ -23,6 +24,7 @@ local buf_options = {
   { name = "buftype", value = "prompt" },
   { name = "swapfile", value = false },
 }
+
 local win_options = {
   number = false,
   relativenumber = false,
@@ -59,7 +61,7 @@ local win_options = {
 ---  - {callbacks.on_submit?} `function(text: string): void`
 ---  - {callbacks.on_close?} `function(): void`
 ---  - {callbacks.on_change?} `function(text: string): void`
----@return Input
+---@return Input input
 function Input:new(opts, callbacks)
   local this = setmetatable({
     prompt = opts.prompt or "",
@@ -77,7 +79,6 @@ function Input:new(opts, callbacks)
       border = "rounded",
     },
   }, self)
-  self.__index = self
 
   callbacks = callbacks or {}
   this.callbacks = {
@@ -219,21 +220,22 @@ function Input:close()
 end
 
 do
-  ---@type table<string, function>
+  ---@type table<string, fun(bufnr: number)>
   local handlers = {}
   local handler_id = 1
 
   ---@param bufnr number
   ---@param mode string
   ---@param key string
-  ---@param handler function|string
+  ---@param handler fun(bufnr: number)|string
   ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
   local function set_key_map(bufnr, mode, key, handler, opts)
     opts = opts or {}
 
+    ---@type string
     local rhs
     if type(handler) == "function" then
-      ---@type function
+      ---@type fun(bufnr: number)
       handlers[tostring(handler_id)] = handler
       rhs = string.format("<cmd>lua require('ya-tree.ui.input'):_execute(%s, %s)<CR>", bufnr, handler_id)
       handler_id = handler_id + 1
@@ -259,7 +261,7 @@ do
 
   ---@param mode string
   ---@param key string
-  ---@param handler function|string
+  ---@param handler fun(bufnr: number)|string
   ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
   function Input:map(mode, key, handler, opts)
     if not self.winid then

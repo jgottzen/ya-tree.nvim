@@ -150,33 +150,18 @@ function M.live_search(node)
   end
 
   local timer = uv.new_timer()
-  ---@param fun function
-  ---@return function
-  local function debounce(fun)
-    local started = false
 
-    ---@param ms number
-    ---@vararg any
-    return function(ms, ...)
-      local args = { ... }
-      if started then
-        started = false
-        timer:stop()
-      end
-      timer:start(ms, 0, function()
-        started = false
-        vim.schedule_wrap(fun)(unpack(args))
+  ---@param ms number
+  ---@param term string
+  local function delayed_search(ms, term)
+    timer:start(ms, 0, function()
+      vim.schedule(function()
+        async.run(function()
+          search(term, node, false)
+        end)
       end)
-      started = true
-    end
-  end
-
-  ---@type fun(term: string, ms: number)
-  local search_debounced = debounce(function(term)
-    async.run(function()
-      search(term, node, false)
     end)
-  end)
+  end
 
   local term = ""
   local height, width = ui.get_size()
@@ -204,7 +189,7 @@ function M.live_search(node)
           delay = 400
         end
 
-        search_debounced(delay, term)
+        delayed_search(delay, term)
       end
     end,
     ---@param text string

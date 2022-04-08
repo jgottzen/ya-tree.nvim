@@ -27,11 +27,17 @@ local M = {
   _trees = {},
 }
 
+---@param tree YaTree
+---@return string
+local function tree_tostring(tree)
+  return string.format("(cwd=%q, root=%q)", tree.cwd, tree.root.path)
+end
+
 ---@param opts {tabpage?: number, create_if_missing?: boolean, root_path?: string}
 ---  - {opts.tabpage?} `number`
 ---  - {opts.create_if_missing?} `boolean`
 ---  - {opts.root_path?} `string`
----@return YaTree?
+---@return YaTree? tree
 function M.get_tree(opts)
   opts = opts or {}
   ---@type number
@@ -43,13 +49,14 @@ function M.get_tree(opts)
     ---@type string
     local root = opts.root_path or cwd
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
-    tree = {
+    local root_node = Nodes.root(root)
+    tree = setmetatable({
       cwd = cwd,
       refreshing = false,
-      root = nil,
+      root = root_node,
       current_node = nil,
       tree = {
-        root = Nodes.root(root),
+        root = root_node,
         current_node = nil,
       },
       search = {
@@ -57,8 +64,7 @@ function M.get_tree(opts)
         current_node = nil,
       },
       tabpage = tabpage,
-    }
-    tree.root = tree.tree.root
+    }, { __tostring = tree_tostring })
     M._trees[tostring(tabpage)] = tree
   end
 

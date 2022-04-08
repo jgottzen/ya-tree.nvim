@@ -1,8 +1,8 @@
 local M = {}
 
----@param fun function
+---@param fun fun(...)
 ---@param ms number
----@return function
+---@return fun(...)
 function M.debounce_trailing(fun, ms)
   local timer = vim.loop.new_timer()
   return function(...)

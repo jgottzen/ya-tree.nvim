@@ -59,7 +59,7 @@ local function resolve_path(tree, path)
   end
 end
 
----@param opts {tree?: YaTree, file?: string, hijack_buffer?: boolean, focus?: boolean}
+---@param opts? {tree?: YaTree, file?: string, hijack_buffer?: boolean, focus?: boolean}
 ---  - {opts.tree?} `YaTree`
 ---  - {opts.file?} `string`
 ---  - {opts.hijack_buffer?} `boolean`
@@ -70,18 +70,21 @@ function M.open(opts)
     ---@type YaTree
     local tree = opts.tree or Tree.get_tree({ create_if_missing = true })
 
-    ---@type string
-    local file
+    ---@type YaTreeNode
+    local node
     if opts.file then
-      file = resolve_path(tree, opts.file)
-      log.debug("navigating to %q", file)
+      local file = resolve_path(tree, opts.file)
+      if file then
+        node = file and tree.root:expand({ to = file })
+        log.debug("navigating to %q", file)
+      else
+        log.error("%q is a file that cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, tree.cwd, tree.root.path)
+      end
     end
 
-    local node = file and tree.root:expand({ to = file })
-
     vim.schedule(function()
-      tree.current_node = node or (ui.is_open() and ui.get_current_node())
-      ui.open(tree.root, { hijack_buffer = opts.hijack_buffer, focus = opts.focus }, tree.current_node)
+      tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
+      ui.open(tree.root, tree.current_node, { hijack_buffer = opts.hijack_buffer, focus = opts.focus })
     end)
   end)
 end
@@ -100,7 +103,7 @@ end
 
 function M.redraw()
   local tree = Tree.get_tree()
-  if not tree or not ui.is_open() then
+  if not tree then
     return
   end
 
@@ -165,6 +168,67 @@ function M.close_all_nodes()
   ui.update(tree.root, tree.current_node)
 end
 
+---@param tree YaTree
+---@param new_root string|YaTreeNode
+local function update_tree_root_node(tree, new_root)
+  if type(new_root) == "string" then
+    if tree.root.path ~= new_root then
+      ---@type YaTreeNode
+      local root
+      if tree.root:is_ancestor_of(new_root) then
+        local node = tree.root:get_child_if_loaded(new_root)
+        if node then
+          root = node
+          root:expand({ force_scan = true })
+        end
+      elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
+        local parent = tree.root.parent
+        while parent and parent.path ~= new_root do
+          parent = parent.parent
+        end
+        if parent and parent.path == new_root then
+          root = parent
+          root:expand({ force_scan = true })
+        end
+      end
+
+      if not root then
+        root = Nodes.root(new_root, tree.root)
+      end
+      tree.root = root
+      tree.tree.root = root
+      tree.tree.current_node = tree.current_node
+    end
+  else
+    if tree.root.path ~= new_root.path then
+      ---@type YaTreeNode
+      tree.root = new_root
+      tree.root:expand({ force_scan = true })
+      tree.tree.root = tree.root
+      tree.tree.current_node = tree.current_node
+    end
+  end
+end
+
+---@param tree YaTree
+---@param new_root string|YaTreeNode
+local function change_root_node_for_tree(tree, new_root)
+  log.debug("changing root node to %q", tostring(new_root))
+
+  ---@type number
+  local tabpage = api.nvim_get_current_tabpage()
+
+  async.run(function()
+    update_tree_root_node(tree, new_root)
+
+    if tree.tabpage == tabpage then
+      vim.schedule(function()
+        ui.update(tree.root, tree.current_node)
+      end)
+    end
+  end)
+end
+
 ---@param node YaTreeNode
 function M.cd_to(node)
   local tree = Tree.get_tree()
@@ -180,7 +244,7 @@ function M.cd_to(node)
   if config.cwd.update_from_tree and node.path ~= tree.cwd then
     vim.cmd("tcd " .. fn.fnameescape(node.path))
   elseif node.path ~= tree.root.path then
-    M.change_root_node(tree, node)
+    change_root_node_for_tree(tree, node)
   end
 end
 
@@ -200,63 +264,8 @@ function M.cd_up(node)
   if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
     vim.cmd("tcd " .. fn.fnameescape(new_cwd))
   else
-    M.change_root_node(tree, tree.root.parent or new_cwd)
+    change_root_node_for_tree(tree, tree.root.parent or new_cwd)
   end
-end
-
----@param tree YaTree
----@param new_root string|YaTreeNode
-function M.change_root_node(tree, new_root)
-  log.debug("changing root node to %q", tostring(new_root))
-
-  ---@type number
-  local tabpage = api.nvim_get_current_tabpage()
-
-  async.run(function()
-    if type(new_root) == "string" then
-      if tree.root.path ~= new_root then
-        ---@type YaTreeNode
-        local root
-        if tree.root:is_ancestor_of(new_root) then
-          local node = tree.root:get_child_if_loaded(new_root)
-          if node then
-            root = node
-            root:expand({ force_scan = true })
-          end
-        elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
-          local parent = tree.root.parent
-          while parent and parent.path ~= new_root do
-            parent = parent.parent
-          end
-          if parent and parent.path == new_root then
-            root = parent
-            root:expand({ force_scan = true })
-          end
-        end
-
-        if not root then
-          root = Nodes.root(new_root, tree.root)
-        end
-        tree.root = root
-        tree.tree.root = root
-        tree.tree.current_node = tree.current_node
-      end
-    else
-      if tree.root.path ~= new_root.path then
-        ---@type YaTreeNode
-        tree.root = new_root
-        tree.root:expand({ force_scan = true })
-        tree.tree.root = tree.root
-        tree.tree.current_node = tree.current_node
-      end
-    end
-
-    if tree.tabpage == tabpage then
-      vim.schedule(function()
-        ui.update(tree.root, tree.current_node)
-      end)
-    end
-  end)
 end
 
 ---@param node YaTreeNode
@@ -547,7 +556,31 @@ end
 ---@param tabpage number
 function M.on_tab_closed(tabpage)
   Tree.delete_tree(tabpage)
-  ui.delete_tab(tabpage)
+  ui.delete_ui(tabpage)
+end
+
+---@param bufnr? number if not specified the current buffer is used.
+---@param bufname? string if not specified the current buffer is used.
+---@return boolean is_directory, string? path
+local function get_path_from_directory_buffer(bufnr, bufname)
+  bufnr = bufnr or api.nvim_get_current_buf()
+  bufname = bufname or api.nvim_buf_get_name(bufnr)
+  local stat = uv.fs_stat(bufname)
+  if not stat or stat.type ~= "directory" then
+    return false
+  end
+  local buftype = api.nvim_buf_get_option(bufnr, "filetype")
+  if buftype ~= "" then
+    return false
+  end
+
+  log.debug("buffer %s (%s) is buftype %s and stat.type %s", bufnr, bufname, buftype, stat.type)
+  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  if #lines == 0 or (#lines == 1 and lines[1] == "") then
+    return true, fn.expand(bufname)
+  else
+    return false
+  end
 end
 
 ---@param file string
@@ -573,7 +606,7 @@ function M.on_buf_new_file(file, bufnr)
   api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
 
   async.run(function()
-    local is_directory = M.get_path_from_directory_buffer(bufnr, file)
+    local is_directory = get_path_from_directory_buffer(bufnr, file)
     if is_directory and config.replace_netrw then
       -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
       if file:sub(-1) == utils.os_sep then
@@ -591,7 +624,7 @@ function M.on_buf_new_file(file, bufnr)
       api.nvim_buf_delete(bufnr, { force = true })
       -- force barbar update, otherwise a ghost tab for the buffer can remain
       if type(fn["bufferline#update"]) == "function" then
-        vim.cmd("call bufferline#update()")
+        pcall(vim.cmd, "call bufferline#update()")
       end
 
       file = Path:new(file):absolute()
@@ -606,19 +639,14 @@ function M.on_buf_new_file(file, bufnr)
           log.debug("requested directory is not a subpath of the current cwd %q, opening tree with root of the requested path", cwd)
           tree = Tree.get_tree({ root_path = file })
         end
-
-        M.open({ tree = tree, focus = true, file = file })
       elseif not tree.root:is_ancestor_of(file) and tree.root.path ~= file then
         log.debug("the current tree is not a parent for directory %s", file)
-        M.change_root_node(tree, file)
-
-        M.open({ focus = true })
+        update_tree_root_node(tree, file)
       else
         log.debug("current tree is parent of directory %s", file)
-        tree.current_node = tree.root:expand({ to = file })
-
-        ui.open(tree.root, { focus = true }, tree.current_node)
       end
+
+      M.open({ tree = tree, focus = true, file = file })
     else
       -- only update the ui iff highlighting of open files is enabled and
       -- the different config options are set
@@ -699,6 +727,7 @@ function M.on_buf_write_post(file)
   if file then
     ---@type number
     local tabpage = api.nvim_get_current_tabpage()
+
     async.run(function()
       Tree.for_each_tree(function(tree)
         if tree.root:is_ancestor_of(file) then
@@ -738,14 +767,14 @@ function M.on_dir_changed()
 
   ---@type string
   local new_cwd = vim.v.event.cwd
-  -- the documentation of DirChanged is incorrent it seems, the scope is not 'tab' but 'tabpage'
+  -- the documentation of DirChanged is incorrent, the scope is not 'tab' but 'tabpage'
   ---@type "'global'"|"'tabpage'"|"'window'"
   local scope = vim.v.event.scope
   log.debug("event.scope=%s, event.changed_window=%s, event.cwd=%s", scope, window_change, new_cwd)
 
   if scope == "tabpage" then
     local tree = Tree.get_tree()
-    -- since DirChanged is only subscribed to if conif.cwd.follow is enabled,
+    -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
     -- the tree.cwd is always bound to the tab cwd, and the root path of the
     -- tree doens't have to be checked
     if not tree or new_cwd == tree.cwd then
@@ -754,12 +783,12 @@ function M.on_dir_changed()
 
     tree.current_node = ui.is_open() and ui.get_current_node() or tree.current_node
     tree.cwd = new_cwd
-    M.change_root_node(tree, new_cwd)
+    change_root_node_for_tree(tree, new_cwd)
   elseif scope == "global" then
     Tree.for_each_tree(function(tree)
       if new_cwd ~= tree.cwd then
         tree.cwd = new_cwd
-        M.change_root_node(tree, new_cwd)
+        change_root_node_for_tree(tree, new_cwd)
       end
     end)
   end
@@ -769,7 +798,7 @@ function M.on_git_event()
   M.refresh_git()
 end
 
-M.on_diagnostics_changed = debounce_trailing(function()
+local function on_diagnostics_changed()
   local diagnostics = {}
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
     local bufnr = diagnostic.bufnr
@@ -793,35 +822,12 @@ M.on_diagnostics_changed = debounce_trailing(function()
       end
     end
   end
+
   Nodes.set_diagnostics(diagnostics)
 
   local tree = Tree.get_tree()
-  if tree then
+  if tree and ui.is_open() then
     ui.update(tree.root)
-  end
-end, config.diagnostics.debounce_time)
-
----@param bufnr? number if not specified the current buffer is used.
----@param bufname? string if not specified the current buffer is used.
----@return boolean is_directory, string? path
-function M.get_path_from_directory_buffer(bufnr, bufname)
-  bufnr = bufnr or api.nvim_get_current_buf()
-  bufname = bufname or api.nvim_buf_get_name(bufnr)
-  local stat = uv.fs_stat(bufname)
-  if not stat or stat.type ~= "directory" then
-    return false
-  end
-  local buftype = api.nvim_buf_get_option(bufnr, "filetype")
-  if buftype ~= "" then
-    return false
-  end
-
-  log.debug("buffer %s (%s) is buftype %s and stat.type %s", bufnr, bufname, buftype, stat.type)
-  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  if #lines == 0 or (#lines == 1 and lines[1] == "") then
-    return true, fn.expand(bufname)
-  else
-    return false
   end
 end
 
@@ -865,6 +871,7 @@ local function setup_autocommands()
     vim.cmd([[autocmd User FugitiveChanged,NeogitStatusRefreshed lua require('ya-tree.lib').on_git_event()]])
   end
   if config.diagnostics.enable then
+    M.on_diagnostics_changed = debounce_trailing(on_diagnostics_changed, config.diagnostics.debounce_time)
     vim.cmd([[autocmd DiagnosticChanged * lua require('ya-tree.lib').on_diagnostics_changed()]])
   end
 
@@ -874,22 +881,21 @@ end
 function M.setup()
   setup_netrw()
 
-  ---@type boolean, string
-  local netrw, root_path
+  local is_directory = false
+  ---@type string
+  local root_path
   if config.replace_netrw then
-    netrw, root_path = M.get_path_from_directory_buffer()
+    is_directory, root_path = get_path_from_directory_buffer()
   end
-  if not netrw then
+  if not is_directory then
     root_path = uv.cwd()
   end
 
   async.run(function()
-    -- create the tree for the current tabpage
-    log.debug("creating tree in lib.setup")
     local tree = Tree.get_tree({ root_path = root_path })
     -- the autocmds must be set up last, this avoids triggering the BufNewFile event if the initial buffer
     -- is a directory
-    if netrw then
+    if is_directory then
       vim.schedule(function()
         M.open({ tree = tree, hijack_buffer = true })
         setup_autocommands()

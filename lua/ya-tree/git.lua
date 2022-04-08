@@ -76,6 +76,13 @@ end
 ---@field private _ignored string[]
 ---@field private _is_yadm boolean
 local Repo = M.Repo
+Repo.__index = Repo
+
+---@param self Repo
+---@return string
+Repo.__tostring = function(self)
+  return string.format("(toplevel=%q, git_dir=%q, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
+end
 
 ---@param path string
 ---@return Repo|nil repo #a `Repo` object or `nil` if the path is not in a git repo.
@@ -83,7 +90,7 @@ function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
   if cached then
-    log.debug("repository for %s already created, returning cached repo", path)
+    log.debug("repository for %s already created, returning cached repo %s", path, tostring(cached))
     return cached
   end
 
@@ -114,9 +121,8 @@ function Repo:new(path)
     _ignored = {},
     _is_yadm = is_yadm,
   }, self)
-  self.__index = self
 
-  log.debug("created Repo for %q, toplevel=%q, gitdir=%q, is_yamd=%q", path, toplevel, git_dir, is_yadm)
+  log.debug("created Repo %s for %q", tostring(this), path)
   M.repos[this.toplevel] = this
 
   return this

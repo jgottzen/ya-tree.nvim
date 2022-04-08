@@ -17,18 +17,18 @@ local M = {
   _tabs = {},
 }
 
----@return TabData|nil tab
-local function get_tab()
-  return M._tabs[tostring(api.nvim_get_current_tabpage())]
-end
-
 ---@param tabpage number
-function M.delete_tab(tabpage)
+function M.delete_ui(tabpage)
   tabpage = tostring(tabpage)
   if M._tabs[tabpage] then
     M._tabs[tabpage].canvas:delete()
     M._tabs[tabpage] = nil
   end
+end
+
+---@return TabData|nil tab
+local function get_tab()
+  return M._tabs[tostring(api.nvim_get_current_tabpage())]
 end
 
 ---@return boolean
@@ -37,19 +37,23 @@ function M.is_open()
   return tab and tab.canvas:is_open()
 end
 
+---@param tab TabData
+---@return string
+local function tab_tostring(tab)
+  return string.format("(canvas=%s)", tostring(tab.canvas))
+end
+
 ---@param root YaTreeNode
+---@param node? YaTreeNode
 ---@param opts? {hijack_buffer?: boolean, focus?: boolean}
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
----@param node? YaTreeNode
-function M.open(root, opts, node)
+function M.open(root, node, opts)
   opts = opts or {}
   local tabpage = tostring(api.nvim_get_current_tabpage())
   local tab = M._tabs[tabpage]
   if not tab then
-    tab = {
-      canvas = Canvas:new(),
-    }
+    tab = setmetatable({ canvas = Canvas:new() }, { __tostring = tab_tostring })
     M._tabs[tabpage] = tab
   end
 

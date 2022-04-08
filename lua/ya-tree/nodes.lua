@@ -27,22 +27,23 @@ local M = {}
 ---@field public depth number
 ---@field public last_child boolean
 local Node = {}
-
----@class YaTreeSearchNode : YaTreeNode
----@field public search_term string
+Node.__index = Node
 
 ---@param n1 YaTreeNode
 ---@param n2 YaTreeNode
 ---@return boolean
-local function node_eq(n1, n2)
-  return n1 and n2 and n1.path and n1.path == n2.path
+Node.__eq = function(n1, n2)
+  return n1.path and n1.path == n2.path
 end
 
----@param node YaTreeNode
+---@param self YaTreeNode
 ---@return string
-local function node_tostring(node)
-  return node.path
+Node.__tostring = function(self)
+  return self.path
 end
+
+---@class YaTreeSearchNode : YaTreeNode
+---@field public search_term string
 
 ---Creates a new node.
 ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
@@ -51,9 +52,6 @@ end
 function Node:new(fs_node, parent)
   ---@type YaTreeNode
   local this = setmetatable(fs_node, self)
-  self.__index = self
-  self.__eq = node_eq
-  self.__tostring = node_tostring
 
   this.parent = parent
   if this:is_directory() then

@@ -13,6 +13,16 @@ local barbar_exists = false
 ---@field set_offset fun(width: number, text?: string):nil
 local barbar_state = {}
 
+---@type {name: string, value: string|boolean}[]
+local buf_options = {
+  { name = "bufhidden", value = "hide" },
+  { name = "buflisted", value = false },
+  { name = "filetype", value = "YaTree" },
+  { name = "buftype", value = "nofile" },
+  { name = "modifiable", value = false },
+  { name = "swapfile", value = false },
+}
+
 local win_options = {
   -- number and relativenumber are taken directly from config
   -- number = false,
@@ -38,16 +48,6 @@ local win_options = {
   }, ","),
 }
 
----@type {name: string, value: string|boolean}[]
-local buf_options = {
-  { name = "bufhidden", value = "hide" },
-  { name = "buflisted", value = false },
-  { name = "filetype", value = "YaTree" },
-  { name = "buftype", value = "nofile" },
-  { name = "modifiable", value = false },
-  { name = "swapfile", value = false },
-}
-
 ---@alias YaTreeCanvasMode '"tree"'|'"search"'
 
 ---@class YaTreeCanvas
@@ -58,12 +58,25 @@ local buf_options = {
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
 local Canvas = {}
+Canvas.__index = Canvas
 
+---@param self YaTreeCanvas
+---@return string
+Canvas.__tostring = function(self)
+  return string.format(
+    "(winid=%s, bufnr=%s, edit_winid=%s, mode=%s, nodes=[%s, %s])",
+    self.winid,
+    self.bufnr,
+    self.edit_winid,
+    self.mode,
+    self.nodes and #self.nodes or 0,
+    self.nodes and tostring(self.nodes[1]) or "nil"
+  )
+end
+
+---@return YaTreeCanvas canvas
 function Canvas:new()
-  local this = setmetatable({}, self)
-  self.__index = self
-  this.mode = "tree"
-  return this
+  return setmetatable({ mode = "tree" }, self)
 end
 
 ---@return number height, number width
