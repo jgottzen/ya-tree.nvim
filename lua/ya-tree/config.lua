@@ -27,6 +27,16 @@ local M = {
       to_file = false,
     },
 
+    ---@class YaTreeConfig.AutoOpen Auto-open configuration.
+    ---@field on_setup boolean Automatically open the tree when running setup, default: `false`.
+    ---@field on_new_tab boolean Automatically open the tree when opening a new tabpage, default: `false`.
+    ---@field focus_tree boolean Wether to focus the tree when automatically opened, default: `false`.
+    auto_open = {
+      on_setup = false,
+      on_new_tab = false,
+      focus_tree = false,
+    },
+
     ---@class YaTreeConfig.Cwd Cwd configuration.
     ---@field follow boolean Update the tree root directory on `DirChanged`, default: `false`.
     ---@field update_from_tree boolean Update the tab cwd when changing root directory in the tree, default: `false`.

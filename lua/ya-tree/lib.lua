@@ -549,6 +549,10 @@ function M.on_color_scheme()
   ui.setup_highlights()
 end
 
+function M.on_tab_new_entered()
+  M.open({ focus = config.auto_open.focus_tree })
+end
+
 function M.on_tab_enter()
   M.redraw()
 end
@@ -847,6 +851,9 @@ local function setup_autocommands()
   vim.cmd([[autocmd WinLeave * lua require('ya-tree.lib').on_win_leave(vim.fn.expand('<abuf>'))]])
   vim.cmd([[autocmd ColorScheme * lua require('ya-tree.lib').on_color_scheme()]])
 
+  if config.auto_open.on_new_tab then
+    vim.cmd([[autocmd TabNewEntered * lua require('ya-tree.lib').on_tab_new_entered()]])
+  end
   vim.cmd([[autocmd TabEnter * lua require('ya-tree.lib').on_tab_enter()]])
   vim.cmd([[autocmd TabClosed * lua require('ya-tree.lib').on_tab_closed(vim.fn.expand('<afile>'))]])
 
@@ -898,9 +905,10 @@ function M.setup(on_complete)
     local tree = Tree.get_tree({ root_path = root_path })
     -- the autocmds must be set up last, this avoids triggering the BufNewFile event if the initial buffer
     -- is a directory
-    if is_directory then
+    if is_directory or config.auto_open.on_setup then
       vim.schedule(function()
-        M.open({ tree = tree, hijack_buffer = true })
+        local focus = config.auto_open.on_setup and config.auto_open.focus_tree or false
+        M.open({ tree = tree, hijack_buffer = is_directory, focus = focus })
         setup_autocommands()
         on_complete()
       end)
