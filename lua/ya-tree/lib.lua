@@ -153,8 +153,9 @@ function M.close_node(node)
       node = parent
     end
   end
+  tree.current_node = node
 
-  ui.update(tree.root)
+  ui.update(tree.root, tree.current_node)
 end
 
 function M.close_all_nodes()
@@ -803,6 +804,7 @@ function M.on_git_event()
 end
 
 local function on_diagnostics_changed()
+  ---@type table<string, number>
   local diagnostics = {}
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
     local bufnr = diagnostic.bufnr
@@ -818,20 +820,45 @@ local function on_diagnostics_changed()
 
   if config.diagnostics.propagate_to_parents then
     for path, severity in pairs(diagnostics) do
+      ---@type string
       for _, parent in next, Path:new(path):parents() do
         local parent_severity = diagnostics[parent]
         if not parent_severity or parent_severity > severity then
           diagnostics[parent] = severity
+        else
+          break
         end
       end
     end
   end
 
-  Nodes.set_diagnostics(diagnostics)
+  local previous_diagnostics = Nodes.set_diagnostics(diagnostics)
 
   local tree = Tree.get_tree()
   if tree and ui.is_open() then
-    ui.update(tree.root)
+    local diagnostics_count = vim.tbl_count(diagnostics)
+    local previous_diagnostics_count = vim.tbl_count(previous_diagnostics)
+
+    local changed = false
+    if diagnostics_count > 0 and previous_diagnostics_count > 0 then
+      if diagnostics_count ~= previous_diagnostics_count then
+        changed = true
+      else
+        for path, severity in pairs(diagnostics) do
+          if previous_diagnostics[path] ~= severity then
+            changed = true
+            break
+          end
+        end
+      end
+    else
+      changed = diagnostics_count ~= previous_diagnostics_count
+    end
+
+    -- only update the ui if the diagnostics have changed
+    if changed then
+      ui.update(tree.root)
+    end
   end
 end
 
@@ -903,21 +930,20 @@ function M.setup(on_complete)
 
   async.run(function()
     local tree = Tree.get_tree({ root_path = root_path })
-    -- the autocmds must be set up last, this avoids triggering the BufNewFile event if the initial buffer
-    -- is a directory
-    if is_directory or config.auto_open.on_setup then
-      vim.schedule(function()
-        local focus = config.auto_open.on_setup and config.auto_open.focus_tree or false
+
+    vim.schedule(function()
+      if is_directory or config.auto_open.on_setup then
+        local focus = config.auto_open.on_setup and config.auto_open.focus_tree
         M.open({ tree = tree, hijack_buffer = is_directory, focus = focus })
-        setup_autocommands()
+      end
+
+      -- the autocmds must be set up last, this avoids triggering the BufNewFile event if the initial buffer
+      -- is a directory
+      setup_autocommands()
+      if on_complete then
         on_complete()
-      end)
-    else
-      vim.schedule(function()
-        setup_autocommands()
-        on_complete()
-      end)
-    end
+      end
+    end)
   end)
 end
 

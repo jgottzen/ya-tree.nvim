@@ -134,6 +134,9 @@ function Canvas:_create_buffer(hijack_buffer)
   if hijack_buffer then
     ---@type number
     self.bufnr = api.nvim_get_current_buf()
+    -- need to remove the "readonly" option, otherwise a warning might be raised
+    api.nvim_buf_set_option(self.bufnr, "modifiable", true)
+    api.nvim_buf_set_option(self.bufnr, "readonly", false)
     log.debug("hijacked buffer %s", self.bufnr)
   else
     ---@type number
@@ -432,7 +435,7 @@ local function should_display_node(node)
     end
   end
 
-  if config.git.show_ignored then
+  if not config.git.show_ignored then
     if node:is_git_ignored() then
       return false
     end
@@ -442,9 +445,9 @@ local function should_display_node(node)
 end
 
 ---@private
----@param root YaTreeNode|YaTreeSearchNode
+---@param root YaTreeNode
 ---@return string[] lines, highlight_group[][] highlights
-function Canvas:_create_tree(root)
+function Canvas:_render_tree(root)
   log.debug("creating canvas tree with root node %s", root.path)
   self.nodes, self.node_path_to_index_lookup = {}, {}
   ---@type string[]
@@ -495,7 +498,7 @@ end
 
 ---@param root YaTreeNode|YaTreeSearchNode
 function Canvas:render(root)
-  local lines, highlights = self:_create_tree(root)
+  local lines, highlights = self:_render_tree(root)
 
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
@@ -535,36 +538,40 @@ function Canvas:get_current_node()
   return node
 end
 
----@return YaTreeNode[] nodes
-function Canvas:get_selected_nodes()
+do
   ---@type string
-  local mode = api.nvim_get_mode().mode
-  if mode == "v" or mode == "V" then
-    ---@type number
-    local from = fn.getpos("v")[2]
-    ---@type number
-    local to = api.nvim_win_get_cursor(self.winid)[1]
-    if from > to then
-      from, to = to, from
-    end
+  local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true)
 
-    ---@type YaTreeNode[]
-    local nodes = {}
-    if from <= #self.nodes then
-      for index = from, to do
-        local node = self.nodes[index]
-        if node then
-          nodes[#nodes + 1] = node
+  ---@return YaTreeNode[] nodes
+  function Canvas:get_selected_nodes()
+    ---@type string
+    local mode = api.nvim_get_mode().mode
+    if mode == "v" or mode == "V" then
+      ---@type number
+      local from = fn.getpos("v")[2]
+      ---@type number
+      local to = api.nvim_win_get_cursor(self.winid)[1]
+      if from > to then
+        from, to = to, from
+      end
+
+      ---@type YaTreeNode[]
+      local nodes = {}
+      if from <= #self.nodes then
+        for index = from, to do
+          local node = self.nodes[index]
+          if node then
+            nodes[#nodes + 1] = node
+          end
         end
       end
+
+      api.nvim_feedkeys(esc_term_codes, "n", true)
+
+      return nodes
+    else
+      return { self:get_current_node() }
     end
-
-    local keys = api.nvim_replace_termcodes("<ESC>", true, false, true)
-    api.nvim_feedkeys(keys, "n", true)
-
-    return nodes
-  else
-    return { self:get_current_node() }
   end
 end
 
@@ -745,7 +752,7 @@ end
 
 ---@class YaTreeViewRenderer
 ---@field name string
----@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]
+---@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
 ---@field config? YaTreeRendererConfig
 
 do

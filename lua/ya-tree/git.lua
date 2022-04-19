@@ -13,11 +13,9 @@ local M = {
   ---@type Repo
   Repo = {},
   ---@type table<string, Repo>
-  repos = {},
+  ---@type table<string, GitRepo>
+  repos = setmetatable({}, { __mode = "kv" }),
 }
-
----@private
-M.repos.__mode = "v"
 
 ---@type fun(args: string[], cmd: string): string[], string
 local command = wrap(function(args, cmd, callback)

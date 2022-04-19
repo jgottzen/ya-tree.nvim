@@ -34,7 +34,7 @@ end
 ---@return boolean
 function M.is_open()
   local tab = get_tab()
-  return tab and tab.canvas:is_open()
+  return tab and tab.canvas:is_open() or false
 end
 
 ---@param tab TabData

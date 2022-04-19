@@ -16,7 +16,9 @@ function M.run(opts, on_complete)
     stdout = uv.new_pipe(false),
     stderr = uv.new_pipe(false),
 
+    ---@type string[]
     stdout_data = {},
+    ---@type string[]
     stderr_data = {},
   }
 
@@ -25,12 +27,11 @@ function M.run(opts, on_complete)
     stdio = { nil, state.stdout, state.stderr },
     cwd = opts.cwd,
     detached = opts.detached,
+
+    ---@param code number
+    ---@param signal number
   }, function(code, signal)
     log.debug("%q completed with code=%s, signal=%s", opts.cmd, code, signal)
-
-    ---@type number
-    state.code = code
-    state.signal = signal
 
     if state.stdout then
       state.stdout:read_stop()
@@ -51,13 +52,15 @@ function M.run(opts, on_complete)
     ---@type string
     local stderr = #state.stderr_data > 0 and table.concat(state.stderr_data) or nil
 
-    on_complete(state.code, stdout, stderr)
+    on_complete(code, stdout, stderr)
   end)
   log.trace("spawned process %q with arguments=%q, pid %s", opts.cmd, opts.args, state.pid)
 
+  ---@param data string
   state.stdout:read_start(function(_, data)
     state.stdout_data[#state.stdout_data + 1] = data
   end)
+  ---@param data string
   state.stderr:read_start(function(_, data)
     state.stderr_data[#state.stderr_data + 1] = data
   end)

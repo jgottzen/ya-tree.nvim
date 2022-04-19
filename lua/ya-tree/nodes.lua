@@ -155,7 +155,7 @@ end
 
 ---@return boolean is_git_repo whether a git repo was detected
 function Node:check_for_git_repo()
-  if self.repo then
+  if self.repo and not self.repo:is_yadm() then
     return false
   end
 
@@ -233,7 +233,7 @@ end
 
 ---@return boolean
 function Node:is_git_ignored()
-  return self.repo and self.repo:is_ignored(self.path, self.type)
+  return self.repo and self.repo:is_ignored(self.path, self.type) or false
 end
 
 ---@return string|nil
@@ -243,7 +243,7 @@ end
 
 ---@return boolean
 function Node:is_git_repository_root()
-  return self.repo and self.repo.toplevel == self.path
+  return self.repo and self.repo.toplevel == self.path or false
 end
 
 ---@param status? clipboard_action
@@ -256,8 +256,11 @@ do
   local diagnostics = {}
 
   ---@param new_diagnostics table<string, number>
+  ---@return table<string, number> previous_diagnostics
   function M.set_diagnostics(new_diagnostics)
+    local previous_diagnostics = diagnostics
     diagnostics = new_diagnostics
+    return previous_diagnostics
   end
 
   ---@return number|nil
