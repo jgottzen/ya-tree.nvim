@@ -20,7 +20,7 @@ local M = {}
 ---@field public link_to? string
 ---@field public link_name? string
 ---@field public link_extension? string
----@field public repo? Repo
+---@field public repo? GitRepo
 ---@field public clipboard_status clipboard_action|nil
 ---@field private scanned? boolean
 ---@field public expanded? boolean
@@ -141,7 +141,7 @@ function Node:_scandir()
   self.scanned = true
 end
 
----@param repo Repo
+---@param repo GitRepo
 ---@param node YaTreeNode
 local function set_git_repo_on_node_and_children(repo, node)
   log.debug("setting repo on node %s", node.path)
@@ -153,7 +153,7 @@ local function set_git_repo_on_node_and_children(repo, node)
   end
 end
 
----@return boolean is_git_repo whether a git repo was detected
+---@return boolean is_git_repo whether a git repo was detected, returns `false` if a repo *already* exists
 function Node:check_for_git_repo()
   if self.repo and not self.repo:is_yadm() then
     return false
@@ -390,10 +390,11 @@ end
 
 ---@param node YaTreeNode
 ---@param recurse boolean
+---@param refresh_git boolean
 ---@param refreshed_git_repos table<string, boolean>
-local function refresh_node(node, recurse, refreshed_git_repos)
+local function refresh_node(node, recurse, refresh_git, refreshed_git_repos)
   if node:is_directory() and node.scanned then
-    if node.repo and not refreshed_git_repos[node.repo.toplevel] then
+    if refresh_git and node.repo and not refreshed_git_repos[node.repo.toplevel] then
       node.repo:refresh_status({ ignored = true })
       refreshed_git_repos[node.repo.toplevel] = true
     end
@@ -401,16 +402,32 @@ local function refresh_node(node, recurse, refreshed_git_repos)
 
     if recurse then
       for _, child in ipairs(node.children) do
-        refresh_node(child, true, refreshed_git_repos)
+        refresh_node(child, true, refresh_git, refreshed_git_repos)
       end
     end
   end
 end
 
----@param recurse? boolean whether to perform a recursive refresh
-function Node:refresh(recurse)
-  log.debug("refreshing %q", self.path)
-  refresh_node(self, recurse or false, {})
+---@param opts? { recurse?: boolean, refresh_git?: boolean }
+---  - {opts.recurse?} `boolean` whether to perform a recursive refresh, default: `false`.
+---  - {opts.refresh_git?} `boolean` whether to refrsh the git status, default: `false`.
+function Node:refresh(opts)
+  opts = opts or {}
+  local recurse = opts.recurse or false
+  local refresh_git = opts.refresh_git or false
+  log.debug("refreshing %q, recurse=%s, refresh_git=%s", self.path, recurse, refresh_git)
+
+  if self:is_directory() then
+    refresh_node(self, recurse, refresh_git, {})
+  else
+    local fs_node = fs.node_for(self.path)
+    if fs_node then
+      self:_merge_new_data(fs_node)
+      if refresh_git and self.repo then
+        self.repo:refresh_status({ ignored = true })
+      end
+    end
+  end
 end
 
 ---Creates a separate node search tree from the `search_result`.
@@ -476,6 +493,21 @@ function Node:create_search_tree(search_results)
   end
 
   return search_root, first_node
+end
+
+---@param fun fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
+function Node:walk(fun)
+  if fun(self) then
+    return
+  end
+
+  if self:is_directory() then
+    for _, child in ipairs(self.children) do
+      if child:walk(fun) then
+        return
+      end
+    end
+  end
 end
 
 return M

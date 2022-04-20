@@ -1,6 +1,7 @@
-local Path = require("plenary.path")
+local void = require("plenary.async.async").void
 local wrap = require("plenary.async.async").wrap
 local scheduler = require("plenary.async.util").scheduler
+local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
 local job = require("ya-tree.job")
@@ -9,28 +10,30 @@ local log = require("ya-tree.log")
 
 local os_sep = Path.path.sep
 
+local uv = vim.loop
+
 local M = {
-  ---@type Repo
+  ---@type GitRepo
   Repo = {},
-  ---@type table<string, Repo>
   ---@type table<string, GitRepo>
   repos = setmetatable({}, { __mode = "kv" }),
 }
 
----@type fun(args: string[], cmd: string): string[], string
-local command = wrap(function(args, cmd, callback)
+---@type fun(args: string[], null_terminated?: boolean, cmd?: string): string[], string
+local command = wrap(function(args, null_terminated, cmd, callback)
   cmd = cmd or "git"
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
 
   job.run({ cmd = cmd, args = args }, function(_, stdout, stderr)
-    local lines = vim.split(stdout or "", "\n", true)
+    ---@type string[]
+    local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true })
     if lines[#lines] == "" then
       lines[#lines] = nil
     end
 
     callback(lines, stderr)
   end)
-end, 3)
+end, 4)
 
 ---@param path string
 ---@return string path
@@ -40,7 +43,7 @@ end
 
 ---@param path string
 ---@param cmd string
----@return string toplevel, string git_root
+---@return string toplevel, string git_dir, string branch
 local function get_repo_info(path, cmd)
   local args = {
     "-C",
@@ -48,42 +51,60 @@ local function get_repo_info(path, cmd)
     "rev-parse",
     "--show-toplevel",
     "--absolute-git-dir",
+    "--abbrev-ref",
+    "HEAD",
   }
 
   scheduler()
 
-  local result = command(args, cmd)
+  local result = command(args, false, cmd)
   if #result == 0 then
     return nil
   end
   local toplevel = result[1]
   local git_root = result[2]
+  local branch = result[3]
 
   if utils.is_windows then
     toplevel = windowize_path(toplevel)
     git_root = windowize_path(git_root)
   end
 
-  return toplevel, git_root
+  return toplevel, git_root, branch
 end
 
----@class Repo
+---@class luv_fs_watcher
+---@field start fun(path: string, interval: number, callback: fun(err: string))
+---@field stop fun()
+
+---@class GitRepo
 ---@field public toplevel string
+---@field public remote_url string
+---@field public branch string
+---@field public unmerged number
+---@field public stashed number
+---@field public behind number
+---@field public ahead number
+---@field public staged number
+---@field public unstaged number
+---@field public untracked number
+---@field private _is_yadm boolean
 ---@field private _git_dir string
 ---@field private _git_status table<string, string>
 ---@field private _ignored string[]
----@field private _is_yadm boolean
+---@field private _git_dir_watcher? luv_fs_watcher
+---@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number)>
 local Repo = M.Repo
 Repo.__index = Repo
 
----@param self Repo
+---@param self GitRepo
 ---@return string
 Repo.__tostring = function(self)
   return string.format("(toplevel=%q, git_dir=%q, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
 ---@param path string
----@return Repo|nil repo #a `Repo` object or `nil` if the path is not in a git repo.
+---@return GitRepo|nil repo #a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
@@ -96,14 +117,12 @@ function Repo:new(path)
     return
   end
 
-  local toplevel, git_dir = get_repo_info(path)
+  local toplevel, git_dir, branch = get_repo_info(path)
   local is_yadm = false
   if config.git.yadm.enable and not toplevel then
-    if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, "yadm") ~= 0 then
-      toplevel, git_dir = get_repo_info(path, "yadm")
-      if toplevel then
-        is_yadm = true
-      end
+    if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
+      toplevel, git_dir, branch = get_repo_info(path, "yadm")
+      is_yadm = toplevel ~= nil
     end
   end
 
@@ -114,11 +133,22 @@ function Repo:new(path)
 
   local this = setmetatable({
     toplevel = toplevel,
+    branch = branch,
+    unmerged = 0,
+    stashed = 0,
+    behind = 0,
+    ahead = 0,
+    staged = 0,
+    unstaged = 0,
+    untracked = 0,
+    _is_yadm = is_yadm,
     _git_dir = git_dir,
     _git_status = {},
     _ignored = {},
-    _is_yadm = is_yadm,
+    _git_watchers = {},
   }, self)
+
+  this:_read_remote_url()
 
   log.debug("created Repo %s for %q", tostring(this), path)
   M.repos[this.toplevel] = this
@@ -126,9 +156,15 @@ function Repo:new(path)
   return this
 end
 
+---@return boolean is_yadm
+function Repo:is_yadm()
+  return self._is_yadm
+end
+
 ---@param args string[]
+---@param null_terminated boolean
 ---@return string[]
-function Repo:command(args)
+function Repo:command(args, null_terminated)
   if not self._git_dir then
     return {}
   end
@@ -136,70 +172,311 @@ function Repo:command(args)
   scheduler()
   -- always run in the the toplevel directory, so all paths are relative the root,
   -- this way we can just concatenate the paths returned by git with the toplevel
-  return command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) })
+  local result, e = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
+  if e then
+    local message = vim.split(e, "\n", { plain = true, trimempty = true })
+    log.error("error running git command, %s", table.concat(message, " "))
+  end
+  return result
+end
+
+---@param fun async fun(repo: GitRepo, watcher_id: number):nil
+---@return string watcher_id
+function Repo:add_git_change_listener(fun)
+  if not self._git_dir_watcher then
+    local function fs_poll_callback(err)
+      log.debug("fs_poll for %s", tostring(self))
+      if err then
+        log.error("git dir watcher for %q encountered an error: %s", self._git_dir, err)
+        return
+      end
+
+      if vim.tbl_count(self._git_watchers) == 0 then
+        log.error("the fs_poll callback was called without and registered listeners")
+        self._git_dir_watcher:stop()
+        self._git_dir_watcher = nil
+        return
+      end
+
+      scheduler()
+
+      self:refresh_status({ ignored = true })
+
+      scheduler()
+
+      for watcher_id, watcher in pairs(self._git_watchers) do
+        pcall(watcher, self, watcher_id)
+      end
+    end
+
+    self._git_dir_watcher = uv.new_fs_poll()
+    log.debug("setting up git dir watcher for repo with internval %s", tostring(self), config.git.watch_git_dir_interval)
+
+    local result = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, void(fs_poll_callback))
+    if result == 0 then
+      log.debug("successfully started fs_poll for %s", self._git_dir)
+    else
+      log.error("failed to start fs_poll for %s, error: %s", self._git_dir, result)
+    end
+  end
+
+  local watcher_id = tostring(vim.tbl_count(self._git_watchers) + 1)
+  self._git_watchers[watcher_id] = fun
+  log.debug("add git listener %s with id %s", fun, watcher_id)
+
+  return watcher_id
+end
+
+---@param watcher_id string
+function Repo:remove_git_change_listener(watcher_id)
+  if not self._git_watchers[watcher_id] then
+    log.error("no listener with id %s for repo %s", watcher_id, tostring(self))
+    return
+  end
+
+  self._git_watchers[watcher_id] = nil
+  log.debug("removed listener with id %s for repo %s", watcher_id, tostring(self))
+
+  if vim.tbl_count(self._git_watchers) == 0 then
+    self._git_dir_watcher:stop()
+    self._git_dir_watcher = nil
+    log.debug("the last listener was removed, stopping fs_poll")
+  end
+end
+
+---@private
+function Repo:_read_remote_url()
+  if not self._git_dir then
+    return
+  end
+
+  scheduler()
+
+  self.remote_url = self:command({ "ls-remote", "--get-url" })[1]
 end
 
 ---@param opts? { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
 function Repo:refresh_status(opts)
   opts = opts or {}
+  -- use "-z" , otherwise bytes > 0x80 will be quoted, eg octal \303\244 for "ä"
+  -- another option is using "-c" "core.quotePath=false"
   local args = {
     "--no-optional-locks",
     "status",
-    "--porcelain=v1",
+    -- "--ignore-submodules=all", -- this is the default
+    "--porcelain=v2",
+    "-unormal", -- "--untracked-files=normal",
+    "-b", --branch
+    "--show-stash",
+    "-z",
   }
   -- only include ignored if requested
   if opts.ignored then
     table.insert(args, "--ignored=matching")
-    -- yadm repositories requires that this flag is added explicitly
-    if self._is_yadm then
-      table.insert(args, "--untracked-files=normal")
-    end
+  else
+    table.insert(args, "--ignored=no")
   end
 
-  log.debug("refreshing git status for %q, with arguments=%s", self.toplevel, args)
-  local results = self:command(args)
+  log.debug("git status for %q, arguments %q", self.toplevel, table.concat(args, " "))
+  local results = self:command(args, true)
 
+  self.unmerged = 0
+  self.staged = 0
+  self.unstaged = 0
+  self.untracked = 0
+  self.stashed = 0
+  self.ahead = 0
+  self.behind = 0
   self._git_status = {}
   self._ignored = {}
 
-  local size = #self.toplevel
-  for _, line in ipairs(results) do
-    local status = line:sub(1, 2)
-    local relative_path = line:sub(4)
-    local arrow_pos = relative_path:find(" -> ")
-    if arrow_pos then
-      relative_path = line:sub(arrow_pos + 5)
-    end
-    -- remove any " due to whitespace in the path
-    relative_path = relative_path:gsub('^"', ""):gsub('$"', "")
-    if utils.is_windows == true then
-      relative_path = windowize_path(relative_path)
-    end
-    local absolute_path = utils.join_path(self.toplevel, relative_path)
-    -- if in a yadm managed repository/directory it's quite likely that _a lot_ of
-    -- files will be untracked, so don't add untracked files in that case.
-    if not (self._is_yadm and status == "??") then
-      self._git_status[absolute_path] = status
+  local size = #results
+  local i = 1
+  while i <= size do
+    local line = results[i]
+    local line_type = line:sub(1, 1)
+    if line_type == "#" then
+      self:_parse_porcelainv2_header_row(line)
+    elseif line_type == "1" then
+      self:_parse_porcelainv2_change_row(line)
+    elseif line_type == "2" then
+      -- the new and original paths are separated by NUL,
+      -- the original path isn't currently used, so just step over it
+      i = i + 1
+      self:_parse_porcelainv2_rename_row(line)
+    elseif line_type == "u" then
+      self:_parse_porcelainv2_merge_row(line)
+    elseif line_type == "?" then
+      self:_parse_porcelainv2_untracked_row(line)
+    elseif line_type == "!" then
+      self:_parse_porcelainv2_ignored_row(line)
+    else
+      log.warn("unknown status type %q, full line=%q", line_type, line)
     end
 
-    -- git ignore format:
-    -- !! path/to/directory/
-    -- !! path/to/file
-    -- with paths relative to the repository root
-    if status == "!!" then
-      self._ignored[#self._ignored + 1] = absolute_path
-    else
-      -- bubble the status up to the parent directories
-      for _, parent in next, Path:new(absolute_path):parents() do
-        -- don't add paths above the toplevel directory
-        if #parent < size then
-          break
-        end
-        self._git_status[parent] = "dirty"
+    i = i + 1
+  end
+end
+
+---@param toplevel string the toplevel path
+---@param relative_path string the root-relative path
+---@return string absolute_path the absolute path
+local function make_absolute_path(toplevel, relative_path)
+  if utils.is_windows == true then
+    relative_path = windowize_path(relative_path)
+  end
+  return utils.join_path(toplevel, relative_path)
+end
+
+---@private
+---@param line string
+function Repo:_parse_porcelainv2_header_row(line)
+  -- FORMAT
+  --
+  -- Line                                     Notes
+  -- --------------------------------------------------------------------------------------
+  -- # branch.oid <commit> | (initial)        Current commit.
+  -- # branch.head <branch> | (detached)      Current branch.
+  -- # branch.upstream <upstream_branch>      If upstream is set.
+  -- # branch.ab +<ahead> -<behind>           If upstream is set and the commit is present.
+  -- --------------------------------------------------------------------------------------
+
+  ---@type string[]
+  local parts = vim.split(line, " ", { plain = true })
+  if parts then
+    local _type = parts[2]
+    if _type == "branch.head" then
+      self.branch = parts[3]
+    elseif _type == "branch.ab" then
+      local ahead = parts[3]
+      if ahead then
+        self.ahead = tonumber(ahead:sub(2)) or 0
       end
+      local behind = parts[4]
+      if behind then
+        self.behind = tonumber(behind:sub(2)) or 0
+      end
+    elseif _type == "stash" then
+      self.stashed = tonumber(parts[3]) or 0
     end
   end
+end
+
+---@private
+---@param line string
+function Repo:_parse_porcelainv2_change_row(line)
+  -- FORMAT
+  --
+  -- 1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>
+
+  local status = line:sub(3, 4)
+  local relative_path = line:sub(114)
+  local absolute_path = make_absolute_path(self.toplevel, relative_path)
+  self._git_status[absolute_path] = status
+  local fully_staged = self:_update_stage_counts(status)
+  self:_propagate_status_to_parents(absolute_path, fully_staged)
+end
+
+---@private
+---@param status string
+---@return boolean fully_staged
+function Repo:_update_stage_counts(status)
+  local fully_staged = true
+  if status:sub(1, 1) ~= "." then
+    self.staged = self.staged + 1
+  end
+  if status:sub(2, 2) ~= "." then
+    self.unstaged = self.unstaged + 1
+    fully_staged = false
+  end
+
+  return fully_staged
+end
+
+---@private
+---@param path string
+---@param fully_staged boolean
+function Repo:_propagate_status_to_parents(path, fully_staged)
+  local status = fully_staged and "staged" or "dirty"
+  local size = #self.toplevel
+  for _, parent in next, Path:new(path):parents() do
+    -- stop at directories below the toplevel directory
+    if #parent <= size then
+      break
+    end
+    if self._git_status[parent] == "dirty" then
+      -- if the status of a parent is already "dirty", don't overwrite it, and stop
+      return
+    end
+    self._git_status[parent] = status
+  end
+end
+
+---@private
+---@param line string
+function Repo:_parse_porcelainv2_rename_row(line)
+  -- FORMAT
+  --
+  -- 2 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <X><score> <path><sep><origPath>
+
+  -- currently the line parameter doesn't include the <sep><origPath> part,
+  -- see the comment in Repo:refresh_status
+
+  local status = line:sub(3, 4)
+  -- the score field is of variable length, and begins at col 114 and ends with space
+  local end_of_score_pos = line:find(" ", 114, true)
+  local relative_path = line:sub(end_of_score_pos + 1)
+  local absolute_path = make_absolute_path(self.toplevel, relative_path)
+  self._git_status[absolute_path] = status
+  local fully_staged = self:_update_stage_counts(status)
+  self:_propagate_status_to_parents(absolute_path, fully_staged)
+end
+
+---@private
+---@param line string
+function Repo:_parse_porcelainv2_merge_row(line)
+  -- FORMAT
+  -- u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>
+
+  local status = line:sub(3, 4)
+  local relative_path = line:sub(162)
+  local absolute_path = make_absolute_path(self.toplevel, relative_path)
+  self._git_status[absolute_path] = status
+  self.unmerged = self.unmerged + 1
+end
+
+---@private
+---@param line string
+function Repo:_parse_porcelainv2_untracked_row(line)
+  -- FORMAT
+  --
+  -- ? <path>
+
+  -- if in a yadm managed repository/directory it's quite likely that _a lot_ of
+  -- files will be untracked, so don't add untracked files in that case.
+  if not self._is_yadm then
+    local status = line:sub(1, 1)
+    local relative_path = line:sub(3)
+    local absolute_path = make_absolute_path(self.toplevel, relative_path)
+    self._git_status[absolute_path] = status
+    self.untracked = self.untracked + 1
+  end
+end
+
+---@private
+---@param line string
+function Repo:_parse_porcelainv2_ignored_row(line)
+  -- FORMAT
+  --
+  -- ! path/to/directory/
+  -- ! path/to/file
+
+  local status = line:sub(1, 1)
+  local relative_path = line:sub(3)
+  local absolute_path = make_absolute_path(self.toplevel, relative_path)
+  self._git_status[absolute_path] = status
+  self._ignored[#self._ignored + 1] = absolute_path
 end
 
 ---@param path string
@@ -230,7 +507,7 @@ function Repo:is_ignored(path, _type)
 end
 
 ---@param path string
----@return Repo? repo
+---@return GitRepo? repo
 function M.get_repo_for_path(path)
   for toplevel, repo in pairs(M.repos) do
     if path:find(toplevel, 1, true) then

@@ -30,7 +30,7 @@ local marker_at = {}
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Indentation
----@return RenderResult
+---@return RenderResult?
 function M.indentation(node, _, renderer)
   if node.depth == 0 then
     return
@@ -62,7 +62,7 @@ end
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Icon
----@return RenderResult
+---@return RenderResult?
 function M.icon(node, _, renderer)
   if node.depth == 0 then
     return
@@ -124,7 +124,7 @@ end
 ---@param node YaTreeSearchNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Filter
----@return RenderResult[]
+---@return RenderResult[]?
 function M.filter(node, _, renderer)
   if node.search_term then
     return {
@@ -154,13 +154,10 @@ end
 function M.name(node, config, renderer)
   if node.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
-    if not text:sub(-1) == utils.os_sep then
-      text = text .. utils.os_sep
-    end
 
     return {
       padding = "",
-      text = text .. "..",
+      text = text,
       highlight = hl.ROOT_NAME,
     }
   end
@@ -209,21 +206,89 @@ end
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.Repository
----@return RenderResult
+---@return RenderResult[]?
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() then
-    return {
+    local repo = node.repo
+    local icon = renderer.icons.remote.default
+    if repo.remote_url then
+      for k, v in pairs(renderer.icons.remote) do
+        if k ~= "default" then
+          if repo.remote_url:find(k, 1, true) then
+            icon = v
+            break
+          end
+        end
+      end
+    end
+
+    ---@type RenderResult[]
+    local result = { {
       padding = renderer.padding,
-      text = renderer.icon,
+      text = icon,
       highlight = hl.GIT_REPO_TOPLEVEL,
-    }
+    } }
+
+    if renderer.show_status then
+      if repo.behind > 0 then
+        result[#result + 1] = {
+          padding = renderer.padding,
+          text = renderer.icons.behind .. repo.behind,
+          highlight = hl.GIT_BEHIND_COUNT,
+        }
+      end
+      if repo.ahead > 0 then
+        result[#result + 1] = {
+          padding = repo.behind and "" or renderer.padding,
+          text = renderer.icons.ahead .. repo.ahead,
+          highlight = hl.GIT_AHEAD_COUNT,
+        }
+      end
+      if repo.stashed > 0 then
+        result[#result + 1] = {
+          padding = renderer.padding,
+          text = renderer.icons.stashed .. repo.stashed,
+          highlight = hl.GIT_STASH_COUNT,
+        }
+      end
+      if repo.unmerged > 0 then
+        result[#result + 1] = {
+          padding = renderer.padding,
+          text = renderer.icons.unmerged .. repo.unmerged,
+          highlight = hl.GIT_UNMERGED_COUNT,
+        }
+      end
+      if repo.staged > 0 then
+        result[#result + 1] = {
+          padding = renderer.padding,
+          text = renderer.icons.staged .. repo.staged,
+          highlight = hl.GIT_STAGED_COUNT,
+        }
+      end
+      if repo.unstaged > 0 then
+        result[#result + 1] = {
+          padding = renderer.padding,
+          text = renderer.icons.unstaged .. repo.unstaged,
+          highlight = hl.GIT_UNSTAGED_COUNT,
+        }
+      end
+      if repo.untracked > 0 then
+        result[#result + 1] = {
+          padding = renderer.padding,
+          text = renderer.icons.untracked .. repo.untracked,
+          highlight = hl.GIT_UNTRACKED_COUNT,
+        }
+      end
+    end
+
+    return result
   end
 end
 
 ---@param node YaTreeNode
 ---@param _ YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.SymlinkTarget
----@return RenderResult
+---@return RenderResult?
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
     return {
@@ -237,7 +302,7 @@ end
 ---@param node YaTreeNode
 ---@param config YaTreeConfig
 ---@param renderer YaTreeConfig.Renderers.GitStatus
----@return RenderResult[]
+---@return RenderResult[]?
 function M.git_status(node, config, renderer)
   if config.git.enable then
     local git_status = node:get_git_status()
@@ -332,52 +397,54 @@ do
   function M.setup(config)
     local icons = config.renderers.git_status.icons
     git_icons_and_hl = {
-      ["M "] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
-      [" M"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
-      ["C "] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
-      [" C"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
-      ["CM"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
-      [" T"] = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
-      ["MM"] = {
-        { icon = icons.staged, highlight = hl.GIT_STAGED },
-        { icon = icons.unstaged, highlight = hl.GIT_DIRTY },
-      },
-      ["MD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
-      ["A "] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
-      ["AD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
-      [" A"] = { { icon = icons.untracked, highlight = hl.GIT_NEW } },
-      ["AA"] = {
-        { icon = icons.unmerged, highlight = hl.GIT_MERGE },
-        { icon = icons.untracked, highlight = hl.GIT_STAGED },
-      },
-      ["AU"] = {
-        { icon = icons.unmerged, highlight = hl.GIT_MERGE },
-        { icon = icons.untracked, highlight = hl.GIT_STAGED },
-      },
-      ["AM"] = {
-        { icon = icons.staged, highlight = hl.GIT_STAGED },
-        { icon = icons.unstaged, highlight = hl.GIT_DIRTY },
-      },
-      ["??"] = { { icon = icons.untracked, highlight = hl.GIT_NEW } },
-      ["R "] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } },
-      [" R"] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } },
-      ["RM"] = {
-        { icon = icons.unstaged, highlight = hl.GIT_DIRTY },
-        { icon = icons.renamed, highlight = hl.GIT_RENAMED },
-      },
-      ["UU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE } },
-      ["UD"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE } },
-      ["UA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE } },
-      [" D"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
-      ["D "] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
-      ["RD"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
-      ["DD"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
-      ["DU"] = {
-        { icon = icons.deleted, highlight = hl.GIT_DELETED },
-        { icon = icons.unmerged, highlight = hl.GIT_MERGE },
-      },
-      ["!!"] = { { icon = icons.ignored, highlight = hl.GIT_IGNORED } },
-      dirty = { { icon = icons.unstaged, highlight = hl.GIT_DIRTY } },
+      ["M."] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+      ["MM"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      ["MT"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
+      ["MD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+
+      ["T."] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED } },
+      ["TM"] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      ["TT"] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
+      ["TD"] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+
+      ["A."] = { { icon = icons.added, highlight = hl.GIT_STAGED } },
+      ["AM"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      ["AT"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
+      ["AD"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+
+      ["D."] = { { icon = icons.deleted, highlight = hl.GIT_STAGED } },
+
+      ["R."] = { { icon = icons.renamed, highlight = hl.GIT_STAGED } },
+      ["RM"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      ["RT"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
+      ["RD"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+
+      ["C."] = { { icon = icons.copied, highlight = hl.GIT_STAGED } },
+      ["CM"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      ["CT"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
+      ["CD"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+
+      [".A"] = { { icon = icons.added, highlight = hl.GIT_NEW } },
+      [".M"] = { { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      [".T"] = { { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
+      [".D"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
+      [".R"] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } },
+
+      ["DD"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_DELETED } },
+      ["DU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.us, highlight = hl.GIT_DELETED } },
+      ["UD"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.them, highlight = hl.GIT_DELETED } },
+
+      ["AA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_NEW } },
+      ["AU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.us, highlight = hl.GIT_NEW } },
+      ["UA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.them, highlight = hl.GIT_NEW } },
+
+      ["UU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_DIRTY } },
+
+      ["!"] = { { icon = icons.ignored, highlight = hl.GIT_IGNORED } },
+      ["?"] = { { icon = icons.untracked, highlight = hl.GIT_UNTRACKED } },
+
+      dirty = { { icon = icons.modified, highlight = hl.GIT_DIRTY } },
+      staged = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
     }
 
     git_staus_to_hl = {}

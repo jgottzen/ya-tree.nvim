@@ -5,7 +5,6 @@ local config = require("ya-tree.config").config
 local Tree = require("ya-tree.tree")
 local Nodes = require("ya-tree.nodes")
 local job = require("ya-tree.job")
-local git = require("ya-tree.git")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
@@ -59,6 +58,41 @@ local function resolve_path(tree, path)
   end
 end
 
+---@async
+---@param repo GitRepo
+---@param watcher_id number
+local function on_git_change(repo, watcher_id)
+  log.debug("git repo %s changed", tostring(repo))
+
+  if vim.v.exiting ~= vim.NIL then
+    log.debug("vim is exiting, aborting refresh")
+    return
+  end
+
+  vim.schedule(function()
+    local tree = Tree.get_tree()
+    if not tree or not ui.is_open() then
+      return
+    end
+
+    if tree.git_watchers[repo] ~= watcher_id then
+      return
+    end
+
+    ui.update(tree.root)
+  end)
+end
+
+---@param tree YaTree
+---@param repo GitRepo
+local function attach_git_change_listener(tree, repo)
+  if not tree.git_watchers[repo] then
+    local watcher_id = repo:add_git_change_listener(on_git_change)
+    tree.git_watchers[repo] = watcher_id
+    log.debug("attached git change listener for tree %s to git repo %s with id %s", tree.root.path, repo.toplevel, watcher_id)
+  end
+end
+
 ---@param opts? {tree?: YaTree, file?: string, hijack_buffer?: boolean, focus?: boolean}
 ---  - {opts.tree?} `YaTree`
 ---  - {opts.file?} `string`
@@ -69,6 +103,10 @@ function M.open(opts)
     opts = opts or {}
     ---@type YaTree
     local tree = opts.tree or Tree.get_tree({ create_if_missing = true })
+    -- if a tree was passed as a parameter, then the caller should set up any watchers
+    if not opts.tree and tree.root.repo and config.git.watch_git_dir then
+      attach_git_change_listener(tree, tree.root.repo)
+    end
 
     ---@type YaTreeNode
     local node
@@ -78,7 +116,7 @@ function M.open(opts)
         node = file and tree.root:expand({ to = file })
         log.debug("navigating to %q", file)
       else
-        log.error("%q is a file that cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, tree.cwd, tree.root.path)
+        log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, tree.cwd, tree.root.path)
       end
     end
 
@@ -376,7 +414,8 @@ local function refresh_current_tree(node_or_path)
   tree.refreshing = true
 
   async.run(function()
-    tree.root:refresh(true)
+    -- only refresh git if git watcher is _not_ enabled
+    tree.root:refresh({ recurse = true, refresh_git = not config.git.watch_git_dir })
 
     if type(node_or_path) == "table" then
       ---@type YaTreeNode
@@ -409,38 +448,9 @@ function M.refresh_and_navigate(path)
 end
 
 ---@param node YaTreeNode
-function M.refresh_git(node)
-  local tree = Tree.get_tree()
-  if not tree then
-    return
-  end
-
-  log.debug("refreshing git repositories")
-  if tree.refreshing or vim.v.exiting ~= vim.NIL then
-    log.debug("refresh already in progress or vim is exiting, aborting refresh")
-    return
-  end
-  tree.refreshing = true
-  tree.current_node = node
-
-  async.run(function()
-    for _, repo in pairs(git.repos) do
-      if repo then
-        repo:refresh_status({ ignored = true })
-      end
-    end
-
-    vim.schedule(function()
-      ui.update(tree.root, tree.current_node)
-      tree.refreshing = false
-    end)
-  end)
-end
-
----@param node YaTreeNode
 function M.rescan_dir_for_git(node)
   local tree = Tree.get_tree()
-  if not tree or not node then
+  if not config.git.enable or not tree or not node then
     return
   end
   log.debug("checking if %s is in a git repository", node.path)
@@ -451,6 +461,9 @@ function M.rescan_dir_for_git(node)
   end
   async.run(function()
     if node:check_for_git_repo() then
+      if config.git.watch_git_dir then
+        attach_git_change_listener(tree, node.repo)
+      end
       vim.schedule(function()
         ui.update(tree.root, tree.current_node)
       end)
@@ -560,7 +573,13 @@ end
 
 ---@param tabpage number
 function M.on_tab_closed(tabpage)
-  Tree.delete_tree(tabpage)
+  local tree = Tree.get_tree({ tabpage = tabpage })
+  if tree then
+    for repo, watcher_id in pairs(tree.git_watchers) do
+      repo:remove_git_change_listener(watcher_id)
+    end
+    Tree.delete_tree(tabpage)
+  end
   ui.delete_ui(tabpage)
 end
 
@@ -643,6 +662,10 @@ function M.on_buf_new_file(file, bufnr)
         else
           log.debug("requested directory is not a subpath of the current cwd %q, opening tree with root of the requested path", cwd)
           tree = Tree.get_tree({ root_path = file })
+        end
+
+        if tree.root.repo and config.git.watch_git_dir then
+          tree.root.repo:add_git_change_listener(on_git_change)
         end
       elseif not tree.root:is_ancestor_of(file) and tree.root.path ~= file then
         log.debug("the current tree is not a parent for directory %s", file)
@@ -738,10 +761,9 @@ function M.on_buf_write_post(file)
         if tree.root:is_ancestor_of(file) then
           log.debug("changed file %q is in tree %q and tab %s", file, tree.root.path, tree.tabpage)
 
-          local parent_path = Path:new(file):parent():absolute()
-          local node = tree.root:get_child_if_loaded(parent_path)
+          local node = tree.root:get_child_if_loaded(file)
           if node then
-            node:refresh(false)
+            node:refresh({ refresh_git = config.git.enable })
 
             if tree.tabpage == tabpage then
               vim.schedule(function()
@@ -797,10 +819,6 @@ function M.on_dir_changed()
       end
     end)
   end
-end
-
-function M.on_git_event()
-  M.refresh_git()
 end
 
 local function on_diagnostics_changed()
@@ -901,9 +919,6 @@ local function setup_autocommands()
   if config.cwd.follow then
     vim.cmd([[autocmd DirChanged * lua require('ya-tree.lib').on_dir_changed()]])
   end
-  if config.git.enable then
-    vim.cmd([[autocmd User FugitiveChanged,NeogitStatusRefreshed lua require('ya-tree.lib').on_git_event()]])
-  end
   if config.diagnostics.enable then
     M.on_diagnostics_changed = debounce_trailing(on_diagnostics_changed, config.diagnostics.debounce_time)
     vim.cmd([[autocmd DiagnosticChanged * lua require('ya-tree.lib').on_diagnostics_changed()]])
@@ -930,6 +945,9 @@ function M.setup(on_complete)
 
   async.run(function()
     local tree = Tree.get_tree({ root_path = root_path })
+    if tree.root.repo and config.git.watch_git_dir then
+      attach_git_change_listener(tree, tree.root.repo)
+    end
 
     vim.schedule(function()
       if is_directory or config.auto_open.on_setup then
@@ -937,8 +955,8 @@ function M.setup(on_complete)
         M.open({ tree = tree, hijack_buffer = is_directory, focus = focus })
       end
 
-      -- the autocmds must be set up last, this avoids triggering the BufNewFile event if the initial buffer
-      -- is a directory
+      -- the autocmds must be set up last, this avoids triggering the BufNewFile event,
+      -- if the initial buffer is a directory
       setup_autocommands()
       if on_complete then
         on_complete()

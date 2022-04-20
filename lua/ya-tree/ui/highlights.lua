@@ -36,6 +36,14 @@ local M = {
   STATUS_LINE_NC = "YaTreeStatusLineNC",
 
   GIT_REPO_TOPLEVEL = "YaTreeGitRepoToplevel",
+  GIT_UNMERGED_COUNT = "YaTreeGitUnmergedCount",
+  GIT_STASH_COUNT = "YaTreeGitStashCount",
+  GIT_AHEAD_COUNT = "YaTreeGitAheadCount",
+  GIT_BEHIND_COUNT = "YaTreeGitBehindCound",
+  GIT_STAGED_COUNT = "YaTreeGitStagedCount",
+  GIT_UNSTAGED_COUNT = "YaTreeGitUnstagedCount",
+  GIT_UNTRACKED_COUNT = "YaTreeGitUntrackedCount",
+
   GIT_STAGED = "YaTreeGitStaged",
   GIT_DIRTY = "YaTreeGitDirty",
   GIT_NEW = "YaTreeGitNew",
@@ -43,6 +51,7 @@ local M = {
   GIT_RENAMED = "YaTreeGitRenamed",
   GIT_DELETED = "YaTreeGitDeleted",
   GIT_IGNORED = "YaTreeGitIgnored",
+  GIT_UNTRACKED = "YaTreeGitUntracked",
 }
 
 ---@type table<string, string>
@@ -72,7 +81,7 @@ local hl_links = {
 
 ---@param name string
 ---@param link? string
----@param highlight {fg?: string, bg?: string, gui?: string}
+---@param highlight {fg: string, bg?: string, gui?: string}
 local function create_highlight(name, link, highlight)
   if link then
     api.nvim_command("hi def link " .. name .. " " .. link)
@@ -84,67 +93,70 @@ local function create_highlight(name, link, highlight)
   end
 end
 
----@param name string
----@param fallback string
+---@param number number
 ---@return string
-local function get_color_from_hl(name, fallback)
-  local ok, id = pcall(vim.fn.hlID, name)
-  if not ok or not id then
-    return fallback
-  end
-
-  local fg = vim.fn.synIDattr(vim.fn.synIDtrans(id), "fg")
-  if not fg or fg == "" then
-    return fallback
-  end
-
-  return fg
+local function dec_to_hex(number)
+  return string.format("%06x", number)
 end
 
----@return table<"'red'"|"'green'"|"'yellow'"|"'blue'"|"'purple'"|"'cyan'"|"'dark_red'"|"'orange'", string>
-local function get_colors()
-  return {
-    red = vim.g.terminal_color_1 or get_color_from_hl("Identifier", "Red"),
-    green = vim.g.terminal_color_2 or get_color_from_hl("Character", "Green"),
-    yellow = vim.g.terminal_color_3 or get_color_from_hl("PreProc", "Yellow"),
-    blue = vim.g.terminal_color_4 or get_color_from_hl("Include", "Blue"),
-    purple = vim.g.terminal_color_5 or get_color_from_hl("Define", "Purple"),
-    cyan = vim.g.terminal_color_6 or get_color_from_hl("Conditional", "Cyan"),
-    dark_red = vim.g.terminal_color_9 or get_color_from_hl("Keyword", "DarkRed"),
-    orange = vim.g.terminal_color_11 or get_color_from_hl("Number", "Orange"),
-  }
+---@param names string[]
+---@param fallback string
+---@return string
+local function get_foreground_color_from_hl(names, fallback)
+  for _, name in ipairs(names) do
+    local success, group = pcall(api.nvim_get_hl_by_name, name, true)
+    if success and group.foreground then
+      return "#" .. dec_to_hex(group.foreground)
+    end
+  end
+
+  return fallback
 end
 
 ---@return table<string, {fg: string, gui?: string}>
 local function get_groups()
-  local colors = get_colors()
+  local git_add_fg = get_foreground_color_from_hl({ "GitSignsAdd", "GitGutterAdd" }, "#6f8352")
+  local git_change_fg = get_foreground_color_from_hl({ "GitSignsChange", "GitGutterChange" }, "#cb8327")
+  local git_delete_fg = get_foreground_color_from_hl({ "GitSignsDelete", "GitGutterDelete" }, "#ea6962")
+  local title_fg = get_foreground_color_from_hl({ "Title" }, "#7daea3")
+  local character_fg = get_foreground_color_from_hl({ "Character" }, "#a9b665")
+  local type_fg = get_foreground_color_from_hl({ "Type" }, "#d8a657")
 
   return {
-    [M.ROOT_NAME] = { fg = colors.purple, gui = "bold,italic" },
+    [M.ROOT_NAME] = { fg = "#398593", gui = "bold,italic" },
 
     [M.INDENT_MARKER] = { fg = "#5a524c" },
 
-    [M.OPENED_FILE_NAME] = { fg = "#d3869b" },
+    [M.OPENED_FILE_NAME] = { fg = get_foreground_color_from_hl({ "TSKeyword" }, "#d3869b") },
 
-    [M.SYMBOLIC_LINK] = { fg = colors.blue, gui = "italic" },
+    [M.SYMBOLIC_LINK] = { fg = get_foreground_color_from_hl({ "TSInclude" }, "#7daea3"), gui = "italic" },
 
-    [M.GIT_REPO_TOPLEVEL] = { fg = colors.red },
-    [M.GIT_STAGED] = { fg = colors.green },
-    [M.GIT_DIRTY] = { fg = colors.orange },
-    [M.GIT_NEW] = { fg = colors.yellow },
-    [M.GIT_MERGE] = { fg = colors.purple },
-    [M.GIT_RENAMED] = { fg = colors.cyan },
-    [M.GIT_DELETED] = { fg = colors.red },
+    [M.GIT_REPO_TOPLEVEL] = { fg = character_fg },
+    [M.GIT_UNMERGED_COUNT] = { fg = git_delete_fg },
+    [M.GIT_STASH_COUNT] = { fg = character_fg },
+    [M.GIT_AHEAD_COUNT] = { fg = character_fg },
+    [M.GIT_BEHIND_COUNT] = { fg = character_fg },
+    [M.GIT_STAGED_COUNT] = { fg = type_fg },
+    [M.GIT_UNSTAGED_COUNT] = { fg = type_fg },
+    [M.GIT_UNTRACKED_COUNT] = { fg = title_fg },
+
+    [M.GIT_STAGED] = { fg = character_fg },
+    [M.GIT_DIRTY] = { fg = git_change_fg },
+    [M.GIT_NEW] = { fg = git_add_fg },
+    [M.GIT_MERGE] = { fg = get_foreground_color_from_hl({ "Statement" }, "#d3869b") },
+    [M.GIT_RENAMED] = { fg = title_fg },
+    [M.GIT_DELETED] = { fg = git_delete_fg },
+    [M.GIT_UNTRACKED] = { fg = type_fg },
   }
 end
 
 function M.setup()
-  for k, v in pairs(get_groups()) do
-    create_highlight(k, nil, v)
+  for name, group in pairs(get_groups()) do
+    create_highlight(name, nil, group)
   end
 
-  for k, v in pairs(hl_links) do
-    create_highlight(k, v)
+  for name, link in pairs(hl_links) do
+    create_highlight(name, link)
   end
 end
 

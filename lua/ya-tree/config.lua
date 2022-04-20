@@ -68,9 +68,13 @@ local M = {
     ---@class YaTreeConfig.Git Git configuration.
     ---@field enable boolean If git should be enabled, default: `true`.
     ---@field show_ignored boolean Whether to show git ignored files in the tree, toggleable, default: `true`.
+    ---@field watch_git_dir boolean Whether to watch the repository `.git` directory for changes, using `fs_poll`, default: `true`.
+    ---@field watch_git_dir_interval number Interval for polling, in milliseconds, default `1000`.
     git = {
       enable = true,
       show_ignored = true,
+      watch_git_dir = true,
+      watch_git_dir_interval = 1000,
 
       ---@class YaTreeConfig.Git.Yadm `yadm` configuration.
       ---@field enable boolean Wether yadm is enabled, requires git to be enabled, default: `false`.
@@ -149,7 +153,7 @@ local M = {
         file = {
           { "indentation" },
           { "icon" },
-          { "name" },
+          { "name", use_git_status_colors = true },
           { "symlink_target" },
           { "git_status" },
           { "diagnostics" },
@@ -214,24 +218,52 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig File and directory name rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
       ---@field trailing_slash boolean Wether to show a trailing os directory separator after directory names, default: `false`.
       ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
-      ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
-      ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `true`.
+      ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `false`.
       name = {
         padding = " ",
+        root_folder_format = ":~",
         trailing_slash = false,
         use_git_status_colors = false,
-        root_folder_format = ":~",
-        highlight_open_file = true,
+        highlight_open_file = false,
       },
 
       ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig Repository rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field icon string The icon for marking the git toplevel directory, default: `""`.
+      ---@field show_status boolean Whether to show repository status on the repository toplevel directory, default: `true`.
       repository = {
         padding = " ",
-        icon = "",
+        show_status = true,
+
+        ---@class YaTreeConfig.Renderers.Repository.Icons Repository icons.
+        ---@field behind string The icon for the behind count, default: `"⇣"`.
+        ---@field ahead string The icon for the ahead count, default: `"⇡"`.
+        ---@field stashed string The icon for the stashed count, default: `"*"`.
+        ---@field unmerged string The icon for the unmerged count, default: `"~"`.
+        ---@field staged string The icon for the staged count, default: `"+"`.
+        ---@field unstaged string The icon for the unstaged count, default: `"!"`.
+        ---@field untracked string The icon for the untracked cound, default: `"?"`.
+        icons = {
+          behind = "⇣",
+          ahead = "⇡",
+          stashed = "*",
+          unmerged = "~",
+          staged = "+",
+          unstaged = "!",
+          untracked = "?",
+
+          ---@class YaTreeConfig.Renderers.Repository.Icons.Remote Repository remote host icons.
+          ---@field default string The default icon for marking the git toplevel directory, default: `""`.
+          ---@field github.com string The icon for github.com, default: `""`.
+          ---@field gitlab.com string The icon for gitlab.com, default: `""`.
+          remote = {
+            default = "",
+            ["://github.com/"] = "",
+            ["://gitlab.com/"] = "",
+          },
+        },
       },
 
       ---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig Symbolic link rendering configuration.
@@ -247,22 +279,38 @@ local M = {
       git_status = {
         padding = " ",
 
-        ---@class YaTreeConfig.Renderers.GitStatus.Icons Git status icon rendering configuration.
-        ---@field unstaged string The icon for unstaged changes, default: `""`.
-        ---@field staged string The icon for staged changes, default: `"✓"`.
+        ---@class YaTreeConfig.Renderers.GitStatus.Icons Git status icon configuration.
+        ---@field staged string The icon for staged changes, default: `""`.
+        ---@field type_changed string The icon for a type-changed file, default: `""`.
+        ---@field added string The icon for an added file, default: `"✚"`.
+        ---@field deleted string The icon for a deleted file, default: `""`.
+        ---@field renamed string The icon for a renamed file, default: `"➜"`.
+        ---@field copied string The icon for a copied file, default: `""`.
+        ---@field modified string The icon for modified changes, default: `""`.
         ---@field unmerged string The icon for unmerged changes, default: `""`.
-        ---@field renamed string The icon for a renamed file/directory, default: `"➜"`.
-        ---@field untracked string The icon for untracked changes, default: `, default: `"★"`.
-        ---@field deleted string The icon for a deleted file/directory, default: `""`.
-        ---@field ignored string The icon for an ignored file/directory, default: `"◌"`.
+        ---@field ignored string The icon for an ignored file, default: `""`.
+        ---@field untracked string The icon for an untracked file, default: `, default: `""`.
         icons = {
-          unstaged = "",
-          staged = "✓",
-          unmerged = "",
+          staged = "",
+          type_changed = "",
+          added = "✚",
+          deleted = "✖",
           renamed = "➜",
-          untracked = "★",
-          deleted = "",
-          ignored = "◌",
+          copied = "",
+          modified = "",
+          unmerged = "",
+          ignored = "",
+          untracked = "",
+
+          ---@class YaTreeConfig.Renderers.GitStatus.Icons.Merge Git status icons for merge information.
+          ---@field us string The icon for added/deleted/modified by `us`, default: `"➜"`.
+          ---@field them string The icon for added/deleted/modified by `them`, default: `""`.
+          ---@field both string The icon for added/deleted/modified by `both`, default: `""`.
+          merge = {
+            us = "➜",
+            them = "",
+            both = "",
+          },
         },
       },
 

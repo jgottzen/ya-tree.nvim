@@ -5,21 +5,22 @@ local api = vim.api
 local uv = vim.loop
 
 ---@class YaTree
----@field cwd string the workding directory of the tabpage.
----@field refreshing boolean if the tree is currently refreshing.
----@field root YaTreeNode|YaTreeSearchNode the root of the current tree.
----@field current_node YaTreeNode the currently selected node.
----@field tree YaTreeRoot the current tree.
----@field search SearchTree the current search tree.
----@field tabpage number the current tabpage.
+---@field public cwd string the workding directory of the tabpage.
+---@field public refreshing boolean if the tree is currently refreshing.
+---@field public root YaTreeNode|YaTreeSearchNode the root of the current tree.
+---@field public current_node YaTreeNode the currently selected node.
+---@field public tree YaTreeRoot the current tree.
+---@field public search SearchTree the current search tree.
+---@field public tabpage number the current tabpage.
+---@field public git_watchers table<GitRepo, string> the registered git watchers.
 
 ---@class YaTreeRoot
----@field root YaTreeNode the root fo the tree.
----@field current_node YaTreeNode the currently selected node.
+---@field public root YaTreeNode the root fo the tree.
+---@field public current_node YaTreeNode the currently selected node.
 
 ---@class SearchTree
----@field result? YaTreeSearchNode the root of the search tree.
----@field current_node? YaTreeNode the currently selected node.
+---@field public result? YaTreeSearchNode the root of the search tree.
+---@field public current_node? YaTreeNode the currently selected node.
 
 local M = {
   ---@private
@@ -64,6 +65,7 @@ function M.get_tree(opts)
         current_node = nil,
       },
       tabpage = tabpage,
+      git_watchers = {},
     }, { __tostring = tree_tostring })
     M._trees[tostring(tabpage)] = tree
   end
