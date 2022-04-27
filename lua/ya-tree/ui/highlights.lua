@@ -81,15 +81,13 @@ local hl_links = {
 
 ---@param name string
 ---@param link? string
----@param highlight {fg: string, bg?: string, gui?: string}
+---@param highlight {fg: string, bg?: string, bold?: boolean, italic?: boolean}
 local function create_highlight(name, link, highlight)
   if link then
-    api.nvim_command("hi def link " .. name .. " " .. link)
+    api.nvim_set_hl(0, name, { default = true, link = link })
   else
-    local fg = highlight.fg and ("guifg=" .. highlight.fg .. "") or ""
-    local bg = highlight.bg and ("guibg=" .. highlight.bg .. "") or ""
-    local gui = highlight.gui and ("gui=" .. highlight.gui .. "") or ""
-    api.nvim_command("hi def " .. name .. " " .. gui .. " " .. fg .. " " .. bg)
+    highlight.default = true
+    api.nvim_set_hl(0, name, highlight)
   end
 end
 
@@ -113,7 +111,7 @@ local function get_foreground_color_from_hl(names, fallback)
   return fallback
 end
 
----@return table<string, {fg: string, gui?: string}>
+---@return table<string, {fg: string, bold?: boolean, italic?: boolean}>
 local function get_groups()
   local git_add_fg = get_foreground_color_from_hl({ "GitSignsAdd", "GitGutterAdd" }, "#6f8352")
   local git_change_fg = get_foreground_color_from_hl({ "GitSignsChange", "GitGutterChange" }, "#cb8327")
@@ -123,13 +121,13 @@ local function get_groups()
   local type_fg = get_foreground_color_from_hl({ "Type" }, "#d8a657")
 
   return {
-    [M.ROOT_NAME] = { fg = "#398593", gui = "bold,italic" },
+    [M.ROOT_NAME] = { fg = "#398593", bold = true, italic = true },
 
     [M.INDENT_MARKER] = { fg = "#5a524c" },
 
     [M.OPENED_FILE_NAME] = { fg = get_foreground_color_from_hl({ "TSKeyword" }, "#d3869b") },
 
-    [M.SYMBOLIC_LINK] = { fg = get_foreground_color_from_hl({ "TSInclude" }, "#7daea3"), gui = "italic" },
+    [M.SYMBOLIC_LINK] = { fg = get_foreground_color_from_hl({ "TSInclude" }, "#7daea3"), italic = true },
 
     [M.GIT_REPO_TOPLEVEL] = { fg = character_fg },
     [M.GIT_UNMERGED_COUNT] = { fg = git_delete_fg },

@@ -19,13 +19,18 @@ function M.show()
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
   end, mappings)
+  ---@param a ActionMapping
+  ---@param b ActionMapping
   table.sort(insert, function(a, b)
     return a.name < b.name
   end)
+  ---@param a ActionMapping
+  ---@param b ActionMapping
   table.sort(visual, function(a, b)
     return a.name < b.name
   end)
 
+  ---@type string[]
   local help_mappings = {}
   local max_key_width = 0
   local max_mapping_width = 0
@@ -36,7 +41,7 @@ function M.show()
         table.insert(help_mappings, key)
       end
     end
-    max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(mapping.name))
+    max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(mapping.desc or mapping.name))
   end
   max_key_width = max_key_width + 1
   local format_string = "%" .. max_key_width .. "s : %-" .. max_mapping_width .. "s : %s"
@@ -48,7 +53,7 @@ function M.show()
   local insert_start_linenr = #lines + 1
   for _, mapping in ipairs(insert) do
     for _, key in ipairs(mapping.keys) do
-      local line = string.format(format_string, key, mapping.name, table.concat(vim.tbl_keys(mapping.views), ", "))
+      local line = string.format(format_string, key, mapping.desc or mapping.name, table.concat(vim.tbl_keys(mapping.views), ", "))
       lines[#lines + 1] = line
       max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
     end
@@ -61,7 +66,7 @@ function M.show()
   local visual_start_linenr = #lines + 1
   for _, mapping in ipairs(visual) do
     for _, key in ipairs(mapping.keys) do
-      local line = string.format(format_string, key, mapping.name, table.concat(vim.tbl_keys(mapping.views), ", "))
+      local line = string.format(format_string, key, mapping.desc or mapping.name, table.concat(vim.tbl_keys(mapping.views), ", "))
       lines[#lines + 1] = line
       max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
     end
@@ -92,11 +97,11 @@ function M.show()
     api.nvim_buf_add_highlight(bufnr, ns, hl.GIT_NEW, linenr - 1, mapping_col_start, -1)
   end
 
-  local opts = { noremap = true, silent = true }
-  api.nvim_buf_set_keymap(bufnr, "n", "q", "<cmd>close<CR>", opts)
-  api.nvim_buf_set_keymap(bufnr, "n", "<Esc>", "<cmd>close<CR>", opts)
+  local opts = { noremap = true, silent = true, nowait = true }
+  api.nvim_buf_set_keymap(bufnr, "n", "q", "<cmd>bdelete<CR>", opts)
+  api.nvim_buf_set_keymap(bufnr, "n", "<Esc>", "<cmd>bdelete<CR>", opts)
   for _, key in ipairs(help_mappings) do
-    api.nvim_buf_set_keymap(bufnr, "n", key, "<cmd>close<CR>", opts)
+    api.nvim_buf_set_keymap(bufnr, "n", key, "<cmd>bdelete<CR>", opts)
   end
 
   api.nvim_buf_set_option(bufnr, "modifiable", false)

@@ -11,7 +11,7 @@ local log = require("ya-tree.log")
 
 local M = {}
 
----@alias cmdmode "'edit'"|"'vsplit'"|"'split'"
+---@alias cmdmode '"edit"'|'"vsplit"'|'"split"'
 
 ---@param node YaTreeNode
 ---@param cmd cmdmode
@@ -136,10 +136,7 @@ function M.rename(node)
     return
   end
 
-  async.run(function()
-    scheduler()
-
-    local name = ui.input({ prompt = "New name:", default = node.name })
+  vim.ui.input({ prompt = "New name:", default = node.name }, function(name)
     if not name then
       utils.notify('No new name given, not renaming file "' .. node.name .. '"')
       return
@@ -225,8 +222,8 @@ function M.delete()
 end
 
 ---@param _ YaTreeNode
----@param config YaTreeConfig
-function M.trash(_, config)
+function M.trash(_)
+  local config = require("ya-tree.config").config
   if not config.trash.enable then
     return
   end

@@ -274,7 +274,7 @@ end
 ---@param opts { reverse?: boolean, from?: YaTreeNode }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} `YatreeNode`
----@return fun():YaTreeNode|nil iterator
+---@return fun():YaTreeNode iterator
 function Node:iterate_children(opts)
   if not self.children or #self.children == 0 then
     return function() end

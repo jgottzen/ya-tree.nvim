@@ -200,6 +200,8 @@ function Repo:add_git_change_listener(fun)
 
       scheduler()
 
+      -- TODO: Add logic for detecting renames/deletes so that
+      -- the listeners can do a filesystem refresh
       self:refresh_status({ ignored = true })
 
       scheduler()
@@ -504,16 +506,6 @@ function Repo:is_ignored(path, _type)
     end
   end
   return false
-end
-
----@param path string
----@return GitRepo? repo
-function M.get_repo_for_path(path)
-  for toplevel, repo in pairs(M.repos) do
-    if path:find(toplevel, 1, true) then
-      return repo
-    end
-  end
 end
 
 function M.setup()

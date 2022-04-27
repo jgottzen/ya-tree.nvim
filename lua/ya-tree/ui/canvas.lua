@@ -48,6 +48,8 @@ local win_options = {
   }, ","),
 }
 
+local tab_var_barbar_set_name = "_YaTreeBarbar"
+
 ---@alias YaTreeCanvasMode '"tree"'|'"search"'
 
 ---@class YaTreeCanvas
@@ -55,6 +57,8 @@ local win_options = {
 ---@field private edit_winid number
 ---@field private bufnr number
 ---@field public mode YaTreeCanvasMode
+---@field private _window_augroup number
+---@field private _previous_row number
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
 local Canvas = {}
@@ -152,19 +156,6 @@ function Canvas:_create_buffer(hijack_buffer)
   require("ya-tree.actions").apply_mappings(self.bufnr)
 end
 
----@param key string
----@param value boolean|string
----@return string
-local function format_option(key, value)
-  if value == true then
-    return key
-  elseif value == false then
-    return string.format("no%s", key)
-  else
-    return string.format("%s=%s", key, value)
-  end
-end
-
 function Canvas:restore()
   if self.winid and self.bufnr then
     log.debug("restoring canvas buffer to buffer %s", self.bufnr)
@@ -183,6 +174,19 @@ function Canvas:move_buffer_to_edit_window(bufnr)
   end
 end
 
+---@param key string
+---@param value boolean|string
+---@return string
+local function format_option(key, value)
+  if value == true then
+    return key
+  elseif value == false then
+    return string.format("no%s", key)
+  else
+    return string.format("%s=%s", key, value)
+  end
+end
+
 ---@private
 function Canvas:_set_window_options_and_size()
   api.nvim_win_set_buf(self.winid, self.bufnr)
@@ -195,25 +199,56 @@ function Canvas:_set_window_options_and_size()
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
   api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
 
-  -- TODO: when neovim 0.7 is released use a function to caputre self so that we can set self.winid to nil when closing,
-  -- TODO: the window var can also be moved to a boolean field
-
-  vim.cmd(string.format("augroup YaTreeCanvas%s", self.winid))
-  vim.cmd([[autocmd!]])
-  vim.cmd(string.format("autocmd WinClosed %d lua require('ya-tree.ui.canvas')._on_win_closed()", self.winid))
-  vim.cmd([[autocmd TabEnter * lua require('ya-tree.ui.canvas')._on_tab_enter()]])
-  vim.cmd("augroup END")
+  self._window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
+  api.nvim_create_autocmd("WinClosed", {
+    group = self._window_augroup,
+    pattern = tostring(self.winid),
+    callback = function()
+      self:_on_win_closed()
+    end,
+    desc = "Cleaning up window specific settings",
+  })
+  if config.hijack_cursor then
+    api.nvim_create_autocmd("CursorMoved", {
+      group = self._window_augroup,
+      buffer = self.bufnr,
+      callback = function()
+        self:_move_cursor_to_name()
+      end,
+      desc = "Moving cursor to name",
+    })
+  end
 
   self:resize()
 end
 
+local function set_barbar_offset()
+  if barbar_exists then
+    local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.barbar.title or "")
+    if ok then
+      api.nvim_tabpage_set_var(0, tab_var_barbar_set_name, 1)
+    else
+      log.error("error calling barbar to set offset: %", result)
+    end
+  end
+end
+
+local function unset_barbar_offset()
+  if barbar_exists then
+    local ok, result = pcall(barbar_state.set_offset, 0)
+    if ok then
+      api.nvim_tabpage_set_var(0, tab_var_barbar_set_name, 0)
+    else
+      log.error("error calling barbar remove offset: %", result)
+    end
+  end
+end
+
 ---@private
 function Canvas:_on_win_closed()
+  log.debug("window %s was closed", self.winid)
   if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    local ok, result = pcall(barbar_state.set_offset, 0)
-    if not ok then
-      log.error("error calling barbar to update offset: %", result)
-    end
+    unset_barbar_offset()
   end
 
   if type(config.view.on_close) == "function" then
@@ -222,23 +257,14 @@ function Canvas:_on_win_closed()
       log.error("error calling user supplied on_close function: %", result)
     end
   end
-end
 
----@private
-function Canvas._on_tab_enter()
-  if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    for _, winid in ipairs(api.nvim_tabpage_list_wins(0)) do
-      local bufnr = api.nvim_win_get_buf(winid)
-      local filetype = api.nvim_buf_get_option(bufnr, "filetype")
-      if filetype == "YaTree" then
-        local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.barbar.title or "")
-        if not ok then
-          log.error("error calling barbar to update offset: %", result)
-        end
-        return
-      end
-    end
+  local ok, result = pcall(api.nvim_del_augroup_by_id, self._window_augroup)
+  if not ok then
+    log.error("error deleting window local augroup: %s", result)
   end
+
+  self._window_augroup = nil
+  self.winid = nil
 end
 
 ---@private
@@ -285,10 +311,7 @@ function Canvas:open(root, opts)
 
   -- barbar can only set offsets on the left side
   if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.barbar.title or "")
-    if not ok then
-      log.error("error calling barbar to update offset: %", result)
-    end
+    set_barbar_offset()
   end
 
   if type(config.view.on_open) == "function" then
@@ -314,7 +337,7 @@ function Canvas:focus()
 end
 
 function Canvas:focus_edit_window()
-  if self.edit_winid then
+  if self:get_edit_winid() then
     api.nvim_set_current_win(self.edit_winid)
   end
 end
@@ -331,12 +354,9 @@ function Canvas:close()
   end
 
   local ok = pcall(api.nvim_win_close, self.winid, true)
-  if ok then
-    log.debug("closed canvas window=%s", self.winid)
-  else
+  if not ok then
     log.error("error closing window %q", self.winid)
   end
-  self.winid = nil
 end
 
 function Canvas:delete()
@@ -362,9 +382,11 @@ function Canvas:resize()
 end
 
 function Canvas:reset_canvas()
-  if self.winid and not config.view.number and not config.view.relativenumber then
+  if self.winid then
     api.nvim_command("stopinsert")
-    api.nvim_command("noautocmd setlocal norelativenumber")
+    if not config.view.number and not config.view.relativenumber then
+      api.nvim_command("noautocmd setlocal norelativenumber")
+    end
   end
 end
 
@@ -575,32 +597,28 @@ do
   end
 end
 
-do
+---@private
+function Canvas:_move_cursor_to_name()
+  if not self.winid then
+    return
+  end
+  local node, row, col = self:_get_current_node_and_position()
+  if not node or row == self._previous_row then
+    return
+  end
+
+  self._previous_row = row
+  -- don't move the cursor on the first line
+  if row == 1 then
+    return
+  end
+
+  ---@type string
+  local line = api.nvim_get_current_line()
   ---@type number
-  local previous_row
-
-  function Canvas:move_cursor_to_name()
-    if not self.winid then
-      return
-    end
-    local node, row, col = self:_get_current_node_and_position()
-    if not node or row == previous_row then
-      return
-    end
-
-    previous_row = row
-    -- don't move the cursor on the first line
-    if row == 1 then
-      return
-    end
-
-    ---@type string
-    local line = api.nvim_get_current_line()
-    ---@type number
-    local pos = (line:find(node.name, 1, true) or 0) - 1
-    if pos > 0 and pos ~= col then
-      api.nvim_win_set_cursor(self.winid, { row, pos })
-    end
+  local pos = (line:find(node.name, 1, true) or 0) - 1
+  if pos > 0 and pos ~= col then
+    api.nvim_win_set_cursor(self.winid, { row, pos })
   end
 end
 
@@ -750,6 +768,38 @@ function Canvas:focus_next_git_item()
   end
 end
 
+local function on_tab_leave() end
+
+local function on_tab_enter() end
+
+do
+  ---@type number
+  local previous_tab_page
+
+  on_tab_leave = function()
+    previous_tab_page = api.nvim_get_current_tabpage()
+  end
+
+  ---@param tabpage number
+  ---@return boolean was_set
+  local function is_tabbar_offset_set(tabpage)
+    local ok, value = pcall(api.nvim_tabpage_get_var, tabpage, tab_var_barbar_set_name)
+    return ok and value == 1
+  end
+
+  on_tab_enter = function()
+    if previous_tab_page then
+      local was_set = is_tabbar_offset_set(previous_tab_page)
+      local is_set = is_tabbar_offset_set(api.nvim_get_current_tabpage())
+      if was_set and not is_set then
+        unset_barbar_offset()
+      elseif not was_set and is_set then
+        set_barbar_offset()
+      end
+    end
+  end
+end
+
 ---@class YaTreeViewRenderer
 ---@field name string
 ---@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
@@ -757,6 +807,7 @@ end
 
 do
   local renderers = require("ya-tree.ui.renderers")
+
   ---@param view_renderer YaTreeConfig.View.Renderers.DirectoryRenderer|YaTreeConfig.View.Renderers.FileRenderer
   ---@return YaTreeViewRenderer?
   local function create_renderer(view_renderer)
@@ -783,12 +834,6 @@ do
     end
 
     if renderer.fun then
-      for k, v in pairs(view_renderer) do
-        if type(k) ~= "number" then
-          log.debug("overriding renderer %q config value for %s with %s", renderer.name, k, v)
-          renderer.config[k] = v
-        end
-      end
       return renderer
     end
   end
@@ -807,6 +852,12 @@ do
     for _, directory_renderer in pairs(config.view.renderers.directory) do
       local renderer = create_renderer(directory_renderer)
       if renderer then
+        for k, v in pairs(directory_renderer) do
+          if type(k) ~= "number" then
+            log.debug("overriding directory renderer %q config value for %q with %s", renderer.name, k, v)
+            renderer.config[k] = v
+          end
+        end
         directory_renderers[#directory_renderers + 1] = renderer
       end
     end
@@ -815,6 +866,12 @@ do
     for _, file_renderer in pairs(config.view.renderers.file) do
       local renderer = create_renderer(file_renderer)
       if renderer then
+        for k, v in pairs(file_renderer) do
+          if type(k) ~= "number" then
+            log.debug("overriding file renderer %q config value for %q with %s", renderer.name, k, v)
+            renderer.config[k] = v
+          end
+        end
         file_renderers[#file_renderers + 1] = renderer
 
         if renderer.name == "name" then
@@ -829,6 +886,28 @@ do
     barbar_exists, barbar_state = pcall(require, "bufferline.state")
     barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"
     log.debug("barbar has " .. (barbar_exists and "successfully" or "not") .. " been detected")
+    if config.view.barbar.enable and not barbar_exists then
+      utils.notify("barbar was not detected. Disabling 'view.barbar.enable' in the configuration")
+      config.view.barbar.enable = false
+    end
+
+    if barbar_exists and config.view.barbar.enable then
+      local group = api.nvim_create_augroup("YaTreeCanvas", { clear = true })
+      api.nvim_create_autocmd("TabLeave", {
+        group = group,
+        callback = function()
+          on_tab_leave()
+        end,
+        desc = "barbar tabline integration handling",
+      })
+      api.nvim_create_autocmd("TabEnter", {
+        group = group,
+        callback = function()
+          on_tab_enter()
+        end,
+        desc = "barbar tabline integration handling",
+      })
+    end
   end
 
   ---@return boolean enabled

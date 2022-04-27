@@ -122,37 +122,6 @@ local function format_option(key, value)
   end
 end
 
-function Input:_create_title()
-  if self.title then
-    -- HACK to force the parent window to position itself
-    -- See https://github.com/neovim/neovim/issues/13403
-    vim.cmd("redraw")
-
-    local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.title))
-    local bufnr = api.nvim_create_buf(false, true)
-    ---@type number
-    self.title_winid = api.nvim_open_win(bufnr, false, {
-      relative = "win",
-      win = self.winid,
-      width = width,
-      height = 1,
-      row = -1,
-      col = 1,
-      focusable = false,
-      zindex = self.win_config.zindex + 1,
-      style = "minimal",
-      noautocmd = false,
-    })
-    api.nvim_win_set_option(self.title_winid, "winblend", api.nvim_win_get_option(self.winid, "winblend"))
-    api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
-    local title = " " .. self.title:sub(1, math.min(width - 2, api.nvim_strwidth(self.title))) .. " "
-    api.nvim_buf_set_lines(bufnr, 0, -1, true, { title })
-    local ns = api.nvim_create_namespace("YaTreeInput")
-    api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
-    api.nvim_buf_add_highlight(bufnr, ns, "FloatTitle", 0, 0, -1)
-  end
-end
-
 function Input:open()
   if self.winid then
     return
@@ -189,9 +158,42 @@ function Input:open()
     ---@type string
     local keys = api.nvim_replace_termcodes("<C-c>", true, false, true)
     api.nvim_feedkeys(keys, "n", true)
-  end, { noremap = true })
+  end)
 
   vim.cmd("startinsert!")
+end
+
+function Input:_create_title()
+  if self.title then
+    -- Force the Input window to position itself, otherwise relative = "win" is
+    -- to the parent window of Input and not Input itself...
+    -- See https://github.com/neovim/neovim/issues/13403
+    -- which though closed hasn't fixed the issue
+    vim.cmd("redraw")
+
+    local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.title))
+    local bufnr = api.nvim_create_buf(false, true)
+    ---@type number
+    self.title_winid = api.nvim_open_win(bufnr, false, {
+      relative = "win",
+      win = self.winid,
+      width = width,
+      height = 1,
+      row = -1,
+      col = 1,
+      focusable = false,
+      zindex = self.win_config.zindex + 1,
+      style = "minimal",
+      noautocmd = false,
+    })
+    api.nvim_win_set_option(self.title_winid, "winblend", api.nvim_win_get_option(self.winid, "winblend"))
+    api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
+    local title = " " .. self.title:sub(1, math.min(width - 2, api.nvim_strwidth(self.title))) .. " "
+    api.nvim_buf_set_lines(bufnr, 0, -1, true, { title })
+    local ns = api.nvim_create_namespace("YaTreeInput")
+    api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+    api.nvim_buf_add_highlight(bufnr, ns, "FloatTitle", 0, 0, -1)
+  end
 end
 
 function Input:close()
@@ -219,57 +221,20 @@ function Input:close()
   api.nvim_win_set_cursor(0, { self.orig_row, self.orig_col + 1 })
 end
 
-do
-  ---@type table<string, fun(bufnr: number)>
-  local handlers = {}
-  local handler_id = 1
-
-  ---@param bufnr number
-  ---@param mode string
-  ---@param key string
-  ---@param handler fun(bufnr: number)|string
-  ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
-  local function set_key_map(bufnr, mode, key, handler, opts)
-    opts = opts or {}
-
-    ---@type string
-    local rhs
-    if type(handler) == "function" then
-      ---@type fun(bufnr: number)
-      handlers[tostring(handler_id)] = handler
-      rhs = string.format("<cmd>lua require('ya-tree.ui.input'):_execute(%s, %s)<CR>", bufnr, handler_id)
-      handler_id = handler_id + 1
-    else
-      rhs = handler
-    end
-
-    log.trace("creating mapping for bufnr=%s, mode=%s, key=%s, rhs=%s, opts=%s", bufnr, mode, key, rhs, opts)
-    api.nvim_buf_set_keymap(bufnr, mode, key, rhs, opts)
+---@param mode string
+---@param key string
+---@param rhs function|string
+---@param opts? table<"'remap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'"|"'desc'", boolean>
+function Input:map(mode, key, rhs, opts)
+  if not self.winid then
+    error("Input not shown yet, call Input:open()")
   end
+  opts = opts or {}
+  opts.buffer = self.bufnr
+  opts.remap = opts.remap or false
 
-  ---@param bufnr number
-  ---@param id number
-  function Input:_execute(bufnr, id)
-    local handler = handlers[tostring(id)]
-    if handler then
-      log.trace("executing handler %s", id)
-      handler(bufnr)
-    else
-      log.error("no handler for id %s, handlers=", id, handlers)
-    end
-  end
-
-  ---@param mode string
-  ---@param key string
-  ---@param handler fun(bufnr: number)|string
-  ---@param opts? table<"'noremap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'", boolean>
-  function Input:map(mode, key, handler, opts)
-    if not self.winid then
-      error("Input not shown yet, call Input:open()")
-    end
-
-    set_key_map(self.bufnr, mode, key, handler, opts)
-  end
+  log.trace("creating mapping for bufnr=%s, mode=%s, key=%s, rhs=%s, opts=%s", self.bufnr, mode, key, rhs, opts)
+  vim.keymap.set(mode, key, rhs, opts)
 end
 
 return Input

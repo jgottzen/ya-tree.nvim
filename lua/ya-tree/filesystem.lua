@@ -7,6 +7,13 @@ local uv = vim.loop
 
 local M = {}
 
+---@param path string
+---@return boolean empty
+local function is_empty(path)
+  local handle = uv.fs_scandir(path)
+  return handle and uv.fs_scandir_next(handle) == nil or false
+end
+
 ---@alias file_type "'directory'"|"'file'"
 
 ---@class FsNode
@@ -23,8 +30,7 @@ local M = {}
 ---@return FsDirectoryNode node
 local function directory_node(dir, name)
   local path = utils.join_path(dir, name)
-  local handle = uv.fs_scandir(path)
-  local empty = handle and uv.fs_scandir_next(handle) == nil or false
+  local empty = is_empty(path)
 
   return {
     name = name,
@@ -32,6 +38,13 @@ local function directory_node(dir, name)
     path = path,
     empty = empty,
   }
+end
+
+---@param path string
+---@param extension string
+---@return boolean executable
+local function is_executable(path, extension)
+  return utils.is_windows and utils.is_windows_exe(extension) or uv.fs_access(path, "X")
 end
 
 ---@class FsFileNode : FsNode
@@ -44,14 +57,8 @@ end
 ---@return FsFileNode node
 local function file_node(dir, name)
   local path = utils.join_path(dir, name)
-  local extension = string.match(name, ".?[^.]+%.(.*)") or ""
-  ---@type boolean
-  local executable
-  if utils.is_windows then
-    executable = utils.is_windows_exe(extension)
-  else
-    executable = uv.fs_access(path, "X")
-  end
+  local extension = name:match(".?[^.]+%.(.*)") or ""
+  local executable = is_executable(path, extension)
 
   return {
     name = name,
@@ -91,43 +98,19 @@ local function link_node(dir, name)
   ---@type FsDirectoryLinkNode|FsFileLinkNode|nil
   local node
   if stat and stat.type == "directory" then
-    local handle = uv.fs_scandir(path)
-    local empty = handle and uv.fs_scandir_next(handle) == nil
-
-    node = {
-      name = name,
-      type = "directory",
-      path = path,
-      empty = empty,
-      link = true,
-      link_to = link_to,
-    }
+    node = directory_node(dir, name)
   elseif stat and stat.type == "file" then
-    local extension = string.match(name, ".?[^.]+%.(.*)") or ""
     local _, pos = p.filename:find(p:parent().filename, 1, true)
     local link_name = p.filename:sub(pos + 2)
-    local link_extension = string.match(link_name, ".?[^.]+%.(.*)") or ""
-    ---@type boolean
-    local executable
-    if utils.is_windows then
-      executable = utils.is_windows_exe(extension)
-    else
-      executable = uv.fs_access(path, "X")
-    end
+    local link_extension = link_name:match(".?[^.]+%.(.*)") or ""
 
-    node = {
-      name = name,
-      type = "file",
-      path = path,
-      extension = extension,
-      executable = executable,
-      link = true,
-      link_to = link_to,
-      link_name = link_name,
-      link_extension = link_extension,
-    }
+    node = file_node(dir, name)
+    node.link_name = link_name
+    node.link_extension = link_extension
   end
 
+  node.link = true
+  node.link_to = link_to
   return node
 end
 

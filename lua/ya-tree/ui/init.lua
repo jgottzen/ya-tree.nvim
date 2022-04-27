@@ -106,104 +106,67 @@ end
 ---@return YaTreeNode? current_node
 function M.get_current_node()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    return tab.canvas:get_current_node()
   end
-
-  return tab.canvas:get_current_node()
 end
 
 ---@return YaTreeNode[] selected_nodes
 function M.get_selected_nodes()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return {}
+  if tab and tab.canvas:is_open() then
+    return tab.canvas:get_selected_nodes()
   end
-
-  return tab.canvas:get_selected_nodes()
 end
 
 ---@param node YaTreeNode
 function M.focus_node(node)
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_node(node)
   end
-
-  tab.canvas:focus_node(node)
 end
 
 function M.focus_prev_sibling()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_prev_sibling()
   end
-
-  tab.canvas:focus_prev_sibling()
 end
 
 function M.focus_next_sibling()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_next_sibling()
   end
-
-  tab.canvas:focus_next_sibling()
 end
 
 function M.focus_first_sibling()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_first_sibling()
   end
-
-  tab.canvas:focus_first_sibling()
 end
 
 function M.focus_last_sibling()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_last_sibling()
   end
-
-  tab.canvas:focus_last_sibling()
 end
 
 function M.focus_prev_git_item()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_prev_git_item()
   end
-
-  tab.canvas:focus_prev_git_item()
 end
 
 function M.focus_next_git_item()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_next_git_item()
   end
-
-  tab.canvas:focus_next_git_item()
-end
-
-function M.move_cursor_to_name()
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
-  end
-
-  tab.canvas:move_cursor_to_name()
 end
 
 ---@param winid? number
@@ -229,22 +192,16 @@ end
 ---@return number height, number width
 function M.get_size()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    return tab.canvas:get_size()
   end
-
-  return tab.canvas:get_size()
 end
 
 function M.reset_window()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:reset_canvas()
   end
-
-  tab.canvas:reset_canvas()
 end
 
 ---@return YaTreeCanvasMode mode
@@ -264,7 +221,8 @@ function M.is_search_open()
 end
 
 ---@param search_root YaTreeSearchNode
-function M.open_search(search_root)
+---@param node? YaTreeNode
+function M.open_search(search_root, node)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
     log.error("called when tab=%s", tab and "not open" or "nil")
@@ -273,6 +231,9 @@ function M.open_search(search_root)
 
   tab.canvas.mode = "search"
   tab.canvas:render(search_root)
+  if node then
+    tab.canvas:focus_node(node)
+  end
 end
 
 ---@param root YaTreeNode
@@ -293,24 +254,21 @@ end
 
 ---@param bufnr number
 function M.on_win_leave(bufnr)
-  local tab = get_tab()
-  if not tab or M.is_buffer_yatree(bufnr) then
+  if M.is_window_floating() or M.is_buffer_yatree(bufnr) then
     return
   end
 
-  if not (M.is_window_floating() or tab.canvas:is_current_window_canvas()) then
+  local tab = get_tab()
+  if tab and not tab.canvas:is_current_window_canvas() then
     tab.canvas:set_edit_winid(api.nvim_get_current_win())
   end
 end
 
 function M.restore()
   local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
-    return
+  if tab and tab.canvas:is_open() then
+    tab.canvas:restore()
   end
-
-  tab.canvas:restore()
 end
 
 ---@param canvas YaTreeCanvas
@@ -322,7 +280,7 @@ local function create_edit_window(canvas)
   canvas:set_edit_winid(winid)
   canvas:resize()
 
-  return winid
+  log.debug("created edit window %s", winid)
 end
 
 ---@param bufnr number
@@ -356,13 +314,14 @@ function M.open_file(file, cmd)
     -- only the tree window is open, e.g. netrw replacement
     -- create a new window for buffers
 
-    winid = create_edit_window(canvas)
+    create_edit_window(canvas)
     if cmd == "split" or cmd == "vsplit" then
       cmd = "edit"
     end
+  else
+    api.nvim_set_current_win(winid)
   end
 
-  api.nvim_set_current_win(winid)
   vim.cmd(cmd .. " " .. vim.fn.fnameescape(file))
 end
 

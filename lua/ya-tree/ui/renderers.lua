@@ -208,7 +208,7 @@ end
 ---@param renderer YaTreeConfig.Renderers.Repository
 ---@return RenderResult[]?
 function M.repository(node, _, renderer)
-  if node:is_git_repository_root() then
+  if node:is_git_repository_root() or (node.depth == 0 and node.repo) then
     local repo = node.repo
     local icon = renderer.icons.remote.default
     if repo.remote_url then
@@ -225,7 +225,7 @@ function M.repository(node, _, renderer)
     ---@type RenderResult[]
     local result = { {
       padding = renderer.padding,
-      text = icon,
+      text = icon .. " ",
       highlight = hl.GIT_REPO_TOPLEVEL,
     } }
 
@@ -362,7 +362,9 @@ function M.clipboard(node, _, renderer)
 end
 
 do
+  ---@type table<string, string>
   local git_staus_to_hl
+
   ---@param status string
   ---@return string
   function M.helpers.get_git_status_highlight(status)
@@ -375,6 +377,7 @@ do
 
   ---@type table<string, icon_and_highligt[]>
   local git_icons_and_hl
+
   ---@param status string
   ---@return icon_and_highligt[]
   function M.helpers.get_git_icons_and_highlights(status)
@@ -387,6 +390,7 @@ do
 
   ---@type table<number, text_and_highlight>
   local diagnostic_icon_and_hl
+
   ---@param severity number
   ---@return text_and_highlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
@@ -457,6 +461,7 @@ do
     end
 
     diagnostic_icon_and_hl = {}
+    ---@type table<number, string[]>
     local map = {}
     map[vim.diagnostic.severity.ERROR] = { "Error", "Error" }
     map[vim.diagnostic.severity.WARN] = { "Warn", "Warning" }

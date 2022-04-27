@@ -332,11 +332,12 @@ local M = {
     ---@alias YaTreeViewMode YaTreeCanvasMode|'"all"'
 
     ---@class YaTreeConfig.Mapping Key mapping configuration.
-    ---@field views YaTreeViewMode[] The view modes the mapping is available for.
     ---@field mode? string|string[] The mode(s) for the keybinding.
     ---@field action? string The YaTree action to bind to.
-    ---@field func? fun(node: YaTreeNode, config: YaTreeConfig) Custom function.
+    ---@field views YaTreeViewMode[] The view modes the mapping is available for.
+    ---@field func? fun(node: YaTreeNode) Custom function.
     ---@field command? string Lua command string.
+    ---@field desc? string Description of what the mapping does.
 
     mappings = {
       ["q"] = { action = "close_window", views = { "tree", "search" } },

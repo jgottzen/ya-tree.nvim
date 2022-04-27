@@ -1,30 +1,34 @@
 local Path = require("plenary.path")
 
+local api = vim.api
+local fn = vim.fn
 local uv = vim.loop
 local os_sep = Path.path.sep
 
 local M = {}
 
 M.os_sep = os_sep
+---@type fun(base?: string):string
 M.os_root = Path.path.root
-M.is_windows = vim.fn.has("win32") == 1 or vim.fn.has("win32unix") == 1
-M.is_macos = vim.fn.has("mac") == 1 or vim.fn.has("macunix") == 1
-M.is_linux = vim.fn.has("unix") == 1
+M.is_windows = fn.has("win32") == 1 or fn.has("win32unix") == 1
+M.is_macos = fn.has("mac") == 1 or fn.has("macunix") == 1
+M.is_linux = fn.has("unix") == 1
 
----@type table<string, boolean>
-local pathexts = {}
 do
+  ---@type table<string, boolean>
+  local pathexts = {}
   local pathext = vim.env.PATHEXT or ""
+  ---@type string[]
   local wexe = vim.split(pathext:gsub("%.", ""), ";")
   for _, v in pairs(wexe) do
-    pathexts[v] = true
+    pathexts[v:upper()] = true
   end
-end
 
----@param extension string
----@return boolean
-function M.is_windows_exe(extension)
-  return pathexts[extension:upper()]
+  ---@param extension string
+  ---@return boolean
+  function M.is_windows_exe(extension)
+    return pathexts[extension:upper()] or false
+  end
 end
 
 ---@param path string
@@ -46,6 +50,29 @@ end
 ---@return string relative_path
 function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
+end
+
+---@param bufnr? number if not specified the current buffer is used.
+---@param bufname? string if not specified the current buffer is used.
+---@return boolean is_directory, string? path
+function M.get_path_from_directory_buffer(bufnr, bufname)
+  bufnr = bufnr or api.nvim_get_current_buf()
+  bufname = bufname or api.nvim_buf_get_name(bufnr)
+  local stat = uv.fs_stat(bufname)
+  if not stat or stat.type ~= "directory" then
+    return false
+  end
+  local buftype = api.nvim_buf_get_option(bufnr, "filetype")
+  if buftype ~= "" then
+    return false
+  end
+
+  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  if #lines == 0 or (#lines == 1 and lines[1] == "") then
+    return true, fn.expand(bufname)
+  else
+    return false
+  end
 end
 
 do

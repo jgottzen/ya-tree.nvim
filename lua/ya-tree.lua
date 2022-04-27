@@ -31,16 +31,19 @@ end
 
 ---@param level LogLevel
 function M.set_log_level(level)
+  require("ya-tree.config").config.log.level = level
   log.config.level = level
 end
 
 ---@param to_console boolean
-function M.set_lot_to_console(to_console)
+function M.set_log_to_console(to_console)
+  require("ya-tree.config").config.log.to_console = to_console
   log.config.to_console = to_console
 end
 
 ---@param to_file boolean
-function M.set_lot_to_file(to_file)
+function M.set_log_to_file(to_file)
+  require("ya-tree.config").config.log.to_file = to_file
   log.config.to_file = to_file
 end
 
@@ -58,15 +61,23 @@ function M.setup(opts)
   require("ya-tree.git").setup()
   require("ya-tree.ui").setup()
 
-  lib().setup(function()
-    vim.cmd([[
-      command! YaTreeOpen lua require('ya-tree').open()
-      command! YaTreeClose lua require('ya-tree').close()
-      command! YaTreeToggle lua require('ya-tree').toggle()
-      command! YaTreeFocus lua require('ya-tree').focus()
-      command! -nargs=? -complete=file YaTreeFindFile lua require('ya-tree').find_file('<args>')
-    ]])
-  end)
+  lib().setup()
+
+  vim.api.nvim_create_user_command("YaTreeOpen", function()
+    M.open()
+  end, { desc = "Opens the tree view" })
+  vim.api.nvim_create_user_command("YaTreeClose", function()
+    M.close()
+  end, { desc = "Closes the tree view" })
+  vim.api.nvim_create_user_command("YaTreeToggle", function()
+    M.toggle()
+  end, { desc = "Toggles the tree view" })
+  vim.api.nvim_create_user_command("YaTreeFocus", function()
+    M.focus()
+  end, { desc = "Focuses the tree view, opens it if not open" })
+  vim.api.nvim_create_user_command("YaTreeFindFile", function(input)
+    M.find_file(input.args)
+  end, { nargs = "?", complete = "file", desc = "Opens and focuses on the file of the current buffer, or the supplied file name" })
 end
 
 return M

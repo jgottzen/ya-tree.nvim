@@ -14,6 +14,11 @@ local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
 
+-- Flag for signaling when the library is setting up, which might take time if in a large directory and/or
+-- repository. A call to M.open(), while setting up, will create another, duplicate, tree and doing the
+-- filesystem and repository scanning again.
+local setting_up = false
+
 local M = {}
 
 ---@param node YaTreeNode
@@ -29,22 +34,17 @@ function M.get_root_node_path()
   return tree and tree.root.path
 end
 
----@return string|nil buffer_path #the path fo the current buffer
-local function get_current_buffer_path()
-  local bufname = fn.bufname()
-  local file = fn.fnamemodify(bufname, ":p")
-  log.debug("current buffer file is %s, bufname is %s", file, bufname)
-
-  return utils.is_readable_file(file) and file
-end
-
 --- Resolves the `path` in the speicfied `tree`. If `path` is `nil` or empty, instead resolves the path of the current buffer.
 ---@param tree YaTree
 ---@param path? string
 ---@return string|nil path #the fully resolved path, or `nil`
 local function resolve_path(tree, path)
   if not path or path == "" then
-    path = get_current_buffer_path()
+    local bufname = fn.bufname()
+    local file = fn.fnamemodify(bufname, ":p")
+    log.debug("current buffer file is %s, bufname is %s", file, bufname)
+
+    path = utils.is_readable_file(file) and file
   end
   if path and not vim.startswith(path, utils.os_root()) then
     -- a relative path is relative to the current cwd, not the tree's root node
@@ -71,15 +71,9 @@ local function on_git_change(repo, watcher_id)
 
   vim.schedule(function()
     local tree = Tree.get_tree()
-    if not tree or not ui.is_open() then
-      return
+    if tree and ui.is_open() and tree.git_watchers[repo] == watcher_id then
+      ui.update(tree.root)
     end
-
-    if tree.git_watchers[repo] ~= watcher_id then
-      return
-    end
-
-    ui.update(tree.root)
   end)
 end
 
@@ -99,32 +93,39 @@ end
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
 function M.open(opts)
-  async.run(function()
-    opts = opts or {}
-    ---@type YaTree
-    local tree = opts.tree or Tree.get_tree({ create_if_missing = true })
-    -- if a tree was passed as a parameter, then the caller should set up any watchers
-    if not opts.tree and tree.root.repo and config.git.watch_git_dir then
-      attach_git_change_listener(tree, tree.root.repo)
-    end
-
-    ---@type YaTreeNode
-    local node
-    if opts.file then
-      local file = resolve_path(tree, opts.file)
-      if file then
-        node = file and tree.root:expand({ to = file })
-        log.debug("navigating to %q", file)
-      else
-        log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, tree.cwd, tree.root.path)
+  if setting_up then
+    vim.defer_fn(function()
+      log.debug("setup is in progress, deferring opening window...")
+      M.open(opts)
+    end, 100)
+  else
+    async.run(function()
+      opts = opts or {}
+      ---@type YaTree
+      local tree = opts.tree or Tree.get_tree({ create_if_missing = true })
+      -- if a tree was passed as a parameter, then the caller should set up any watchers
+      if not opts.tree and tree.root.repo and config.git.watch_git_dir then
+        attach_git_change_listener(tree, tree.root.repo)
       end
-    end
 
-    vim.schedule(function()
-      tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
-      ui.open(tree.root, tree.current_node, { hijack_buffer = opts.hijack_buffer, focus = opts.focus })
+      ---@type YaTreeNode
+      local node
+      if opts.file then
+        local file = resolve_path(tree, opts.file)
+        if file then
+          node = file and tree.root:expand({ to = file })
+          log.debug("navigating to %q", file)
+        else
+          log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, tree.cwd, tree.root.path)
+        end
+      end
+
+      vim.schedule(function()
+        tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
+        ui.open(tree.root, tree.current_node, { hijack_buffer = opts.hijack_buffer, focus = opts.focus })
+      end)
     end)
-  end)
+  end
 end
 
 function M.close()
@@ -141,12 +142,10 @@ end
 
 function M.redraw()
   local tree = Tree.get_tree()
-  if not tree then
-    return
+  if tree then
+    log.debug("redrawing tree")
+    ui.update(tree.root)
   end
-
-  log.debug("redrawing tree")
-  ui.update(tree.root)
 end
 
 ---@return YaTreeNode? current_node
@@ -198,13 +197,11 @@ end
 
 function M.close_all_nodes()
   local tree = Tree.get_tree()
-  if not tree then
-    return
+  if tree then
+    tree.root:collapse({ recursive = true, children_only = true })
+    tree.current_node = tree.root
+    ui.update(tree.root, tree.current_node)
   end
-
-  tree.root:collapse({ recursive = true, children_only = true })
-  tree.current_node = tree.root
-  ui.update(tree.root, tree.current_node)
 end
 
 ---@param tree YaTree
@@ -309,94 +306,78 @@ end
 
 ---@param node YaTreeNode
 function M.parent_node(node)
-  -- bail if the node is the current root node
+  -- check that the node isn't the current root node
   local tree = Tree.get_tree()
-  if not tree or not node or tree.root == node then
-    return
+  if tree and node and tree.root ~= node then
+    node = node.parent
+    ui.focus_node(node)
   end
-
-  node = node.parent
-  ui.focus_node(node)
 end
 
 ---@param node YaTreeNode
 function M.prev_sibling(node)
-  if not node then
-    return
+  if node then
+    ui.focus_prev_sibling()
   end
-
-  ui.focus_prev_sibling()
 end
 
 ---@param node YaTreeNode
 function M.next_sibling(node)
-  if not node then
-    return
+  if node then
+    ui.focus_next_sibling()
   end
-
-  ui.focus_next_sibling()
 end
 
 ---@param node YaTreeNode
 function M.first_sibling(node)
-  if not node then
-    return
+  if node then
+    ui.focus_first_sibling()
   end
-
-  ui.focus_first_sibling()
 end
 
 ---@param node YaTreeNode
 function M.last_sibling(node)
-  if not node then
-    return
+  if node then
+    ui.focus_last_sibling()
   end
-
-  ui.focus_last_sibling()
 end
 
 ---@param node YaTreeNode
 function M.prev_git_item(node)
-  if not node then
-    return
+  if node then
+    ui.focus_prev_git_item()
   end
-
-  ui.focus_prev_git_item()
 end
 
 ---@param node YaTreeNode
 function M.next_git_item(node)
-  if not node then
-    return
+  if node then
+    ui.focus_next_git_item()
   end
-
-  ui.focus_next_git_item()
 end
 
 ---@param node YaTreeNode
 function M.toggle_ignored(node)
   local tree = Tree.get_tree()
-  if not tree or not node then
-    return
-  end
-  log.debug("toggling ignored")
+  if tree and node then
+    log.debug("toggling ignored")
 
-  tree.current_node = node
-  config.git.show_ignored = not config.git.show_ignored
-  ui.update(tree.root, tree.current_node)
+    tree.current_node = node
+    config.git.show_ignored = not config.git.show_ignored
+    ui.update(tree.root, tree.current_node)
+  end
 end
 
 ---@param node YaTreeNode
 function M.toggle_filter(node)
   local tree = Tree.get_tree()
-  if not tree or not node then
-    return
-  end
-  log.debug("toggling filter")
+  if tree and node then
+    log.debug("toggling filter")
 
-  tree.current_node = node
-  config.filters.enable = not config.filters.enable
-  ui.update(tree.root, tree.current_node)
+    tree.current_node = node
+    config.filters.enable = not config.filters.enable
+    ui.update(tree.root, tree.current_node)
+  end
 end
 
 ---@param node_or_path YaTreeNode|string
@@ -405,12 +386,12 @@ local function refresh_current_tree(node_or_path)
   if not tree then
     return
   end
-
-  log.debug("refreshing current tree")
   if tree.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return
   end
+
+  log.debug("refreshing current tree")
   tree.refreshing = true
 
   async.run(function()
@@ -487,26 +468,21 @@ function M.display_search_result(node, term, search_result, focus_node)
     tree.tree.current_node = ui.get_current_node()
   end
 
-  tree.search.result, tree.search.current_node = node:create_search_tree(search_result)
-  tree.search.result.search_term = term
-  tree.root = tree.search.result
-  tree.current_node = tree.search.current_node
+  async.run(function()
+    tree.search.result, tree.search.current_node = node:create_search_tree(search_result)
+    tree.search.result.search_term = term
+    tree.root = tree.search.result
+    tree.current_node = tree.search.current_node
 
-  vim.schedule(function()
-    ui.open_search(tree.search.result)
-    if focus_node then
-      ui.focus_node(tree.search.current_node)
-    end
+    vim.schedule(function()
+      ui.open_search(tree.search.result, focus_node and tree.search.current_node)
+    end)
   end)
 end
 
 function M.focus_first_search_result()
   local tree = Tree.get_tree()
-  if not tree then
-    return
-  end
-
-  if tree.search.current_node then
+  if tree and tree.search.current_node then
     ui.focus_node(tree.search.current_node)
   end
 end
@@ -541,38 +517,37 @@ function M.system_open(node)
 
   local args = vim.deepcopy(config.system_open.args)
   table.insert(args, node.link_to or node.path)
-  job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, error)
+  job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, stderr)
     if code ~= 0 then
       vim.schedule(function()
-        utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, error))
+        stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
+        stderr = table.concat(stderr, " ")
+        utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, stderr))
       end)
     end
   end)
 end
 
 ---@param bufnr number
-function M.on_win_leave(bufnr)
-  if not Tree.get_tree() then
-    return
-  end
-
+local function on_win_leave(bufnr)
   ui.on_win_leave(bufnr)
 end
 
-function M.on_color_scheme()
+local function on_color_scheme()
   ui.setup_highlights()
+  M.redraw()
 end
 
-function M.on_tab_new_entered()
+local function on_tab_new_entered()
   M.open({ focus = config.auto_open.focus_tree })
 end
 
-function M.on_tab_enter()
+local function on_tab_enter()
   M.redraw()
 end
 
 ---@param tabpage number
-function M.on_tab_closed(tabpage)
+local function on_tab_closed(tabpage)
   local tree = Tree.get_tree({ tabpage = tabpage })
   if tree then
     for repo, watcher_id in pairs(tree.git_watchers) do
@@ -583,39 +558,10 @@ function M.on_tab_closed(tabpage)
   ui.delete_ui(tabpage)
 end
 
----@param bufnr? number if not specified the current buffer is used.
----@param bufname? string if not specified the current buffer is used.
----@return boolean is_directory, string? path
-local function get_path_from_directory_buffer(bufnr, bufname)
-  bufnr = bufnr or api.nvim_get_current_buf()
-  bufname = bufname or api.nvim_buf_get_name(bufnr)
-  local stat = uv.fs_stat(bufname)
-  if not stat or stat.type ~= "directory" then
-    return false
-  end
-  local buftype = api.nvim_buf_get_option(bufnr, "filetype")
-  if buftype ~= "" then
-    return false
-  end
-
-  log.debug("buffer %s (%s) is buftype %s and stat.type %s", bufnr, bufname, buftype, stat.type)
-  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  if #lines == 0 or (#lines == 1 and lines[1] == "") then
-    return true, fn.expand(bufname)
-  else
-    return false
-  end
-end
-
 ---@param file string
 ---@param bufnr number
-function M.on_buf_new_file(file, bufnr)
-  if not file or file == "" or ui.is_buffer_yatree(bufnr) then
-    return
-  end
-
-  local highlight_open_file = ui.is_highlight_open_file_enabled()
-  if not (config.follow_focused_file or config.replace_netrw or config.move_buffers_from_tree_window or highlight_open_file) then
+local function on_buf_enter(file, bufnr)
+  if ui.is_buffer_yatree(bufnr) then
     return
   end
 
@@ -630,7 +576,7 @@ function M.on_buf_new_file(file, bufnr)
   api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
 
   async.run(function()
-    local is_directory = get_path_from_directory_buffer(bufnr, file)
+    local is_directory = utils.get_path_from_directory_buffer(bufnr, file)
     if is_directory and config.replace_netrw then
       -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
       if file:sub(-1) == utils.os_sep then
@@ -677,25 +623,25 @@ function M.on_buf_new_file(file, bufnr)
       M.open({ tree = tree, focus = true, file = file })
     else
       -- only update the ui iff highlighting of open files is enabled and
-      -- the different config options are set
-      local update_tree = false
+      -- the necessary config options are set
+      local update_ui = false
       if tree and ui.is_current_window_ui() and config.move_buffers_from_tree_window then
         log.debug("moving buffer %s to edit window", bufnr)
         ui.move_buffer_to_edit_window(bufnr)
-        update_tree = highlight_open_file
+        update_ui = ui.is_highlight_open_file_enabled()
       end
       if tree and ui.is_open() and not ui.is_search_open() then
         if config.follow_focused_file then
           tree.current_node = tree.root:expand({ to = file })
           ui.update(tree.root, tree.current_node, { focus_node = true })
           -- avoid updating twice
-          update_tree = false
+          update_ui = false
         else
-          update_tree = highlight_open_file
+          update_ui = ui.is_highlight_open_file_enabled()
         end
       end
 
-      if update_tree then
+      if update_ui then
         ui.update(tree.root)
       end
 
@@ -709,7 +655,7 @@ end
 
 ---@param file string
 ---@param bufnr number
-function M.on_buf_delete(file, bufnr)
+local function on_buf_delete(file, bufnr)
   if not ui.is_open() or not file or file == "" or ui.is_buffer_yatree(bufnr) then
     return
   end
@@ -726,7 +672,7 @@ function M.on_buf_delete(file, bufnr)
 end
 
 ---@param closed_winid number
-function M.on_win_closed(closed_winid)
+local function on_win_closed(closed_winid)
   -- if the closed window was a floating window, do nothing.
   -- otherwise we will quit from a hijacked netrw buffer when using
   -- any form of popup, including command mode
@@ -751,7 +697,7 @@ function M.on_win_closed(closed_winid)
 end
 
 ---@param file string
-function M.on_buf_write_post(file)
+local function on_buf_write_post(file)
   if file then
     ---@type number
     local tabpage = api.nvim_get_current_tabpage()
@@ -777,27 +723,17 @@ function M.on_buf_write_post(file)
   end
 end
 
-function M.on_cursor_moved()
-  if not ui.is_open() then
-    return
-  end
-
-  ui.move_cursor_to_name()
-end
-
-function M.on_dir_changed()
-  ---@type boolean
-  local window_change = vim.v.event.changed_window
+---@param scope '"window"'|'"tabpage"'|'"global"'|'"auto"'
+---@param new_cwd string
+---@param window_change boolean
+local function on_dir_changed(scope, new_cwd, window_change)
+  -- if the autocmd was fire was because of a switch to a tab or window with a different
+  -- cwd than the previous tab/window, it can safely be ignored.
   if window_change then
     return
   end
 
-  ---@type string
-  local new_cwd = vim.v.event.cwd
-  -- the documentation of DirChanged is incorrent, the scope is not 'tab' but 'tabpage'
-  ---@type "'global'"|"'tabpage'"|"'window'"
-  local scope = vim.v.event.scope
-  log.debug("event.scope=%s, event.changed_window=%s, event.cwd=%s", scope, window_change, new_cwd)
+  log.debug("scope=%s, window_change=%s, cwd=%s", scope, window_change, new_cwd)
 
   if scope == "tabpage" then
     local tree = Tree.get_tree()
@@ -813,6 +749,9 @@ function M.on_dir_changed()
     change_root_node_for_tree(tree, new_cwd)
   elseif scope == "global" then
     Tree.for_each_tree(function(tree)
+      -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
+      -- the tree.cwd is always bound to the tab cwd, and the root path of the
+      -- tree doens't have to be checked
       if new_cwd ~= tree.cwd then
         tree.cwd = new_cwd
         change_root_node_for_tree(tree, new_cwd)
@@ -890,45 +829,119 @@ local function setup_netrw()
 end
 
 local function setup_autocommands()
-  vim.cmd("augroup YaTree")
-  vim.cmd("autocmd!")
+  local group = api.nvim_create_augroup("YaTree", { clear = true })
 
-  vim.cmd([[autocmd WinLeave * lua require('ya-tree.lib').on_win_leave(vim.fn.expand('<abuf>'))]])
-  vim.cmd([[autocmd ColorScheme * lua require('ya-tree.lib').on_color_scheme()]])
+  api.nvim_create_autocmd("WinLeave", {
+    group = group,
+    pattern = "*",
+    callback = function(input)
+      on_win_leave(input.buf)
+    end,
+    desc = "Keeping track of which window to open buffers in",
+  })
+  api.nvim_create_autocmd("ColorScheme", {
+    group = group,
+    pattern = "*",
+    callback = function()
+      on_color_scheme()
+    end,
+    desc = "Updating highlights",
+  })
 
   if config.auto_open.on_new_tab then
-    vim.cmd([[autocmd TabNewEntered * lua require('ya-tree.lib').on_tab_new_entered()]])
+    api.nvim_create_autocmd("TabNewEntered", {
+      group = group,
+      pattern = "*",
+      callback = function()
+        on_tab_new_entered()
+      end,
+      desc = "Opening the tree on new tabs",
+    })
   end
-  vim.cmd([[autocmd TabEnter * lua require('ya-tree.lib').on_tab_enter()]])
-  vim.cmd([[autocmd TabClosed * lua require('ya-tree.lib').on_tab_closed(vim.fn.expand('<afile>'))]])
+  api.nvim_create_autocmd("TabEnter", {
+    group = group,
+    pattern = "*",
+    callback = function()
+      on_tab_enter()
+    end,
+    desc = "Redraw the tree when switching tabs",
+  })
+  api.nvim_create_autocmd("TabClosed", {
+    group = group,
+    pattern = "*",
+    callback = function(input)
+      on_tab_closed(tonumber(input.match))
+    end,
+    desc = "Remove tab-specific tree",
+  })
 
-  vim.cmd([[autocmd BufEnter,BufNewFile * lua require('ya-tree.lib').on_buf_new_file(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
+  local highlight_open_file = ui.is_highlight_open_file_enabled()
+  if config.follow_focused_file or config.replace_netrw or config.move_buffers_from_tree_window or highlight_open_file then
+    api.nvim_create_autocmd({ "BufEnter", "BufNewFile" }, {
+      group = group,
+      pattern = "*",
+      callback = function(input)
+        on_buf_enter(input.file, input.buf)
+      end,
+      desc = "Current file highlighting in tree, and directory buffers handling",
+    })
+  end
   if ui.is_highlight_open_file_enabled() then
-    vim.cmd([[autocmd BufDelete * lua require('ya-tree.lib').on_buf_delete(vim.fn.expand('<afile>:p'), vim.fn.expand('<abuf>'))]])
+    api.nvim_create_autocmd("BufDelete", {
+      group = group,
+      pattern = "*",
+      callback = function(input)
+        on_buf_delete(input.file, input.buf)
+      end,
+      desc = "Current file highlighting in the tree",
+    })
   end
 
   if config.auto_close then
-    vim.cmd([[autocmd WinClosed * lua require('ya-tree.lib').on_win_closed(vim.fn.expand('<amatch>'))]])
+    api.nvim_create_autocmd("WinClosed", {
+      group = group,
+      pattern = "*",
+      callback = function(input)
+        on_win_closed(tonumber(input.match))
+      end,
+      desc = "Close Neovim when the tree is the last window",
+    })
   end
   if config.auto_reload_on_write then
-    vim.cmd([[autocmd BufWritePost * lua require('ya-tree.lib').on_buf_write_post(vim.fn.expand('<afile>:p'))]])
-  end
-  if config.hijack_cursor then
-    vim.cmd([[autocmd CursorMoved YaTree* lua require('ya-tree.lib').on_cursor_moved()]])
+    api.nvim_create_autocmd("BufWritePost", {
+      group = group,
+      pattern = "*",
+      callback = function(input)
+        on_buf_write_post(input.file)
+      end,
+      desc = "Reload tree on buffer writes",
+    })
   end
   if config.cwd.follow then
-    vim.cmd([[autocmd DirChanged * lua require('ya-tree.lib').on_dir_changed()]])
+    api.nvim_create_autocmd("DirChanged", {
+      group = group,
+      pattern = "*",
+      callback = function(input)
+        -- currently not available in the table passed to the callback
+        ---@type boolean
+        local window_change = vim.v.event.changed_window
+        on_dir_changed(input.match, input.file, window_change)
+      end,
+      desc = "Update tree root when the current cwd changes",
+    })
   end
   if config.diagnostics.enable then
-    M.on_diagnostics_changed = debounce_trailing(on_diagnostics_changed, config.diagnostics.debounce_time)
-    vim.cmd([[autocmd DiagnosticChanged * lua require('ya-tree.lib').on_diagnostics_changed()]])
+    api.nvim_create_autocmd("DiagnosticChanged", {
+      group = group,
+      pattern = "*",
+      callback = debounce_trailing(on_diagnostics_changed, config.diagnostics.debounce_time),
+      desc = "Diagnostic icons in the tree",
+    })
   end
-
-  vim.cmd("augroup END")
 end
 
----@param on_complete? fun() function to call when setup has completed
-function M.setup(on_complete)
+function M.setup()
+  setting_up = true
   config = require("ya-tree.config").config
 
   setup_netrw()
@@ -937,14 +950,16 @@ function M.setup(on_complete)
   ---@type string
   local root_path
   if config.replace_netrw then
-    is_directory, root_path = get_path_from_directory_buffer()
+    is_directory, root_path = utils.get_path_from_directory_buffer()
   end
   if not is_directory then
     root_path = uv.cwd()
   end
 
+  ---@type number
+  local tabpage = api.nvim_get_current_tabpage()
   async.run(function()
-    local tree = Tree.get_tree({ root_path = root_path })
+    local tree = Tree.get_tree({ tabpage = tabpage, root_path = root_path })
     if tree.root.repo and config.git.watch_git_dir then
       attach_git_change_listener(tree, tree.root.repo)
     end
@@ -958,9 +973,8 @@ function M.setup(on_complete)
       -- the autocmds must be set up last, this avoids triggering the BufNewFile event,
       -- if the initial buffer is a directory
       setup_autocommands()
-      if on_complete then
-        on_complete()
-      end
+
+      setting_up = false
     end)
   end)
 end

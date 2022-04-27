@@ -1,4 +1,3 @@
-local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local ui = require("ya-tree.ui")
 local clipboard = require("ya-tree.actions.clipboard")
@@ -9,127 +8,98 @@ local log = require("ya-tree.log")
 
 local M = {}
 
----@type table<string, ActionCommand>
-local commands = {}
+---@class YaTreeAction
+---@field fun fun(node: YaTreeNode)
+---@field desc string
 
----@type table<string, fun(node: YaTreeNode, config: YaTreeConfig): nil>
+---@type table<string, YaTreeAction>
 local actions = {
-  ["open"] = files.open,
-  ["vsplit"] = files.vsplit,
-  ["split"] = files.split,
-  ["preview"] = files.preview,
-  ["add"] = files.add,
-  ["rename"] = files.rename,
-  ["delete"] = files.delete,
-  ["trash"] = files.trash,
+  ["open"] = { fun = files.open, desc = "Open file or directory" },
+  ["vsplit"] = { fun = files.vsplit, desc = "Open file in vertical split" },
+  ["split"] = { fun = files.split, desc = "Open file in split" },
+  ["preview"] = { fun = files.preview, desc = "Open files (keep cursor in tree)" },
+  ["add"] = { fun = files.add, desc = "Add file or directory" },
+  ["rename"] = { fun = files.rename, desc = "Rename file or directory" },
+  ["delete"] = { fun = files.delete, desc = "Delete files and directories" },
+  ["trash"] = { fun = files.trash, desc = "Trash files and directories" },
 
-  ["copy_node"] = clipboard.copy_node,
-  ["cut_node"] = clipboard.cut_node,
-  ["paste_nodes"] = clipboard.paste_nodes,
-  ["clear_clipboard"] = clipboard.clear_clipboard,
-  ["copy_name_to_clipboard"] = clipboard.copy_name_to_clipboard,
-  ["copy_root_relative_path_to_clipboard"] = clipboard.copy_root_relative_path_to_clipboard,
-  ["copy_absolute_path_to_clipboard"] = clipboard.copy_absolute_path_to_clipboard,
+  ["copy_node"] = { fun = clipboard.copy_node, desc = "Select files and directories for copy" },
+  ["cut_node"] = { fun = clipboard.cut_node, desc = "Select files and directories for cut" },
+  ["paste_nodes"] = { fun = clipboard.paste_nodes, desc = "Paste files and directories" },
+  ["clear_clipboard"] = { fun = clipboard.clear_clipboard, desc = "Clear selected files and directories" },
+  ["copy_name_to_clipboard"] = { fun = clipboard.copy_name_to_clipboard, desc = "Copy node name to system clipboard" },
+  ["copy_root_relative_path_to_clipboard"] = {
+    fun = clipboard.copy_root_relative_path_to_clipboard,
+    desc = "Copy root-relative path to system clipboard",
+  },
+  ["copy_absolute_path_to_clipboard"] = {
+    fun = clipboard.copy_absolute_path_to_clipboard,
+    desc = "Copy absolute path to system clipboard",
+  },
 
-  ["live_search"] = search.live_search,
-  ["search"] = search.search,
-  ["clear_search"] = lib.clear_search,
+  ["live_search"] = { fun = search.live_search, desc = "Live search" },
+  ["search"] = { fun = search.search, desc = "Search" },
+  ["clear_search"] = { fun = lib.clear_search, desc = "Clear search result" },
 
-  ["close_window"] = lib.close,
-  ["close_node"] = lib.close_node,
-  ["close_all_nodes"] = lib.close_all_nodes,
-  ["cd_to"] = lib.cd_to,
-  ["cd_up"] = lib.cd_up,
-  ["parent_node"] = lib.parent_node,
-  ["prev_sibling"] = lib.prev_sibling,
-  ["next_sibling"] = lib.next_sibling,
-  ["first_sibling"] = lib.first_sibling,
-  ["last_sibling"] = lib.last_sibling,
-  ["prev_git_item"] = lib.prev_git_item,
-  ["next_git_item"] = lib.next_git_item,
-  ["toggle_ignored"] = lib.toggle_ignored,
-  ["toggle_filter"] = lib.toggle_filter,
-  ["refresh"] = lib.refresh,
-  ["rescan_dir_for_git"] = lib.rescan_dir_for_git,
-  ["open_help"] = lib.open_help,
-  ["system_open"] = lib.system_open,
+  ["close_window"] = { fun = lib.close, desc = "Close the tree window" },
+  ["close_node"] = { fun = lib.close_node, desc = "Close directory" },
+  ["close_all_nodes"] = { fun = lib.close_all_nodes, desc = "Close all directories" },
+  ["cd_to"] = { fun = lib.cd_to, desc = "Set tree root to directory" },
+  ["cd_up"] = { fun = lib.cd_up, desc = "Set tree root one level up" },
+  ["parent_node"] = { fun = lib.parent_node, desc = "Go to parent directory" },
+  ["prev_sibling"] = { fun = lib.prev_sibling, desc = "Go to previous sibling node" },
+  ["next_sibling"] = { fun = lib.next_sibling, desc = "Go to next sibling node" },
+  ["first_sibling"] = { fun = lib.first_sibling, desc = "Go to first sibling node" },
+  ["last_sibling"] = { fun = lib.last_sibling, desc = "Go to last sibling node" },
+  ["prev_git_item"] = { fun = lib.prev_git_item, desc = "Go to previous git item" },
+  ["next_git_item"] = { fun = lib.next_git_item, desc = "Go to next git item" },
+  ["toggle_ignored"] = { fun = lib.toggle_ignored, desc = "Toggle git ignored files and directories" },
+  ["toggle_filter"] = { fun = lib.toggle_filter, desc = "Toggle filtered files and directories" },
+  ["refresh"] = { fun = lib.refresh, desc = "Refresh the tree" },
+  ["rescan_dir_for_git"] = { fun = lib.rescan_dir_for_git, desc = "Rescan directory for git repo" },
+  ["open_help"] = { fun = lib.open_help, desc = "Open keybindings help" },
+  ["system_open"] = { fun = lib.system_open, desc = "Open the node with the default system application" },
 }
 
----@param id string
-function M.execute(id)
-  local command = commands[id]
-  if not command then
-    utils.warn(string.format("no command for id %q found", id))
-    return
-  end
-  if not command.views[ui.get_view_mode()] then
-    return
-  end
-
-  local node = ui.get_current_node()
-  if command.action then
-    command.action(node, config)
-  elseif command.func then
-    command.func(node, config)
-  end
-end
-
----@class ActionCommand
----@field name string
----@field views table<YaTreeCanvasMode, boolean>
----@field action? fun(node: YaTreeNode, config: YaTreeConfig): nil
----@field func? fun(node: YaTreeNode, config: YaTreeConfig): nil
-
-local next_handler_id = 1
-
 ---@param mapping ActionMapping
----@return string handler_id
-local function assing_handler(mapping)
-  local handler_id = tostring(next_handler_id)
-  local action = mapping.action
-  local func = mapping.func
-  if action then
-    handler_id = action
-    commands[handler_id] = {
-      name = action,
-      action = actions[action],
-      views = mapping.views,
-    }
-  elseif func then
-    commands[handler_id] = {
-      name = mapping.name or "function",
-      func = func,
-      views = mapping.views,
-    }
-    next_handler_id = next_handler_id + 1
-  else
-    utils.warn(string.format("mapping for key %s doesn't have an action or func assigned", vim.inspect(mapping.keys)))
-    return
+---@return function handler
+local function create_keymap_function(mapping)
+  ---@type fun(node: YaTreeNode)
+  local fun
+  if mapping.action then
+    local action = actions[mapping.action]
+    if action and action.fun then
+      fun = action.fun
+    end
+  elseif mapping.func then
+    fun = mapping.func
   end
 
-  return handler_id
+  return function()
+    if fun then
+      if not mapping.views[ui.get_view_mode()] then
+        return
+      end
+
+      fun(ui.get_current_node())
+    end
+  end
 end
 
 ---@param bufnr number
 function M.apply_mappings(bufnr)
-  local opts = { noremap = true, silent = true, nowait = true }
   for _, mapping in pairs(M.mappings) do
     for _, key in ipairs(mapping.keys) do
+      local opts = { remap = false, silent = true, nowait = true, buffer = bufnr, desc = mapping.desc }
+      ---@type string|function
       local rhs
       if mapping.command then
         rhs = mapping.command
       else
-        local handler = assing_handler(mapping)
-        if handler then
-          rhs = string.format("<cmd>lua require('ya-tree.actions').execute('%s')<CR>", handler)
-        end
+        rhs = create_keymap_function(mapping)
       end
 
-      if rhs then
-        if not pcall(vim.api.nvim_buf_set_keymap, bufnr, mapping.mode, key, rhs, opts) then
-          utils.warn(string.format("cannot construct mapping for key=%s", key))
-        end
-      else
+      if not pcall(vim.keymap.set, mapping.mode, key, rhs, opts) then
         utils.warn(string.format("cannot construct mapping for key=%s", key))
       end
     end
@@ -150,6 +120,7 @@ local function validate_and_create_mappings(mappings)
     local action = m.action
     local func = m.func
     local command = m.command
+    local desc = m.desc
     ---@type table<YaTreeCanvasMode, boolean>
     local views = {}
     if not m.views or vim.tbl_contains(m.views, "all") then
@@ -172,6 +143,7 @@ local function validate_and_create_mappings(mappings)
         action = nil
         utils.warn(string.format("key %s is mapped to 'action' %s, which does not exist, mapping ignored!", vim.inspect(keys), m.action))
       else
+        desc = desc or actions[action].desc
         nr_of_mappings = nr_of_mappings + 1
       end
     elseif action then
@@ -200,14 +172,16 @@ local function validate_and_create_mappings(mappings)
         ---@field mode string
         ---@field keys string[]
         ---@field name string
+        ---@field desc? string
         ---@field action? string
-        ---@field func? fun(node: YaTreeNode, config: YaTreeConfig): nil
+        ---@field func? fun(node: YaTreeNode)
         ---@field command? string
         local mapping = {
           views = views,
           mode = mode,
           keys = keys,
           name = action and action or (func and "'<function>'") or (command and ('"' .. command .. '"')),
+          desc = desc,
           action = action,
           func = func,
           command = command,
@@ -225,8 +199,7 @@ local function validate_and_create_mappings(mappings)
 end
 
 function M.setup()
-  config = require("ya-tree.config").config
-  M.mappings = validate_and_create_mappings(config.mappings)
+  M.mappings = validate_and_create_mappings(require("ya-tree.config").config.mappings)
 end
 
 return M
