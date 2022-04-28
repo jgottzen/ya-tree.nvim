@@ -93,7 +93,7 @@ end
 ---@field private _git_status table<string, string>
 ---@field private _ignored string[]
 ---@field private _git_dir_watcher? luv_fs_watcher
----@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number)>
+---@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)>
 local Repo = M.Repo
 Repo.__index = Repo
 
@@ -180,7 +180,7 @@ function Repo:command(args, null_terminated)
   return result
 end
 
----@param fun async fun(repo: GitRepo, watcher_id: number):nil
+---@param fun async fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)
 ---@return string watcher_id
 function Repo:add_git_change_listener(fun)
   if not self._git_dir_watcher then
@@ -192,7 +192,7 @@ function Repo:add_git_change_listener(fun)
       end
 
       if vim.tbl_count(self._git_watchers) == 0 then
-        log.error("the fs_poll callback was called without and registered listeners")
+        log.error("the fs_poll callback was called without any registered listeners")
         self._git_dir_watcher:stop()
         self._git_dir_watcher = nil
         return
@@ -200,14 +200,12 @@ function Repo:add_git_change_listener(fun)
 
       scheduler()
 
-      -- TODO: Add logic for detecting renames/deletes so that
-      -- the listeners can do a filesystem refresh
-      self:refresh_status({ ignored = true })
+      local fs_changes = self:refresh_status({ ignored = true })
 
       scheduler()
 
       for watcher_id, watcher in pairs(self._git_watchers) do
-        pcall(watcher, self, watcher_id)
+        pcall(watcher, self, watcher_id, fs_changes)
       end
     end
 
@@ -259,6 +257,7 @@ end
 
 ---@param opts? { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
+---@return boolean fs_changes
 function Repo:refresh_status(opts)
   opts = opts or {}
   -- use "-z" , otherwise bytes > 0x80 will be quoted, eg octal \303\244 for "ä"
@@ -293,6 +292,7 @@ function Repo:refresh_status(opts)
   self._git_status = {}
   self._ignored = {}
 
+  local fs_changes = false
   local size = #results
   local i = 1
   while i <= size do
@@ -301,12 +301,13 @@ function Repo:refresh_status(opts)
     if line_type == "#" then
       self:_parse_porcelainv2_header_row(line)
     elseif line_type == "1" then
-      self:_parse_porcelainv2_change_row(line)
+      fs_changes = self:_parse_porcelainv2_change_row(line) or fs_changes
     elseif line_type == "2" then
       -- the new and original paths are separated by NUL,
       -- the original path isn't currently used, so just step over it
       i = i + 1
       self:_parse_porcelainv2_rename_row(line)
+      fs_changes = true
     elseif line_type == "u" then
       self:_parse_porcelainv2_merge_row(line)
     elseif line_type == "?" then
@@ -319,6 +320,8 @@ function Repo:refresh_status(opts)
 
     i = i + 1
   end
+
+  return fs_changes
 end
 
 ---@param toplevel string the toplevel path
@@ -367,6 +370,7 @@ end
 
 ---@private
 ---@param line string
+---@return boolean fs_changes
 function Repo:_parse_porcelainv2_change_row(line)
   -- FORMAT
   --
@@ -378,6 +382,7 @@ function Repo:_parse_porcelainv2_change_row(line)
   self._git_status[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
+  return status:sub(1, 1) == "D" or status:sub(2, 2) == "D"
 end
 
 ---@private

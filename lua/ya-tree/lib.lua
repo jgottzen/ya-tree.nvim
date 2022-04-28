@@ -61,7 +61,8 @@ end
 ---@async
 ---@param repo GitRepo
 ---@param watcher_id number
-local function on_git_change(repo, watcher_id)
+---@param fs_changes boolean
+local function on_git_change(repo, watcher_id, fs_changes)
   log.debug("git repo %s changed", tostring(repo))
 
   if vim.v.exiting ~= vim.NIL then
@@ -71,8 +72,14 @@ local function on_git_change(repo, watcher_id)
 
   vim.schedule(function()
     local tree = Tree.get_tree()
-    if tree and ui.is_open() and tree.git_watchers[repo] == watcher_id then
-      ui.update(tree.root)
+    if tree and tree.git_watchers[repo] == watcher_id then
+      if fs_changes then
+        tree.root:refresh({ recurse = true })
+      end
+      if ui.is_open() then
+        tree.current_node = ui.get_current_node()
+        ui.update(tree.root, tree.current_node)
+      end
     end
   end)
 end
