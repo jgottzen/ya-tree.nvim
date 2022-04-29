@@ -81,7 +81,7 @@ local hl_links = {
 
 ---@param name string
 ---@param link? string
----@param highlight {fg: string, bg?: string, bold?: boolean, italic?: boolean}
+---@param highlight? {fg: string, bg?: string, bold?: boolean, italic?: boolean}
 local function create_highlight(name, link, highlight)
   if link then
     api.nvim_set_hl(0, name, { default = true, link = link })

@@ -209,6 +209,7 @@ end
 ---@return RenderResult[]?
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() or (node.depth == 0 and node.repo) then
+    ---@type GitRepo
     local repo = node.repo
     local icon = renderer.icons.remote.default
     if repo.remote_url then
@@ -371,28 +372,31 @@ do
     return git_staus_to_hl[status]
   end
 
-  ---@class icon_and_highligt
+  ---@class IconAndHighlight
   ---@field icon string
   ---@field highlight string
 
-  ---@type table<string, icon_and_highligt[]>
+  ---@class GitIconsAndHighLights
+  ---@field dirty IconAndHighlight[]
+  ---@field staged IconAndHighlight[]
+  ---@field [string] IconAndHighlight[]
   local git_icons_and_hl
 
   ---@param status string
-  ---@return icon_and_highligt[]
+  ---@return IconAndHighlight[]
   function M.helpers.get_git_icons_and_highlights(status)
     return git_icons_and_hl[status] or git_icons_and_hl.dirty
   end
 
-  ---@class text_and_highlight
+  ---@class TextAndHighlight
   ---@field text string
   ---@field highlight string
 
-  ---@type table<number, text_and_highlight>
+  ---@type table<number, TextAndHighlight>
   local diagnostic_icon_and_hl
 
   ---@param severity number
-  ---@return text_and_highlight
+  ---@return TextAndHighlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
     return diagnostic_icon_and_hl[severity]
   end
@@ -400,56 +404,75 @@ do
   ---@param config YaTreeConfig
   function M.setup(config)
     local icons = config.renderers.git_status.icons
-    git_icons_and_hl = {
-      ["M."] = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
-      ["MM"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      ["MT"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
-      ["MD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+    ---@type GitIconsAndHighLights
+    git_icons_and_hl = {}
 
-      ["T."] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED } },
-      ["TM"] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      ["TT"] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
-      ["TD"] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
+    git_icons_and_hl["M."] = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["MM"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["MT"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["MD"] = { { icon = icons.staged, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
 
-      ["A."] = { { icon = icons.added, highlight = hl.GIT_STAGED } },
-      ["AM"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      ["AT"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
-      ["AD"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
-
-      ["D."] = { { icon = icons.deleted, highlight = hl.GIT_STAGED } },
-
-      ["R."] = { { icon = icons.renamed, highlight = hl.GIT_STAGED } },
-      ["RM"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      ["RT"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
-      ["RD"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
-
-      ["C."] = { { icon = icons.copied, highlight = hl.GIT_STAGED } },
-      ["CM"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      ["CT"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
-      ["CD"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } },
-
-      [".A"] = { { icon = icons.added, highlight = hl.GIT_NEW } },
-      [".M"] = { { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      [".T"] = { { icon = icons.type_changed, highlight = hl.GIT_DIRTY } },
-      [".D"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } },
-      [".R"] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } },
-
-      ["DD"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_DELETED } },
-      ["DU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.us, highlight = hl.GIT_DELETED } },
-      ["UD"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.them, highlight = hl.GIT_DELETED } },
-
-      ["AA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_NEW } },
-      ["AU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.us, highlight = hl.GIT_NEW } },
-      ["UA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.them, highlight = hl.GIT_NEW } },
-
-      ["UU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_DIRTY } },
-
-      ["!"] = { { icon = icons.ignored, highlight = hl.GIT_IGNORED } },
-      ["?"] = { { icon = icons.untracked, highlight = hl.GIT_UNTRACKED } },
-
-      dirty = { { icon = icons.modified, highlight = hl.GIT_DIRTY } },
-      staged = { { icon = icons.staged, highlight = hl.GIT_STAGED } },
+    git_icons_and_hl["T."] = { { icon = icons.type_changed, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["TM"] = {
+      { icon = icons.type_changed, highlight = hl.GIT_STAGED },
+      { icon = icons.modified, highlight = hl.GIT_DIRTY },
     }
+    git_icons_and_hl["TT"] = {
+      { icon = icons.type_changed, highlight = hl.GIT_STAGED },
+      { icon = icons.type_changed, highlight = hl.GIT_DIRTY },
+    }
+    git_icons_and_hl["TD"] = {
+      { icon = icons.type_changed, highlight = hl.GIT_STAGED },
+      { icon = icons.deleted, highlight = hl.GIT_DIRTY },
+    }
+
+    git_icons_and_hl["A."] = { { icon = icons.added, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["AM"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["AT"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["AD"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
+
+    git_icons_and_hl["D."] = { { icon = icons.deleted, highlight = hl.GIT_STAGED } }
+
+    git_icons_and_hl["R."] = { { icon = icons.renamed, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["RM"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["RT"] = {
+      { icon = icons.renamed, highlight = hl.GIT_STAGED },
+      { icon = icons.type_changed, highlight = hl.GIT_DIRTY },
+    }
+    git_icons_and_hl["RD"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
+
+    git_icons_and_hl["C."] = { { icon = icons.copied, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["CM"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["CT"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl["CD"] = { { icon = icons.copied, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
+
+    git_icons_and_hl[".A"] = { { icon = icons.added, highlight = hl.GIT_NEW } }
+    git_icons_and_hl[".M"] = { { icon = icons.modified, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl[".T"] = { { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl[".D"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } }
+    git_icons_and_hl[".R"] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } }
+
+    git_icons_and_hl["DD"] = {
+      { icon = icons.unmerged, highlight = hl.GIT_MERGE },
+      { icon = icons.merge.both, highlight = hl.GIT_DELETED },
+    }
+    git_icons_and_hl["DU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.us, highlight = hl.GIT_DELETED } }
+    git_icons_and_hl["UD"] = {
+      { icon = icons.unmerged, highlight = hl.GIT_MERGE },
+      { icon = icons.merge.them, highlight = hl.GIT_DELETED },
+    }
+
+    git_icons_and_hl["AA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_NEW } }
+    git_icons_and_hl["AU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.us, highlight = hl.GIT_NEW } }
+    git_icons_and_hl["UA"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.them, highlight = hl.GIT_NEW } }
+
+    git_icons_and_hl["UU"] = { { icon = icons.unmerged, highlight = hl.GIT_MERGE }, { icon = icons.merge.both, highlight = hl.GIT_DIRTY } }
+
+    git_icons_and_hl["!"] = { { icon = icons.ignored, highlight = hl.GIT_IGNORED } }
+    git_icons_and_hl["?"] = { { icon = icons.untracked, highlight = hl.GIT_UNTRACKED } }
+
+    git_icons_and_hl.dirty = { { icon = icons.modified, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl.staged = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
 
     git_staus_to_hl = {}
     for k, v in pairs(git_icons_and_hl) do
@@ -460,7 +483,9 @@ do
       end
     end
 
+    ---@type table<number, TextAndHighlight>
     diagnostic_icon_and_hl = {}
+
     ---@type table<number, string[]>
     local map = {}
     map[vim.diagnostic.severity.ERROR] = { "Error", "Error" }

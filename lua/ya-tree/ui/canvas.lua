@@ -50,7 +50,7 @@ local win_options = {
 
 local tab_var_barbar_set_name = "_YaTreeBarbar"
 
----@alias YaTreeCanvasMode '"tree"'|'"search"'
+---@alias YaTreeCanvasMode "tree"|"search"
 
 ---@class YaTreeCanvas
 ---@field private winid number
@@ -166,7 +166,7 @@ end
 ---@param bufnr number
 function Canvas:move_buffer_to_edit_window(bufnr)
   if self.winid and self.edit_winid and self.bufnr then
-    log.debug("moving buffer %s from window %s to window %s", bufnr, api.nvim_get_current_win(), self.edit_winid)
+    log.debug("moving buffer %s from window %s to window %s", bufnr, self.winid, self.edit_winid)
 
     self:restore()
     api.nvim_win_set_buf(self.edit_winid, bufnr)

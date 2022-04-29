@@ -224,7 +224,7 @@ end
 ---@param mode string
 ---@param key string
 ---@param rhs function|string
----@param opts? table<"'remap'"|"'nowait'"|"'silent'"|"'script'"|"'expr'"|"'unique'"|"'desc'", boolean>
+---@param opts? table<"remap"|"nowait"|"silent"|"script"|"expr"|"unique"|"desc", boolean>
 function Input:map(mode, key, rhs, opts)
   if not self.winid then
     error("Input not shown yet, call Input:open()")

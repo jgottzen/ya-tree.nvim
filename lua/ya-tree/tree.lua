@@ -34,17 +34,24 @@ local function tree_tostring(tree)
   return string.format("(cwd=%q, root=%q)", tree.cwd, tree.root.path)
 end
 
----@param opts {tabpage?: number, create_if_missing?: boolean, root_path?: string}
----  - {opts.tabpage?} `number`
----  - {opts.create_if_missing?} `boolean`
----  - {opts.root_path?} `string`
+---@param tabpage? number
 ---@return YaTree? tree
-function M.get_tree(opts)
+function M.get_tree(tabpage)
+  ---@type number
+  tabpage = tabpage or api.nvim_get_current_tabpage()
+  return M._trees[tostring(tabpage)]
+end
+
+---@param opts? {tabpage?: number, root_path?: string}
+---  - {opts.tabpage?} `number`
+---  - {opts.root_path?} `string`
+---@return YaTree tree
+function M.get_or_create_tree(opts)
   opts = opts or {}
   ---@type number
   local tabpage = opts.tabpage or api.nvim_get_current_tabpage()
   local tree = M._trees[tostring(tabpage)]
-  if not tree and (opts.create_if_missing or opts.root_path) then
+  if not tree then
     ---@type string
     local cwd = uv.cwd()
     ---@type string

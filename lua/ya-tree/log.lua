@@ -38,7 +38,7 @@ function logger.warn(msg, ...) end
 ---@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.error(msg, ...) end
 
----@alias LogLevel "'trace'"|"'debug'"|"'info'"|"'warn'"|"'error'"
+---@alias LogLevel "trace"|"debug"|"info"|"warn"|"error"
 
 ---@class YaTreeLoggerConfig
 ---@field level LogLevel
@@ -64,10 +64,11 @@ local fmt = string.format
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 
----@param config? YaTreeLoggerConfig
+---@param opts? YaTreeLoggerConfig
 ---@return YaTreeLogger
-function logger.new(config)
-  config = vim.tbl_deep_extend("force", default, config or {})
+function logger.new(opts)
+  ---@type YaTreeLoggerConfig
+  local config = vim.tbl_deep_extend("force", default, opts or {})
 
   local log_file = fmt("%s/%s.log", vim.fn.stdpath("data"), config.name)
   ---@type YaTreeLogger
@@ -168,7 +169,7 @@ function logger.new(config)
           file:write(fmt_message .. "\n")
           file:close()
         else
-          error("[simple-log] Could not open log file: " .. log_file)
+          error("Could not open log file: " .. log_file)
           self.config.to_file = false
         end
       end)

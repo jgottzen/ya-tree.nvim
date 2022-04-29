@@ -42,7 +42,7 @@ local function windowize_path(path)
 end
 
 ---@param path string
----@param cmd string
+---@param cmd? string
 ---@return string toplevel, string git_dir, string branch
 local function get_repo_info(path, cmd)
   local args = {
@@ -74,8 +74,8 @@ local function get_repo_info(path, cmd)
 end
 
 ---@class luv_fs_watcher
----@field start fun(path: string, interval: number, callback: fun(err: string))
----@field stop fun()
+---@field start fun(self: luv_fs_watcher, path: string, interval: number, callback: fun(err: string))
+---@field stop fun(self: luv_fs_watcher)
 
 ---@class GitRepo
 ---@field public toplevel string
@@ -104,7 +104,7 @@ Repo.__tostring = function(self)
 end
 
 ---@param path string
----@return GitRepo|nil repo #a `Repo` object or `nil` if the path is not in a git repo.
+---@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
@@ -162,7 +162,7 @@ function Repo:is_yadm()
 end
 
 ---@param args string[]
----@param null_terminated boolean
+---@param null_terminated? boolean
 ---@return string[]
 function Repo:command(args, null_terminated)
   if not self._git_dir then

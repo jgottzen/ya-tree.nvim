@@ -152,7 +152,7 @@ function M.live_search(node)
       async.run(function()
         scheduler()
         search(term, node, false, config)
-      end)
+      end, nil)
     end)
   end
 

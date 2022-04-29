@@ -11,7 +11,7 @@ local log = require("ya-tree.log")
 
 local M = {}
 
----@alias cmdmode '"edit"'|'"vsplit"'|'"split"'
+---@alias cmdmode "edit"|"vsplit"|"split"
 
 ---@param node YaTreeNode
 ---@param cmd cmdmode
@@ -74,55 +74,51 @@ function M.add(node)
     node = node.parent
   end
 
-  async.run(function()
-    scheduler()
+  ---@type string
+  local prompt = "New file (an ending " .. utils.os_sep .. " will create a directory):"
+  local input = Input:new({ title = prompt, width = #prompt + 4 }, {
+    ---@param name string
+    on_submit = function(name)
+      vim.schedule(function()
+        ui.reset_window()
 
-    ---@type string
-    local prompt = "New file (an ending " .. utils.os_sep .. " will create a directory):"
-    local input = Input:new({ title = prompt, width = #prompt + 4 }, {
-      ---@param name string
-      on_submit = function(name)
-        vim.schedule(function()
-          ui.reset_window()
+        if not name then
+          utils.notify("No name given, not creating new file/directory")
+          return
+        end
 
-          if not name then
-            utils.notify("No name given, not creating new file/directory")
+        local new_path = utils.join_path(node.path, name)
+
+        if vim.endswith(new_path, utils.os_sep) then
+          new_path = new_path:sub(1, -2)
+          if fs.exists(new_path) then
+            utils.warn(string.format("%q already exists!", new_path))
             return
           end
 
-          local new_path = utils.join_path(node.path, name)
-
-          if vim.endswith(new_path, utils.os_sep) then
-            new_path = new_path:sub(1, -2)
-            if fs.exists(new_path) then
-              utils.warn(string.format("%q already exists!", new_path))
-              return
-            end
-
-            if fs.create_dir(new_path) then
-              utils.notify(string.format("Created directory %q", new_path))
-              lib.refresh_and_navigate(new_path)
-            else
-              utils.warn(string.format("Failed to create directory %q", new_path))
-            end
+          if fs.create_dir(new_path) then
+            utils.notify(string.format("Created directory %q", new_path))
+            lib.refresh_and_navigate(new_path)
           else
-            if fs.exists(new_path) then
-              utils.warn(string.format("%q already exists!", new_path))
-              return
-            end
-
-            if fs.create_file(new_path) then
-              utils.notify(string.format("Created file %q", new_path))
-              lib.refresh_and_navigate(new_path)
-            else
-              utils.warn(string.format("Failed to create file %q", new_path))
-            end
+            utils.warn(string.format("Failed to create directory %q", new_path))
           end
-        end)
-      end,
-    })
-    input:open()
-  end)
+        else
+          if fs.exists(new_path) then
+            utils.warn(string.format("%q already exists!", new_path))
+            return
+          end
+
+          if fs.create_file(new_path) then
+            utils.notify(string.format("Created file %q", new_path))
+            lib.refresh_and_navigate(new_path)
+          else
+            utils.warn(string.format("Failed to create file %q", new_path))
+          end
+        end
+      end)
+    end,
+  })
+  input:open()
 end
 
 ---@param node YaTreeNode
@@ -218,7 +214,7 @@ function M.delete()
     end
 
     lib.refresh(selected_node)
-  end)
+  end, nil)
 end
 
 ---@param _ YaTreeNode
@@ -265,7 +261,7 @@ function M.trash(_)
         end)
       end)
     end
-  end)
+  end, nil)
 end
 
 return M

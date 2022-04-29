@@ -14,7 +14,7 @@ local function is_empty(path)
   return handle and uv.fs_scandir_next(handle) == nil or false
 end
 
----@alias file_type "'directory'"|"'file'"
+---@alias file_type "directory"|"file"
 
 ---@class FsNode
 ---@field name string
@@ -213,11 +213,11 @@ function M.copy_dir(source, destination, replace)
       end
 
       if _type == "directory" then
-        if not M.copy_dir({ source_path, name }, { destination_path, name }) then
+        if not M.copy_dir({ source_path, name }, { destination_path, name }, false) then
           return false
         end
       else
-        if not M.copy_file({ source_path, name }, { destination_path, name }) then
+        if not M.copy_file({ source_path, name }, { destination_path, name }, false) then
           return false
         end
       end

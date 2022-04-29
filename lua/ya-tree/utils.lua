@@ -16,26 +16,32 @@ M.is_linux = fn.has("unix") == 1
 
 do
   ---@type table<string, boolean>
-  local pathexts = {}
-  local pathext = vim.env.PATHEXT or ""
+  local extensions = {}
   ---@type string[]
-  local wexe = vim.split(pathext:gsub("%.", ""), ";")
-  for _, v in pairs(wexe) do
-    pathexts[v:upper()] = true
+  local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";")
+  for _, extension in pairs(splits) do
+    extensions[extension:upper()] = true
   end
 
   ---@param extension string
   ---@return boolean
   function M.is_windows_exe(extension)
-    return pathexts[extension:upper()] or false
+    return extensions[extension:upper()] or false
   end
+end
+
+---@param path string
+---@return boolean is_directory
+function M.is_directory(path)
+  local stat = uv.fs_stat(path)
+  return stat and stat.type == "directory" or false
 end
 
 ---@param path string
 ---@return boolean
 function M.is_readable_file(path)
   local stat = uv.fs_stat(path)
-  return stat and stat.type == "file" and uv.fs_access(path, "R")
+  return stat and stat.type == "file" and uv.fs_access(path, "R") or false
 end
 
 ---@param first string
@@ -52,14 +58,11 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
----@param bufnr? number if not specified the current buffer is used.
----@param bufname? string if not specified the current buffer is used.
 ---@return boolean is_directory, string? path
-function M.get_path_from_directory_buffer(bufnr, bufname)
-  bufnr = bufnr or api.nvim_get_current_buf()
-  bufname = bufname or api.nvim_buf_get_name(bufnr)
-  local stat = uv.fs_stat(bufname)
-  if not stat or stat.type ~= "directory" then
+function M.get_path_from_directory_buffer()
+  local bufnr = api.nvim_get_current_buf()
+  local bufname = api.nvim_buf_get_name(bufnr)
+  if not M.is_directory(bufname) then
     return false
   end
   local buftype = api.nvim_buf_get_option(bufnr, "filetype")
@@ -69,7 +72,7 @@ function M.get_path_from_directory_buffer(bufnr, bufname)
 
   local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
   if #lines == 0 or (#lines == 1 and lines[1] == "") then
-    return true, fn.expand(bufname)
+    return true, bufname
   else
     return false
   end

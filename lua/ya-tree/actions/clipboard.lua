@@ -17,7 +17,7 @@ local M = {
   queue = {},
 }
 
----@alias clipboard_action "'copy'"|"'cut'"
+---@alias clipboard_action "copy"|"cut"
 
 ---@type clipboard_action
 local copy_action, cut_action = "copy", "cut"
@@ -166,7 +166,7 @@ function M.paste_nodes(node)
     else
       utils.notify("Nothing in clipboard")
     end
-  end)
+  end, nil)
 end
 
 function M.clear_clipboard()

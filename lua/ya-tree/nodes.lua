@@ -77,7 +77,6 @@ function M.root(path, old_root)
     name = vim.fn.fnamemodify(path, ":t"),
     type = "directory",
     path = path,
-    children = {},
   })
 
   root.repo = git.Repo:new(root.path)
@@ -90,12 +89,12 @@ function M.root(path, old_root)
   -- add it to the tree
   if old_root then
     if Path:new(old_root.path):parent().filename == root.path then
-      root.children[#root.children + 1] = old_root
+      root.children = { old_root }
       old_root.parent = root
     end
   end
 
-  -- force rescan of the directory
+  -- force scan of the directory
   root:expand({ force_scan = true })
 
   return root
@@ -271,7 +270,7 @@ end
 
 ---Returns an iterator function for this `node`s children.
 --
----@param opts { reverse?: boolean, from?: YaTreeNode }
+---@param opts? { reverse?: boolean, from?: YaTreeNode }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} `YatreeNode`
 ---@return fun():YaTreeNode iterator

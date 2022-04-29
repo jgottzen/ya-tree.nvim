@@ -19,6 +19,7 @@ local M = {
 
 ---@param tabpage number
 function M.delete_ui(tabpage)
+  ---@type string
   tabpage = tostring(tabpage)
   if M._tabs[tabpage] then
     M._tabs[tabpage].canvas:delete()
@@ -53,6 +54,7 @@ function M.open(root, node, opts)
   local tabpage = tostring(api.nvim_get_current_tabpage())
   local tab = M._tabs[tabpage]
   if not tab then
+    ---@type TabData
     tab = setmetatable({ canvas = Canvas:new() }, { __tostring = tab_tostring })
     M._tabs[tabpage] = tab
   end
@@ -172,6 +174,7 @@ end
 ---@param winid? number
 ---@return boolean is_floating
 function M.is_window_floating(winid)
+  ---@type table
   local win_config = api.nvim_win_get_config(winid or 0)
   return win_config.relative > "" or win_config.external
 end

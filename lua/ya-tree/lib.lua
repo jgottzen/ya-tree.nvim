@@ -38,7 +38,7 @@ end
 ---@param tree YaTree
 ---@param path? string
 ---@return string|nil path #the fully resolved path, or `nil`
-local function resolve_path(tree, path)
+local function resolve_path_in_tree(tree, path)
   if not path or path == "" then
     local bufname = fn.bufname()
     local file = fn.fnamemodify(bufname, ":p")
@@ -52,7 +52,13 @@ local function resolve_path(tree, path)
     log.debug("expanded cwd relative path to %s", path)
   end
 
+    -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
+    if path and path:sub(-1) == utils.os_sep then
+      path = path:sub(1, -2)
+    end
+
   if path and path:find(tree.root.path, 1, true) then
+    log.debug("found path %q in tree root %q", path, tree.root.path)
     -- the path is located in the tree
     return path
   end
@@ -109,7 +115,7 @@ function M.open(opts)
     async.run(function()
       opts = opts or {}
       ---@type YaTree
-      local tree = opts.tree or Tree.get_tree({ create_if_missing = true })
+      local tree = opts.tree or Tree.get_or_create_tree()
       -- if a tree was passed as a parameter, then the caller should set up any watchers
       if not opts.tree and tree.root.repo and config.git.watch_git_dir then
         attach_git_change_listener(tree, tree.root.repo)
@@ -118,7 +124,7 @@ function M.open(opts)
       ---@type YaTreeNode
       local node
       if opts.file then
-        local file = resolve_path(tree, opts.file)
+        local file = resolve_path_in_tree(tree, opts.file)
         if file then
           node = file and tree.root:expand({ to = file })
           log.debug("navigating to %q", file)
@@ -131,7 +137,7 @@ function M.open(opts)
         tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
         ui.open(tree.root, tree.current_node, { hijack_buffer = opts.hijack_buffer, focus = opts.focus })
       end)
-    end)
+    end, nil)
   end
 end
 
@@ -177,7 +183,7 @@ function M.toggle_directory(node)
     vim.schedule(function()
       ui.update(tree.root)
     end)
-  end)
+  end, nil)
 end
 
 ---@param node YaTreeNode
@@ -269,7 +275,7 @@ local function change_root_node_for_tree(tree, new_root)
         ui.update(tree.root, tree.current_node)
       end)
     end
-  end)
+  end, nil)
 end
 
 ---@param node YaTreeNode
@@ -422,7 +428,7 @@ local function refresh_current_tree(node_or_path)
       ui.update(tree.root, tree.current_node)
       tree.refreshing = false
     end)
-  end)
+  end, nil)
 end
 
 ---@param node YaTreeNode
@@ -452,11 +458,12 @@ function M.rescan_dir_for_git(node)
       if config.git.watch_git_dir then
         attach_git_change_listener(tree, node.repo)
       end
+
       vim.schedule(function()
         ui.update(tree.root, tree.current_node)
       end)
     end
-  end)
+  end, nil)
 end
 
 ---@param node YaTreeNode
@@ -484,7 +491,7 @@ function M.display_search_result(node, term, search_result, focus_node)
     vim.schedule(function()
       ui.open_search(tree.search.result, focus_node and tree.search.current_node)
     end)
-  end)
+  end, nil)
 end
 
 function M.focus_first_search_result()
@@ -555,7 +562,7 @@ end
 
 ---@param tabpage number
 local function on_tab_closed(tabpage)
-  local tree = Tree.get_tree({ tabpage = tabpage })
+  local tree = Tree.get_tree(tabpage)
   if tree then
     for repo, watcher_id in pairs(tree.git_watchers) do
       repo:remove_git_change_listener(watcher_id)
@@ -583,8 +590,7 @@ local function on_buf_enter(file, bufnr)
   api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
 
   async.run(function()
-    local is_directory = utils.get_path_from_directory_buffer(bufnr, file)
-    if is_directory and config.replace_netrw then
+    if config.replace_netrw and utils.is_directory(file) then
       -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
       if file:sub(-1) == utils.os_sep then
         file = file:sub(1, -2)
@@ -597,7 +603,7 @@ local function on_buf_enter(file, bufnr)
         -- switch back to the previous buffer so the window isn't closed
         vim.cmd("bprevious")
       end
-      log.debug("deleting buffer %s with file %s and path %s", bufnr, file, file)
+      log.debug("deleting buffer %s with file %q", bufnr, file)
       api.nvim_buf_delete(bufnr, { force = true })
       -- force barbar update, otherwise a ghost tab for the buffer can remain
       if type(fn["bufferline#update"]) == "function" then
@@ -611,10 +617,12 @@ local function on_buf_enter(file, bufnr)
         local cwd = uv.cwd()
         if file:find(cwd, 1, true) then
           log.debug("requested directory is a subpath of the current cwd %q, opening tree with root at cwd", cwd)
-          tree = Tree.get_tree({ create_if_missing = true })
+          ---@type YaTree
+          tree = Tree.get_or_create_tree()
         else
           log.debug("requested directory is not a subpath of the current cwd %q, opening tree with root of the requested path", cwd)
-          tree = Tree.get_tree({ root_path = file })
+          ---@type YaTree
+          tree = Tree.get_or_create_tree({ root_path = file })
         end
 
         if tree.root.repo and config.git.watch_git_dir then
@@ -648,7 +656,7 @@ local function on_buf_enter(file, bufnr)
         end
       end
 
-      if update_ui then
+      if tree and update_ui then
         ui.update(tree.root)
       end
 
@@ -657,7 +665,7 @@ local function on_buf_enter(file, bufnr)
         log.error("couldn't delete YaTree_on_buf_new_file var on buffer %s, file %s, message=%q", bufnr, file, value)
       end
     end
-  end)
+  end, nil)
 end
 
 ---@param file string
@@ -718,6 +726,7 @@ local function on_buf_write_post(file)
           if node then
             node:refresh({ refresh_git = config.git.enable })
 
+            -- only update the ui if the tree is for the current tabpage
             if tree.tabpage == tabpage then
               vim.schedule(function()
                 ui.update(tree.root)
@@ -726,11 +735,11 @@ local function on_buf_write_post(file)
           end
         end
       end)
-    end)
+    end, nil)
   end
 end
 
----@param scope '"window"'|'"tabpage"'|'"global"'|'"auto"'
+---@param scope "window"|"tabpage"|"global"|"auto"
 ---@param new_cwd string
 ---@param window_change boolean
 local function on_dir_changed(scope, new_cwd, window_change)
@@ -966,7 +975,7 @@ function M.setup()
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
   async.run(function()
-    local tree = Tree.get_tree({ tabpage = tabpage, root_path = root_path })
+    local tree = Tree.get_or_create_tree({ tabpage = tabpage, root_path = root_path })
     if tree.root.repo and config.git.watch_git_dir then
       attach_git_change_listener(tree, tree.root.repo)
     end
@@ -983,7 +992,7 @@ function M.setup()
 
       setting_up = false
     end)
-  end)
+  end, nil)
 end
 
 return M

@@ -9,23 +9,19 @@ function M.show()
 
   ---@type string[]
   local lines
-  ---@type ActionMapping[]
   ---@param mapping ActionMapping
+  ---@type ActionMapping[]
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
   end, mappings)
-  ---@type ActionMapping[]
   ---@param mapping ActionMapping
+  ---@type ActionMapping[]
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
   end, mappings)
-  ---@param a ActionMapping
-  ---@param b ActionMapping
   table.sort(insert, function(a, b)
     return a.name < b.name
   end)
-  ---@param a ActionMapping
-  ---@param b ActionMapping
   table.sort(visual, function(a, b)
     return a.name < b.name
   end)

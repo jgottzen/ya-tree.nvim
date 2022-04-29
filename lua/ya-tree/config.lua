@@ -111,7 +111,7 @@ local M = {
 
     ---@class YaTreeConfig.View Tree view configuration.
     ---@field width number Widht of the tree panel, default: `40`.
-    ---@field side "'left'"|"'right'" Where the tree panel is placed, default: `"left"`.
+    ---@field side "left"|"right" Where the tree panel is placed, default: `"left"`.
     ---@field number boolean Wether to show the number column, default: `false`.
     ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
     ---@field on_open fun(config: YaTreeConfig) Callback function when the tree view is opened, default: `nil`.
@@ -132,8 +132,10 @@ local M = {
         title = nil,
       },
 
-      ---@alias YaTreeConfig.View.Renderers.DirectoryRenderer YaTreeRendererConfig
-      ---@alias YaTreeConfig.View.Renderers.FileRenderer table
+      ---@class YaTreeConfig.View.Renderers.DirectoryRenderer : YaTreeRendererConfig
+      ---@field [1] string
+      ---@class YaTreeConfig.View.Renderers.FileRenderer : YaTreeRendererConfig
+      ---@field [1] string
 
       ---@class YaTreeConfig.View.Renderers Which renderers to use in the tree view.
       ---@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[] Which renderers to use for directories, in order.
@@ -329,7 +331,7 @@ local M = {
       },
     },
 
-    ---@alias YaTreeViewMode YaTreeCanvasMode|'"all"'
+    ---@alias YaTreeViewMode YaTreeCanvasMode|"all"
 
     ---@class YaTreeConfig.Mapping Key mapping configuration.
     ---@field mode? string|string[] The mode(s) for the keybinding.
@@ -394,7 +396,6 @@ function M.setup(opts)
   -- convert the list of custom filters to a table for quicker lookups
 
   M.config.filters.custom = {}
-  ---@type string[]
   local custom_filters = opts.filters and opts.filters.custom or {}
   if not vim.tbl_islist(custom_filters) then
     utils.warn("filters.custom must be an array, ignoring the configuration.")
@@ -417,12 +418,14 @@ function M.setup(opts)
     end
   end
 
-  if M.config.git.yadm.enable and not M.config.git.enable then
-    utils.notify("git is not enabled. Disabling 'git.yadm.enable' in the configuration")
-    M.config.git.yadm.enable = false
-  elseif M.config.git.yadm.enable and vim.fn.executable("yadm") == 0 then
-    utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in the configuration")
-    M.config.git.yadm.enable = false
+  if M.config.git.yadm.enable then
+    if not M.config.git.enable then
+      utils.notify("git is not enabled. Disabling 'git.yadm.enable' in the configuration")
+      M.config.git.yadm.enable = false
+    elseif vim.fn.executable("yadm") == 0 then
+      utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in the configuration")
+      M.config.git.yadm.enable = false
+    end
   end
 
   if M.config.trash.enable and vim.fn.executable("trash") == 0 then
