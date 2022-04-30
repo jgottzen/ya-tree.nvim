@@ -121,14 +121,16 @@ local function search(term, node, focus_node, config)
   log.debug("searching for %q in %q", term, node.path)
 
   job.run({ cmd = cmd, args = args, cwd = node.path }, function(code, stdout, stderr)
-    if code == 0 then
-      ---@type string[]
-      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
-      log.debug("%q found %s matches", cmd, #lines)
-      lib.display_search_result(node, term, lines, focus_node)
-    else
-      utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
-    end
+    vim.schedule(function()
+      if code == 0 then
+        ---@type string[]
+        local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+        log.debug("%q found %s matches", cmd, #lines)
+        lib.display_search_result(node, term, lines, focus_node)
+      else
+        utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
+      end
+    end)
   end)
 end
 
