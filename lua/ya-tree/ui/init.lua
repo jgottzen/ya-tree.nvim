@@ -62,8 +62,8 @@ function M.open(root, node, opts)
   local canvas = tab.canvas
   if not canvas:is_open() then
     canvas:open(root, opts)
-  elseif node then
-    -- the tree might need to be redrawn if a specific node is to be focused
+  elseif node and not tab.canvas:is_node_visible(node) then
+    -- redraw the tree if a specific node is to be focused, and it's currently not rendered
     canvas:render(root)
   end
 

@@ -80,7 +80,11 @@ end
 
 ---@return YaTreeCanvas canvas
 function Canvas:new()
-  return setmetatable({ mode = "tree" }, self)
+  return setmetatable({
+    mode = "tree",
+    nodes = {},
+    node_path_to_index_lookup = {},
+  }, self)
 end
 
 ---@return number height, number width
@@ -539,6 +543,12 @@ function Canvas:render(root)
   end
 
   api.nvim_buf_set_option(self.bufnr, "modifiable", false)
+end
+
+---@param node YaTreeNode
+---@return boolean visible
+function Canvas:is_node_visible(node)
+  return self.node_path_to_index_lookup[node.path] ~= nil
 end
 
 ---@private
