@@ -73,9 +73,9 @@ local function get_repo_info(path, cmd)
   return toplevel, git_root, branch
 end
 
----@class luv_fs_watcher
----@field start fun(self: luv_fs_watcher, path: string, interval: number, callback: fun(err: string))
----@field stop fun(self: luv_fs_watcher)
+---@class uv_fs_poll_t
+---@field start fun(self: uv_fs_poll_t, path: string, interval: number, callback: fun(err: string))
+---@field stop fun(self: uv_fs_poll_t)
 
 ---@class GitRepo
 ---@field public toplevel string
@@ -92,7 +92,7 @@ end
 ---@field private _git_dir string
 ---@field private _git_status table<string, string>
 ---@field private _ignored string[]
----@field private _git_dir_watcher? luv_fs_watcher
+---@field private _git_dir_watcher? uv_fs_poll_t
 ---@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)>
 local Repo = M.Repo
 Repo.__index = Repo
@@ -100,7 +100,7 @@ Repo.__index = Repo
 ---@param self GitRepo
 ---@return string
 Repo.__tostring = function(self)
-  return string.format("(toplevel=%q, git_dir=%q, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
+  return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
 ---@param path string
@@ -129,6 +129,12 @@ function Repo:new(path)
   if not toplevel then
     log.debug("no git repo found for %q", path)
     return nil
+  end
+
+  cached = M.repos[toplevel]
+  if cached then
+    log.debug("%q is in repository %q, which already exists, returning it", path, tostring(cached))
+    return cached
   end
 
   local this = setmetatable({
