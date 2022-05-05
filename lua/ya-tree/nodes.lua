@@ -73,8 +73,11 @@ end
 ---@param old_root? YaTreeNode the previous root
 ---@return YaTreeNode root
 function M.root(path, old_root)
+  local parent = Path:new(path):parent():absolute()
+  local _, pos = path:find(parent, 1, true)
+  local name = path:sub(pos + 2)
   local root = Node:new({
-    name = vim.fn.fnamemodify(path, ":t"),
+    name = name,
     type = "directory",
     path = path,
   })
