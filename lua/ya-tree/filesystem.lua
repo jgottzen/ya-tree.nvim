@@ -135,7 +135,8 @@ end
 ---@param path string
 ---@return FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode|nil node
 function M.node_for(path)
-  local stat = uv.fs_stat(path)
+  -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
+  local stat = uv.fs_lstat(path)
   local _type = stat and stat.type or nil
   if not _type then
     -- this is most likely caused by a symbolic link pointing to a non-existing file and not really a problem,
