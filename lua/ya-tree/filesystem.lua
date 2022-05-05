@@ -14,6 +14,10 @@ local function is_empty(path)
   return handle and uv.fs_scandir_next(handle) == nil or false
 end
 
+-- types defined by luv are:
+-- file, directory, link, fifo, socket, char, block and unknown
+-- see: https://github.com/luvit/luv/blob/d2e235503f6cb5c86121cd70cdb5d17e368bab03/src/fs.c#L107=
+
 ---@alias file_type "directory"|"file"
 
 ---@class FsNode
@@ -107,6 +111,8 @@ local function link_node(dir, name)
     node = file_node(dir, name)
     node.link_name = link_name
     node.link_extension = link_extension
+  else
+    return nil
   end
 
   node.link = true
