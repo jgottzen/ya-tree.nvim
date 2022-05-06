@@ -65,6 +65,7 @@ function M.cut_node()
   lib.redraw()
 end
 
+---@async
 ---@param dest_node YaTreeNode
 ---@param node YaTreeNode
 ---@param action clipboard_action
@@ -80,9 +81,7 @@ local function paste_node(dest_node, node, action)
   if fs.exists(destination) then
     local response = ui.select({ "Yes", "Rename", "No" }, { prompt = destination .. " already exists" })
 
-    vim.schedule(function()
-      ui.reset_window()
-    end)
+    ui.reset_window()
 
     if response == "Yes" then
       utils.notify('Will replace "' .. destination .. '"')
@@ -149,14 +148,13 @@ function M.paste_nodes(node)
     end
   end
 
-  async.run(function()
-    scheduler()
-
+  async.void(function()
     if #M.queue > 0 then
       ---@type string
       local first_file
       for _, item in ipairs(M.queue) do
         local ok, result = paste_node(node, item.node, item.action)
+        scheduler()
         if ok and not first_file then
           first_file = result
         end
@@ -166,7 +164,7 @@ function M.paste_nodes(node)
     else
       utils.notify("Nothing in clipboard")
     end
-  end, nil)
+  end)()
 end
 
 function M.clear_clipboard()

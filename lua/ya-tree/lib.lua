@@ -1,4 +1,5 @@
 local async = require("plenary.async")
+local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
@@ -69,7 +70,7 @@ function M.on_git_change(repo, watcher_id, fs_changes)
 
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
-  async.run(function()
+  async.void(function()
     Tree.for_each_tree(function(tree)
       if tree.git_watchers[repo] == watcher_id then
         if fs_changes then
@@ -81,7 +82,7 @@ function M.on_git_change(repo, watcher_id, fs_changes)
         end
       end
     end)
-  end, nil)
+  end)()
 end
 
 ---@param opts? {file?: string, switch_root?: boolean, focus?: boolean}
@@ -94,69 +95,69 @@ function M.open(opts)
       log.debug("setup is in progress, deferring opening window...")
       M.open(opts)
     end, 100)
-  else
-    async.run(function()
-      opts = opts or {}
-      -- If the switch_root flag is true and a file is given _and_ the appropriate config flag is set,
-      -- we need to update the tree with the new cwd and root _before_ issuing the `tcd` command, since
-      -- control passes to the handler. Issuing it after will be a no-op since since the tree cwd is already set.
-      local issue_tcd = false
+  end
 
-      ---@type YaTree
-      local tree
-      if opts.switch_root and opts.file then
-        issue_tcd = config.cwd.update_from_tree
-        local cwd = Path:new(opts.file):absolute()
-        if not utils.is_directory(cwd) then
-          cwd = Path:new(cwd):parent().filename
-        end
-        log.debug("switching tree cwd to %q", cwd)
-        tree = Tree.get_tree()
-        if tree then
-          tree = Tree.update_tree_root_node(tree, cwd)
-          tree.cwd = cwd
+  async.void(function()
+    opts = opts or {}
+    -- If the switch_root flag is true and a file is given _and_ the appropriate config flag is set,
+    -- we need to update the tree with the new cwd and root _before_ issuing the `tcd` command, since
+    -- control passes to the handler. Issuing it after will be a no-op since since the tree cwd is already set.
+    local issue_tcd = false
+
+    ---@type YaTree
+    local tree
+    if opts.switch_root and opts.file then
+      issue_tcd = config.cwd.update_from_tree
+      local cwd = Path:new(opts.file):absolute()
+      if not utils.is_directory(cwd) then
+        cwd = Path:new(cwd):parent().filename
+      end
+      log.debug("switching tree cwd to %q", cwd)
+      tree = Tree.get_tree()
+      if tree then
+        tree = Tree.update_tree_root_node(tree, cwd)
+        tree.cwd = cwd
+      else
+        tree = Tree.get_or_create_tree({ root_path = cwd })
+      end
+    else
+      tree = Tree.get_or_create_tree()
+    end
+
+    ---@type YaTreeNode
+    local node
+    if opts.file then
+      local file = resolve_path_in_tree(tree, opts.file)
+      if file then
+        node = tree.root:expand({ to = file })
+        if node then
+          local should_display, reason = utils.should_display_node(node, config)
+          if not should_display and reason then
+            if reason == "filter" then
+              config.filters.enable = false
+            elseif reason == "git" then
+              config.git.show_ignored = true
+            end
+          end
+          log.debug("navigating to %q", file)
         else
-          tree = Tree.get_or_create_tree({ root_path = cwd })
+          log.error("cannot expand to file %q in tree %s", file, tostring(tree))
         end
       else
-        tree = Tree.get_or_create_tree()
+        log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, uv.cwd(), tree.root.path)
       end
+    end
 
-      ---@type YaTreeNode
-      local node
-      if opts.file then
-        local file = resolve_path_in_tree(tree, opts.file)
-        if file then
-          node = tree.root:expand({ to = file })
-          if node then
-            local should_display, reason = utils.should_display_node(node, config)
-            if not should_display and reason then
-              if reason == "filter" then
-                config.filters.enable = false
-              elseif reason == "git" then
-                config.git.show_ignored = true
-              end
-            end
-            log.debug("navigating to %q", file)
-          else
-            log.error("cannot expand to file %q in tree %s", file, tostring(tree))
-          end
-        else
-          log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, uv.cwd(), tree.root.path)
-        end
-      end
+    scheduler()
 
-      vim.schedule(function()
-        tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
-        ui.open(tree.root, tree.current_node, { focus = opts.focus })
+    tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
+    ui.open(tree.root, tree.current_node, { focus = opts.focus })
 
-        if issue_tcd then
-          log.debug("issueing tcd autocmd to %q", tree.cwd)
-          vim.cmd("tcd " .. fn.fnameescape(tree.cwd))
-        end
-      end)
-    end, nil)
-  end
+    if issue_tcd then
+      log.debug("issueing tcd autocmd to %q", tree.cwd)
+      vim.cmd("tcd " .. fn.fnameescape(tree.cwd))
+    end
+  end)()
 end
 
 function M.close()
@@ -191,17 +192,16 @@ function M.toggle_directory(node)
     return
   end
 
-  async.run(function()
+  async.void(function()
     if node.expanded then
       node:collapse()
     else
       node:expand()
     end
 
-    vim.schedule(function()
-      ui.update(tree.root)
-    end)
-  end, nil)
+    scheduler()
+    ui.update(tree.root)
+  end)()
 end
 
 ---@param node YaTreeNode
@@ -243,15 +243,14 @@ local function change_root_node_for_tree(tree, new_root)
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
 
-  async.run(function()
+  async.void(function()
     tree = Tree.update_tree_root_node(tree, new_root)
 
     if tree.tabpage == tabpage then
-      vim.schedule(function()
-        ui.update(tree.root, tree.current_node)
-      end)
+      scheduler()
+      ui.update(tree.root, tree.current_node)
     end
-  end, nil)
+  end)()
 end
 
 ---@param node YaTreeNode
@@ -383,7 +382,7 @@ local function refresh_current_tree(node_or_path)
   log.debug("refreshing current tree")
   tree.refreshing = true
 
-  async.run(function()
+  async.void(function()
     -- only refresh git if git watcher is _not_ enabled
     tree.root:refresh({ recurse = true, refresh_git = not config.git.watch_git_dir })
 
@@ -400,11 +399,10 @@ local function refresh_current_tree(node_or_path)
       log.error("the node_or_path parameter is of an unsupported type %q", type(node_or_path))
     end
 
-    vim.schedule(function()
-      ui.update(tree.root, tree.current_node)
-      tree.refreshing = false
-    end)
-  end, nil)
+    scheduler()
+    ui.update(tree.root, tree.current_node)
+    tree.refreshing = false
+  end)()
 end
 
 ---@param node YaTreeNode
@@ -429,15 +427,13 @@ function M.rescan_dir_for_git(node)
   if not node:is_directory() then
     node = node.parent
   end
-  async.run(function()
+  async.void(function()
     if node:check_for_git_repo() then
       Tree.attach_git_watcher(tree, node.repo)
-
-      vim.schedule(function()
-        ui.update(tree.root, tree.current_node)
-      end)
+      scheduler()
+      ui.update(tree.root, tree.current_node)
     end
-  end, nil)
+  end)()
 end
 
 ---@param node YaTreeNode
@@ -456,16 +452,15 @@ function M.display_search_result(node, term, search_result, focus_node)
     tree.tree.current_node = ui.get_current_node()
   end
 
-  async.run(function()
+  async.void(function()
     tree.search.result, tree.search.current_node = node:create_search_tree(search_result)
     tree.search.result.search_term = term
     tree.root = tree.search.result
     tree.current_node = tree.search.current_node
 
-    vim.schedule(function()
-      ui.open_search(tree.search.result, focus_node and tree.search.current_node or nil)
-    end)
-  end, nil)
+    scheduler()
+    ui.open_search(tree.search.result, focus_node and tree.search.current_node or nil)
+  end)()
 end
 
 function M.focus_first_search_result()
@@ -505,13 +500,11 @@ function M.system_open(node)
 
   local args = vim.deepcopy(config.system_open.args)
   table.insert(args, node.link_to or node.path)
-  job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, stderr)
+  job.run({ cmd = config.system_open.cmd, args = args, detached = true, wrap_callback = true }, function(code, _, stderr)
     if code ~= 0 then
-      vim.schedule(function()
-        stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
-        stderr = table.concat(stderr, " ")
-        utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, stderr))
-      end)
+      stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
+      stderr = table.concat(stderr, " ")
+      utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, stderr))
     end
   end)
 end
@@ -557,7 +550,7 @@ local function on_buf_enter(file, bufnr)
   local tree = Tree.get_tree()
   api.nvim_buf_set_var(bufnr, "YaTree_on_buf_new_file", 1)
 
-  async.run(function()
+  async.void(function()
     if config.replace_netrw and utils.is_directory(file) then
       -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
       if file:sub(-1) == utils.os_sep then
@@ -629,7 +622,7 @@ local function on_buf_enter(file, bufnr)
         log.error("couldn't delete YaTree_on_buf_new_file var on buffer %s, file %s, message=%q", bufnr, file, value)
       end
     end
-  end, nil)
+  end)()
 end
 
 ---@param file string
@@ -681,7 +674,7 @@ local function on_buf_write_post(file)
     ---@type number
     local tabpage = api.nvim_get_current_tabpage()
 
-    async.run(function()
+    async.void(function()
       Tree.for_each_tree(function(tree)
         if tree.root:is_ancestor_of(file) then
           log.debug("changed file %q is in tree %q and tab %s", file, tree.root.path, tree.tabpage)
@@ -692,14 +685,13 @@ local function on_buf_write_post(file)
 
             -- only update the ui if the tree is for the current tabpage
             if tree.tabpage == tabpage then
-              vim.schedule(function()
-                ui.update(tree.root)
-              end)
+              scheduler()
+              ui.update(tree.root)
             end
           end
         end
       end)
-    end, nil)
+    end)()
   end
 end
 
@@ -938,22 +930,21 @@ function M.setup()
 
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
-  async.run(function()
+  async.void(function()
     local tree = Tree.get_or_create_tree({ tabpage = tabpage, root_path = root_path })
 
-    vim.schedule(function()
-      if is_directory or config.auto_open.on_setup then
-        local focus = config.auto_open.on_setup and config.auto_open.focus_tree
-        ui.open(tree.root, tree.current_node, { hijack_buffer = is_directory, focus = focus })
-      end
+    scheduler()
+    if is_directory or config.auto_open.on_setup then
+      local focus = config.auto_open.on_setup and config.auto_open.focus_tree
+      ui.open(tree.root, tree.current_node, { hijack_buffer = is_directory, focus = focus })
+    end
 
-      -- the autocmds must be set up last, this avoids triggering the BufNewFile event,
-      -- if the initial buffer is a directory
-      setup_autocommands()
+    -- the autocmds must be set up last, this avoids triggering the BufNewFile event,
+    -- if the initial buffer is a directory
+    setup_autocommands()
 
-      setting_up = false
-    end)
-  end, nil)
+    setting_up = false
+  end)()
 end
 
 return M

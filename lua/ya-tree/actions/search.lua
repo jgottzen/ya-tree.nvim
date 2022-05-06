@@ -103,6 +103,7 @@ local function build_search(term, path, config)
   return cmd, args
 end
 
+---@async
 ---@param term string
 ---@param node YaTreeNode
 ---@param focus_node boolean
@@ -120,17 +121,18 @@ local function search(term, node, focus_node, config)
 
   log.debug("searching for %q in %q", term, node.path)
 
-  job.run({ cmd = cmd, args = args, cwd = node.path }, function(code, stdout, stderr)
-    vim.schedule(function()
-      if code == 0 then
-        ---@type string[]
-        local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
-        log.debug("%q found %s matches", cmd, #lines)
-        lib.display_search_result(node, term, lines, focus_node)
-      else
-        utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
-      end
-    end)
+  scheduler()
+  job.run({ cmd = cmd, args = args, cwd = node.path, wrap_callback = true }, function(code, stdout, stderr)
+    if code == 0 then
+      ---@type string[]
+      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+      log.debug("%q found %s matches", cmd, #lines)
+      lib.display_search_result(node, term, lines, focus_node)
+    else
+      stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
+      stderr = table.concat(stderr, " ")
+      utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
+    end
   end)
 end
 
@@ -150,12 +152,10 @@ function M.live_search(node)
   ---@param ms number
   ---@param term string
   local function delayed_search(ms, term)
-    timer:start(ms, 0, function()
-      async.run(function()
-        scheduler()
-        search(term, node, false, config)
-      end, nil)
-    end)
+    -- stylua: ignore
+    timer:start(ms, 0, async.void(function()
+      search(term, node, false, config)
+    end))
   end
 
   local term = ""
@@ -189,17 +189,15 @@ function M.live_search(node)
     end,
     ---@param text string
     on_submit = function(text)
-      vim.schedule(function()
-        ui.reset_window()
+      ui.reset_window()
 
-        if text ~= term then
-          term = text
-          timer:stop()
-          search(text, node, true, config)
-        else
-          lib.focus_first_search_result()
-        end
-      end)
+      if text ~= term then
+        term = text
+        timer:stop()
+        search(text, node, true, config)
+      else
+        lib.focus_first_search_result()
+      end
     end,
     on_close = function()
       lib.clear_search()
@@ -219,12 +217,13 @@ function M.search(node)
     node = node.parent
   end
 
-  vim.ui.input({ prompt = "Search:" }, function(term)
+  async.void(function()
+    local term = ui.input({ prompt = "Search:" })
     if term then
       local config = require("ya-tree.config").config
       search(term, node, true, config)
     end
-  end)
+  end)()
 end
 
 return M

@@ -4,12 +4,13 @@ local uv = vim.loop
 
 local M = {}
 
----@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean}
+---@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean, wrap_callback?: boolean}
 ---  - {opts.cmd} `string`
 ---  - {opts.args} `string[]`
 ---  - {opts.cwd?} `string`
 ---  - {opts.detached?} `boolean`
----@param on_complete fun(code: number, stdout?: string, stderr?: string): nil
+---  - {opts.wrap_callback?} `boolean`
+---@param on_complete fun(code: number, stdout?: string, stderr?: string)
 ---@return userdata handle, number pid
 function M.run(opts, on_complete)
   local state = {
@@ -21,6 +22,7 @@ function M.run(opts, on_complete)
     ---@type string[]
     stderr_data = {},
   }
+  local cb = opts.wrap_callback and vim.schedule_wrap(on_complete) or on_complete
 
   state.handle, state.pid = uv.spawn(opts.cmd, {
     args = opts.args,
@@ -52,7 +54,7 @@ function M.run(opts, on_complete)
     ---@type string
     local stderr = #state.stderr_data > 0 and table.concat(state.stderr_data) or nil
 
-    on_complete(code, stdout, stderr)
+    cb(code, stdout, stderr)
   end)
   log.trace("spawned process %q with arguments=%q, pid %s", opts.cmd, opts.args, state.pid)
 

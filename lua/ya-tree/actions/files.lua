@@ -79,43 +79,41 @@ function M.add(node)
   local input = Input:new({ title = prompt, width = #prompt + 4 }, {
     ---@param name string
     on_submit = function(name)
-      vim.schedule(function()
-        ui.reset_window()
+      ui.reset_window()
 
-        if not name then
-          utils.notify("No name given, not creating new file/directory")
+      if not name then
+        utils.notify("No name given, not creating new file/directory")
+        return
+      end
+
+      local new_path = utils.join_path(node.path, name)
+
+      if vim.endswith(new_path, utils.os_sep) then
+        new_path = new_path:sub(1, -2)
+        if fs.exists(new_path) then
+          utils.warn(string.format("%q already exists!", new_path))
           return
         end
 
-        local new_path = utils.join_path(node.path, name)
-
-        if vim.endswith(new_path, utils.os_sep) then
-          new_path = new_path:sub(1, -2)
-          if fs.exists(new_path) then
-            utils.warn(string.format("%q already exists!", new_path))
-            return
-          end
-
-          if fs.create_dir(new_path) then
-            utils.notify(string.format("Created directory %q", new_path))
-            lib.refresh_and_navigate(new_path)
-          else
-            utils.warn(string.format("Failed to create directory %q", new_path))
-          end
+        if fs.create_dir(new_path) then
+          utils.notify(string.format("Created directory %q", new_path))
+          lib.refresh_and_navigate(new_path)
         else
-          if fs.exists(new_path) then
-            utils.warn(string.format("%q already exists!", new_path))
-            return
-          end
-
-          if fs.create_file(new_path) then
-            utils.notify(string.format("Created file %q", new_path))
-            lib.refresh_and_navigate(new_path)
-          else
-            utils.warn(string.format("Failed to create file %q", new_path))
-          end
+          utils.warn(string.format("Failed to create directory %q", new_path))
         end
-      end)
+      else
+        if fs.exists(new_path) then
+          utils.warn(string.format("%q already exists!", new_path))
+          return
+        end
+
+        if fs.create_file(new_path) then
+          utils.notify(string.format("Created file %q", new_path))
+          lib.refresh_and_navigate(new_path)
+        else
+          utils.warn(string.format("Failed to create file %q", new_path))
+        end
+      end
     end,
   })
   input:open()
@@ -195,9 +193,7 @@ local function delete_node(node)
     end
   end
 
-  vim.schedule(function()
-    ui.reset_window()
-  end)
+  ui.reset_window()
 end
 
 function M.delete()
@@ -206,15 +202,16 @@ function M.delete()
     return
   end
 
-  async.run(function()
+  async.void(function()
     scheduler()
 
     for _, node in ipairs(nodes) do
       delete_node(node)
+      scheduler()
     end
 
     lib.refresh(selected_node)
-  end, nil)
+  end)()
 end
 
 ---@param _ YaTreeNode
@@ -229,9 +226,7 @@ function M.trash(_)
     return
   end
 
-  async.run(function()
-    scheduler()
-
+  async.void(function()
     ---@type string[]
     local files = {}
     if config.trash.require_confirm then
@@ -251,17 +246,17 @@ function M.trash(_)
 
     if #files > 0 then
       log.debug("trashing files %s", files)
-      job.run({ cmd = "trash", args = files }, function(code, _, error)
-        vim.schedule(function()
-          if code == 0 then
-            lib.refresh(selected_node)
-          else
-            utils.warn(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), error))
-          end
-        end)
+      job.run({ cmd = "trash", args = files, wrap_callback = true }, function(code, _, stderr)
+        if code == 0 then
+          lib.refresh(selected_node)
+        else
+          stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
+          stderr = table.concat(stderr, " ")
+          utils.warn(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), stderr))
+        end
       end)
     end
-  end, nil)
+  end)()
 end
 
 return M
