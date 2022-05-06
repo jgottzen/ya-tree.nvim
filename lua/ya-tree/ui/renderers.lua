@@ -154,6 +154,9 @@ end
 function M.name(node, config, renderer)
   if node.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
+    if text:sub(-1) ~= utils.os_sep then
+      text = text .. utils.os_sep
+    end
 
     return {
       padding = "",
