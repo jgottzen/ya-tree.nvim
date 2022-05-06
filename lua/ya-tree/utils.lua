@@ -48,7 +48,11 @@ end
 ---@param second string
 ---@return string path
 function M.join_path(first, second)
-  return string.format("%s%s%s", first, os_sep, second)
+  if first == M.os_root() then
+    return string.format("%s%s", first, second)
+  else
+    return string.format("%s%s%s", first, os_sep, second)
+  end
 end
 
 ---@param path string
@@ -82,7 +86,8 @@ do
   local has_notify_plugin, notify = pcall(require, "notify")
 
   ---@param message string message
-  ---@param level? number default: vim.log.levels.INFO
+  ---@param level? number default: `vim.log.levels.INFO`
+  ---@see |vim.log.levels|
   function M.notify(message, level)
     level = level or vim.log.levels.INFO
     if has_notify_plugin and notify == vim.notify then
