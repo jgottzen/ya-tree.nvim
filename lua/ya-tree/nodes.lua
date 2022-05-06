@@ -150,7 +150,9 @@ local function set_git_repo_on_node_and_children(repo, node)
   node.repo = repo
   if node.children then
     for _, child in ipairs(node.children) do
-      set_git_repo_on_node_and_children(repo, child)
+      if not child.repo then
+        set_git_repo_on_node_and_children(repo, child)
+      end
     end
   end
 end
