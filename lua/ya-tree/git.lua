@@ -186,9 +186,20 @@ function Repo:command(args, null_terminated)
   return result
 end
 
+---@type fun(): number
+local get_next_watcher_id
+do
+  local watcher_id = 0
+
+  get_next_watcher_id = function()
+    watcher_id = watcher_id + 1
+    return watcher_id
+  end
+end
+
 ---@param fun async fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)
 ---@return string watcher_id
-function Repo:add_git_change_listener(fun)
+function Repo:add_git_watcher(fun)
   if not self._git_dir_watcher then
     local function fs_poll_callback(err)
       log.debug("fs_poll for %s", tostring(self))
@@ -198,7 +209,7 @@ function Repo:add_git_change_listener(fun)
       end
 
       if vim.tbl_count(self._git_watchers) == 0 then
-        log.error("the fs_poll callback was called without any registered listeners")
+        log.error("the fs_poll callback was called without any registered watchers")
         self._git_dir_watcher:stop()
         self._git_dir_watcher = nil
         return
@@ -226,27 +237,27 @@ function Repo:add_git_change_listener(fun)
     end
   end
 
-  local watcher_id = tostring(vim.tbl_count(self._git_watchers) + 1)
+  local watcher_id = get_next_watcher_id()
   self._git_watchers[watcher_id] = fun
-  log.debug("add git listener %s with id %s", fun, watcher_id)
+  log.debug("add git watcher %s with id %s", fun, watcher_id)
 
   return watcher_id
 end
 
 ---@param watcher_id string
-function Repo:remove_git_change_listener(watcher_id)
+function Repo:remove_git_watcher(watcher_id)
   if not self._git_watchers[watcher_id] then
-    log.error("no listener with id %s for repo %s", watcher_id, tostring(self))
+    log.error("no watcher with id %s for repo %s", watcher_id, tostring(self))
     return
   end
 
   self._git_watchers[watcher_id] = nil
-  log.debug("removed listener with id %s for repo %s", watcher_id, tostring(self))
+  log.debug("removed watcher with id %s for repo %s", watcher_id, tostring(self))
 
   if vim.tbl_count(self._git_watchers) == 0 then
     self._git_dir_watcher:stop()
     self._git_dir_watcher = nil
-    log.debug("the last listener was removed, stopping fs_poll")
+    log.debug("the last watcher was removed, stopping fs_poll")
   end
 end
 

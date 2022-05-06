@@ -449,27 +449,6 @@ local function render_node(node)
   return table.concat(content), highlights
 end
 
----@param node YaTreeNode
----@return boolean
-local function should_display_node(node)
-  if config.filters.enable then
-    if config.filters.dotfiles and node:is_dotfile() then
-      return false
-    end
-    if config.filters.custom[node.name] then
-      return false
-    end
-  end
-
-  if not config.git.show_ignored then
-    if node:is_git_ignored() then
-      return false
-    end
-  end
-
-  return true
-end
-
 ---@private
 ---@param root YaTreeNode
 ---@return string[] lines, highlight_group[][] highlights
@@ -494,7 +473,7 @@ function Canvas:_render_tree(root)
   ---@param depth number
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
-    if should_display_node(node) then
+    if utils.should_display_node(node, config) then
       node.depth = depth
       node.last_child = last_child
       content, highlight_groups = render_node(node)
@@ -652,7 +631,7 @@ end
 function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
-  while not should_display_node(node) and node.parent do
+  while not utils.should_display_node(node, config) and node.parent do
     node = node.parent
   end
   if node then
@@ -677,7 +656,7 @@ function Canvas:focus_prev_sibling()
   end
 
   for prev in parent:iterate_children({ reverse = true, from = node }) do
-    if should_display_node(prev) then
+    if utils.should_display_node(prev, config) then
       local index = self.node_path_to_index_lookup[prev.path]
       if index then
         set_cursor_position(self.winid, index, col)
@@ -698,7 +677,7 @@ function Canvas:focus_next_sibling()
   end
 
   for next in parent:iterate_children({ from = node }) do
-    if should_display_node(next) then
+    if utils.should_display_node(next, config) then
       local index = self.node_path_to_index_lookup[next.path]
       if index then
         set_cursor_position(self.winid, index, col)
@@ -719,7 +698,7 @@ function Canvas:focus_first_sibling()
   end
 
   for next in parent:iterate_children() do
-    if should_display_node(next) then
+    if utils.should_display_node(next, config) then
       local index = self.node_path_to_index_lookup[next.path]
       if index then
         set_cursor_position(self.winid, index, col)
@@ -740,7 +719,7 @@ function Canvas:focus_last_sibling()
   end
 
   for prev in parent:iterate_children({ reverse = true }) do
-    if should_display_node(prev) then
+    if utils.should_display_node(prev, config) then
       local index = self.node_path_to_index_lookup[prev.path]
       if index then
         set_cursor_position(self.winid, index, col)

@@ -71,8 +71,9 @@ end
 ---Creates a new node tree root.
 ---@param path string the path
 ---@param old_root? YaTreeNode the previous root
+---@param check_for_git_repo? boolean whether to check for a git repo in `path`
 ---@return YaTreeNode root
-function M.root(path, old_root)
+function M.root(path, old_root, check_for_git_repo)
   local parent = Path:new(path):parent():absolute()
   local _, pos = path:find(parent, 1, true)
   local name = path:sub(pos + 2)
@@ -82,10 +83,13 @@ function M.root(path, old_root)
     path = path,
   })
 
-  root.repo = git.Repo:new(root.path)
-  if root.repo then
-    log.debug("node %q is in a git repo with toplevel %q", root.path, root.repo.toplevel)
-    root.repo:refresh_status({ ignored = true })
+  if check_for_git_repo then
+    local repo = git.Repo:new(root.path)
+    if repo then
+      log.debug("node %q is in a git repo with toplevel %q", root.path, repo.toplevel)
+      root.repo = repo
+      root.repo:refresh_status({ ignored = true })
+    end
   end
 
   -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree

@@ -82,6 +82,30 @@ function M.get_path_from_directory_buffer()
   end
 end
 
+---@alias not_display_reason "filter"|"git"
+
+---@param node YaTreeNode
+---@param config YaTreeConfig
+---@return boolean should_display, not_display_reason? reason
+function M.should_display_node(node, config)
+  if config.filters.enable then
+    if config.filters.dotfiles and node:is_dotfile() then
+      return false, "filter"
+    end
+    if config.filters.custom[node.name] then
+      return false, "filter"
+    end
+  end
+
+  if not config.git.show_ignored then
+    if node:is_git_ignored() then
+      return false, "git"
+    end
+  end
+
+  return true
+end
+
 do
   local has_notify_plugin, notify = pcall(require, "notify")
 
