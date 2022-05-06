@@ -89,13 +89,11 @@ end
 
 ---@return number height, number width
 function Canvas:get_size()
-  if self:get_edit_winid() then
-    ---@type number
-    local height = api.nvim_win_get_height(self.winid)
-    ---@type number
-    local width = api.nvim_win_get_width(self.winid)
-    return height, width
-  end
+  ---@type number
+  local height = api.nvim_win_get_height(self.winid)
+  ---@type number
+  local width = api.nvim_win_get_width(self.winid)
+  return height, width
 end
 
 ---@return number? winid
