@@ -152,9 +152,8 @@ function Input:open()
   fn.prompt_setinterrupt(self.bufnr, self.callbacks.on_close)
 
   self:map("i", "<Esc>", function()
-    -- just calling input:close() and then ui.reset_window() will still leave
-    -- the tree window with relativenumber, forcing the interrupt handler set by
-    -- prompt_setinterrupt solves it...
+    -- just calling input:close() and then ui.reset_window() will still leave the tree window with relativenumber,
+    -- forcing the interrupt handler set by prompt_setinterrupt solves it...
     ---@type string
     local keys = api.nvim_replace_termcodes("<C-c>", true, false, true)
     api.nvim_feedkeys(keys, "n", true)
@@ -201,10 +200,8 @@ function Input:close()
     return
   end
 
-  if api.nvim_buf_is_valid(self.bufnr) then
-    api.nvim_buf_delete(self.bufnr, { force = true })
-    self.bufnr = nil
-  end
+  -- we don't need to delete the buffer, it's wiped automatically, and doing so causes tabline issues...
+  self.bufnr = nil
 
   if self.title_winid and api.nvim_win_is_valid(self.title_winid) then
     api.nvim_win_close(self.title_winid, true)
@@ -214,7 +211,6 @@ function Input:close()
   if api.nvim_win_is_valid(self.winid) then
     api.nvim_win_close(self.winid, true)
   end
-
   self.winid = nil
 
   -- fix the cursor being moved one character to the left after leaving the input
