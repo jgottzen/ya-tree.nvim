@@ -88,12 +88,13 @@ function M.root(path, old_root)
     root.repo:refresh_status({ ignored = true })
   end
 
-  -- if the tree root was moved on level up, i.e the new root is the parent of the old root,
-  -- add it to the tree
-  if old_root then
-    if Path:new(old_root.path):parent().filename == root.path then
-      root.children = { old_root }
-      old_root.parent = root
+  -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree
+  if old_root and Path:new(old_root.path):parent().filename == root.path then
+    root.children = { old_root }
+    old_root.parent = root
+    local repo = old_root.repo
+    if repo and root.path:find(repo.toplevel, 1, true) then
+      root.repo = repo
     end
   end
 
@@ -129,12 +130,11 @@ function Node:_scandir()
   self.children = vim.tbl_map(function(fs_node)
     local child = children[fs_node.path]
     if child then
-      log.trace("_scandir: merging %q", fs_node.path)
+      log.trace("merging %q", fs_node.path)
       child:_merge_new_data(fs_node)
-      children[fs_node.path] = nil -- the node is still present
       return child
     else
-      log.trace("_scandir: creating new %q", fs_node.path)
+      log.trace("creating new %q", fs_node.path)
       return Node:new(fs_node, self)
     end
   end, fs.scan_dir(self.path))
