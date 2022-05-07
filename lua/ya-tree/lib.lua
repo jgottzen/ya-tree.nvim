@@ -76,6 +76,7 @@ function M.on_git_change(repo, watcher_id, fs_changes)
         if fs_changes then
           tree.root:refresh({ recurse = true })
         end
+        scheduler()
         if tabpage == tree.tabpage and ui.is_open() then
           tree.current_node = ui.get_current_node()
           ui.update(tree.root, tree.current_node)
@@ -256,7 +257,7 @@ end
 ---@param node YaTreeNode
 function M.cd_to(node)
   local tree = Tree.get_tree()
-  if not tree or not node or not node:is_directory() then
+  if not tree or not node or not node:is_directory() or node == tree.root then
     return
   end
   log.debug("cd to %q", node.path)
@@ -275,7 +276,7 @@ end
 ---@param node YaTreeNode
 function M.cd_up(node)
   local tree = Tree.get_tree()
-  if not tree then
+  if not tree or tree.root.path == utils.os_root() then
     return
   end
   local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
@@ -283,7 +284,6 @@ function M.cd_up(node)
 
   -- save current position
   tree.current_node = node
-
   -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
   if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
     vim.cmd("tcd " .. fn.fnameescape(new_cwd))

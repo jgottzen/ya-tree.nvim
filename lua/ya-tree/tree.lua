@@ -54,7 +54,7 @@ function M.get_or_create_tree(opts)
   local tabpage = opts.tabpage or api.nvim_get_current_tabpage()
   local tree = M._trees[tostring(tabpage)]
 
-  if tree and (opts.root_path and opts.root_path ~= tree.cwd) then
+  if tree and (opts.root_path and opts.root_path ~= tree.root.path) then
     log.debug(
       "tree %s for tabpage %s exists, but with a different cwd than requested %q, deleting tree",
       tostring(tree),

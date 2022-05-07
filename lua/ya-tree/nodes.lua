@@ -74,14 +74,7 @@ end
 ---@param check_for_git_repo? boolean whether to check for a git repo in `path`
 ---@return YaTreeNode root
 function M.root(path, old_root, check_for_git_repo)
-  local parent = Path:new(path):parent():absolute()
-  local _, pos = path:find(parent, 1, true)
-  local name = path:sub(pos + 2)
-  local root = Node:new({
-    name = name,
-    type = "directory",
-    path = path,
-  })
+  local root = Node:new(fs.node_for(path))
 
   if check_for_git_repo then
     local repo = git.Repo:new(root.path)

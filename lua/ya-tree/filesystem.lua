@@ -73,6 +73,14 @@ local function file_node(dir, name)
   }
 end
 
+---@param path string
+---@return string name
+local function get_file_name(path)
+  ---@type string[]
+  local splits = vim.split(path, utils.os_sep, { plain = true })
+  return splits[#splits]
+end
+
 ---@class FsDirectoryLinkNode : FsDirectoryNode
 ---@field link boolean
 ---@field link_to string
@@ -97,15 +105,14 @@ local function link_node(dir, name)
 
   local stat = uv.fs_stat(path)
   local p = Path:new(link_to)
-  link_to = Path:new(link_to):make_relative()
+  link_to = p:make_relative()
 
   ---@type FsDirectoryLinkNode|FsFileLinkNode|nil
   local node
   if stat and stat.type == "directory" then
     node = directory_node(dir, name)
   elseif stat and stat.type == "file" then
-    local _, pos = p.filename:find(p:parent().filename, 1, true)
-    local link_name = p.filename:sub(pos + 2)
+    local link_name = get_file_name(p.filename)
     local link_extension = link_name:match(".?[^.]+%.(.*)") or ""
 
     node = file_node(dir, name)
@@ -144,10 +151,8 @@ function M.node_for(path)
     return
   end
 
-  local p = Path:new(path)
-  local parent_path = p:parent().filename
-  local _, pos = p.filename:find(parent_path, 1, true)
-  local name = p.filename:sub(pos + 2)
+  local parent_path = Path:new(path):parent():absolute()
+  local name = get_file_name(path)
   if _type == "directory" then
     return directory_node(parent_path, name)
   elseif _type == "file" then
