@@ -41,7 +41,7 @@ local actions = {
   ["search"] = { fun = search.search, desc = "Search" },
   ["clear_search"] = { fun = lib.clear_search, desc = "Clear search result" },
 
-  ["close_window"] = { fun = lib.close, desc = "Close the tree window" },
+  ["close_tree"] = { fun = lib.close_tree, desc = "Close the tree window" },
   ["close_node"] = { fun = lib.close_node, desc = "Close directory" },
   ["close_all_nodes"] = { fun = lib.close_all_nodes, desc = "Close all directories" },
   ["cd_to"] = { fun = lib.cd_to, desc = "Set tree root to directory" },

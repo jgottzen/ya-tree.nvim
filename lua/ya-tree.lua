@@ -14,19 +14,19 @@ end
 ---@param switch_root? boolean
 ---@param focus? boolean
 function M.open(path, switch_root, focus)
-  lib().open({ file = path, switch_root = switch_root, focus = focus })
+  lib().open_tree({ file = path, switch_root = switch_root, focus = focus })
 end
 
 function M.close()
-  lib().close()
+  lib().close_tree()
 end
 
 function M.toggle()
-  lib().toggle()
+  lib().toggle_tree()
 end
 
 function M.focus()
-  lib().open({ focus = true })
+  lib().open_tree({ focus = true })
 end
 
 ---@param level LogLevel

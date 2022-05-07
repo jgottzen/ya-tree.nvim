@@ -78,6 +78,13 @@ function M.open(root, node, opts)
   end
 end
 
+function M.focus()
+  local tab = get_tab()
+  if tab then
+    tab.canvas:focus()
+  end
+end
+
 function M.close()
   local tab = get_tab()
   if tab then

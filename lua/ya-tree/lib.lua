@@ -90,11 +90,11 @@ end
 ---  - {opts.file?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
-function M.open(opts)
+function M.open_tree(opts)
   if setting_up then
     vim.defer_fn(function()
       log.debug("setup is in progress, deferring opening window...")
-      M.open(opts)
+      M.open_tree(opts)
     end, 100)
   end
 
@@ -161,15 +161,15 @@ function M.open(opts)
   end)()
 end
 
-function M.close()
+function M.close_tree()
   ui.close()
 end
 
-function M.toggle()
+function M.toggle_tree()
   if ui.is_open() then
-    M.close()
+    M.close_tree()
   else
-    M.open()
+    M.open_tree()
   end
 end
 
@@ -520,7 +520,7 @@ local function on_color_scheme()
 end
 
 local function on_tab_new_entered()
-  M.open({ focus = config.auto_open.focus_tree })
+  M.open_tree({ focus = config.auto_open.focus_tree })
 end
 
 local function on_tab_enter()
@@ -592,7 +592,7 @@ local function on_buf_enter(file, bufnr)
         log.debug("current tree is parent of directory %s", file)
       end
 
-      M.open({ focus = true, file = file })
+      M.open_tree({ focus = true, file = file })
     else
       -- only update the ui iff highlighting of open files is enabled and
       -- the necessary config options are set

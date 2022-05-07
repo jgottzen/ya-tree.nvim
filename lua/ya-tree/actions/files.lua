@@ -61,7 +61,7 @@ function M.preview()
       open_file(node, "edit")
     end
   end
-  lib.open({ focus = true })
+  ui.focus()
 end
 
 ---@param node YaTreeNode

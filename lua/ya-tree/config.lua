@@ -342,7 +342,7 @@ local M = {
     ---@field desc? string Description of what the mapping does.
 
     mappings = {
-      ["q"] = { action = "close_window", views = { "tree", "search" } },
+      ["q"] = { action = "close_tree", views = { "tree", "search" } },
       [{ "<CR>", "o", "<2-LeftMouse>" }] = { action = "open", views = { "tree", "search" } },
       ["<C-v>"] = { action = "vsplit", views = { "tree", "search" } },
       ["<C-s>"] = { action = "split", views = { "tree", "search" } },
