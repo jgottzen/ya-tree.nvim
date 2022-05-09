@@ -214,7 +214,7 @@ function M.get_view_mode()
 end
 
 function M.open_help()
-  help.show()
+  help.open()
 end
 
 ---@return boolean

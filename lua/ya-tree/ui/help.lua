@@ -4,7 +4,7 @@ local api = vim.api
 
 local M = {}
 
-function M.show()
+function M.open()
   local mappings = require("ya-tree.actions").mappings
 
   ---@type string[]
