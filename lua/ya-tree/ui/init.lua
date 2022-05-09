@@ -207,15 +207,6 @@ function M.get_size()
   end
 end
 
-function M.reset_window()
-  vim.schedule(function()
-    local tab = get_tab()
-    if tab and tab.canvas:is_open() then
-      tab.canvas:reset_canvas()
-    end
-  end)
-end
-
 ---@return YaTreeCanvasMode mode
 function M.get_view_mode()
   local tab = get_tab()

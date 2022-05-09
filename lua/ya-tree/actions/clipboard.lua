@@ -81,8 +81,6 @@ local function paste_node(dest_node, node, action)
   if fs.exists(destination) then
     local response = ui.select({ "Yes", "Rename", "No" }, { prompt = destination .. " already exists" })
 
-    ui.reset_window()
-
     if response == "Yes" then
       utils.notify('Will replace "' .. destination .. '"')
       replace = true

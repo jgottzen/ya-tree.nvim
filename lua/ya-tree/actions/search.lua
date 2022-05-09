@@ -189,8 +189,6 @@ function M.live_search(node)
     end,
     ---@param text string
     on_submit = function(text)
-      ui.reset_window()
-
       if text ~= term then
         term = text
         timer:stop()

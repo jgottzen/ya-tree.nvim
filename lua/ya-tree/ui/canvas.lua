@@ -383,15 +383,6 @@ function Canvas:resize()
   vim.cmd("wincmd =")
 end
 
-function Canvas:reset_canvas()
-  if self.winid then
-    api.nvim_command("stopinsert")
-    if not config.view.number and not config.view.relativenumber then
-      api.nvim_command("noautocmd setlocal norelativenumber")
-    end
-  end
-end
-
 ---@type YaTreeViewRenderer[]
 local directory_renderers = {}
 ---@type YaTreeViewRenderer[]

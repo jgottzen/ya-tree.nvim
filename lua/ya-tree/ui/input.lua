@@ -151,13 +151,7 @@ function Input:open()
   fn.prompt_setcallback(self.bufnr, self.callbacks.on_submit)
   fn.prompt_setinterrupt(self.bufnr, self.callbacks.on_close)
 
-  self:map("i", "<Esc>", function()
-    -- just calling input:close() and then ui.reset_window() will still leave the tree window with relativenumber,
-    -- forcing the interrupt handler set by prompt_setinterrupt solves it...
-    ---@type string
-    local keys = api.nvim_replace_termcodes("<C-c>", true, false, true)
-    api.nvim_feedkeys(keys, "n", true)
-  end)
+  self:map("i", "<Esc>", self.callbacks.on_close)
 
   vim.cmd("startinsert!")
 end

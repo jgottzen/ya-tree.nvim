@@ -79,8 +79,6 @@ function M.add(node)
   local input = Input:new({ title = prompt, width = #prompt + 4 }, {
     ---@param name string
     on_submit = function(name)
-      ui.reset_window()
-
       if not name then
         utils.notify("No name given, not creating new file/directory")
         return
@@ -192,8 +190,6 @@ local function delete_node(node)
       utils.warn("Failed to delete " .. node.path)
     end
   end
-
-  ui.reset_window()
 end
 
 function M.delete()
