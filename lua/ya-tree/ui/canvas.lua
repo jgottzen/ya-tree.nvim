@@ -176,30 +176,15 @@ function Canvas:move_buffer_to_edit_window(bufnr)
   end
 end
 
----@param key string
----@param value boolean|string
----@return string
-local function format_option(key, value)
-  if value == true then
-    return key
-  elseif value == false then
-    return string.format("no%s", key)
-  else
-    return string.format("%s=%s", key, value)
-  end
-end
-
 ---@private
 function Canvas:_set_window_options_and_size()
   api.nvim_win_set_buf(self.winid, self.bufnr)
   api.nvim_command("noautocmd wincmd " .. (config.view.side == "right" and "L" or "H"))
   api.nvim_command("noautocmd vertical resize " .. config.view.width)
 
-  for k, v in pairs(win_options) do
-    api.nvim_command(string.format("noautocmd setlocal %s", format_option(k, v)))
-  end
-  api.nvim_command(string.format("noautocmd setlocal %s", format_option("number", config.view.number)))
-  api.nvim_command(string.format("noautocmd setlocal %s", format_option("relativenumber", config.view.relativenumber)))
+  utils.win_set_local_options(self.winid, win_options)
+  local options = { number = config.view.number, relativenumber = config.view.relativenumber }
+  utils.win_set_local_options(self.winid, options)
 
   self._window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
   api.nvim_create_autocmd("WinClosed", {
@@ -557,12 +542,10 @@ do
 
       ---@type YaTreeNode[]
       local nodes = {}
-      if from <= #self.nodes then
-        for index = from, to do
-          local node = self.nodes[index]
-          if node then
-            nodes[#nodes + 1] = node
-          end
+      for index = from, to do
+        local node = self.nodes[index]
+        if node then
+          nodes[#nodes + 1] = node
         end
       end
 

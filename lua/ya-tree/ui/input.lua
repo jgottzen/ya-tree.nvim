@@ -1,3 +1,4 @@
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
@@ -109,19 +110,6 @@ function Input:new(opts, callbacks)
   return this
 end
 
----@param key string
----@param value boolean|string
----@return string
-local function format_option(key, value)
-  if value == true then
-    return key
-  elseif value == false then
-    return string.format("no%s", key)
-  else
-    return string.format("%s=%s", key, value)
-  end
-end
-
 function Input:open()
   if self.winid then
     return
@@ -137,9 +125,7 @@ function Input:open()
 
   ---@type number
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
-  for k, v in pairs(win_options) do
-    api.nvim_command(string.format("noautocmd setlocal %s", format_option(k, v)))
-  end
+  utils.win_set_local_options(self.winid, win_options)
 
   self:_create_title()
 
@@ -179,7 +165,7 @@ function Input:_create_title()
       style = "minimal",
       noautocmd = false,
     })
-    api.nvim_win_set_option(self.title_winid, "winblend", api.nvim_win_get_option(self.winid, "winblend"))
+    utils.win_set_local_options(self.title_winid, { winblend = api.nvim_win_get_option(self.winid, "winblend") })
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     local title = " " .. self.title:sub(1, math.min(width - 2, api.nvim_strwidth(self.title))) .. " "
     api.nvim_buf_set_lines(bufnr, 0, -1, true, { title })

@@ -82,6 +82,34 @@ function M.get_path_from_directory_buffer()
   end
 end
 
+---@param key string
+---@param value boolean|string
+---@return string
+local function format_option(key, value)
+  if value == true then
+    return key
+  elseif value == false then
+    return string.format("no%s", key)
+  else
+    return string.format("%s=%s", key, value)
+  end
+end
+
+---@param win number
+---@param opts table<string, string|boolean>
+---@see:
+-- https://github.com/b0o/incline.nvim/issues/4
+-- https://github.com/j-hui/fidget.nvim/pull/77
+-- https://github.com/neovim/neovim/issues/18283
+-- https://github.com/neovim/neovim/issues/14670
+function M.win_set_local_options(win, opts)
+  api.nvim_win_call(win, function()
+    for option, value in pairs(opts) do
+      vim.cmd(string.format("noautocmd setlocal %s", format_option(option, value)))
+    end
+  end)
+end
+
 ---@alias not_display_reason "filter"|"git"
 
 ---@param node YaTreeNode
