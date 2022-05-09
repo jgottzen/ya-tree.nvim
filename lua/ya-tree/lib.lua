@@ -863,7 +863,7 @@ local function setup_autocommands()
       group = group,
       pattern = "*",
       callback = function(input)
-        on_buf_delete(input.file, input.buf)
+        on_buf_delete(input.match, input.buf)
       end,
       desc = "Current file highlighting in the tree",
     })
@@ -884,7 +884,7 @@ local function setup_autocommands()
       group = group,
       pattern = "*",
       callback = function(input)
-        on_buf_write_post(input.file)
+        on_buf_write_post(input.match)
       end,
       desc = "Reload tree on buffer writes",
     })

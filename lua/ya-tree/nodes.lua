@@ -443,6 +443,10 @@ function Node:create_search_tree(search_results)
     children = {},
     expanded = true,
   })
+  local root_has_repo = self.repo ~= nil
+  if root_has_repo then
+    search_root.repo = self.repo
+  end
   ---@type table<string, YaTreeNode>
   local node_map = {}
   node_map[self.path] = search_root
@@ -452,6 +456,16 @@ function Node:create_search_tree(search_results)
   local function add_node(fs_node, parent)
     local node = Node:new(fs_node, parent)
     node.expanded = true
+    if not node.repo then
+      if parent.repo then
+        node.repo = parent.repo
+      elseif not root_has_repo then
+        local loaded = self:get_child_if_loaded(node.path)
+        if loaded and loaded.repo then
+          node.repo = loaded.repo
+        end
+      end
+    end
     parent.scanned = true
     parent.children[#parent.children + 1] = node
     table.sort(parent.children, fs.fs_node_comparator)

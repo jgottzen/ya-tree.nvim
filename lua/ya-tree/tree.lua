@@ -33,7 +33,7 @@ local M = {
 ---@param tree YaTree
 ---@return string
 local function tree_tostring(tree)
-  return string.format("(cwd=%q, root=%q)", tree.cwd, tree.root.path)
+  return string.format("(tabpage=%s, cwd=%q, root=%q)", tree.tabpage, tree.cwd, tree.root.path)
 end
 
 ---@param tabpage? number
@@ -106,7 +106,7 @@ function M.attach_git_watcher(tree, repo)
     local lib = require("ya-tree.lib")
     local watcher_id = repo:add_git_watcher(lib.on_git_change)
     tree.git_watchers[repo] = watcher_id
-    log.debug("attached git watcher for tree %s to git repo %s with id %s", tree.root.path, repo.toplevel, watcher_id)
+    log.debug("attached git watcher for tree %s to git repo %s with id %s", tree.tabpage, repo.toplevel, watcher_id)
   end
 end
 
