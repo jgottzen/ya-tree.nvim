@@ -453,8 +453,11 @@ function M.display_search_result(node, term, search_result, focus_node)
   end
 
   async.void(function()
-    tree.search.result, tree.search.current_node = node:create_search_tree(search_result)
+    local result, first_node = node:create_tree_from_paths(search_result)
+    ---@cast result YaTreeSearchNode
+    tree.search.result = result
     tree.search.result.search_term = term
+    tree.search.current_node = first_node
     tree.root = tree.search.result
     tree.current_node = tree.search.current_node
 
@@ -507,6 +510,44 @@ function M.system_open(node)
       utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, stderr))
     end
   end)
+end
+
+function M.toggle_buffers()
+  local tree = Tree.get_tree()
+  if not tree then
+    return
+  end
+
+  if ui.is_buffers_open() then
+    tree.root = tree.tree.root
+    tree.current_node = tree.tree.current_node
+    ui.close_buffers(tree.root, tree.current_node)
+  else
+    async.void(function()
+      ---@type string[]
+      local paths = {}
+      for _, bufnr in ipairs(api.nvim_list_bufs()) do
+        if api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+          ---@type string
+          local path = api.nvim_buf_get_name(bufnr)
+          if path ~= "" then
+            paths[#paths + 1] = path
+          end
+        end
+      end
+
+      tree.tree.root = tree.root
+      tree.tree.current_node = tree.current_node
+
+      local common_path = utils.find_common_ancestor(paths)
+      if tree.root:is_ancestor_of(common_path) or tree.root.path == common_path then
+        common_path = tree.root.path
+      end
+      tree.root, tree.current_node = Nodes.create_tree_from_paths(common_path, paths)
+      scheduler()
+      ui.open_buffers(tree.root, tree.current_node)
+    end)()
+  end
 end
 
 ---@param bufnr number

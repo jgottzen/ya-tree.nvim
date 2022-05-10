@@ -530,6 +530,28 @@ function Repo:is_ignored(path, _type)
   return false
 end
 
+---@param path string
+---@return GitRepo? repo
+function M.get_repo_for_path(path)
+  ---@type table<string, GitRepo>
+  local yadm_repos = {}
+  for toplevel, repo in pairs(M.repos) do
+    if not repo._is_yadm then
+      if path:find(toplevel, 1, true) then
+        return repo
+      end
+    else
+      yadm_repos[toplevel] = repo
+    end
+  end
+
+  for toplevel, repo in pairs(yadm_repos) do
+    if path:find(toplevel, 1, true) then
+      return repo
+    end
+  end
+end
+
 function M.setup()
   config = require("ya-tree.config").config
 end

@@ -44,6 +44,44 @@ function M.is_readable_file(path)
   return stat and stat.type == "file" and uv.fs_access(path, "R") or false
 end
 
+---@param paths string[]
+---@return string path
+function M.find_common_ancestor(paths)
+  table.sort(paths, function(a, b)
+    return #a < #b
+  end)
+  local common_ancestor = {}
+  local splits = {}
+  for _, path in ipairs(paths) do
+    splits[#splits + 1] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
+  end
+
+  for pos, dir_name in ipairs(splits[1]) do
+    local matched = true
+    local split_index = 2
+    while split_index <= #splits and matched do
+      if #splits[split_index] < pos then
+        matched = false
+        break
+      end
+      matched = splits[split_index][pos] == dir_name
+      split_index = split_index + 1
+    end
+    if matched then
+      common_ancestor[#common_ancestor + 1] = dir_name
+    else
+      break
+    end
+  end
+
+  local path = table.concat(common_ancestor, os_sep)
+  if #path == 0 then
+    return M.os_root()
+  else
+    return path
+  end
+end
+
 ---@param first string
 ---@param second string
 ---@return string path

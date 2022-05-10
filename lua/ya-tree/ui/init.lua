@@ -207,10 +207,10 @@ function M.get_size()
   end
 end
 
----@return YaTreeCanvasMode mode
+---@return YaTreeCanvasDisplayMode mode
 function M.get_view_mode()
   local tab = get_tab()
-  return tab and tab.canvas.mode
+  return tab and tab.canvas.display_mode
 end
 
 function M.open_help()
@@ -219,40 +219,53 @@ end
 
 ---@return boolean
 function M.is_search_open()
-  local tab = get_tab()
-  return tab and tab.canvas.mode == "search" or false
+  return M.get_view_mode() == "search"
 end
 
----@param search_root YaTreeSearchNode
+---@param mode YaTreeCanvasDisplayMode
+---@param root YaTreeNode|YaTreeSearchNode
 ---@param node? YaTreeNode
-function M.open_search(search_root, node)
+local function open_mode(mode, root, node)
   local tab = get_tab()
   if not tab or not tab.canvas:is_open() then
-    log.error("called when tab=%s", tab and "not open" or "nil")
     return
   end
 
-  tab.canvas.mode = "search"
-  tab.canvas:render(search_root)
+  tab.canvas.display_mode = mode
+  tab.canvas:render(root)
   if node then
     tab.canvas:focus_node(node)
   end
 end
 
+---@param search_root YaTreeSearchNode
+---@param node? YaTreeNode
+function M.open_search(search_root, node)
+  open_mode("search", search_root, node)
+end
+
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_search(root, node)
-  local tab = get_tab()
-  if not tab then
-    return
-  end
+  open_mode("tree", root, node)
+end
 
-  local canvas = tab.canvas
-  canvas.mode = "tree"
-  canvas:render(root)
-  if node and canvas:has_focus() then
-    canvas:focus_node(node)
-  end
+---@return boolean
+function M.is_buffers_open()
+  return M.get_view_mode() == "buffers"
+end
+
+---@param root YaTreeNode
+---@param node YaTreeNode
+function M.open_buffers(root, node)
+  open_mode("buffers", root, node)
+end
+
+
+---@param root YaTreeNode
+---@param node YaTreeNode
+function M.close_buffers(root, node)
+  open_mode("tree", root, node)
 end
 
 ---@param bufnr number

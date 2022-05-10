@@ -331,7 +331,7 @@ local M = {
       },
     },
 
-    ---@alias YaTreeViewMode YaTreeCanvasMode|"all"
+    ---@alias YaTreeViewMode YaTreeCanvasDisplayMode|"all"
 
     ---@class YaTreeConfig.Mapping Key mapping configuration.
     ---@field mode? string|string[] The mode(s) for the keybinding.
@@ -342,24 +342,24 @@ local M = {
     ---@field desc? string Description of what the mapping does.
 
     mappings = {
-      ["q"] = { action = "close_tree", views = { "tree", "search" } },
-      [{ "<CR>", "o", "<2-LeftMouse>" }] = { action = "open", views = { "tree", "search" } },
+      ["q"] = { action = "close_tree", views = { "tree", "search", "buffers" } },
+      [{ "<CR>", "o", "<2-LeftMouse>" }] = { action = "open", views = { "tree", "search", "buffers" } },
       ["<C-v>"] = { action = "vsplit", views = { "tree", "search" } },
       ["<C-s>"] = { action = "split", views = { "tree", "search" } },
       ["<Tab>"] = { mode = { "n", "v" }, action = "preview", views = { "tree", "search" } },
-      ["<BS>"] = { action = "close_node", views = { "tree", "search" } },
-      ["z"] = { action = "close_all_nodes", views = { "tree", "search" } },
+      ["<BS>"] = { action = "close_node", views = { "tree", "search", "buffers" } },
+      ["z"] = { action = "close_all_nodes", views = { "tree", "search", "buffers" } },
       [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to", views = { "tree" } },
       ["-"] = { action = "cd_up", views = { "tree" } },
-      ["P"] = { action = "parent_node", views = { "tree", "search" } },
-      ["<"] = { action = "prev_sibling", views = { "tree", "search" } },
-      [">"] = { action = "next_sibling", views = { "tree", "search" } },
-      ["K"] = { action = "first_sibling", views = { "tree", "search" } },
-      ["J"] = { action = "last_sibling", views = { "tree", "search" } },
-      ["[c"] = { action = "prev_git_item", views = { "tree", "search" } },
-      ["]c"] = { action = "next_git_item", views = { "tree", "search" } },
-      ["I"] = { action = "toggle_ignored", views = { "tree", "search" } },
-      ["H"] = { action = "toggle_filter", views = { "tree", "search" } },
+      ["P"] = { action = "parent_node", views = { "tree", "search", "buffers" } },
+      ["<"] = { action = "prev_sibling", views = { "tree", "search", "buffers" } },
+      [">"] = { action = "next_sibling", views = { "tree", "search", "buffers" } },
+      ["K"] = { action = "first_sibling", views = { "tree", "search", "buffers" } },
+      ["J"] = { action = "last_sibling", views = { "tree", "search", "buffers" } },
+      ["[c"] = { action = "prev_git_item", views = { "tree", "search", "buffers" } },
+      ["]c"] = { action = "next_git_item", views = { "tree", "search", "buffers" } },
+      ["I"] = { action = "toggle_ignored", views = { "tree", "search", "buffers" } },
+      ["H"] = { action = "toggle_filter", views = { "tree", "search", "buffers" } },
       ["R"] = { action = "refresh", views = { "tree" } },
       ["/"] = { action = "live_search", views = { "tree", "search" } },
       ["f"] = { action = "search", views = { "tree", "search" } },
@@ -373,11 +373,12 @@ local M = {
       ["x"] = { mode = { "n", "v" }, action = "cut_node", views = { "tree" } },
       ["p"] = { action = "paste_nodes", views = { "tree" } },
       ["<C-c>"] = { action = "clear_clipboard", views = { "tree" } },
-      ["y"] = { action = "copy_name_to_clipboard", views = { "tree", "search" } },
-      ["Y"] = { action = "copy_root_relative_path_to_clipboard", views = { "tree", "search" } },
-      ["gy"] = { action = "copy_absolute_path_to_clipboard", views = { "tree", "search" } },
-      ["?"] = { action = "open_help", views = { "tree", "search" } },
-      ["gx"] = { action = "system_open", views = { "tree", "search" } },
+      ["y"] = { action = "copy_name_to_clipboard", views = { "tree", "search", "buffers" } },
+      ["Y"] = { action = "copy_root_relative_path_to_clipboard", views = { "tree", "search", "buffers" } },
+      ["gy"] = { action = "copy_absolute_path_to_clipboard", views = { "tree", "search", "buffers" } },
+      ["?"] = { action = "open_help", views = { "tree", "search", "buffers" } },
+      ["gx"] = { action = "system_open", views = { "tree", "search", "buffers" } },
+      ["b"] = { action = "toggle_buffers", views = { "tree", "buffers" } },
     },
   },
 }

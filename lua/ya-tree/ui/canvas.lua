@@ -50,13 +50,13 @@ local win_options = {
 
 local tab_var_barbar_set_name = "_YaTreeBarbar"
 
----@alias YaTreeCanvasMode "tree"|"search"
+---@alias YaTreeCanvasDisplayMode "tree"|"search"|"buffers"
 
 ---@class YaTreeCanvas
 ---@field private winid number
 ---@field private edit_winid number
 ---@field private bufnr number
----@field public mode YaTreeCanvasMode
+---@field public display_mode YaTreeCanvasDisplayMode
 ---@field private _window_augroup number
 ---@field private _previous_row number
 ---@field private nodes YaTreeNode[]
@@ -72,7 +72,7 @@ Canvas.__tostring = function(self)
     self.winid,
     self.bufnr,
     self.edit_winid,
-    self.mode,
+    self.display_mode,
     self.nodes and #self.nodes or 0,
     self.nodes and tostring(self.nodes[1]) or "nil"
   )
@@ -81,7 +81,7 @@ end
 ---@return YaTreeCanvas canvas
 function Canvas:new()
   return setmetatable({
-    mode = "tree",
+    display_mode = "tree",
     nodes = {},
     node_path_to_index_lookup = {},
   }, self)
@@ -447,7 +447,8 @@ function Canvas:_render_tree(root)
   ---@param depth number
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
-    if utils.should_display_node(node, config) then
+    -- all nodes should be displayed if in 'buffers' display mode
+    if self.display_mode == "buffers" or utils.should_display_node(node, config) then
       node.depth = depth
       node.last_child = last_child
       content, highlight_groups = render_node(node)

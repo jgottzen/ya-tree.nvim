@@ -59,6 +59,7 @@ local actions = {
   rescan_dir_for_git = { fun = lib.rescan_dir_for_git, desc = "Rescan directory for git repo" },
   open_help = { fun = lib.open_help, desc = "Open keybindings help" },
   system_open = { fun = lib.system_open, desc = "Open the node with the default system application" },
+  toggle_buffers = { fun = lib.toggle_buffers, desc = "Show the current buffers in a tree view" },
 }
 
 ---@param mapping ActionMapping
@@ -121,7 +122,7 @@ local function validate_and_create_mappings(mappings)
     local func = m.func
     local command = m.command
     local desc = m.desc
-    ---@type table<YaTreeCanvasMode, boolean>
+    ---@type table<YaTreeCanvasDisplayMode, boolean>
     local views = {}
     if not m.views or vim.tbl_contains(m.views, "all") then
       views = {
@@ -168,7 +169,7 @@ local function validate_and_create_mappings(mappings)
     if nr_of_mappings == 1 then
       for _, mode in ipairs(modes) do
         ---@class ActionMapping
-        ---@field views table<YaTreeCanvasMode, boolean>
+        ---@field views table<YaTreeCanvasDisplayMode, boolean>
         ---@field mode string
         ---@field keys string[]
         ---@field name string

@@ -431,40 +431,23 @@ function Node:refresh(opts)
   end
 end
 
----Creates a separate node search tree from the `search_result`.
---
----@param search_results string[]
----@return YaTreeSearchNode search_root, YaTreeNode first_node
-function Node:create_search_tree(search_results)
-  local search_root = Node:new({
-    name = self.name,
-    type = self.type,
-    path = self.path,
-    children = {},
-    expanded = true,
-  })
-  local root_has_repo = self.repo ~= nil
-  if root_has_repo then
-    search_root.repo = self.repo
-  end
+---@param root YaTreeNode
+---@param paths string[]
+---@param repo_supplier fun(path: string, parent: YaTreeNode):GitRepo?
+---@return YaTreeNode root, YaTreeNode first_node
+local function create_tree_from_paths(root, paths, repo_supplier)
   ---@type table<string, YaTreeNode>
   local node_map = {}
-  node_map[self.path] = search_root
+  node_map[root.path] = root
 
   ---@param fs_node FsNode
   ---@param parent YaTreeNode
   local function add_node(fs_node, parent)
     local node = Node:new(fs_node, parent)
     node.expanded = true
-    if not node.repo then
-      if parent.repo then
-        node.repo = parent.repo
-      elseif not root_has_repo then
-        local loaded = self:get_child_if_loaded(node.path)
-        if loaded and loaded.repo then
-          node.repo = loaded.repo
-        end
-      end
+    local repo = repo_supplier(node.path, parent)
+    if repo then
+      node.repo = repo
     end
     parent.scanned = true
     parent.children[#parent.children + 1] = node
@@ -472,10 +455,11 @@ function Node:create_search_tree(search_results)
     node_map[node.path] = node
   end
 
-  local min_path_size = #self.path
-  for _, path in ipairs(search_results) do
+  local min_path_size = #root.path
+  for _, path in ipairs(paths) do
+    local parents
     ---@type string[]
-    local parents = Path:new(path):parents()
+    parents = Path:new(path):parents()
     for i = #parents, 1, -1 do
       local parent_path = parents[i]
       -- skip paths above the node we are searching from
@@ -498,7 +482,7 @@ function Node:create_search_tree(search_results)
     end
   end
 
-  local first_node = search_root
+  local first_node = root
   while first_node and first_node:is_directory() do
     if first_node.children and first_node.children[1] then
       first_node = first_node.children and first_node.children[1]
@@ -507,7 +491,60 @@ function Node:create_search_tree(search_results)
     end
   end
 
-  return search_root, first_node
+  return root, first_node
+end
+
+---Creates a separate node tree from the `paths`, with this `Node` as the root.
+---@param paths string[]
+---@return YaTreeNode root, YaTreeNode first_node
+function Node:create_tree_from_paths(paths)
+  local root = Node:new({
+    name = self.name,
+    type = self.type,
+    path = self.path,
+    children = {},
+    expanded = true,
+  })
+  local repo = self.repo
+  if repo then
+    root.repo = repo
+  end
+
+  return create_tree_from_paths(root, paths, function(path, parent)
+    if repo then
+      return repo
+    elseif parent.repo then
+      return parent.repo
+    else
+      local child = root:get_child_if_loaded(path)
+      if child and child.repo then
+        return child.repo
+      end
+    end
+  end)
+end
+
+---Creates a separate node tree from the `paths`, with `root_path` as the root.
+---@param root_path string
+---@param paths string[]
+---@return YaTreeNode root, YaTreeNode first_node
+function M.create_tree_from_paths(root_path, paths)
+  local splits = vim.split(root_path, utils.os_sep, { plain = true })
+  local root = Node:new({
+    name = splits[#splits],
+    type = "directory",
+    path = root_path,
+    children = {},
+    expanded = true,
+  })
+  local repo = git.get_repo_for_path(root_path)
+  if repo then
+    root.repo = repo
+  end
+
+  return create_tree_from_paths(root, paths, function(path)
+    return git.get_repo_for_path(path)
+  end)
 end
 
 ---@param fun fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
