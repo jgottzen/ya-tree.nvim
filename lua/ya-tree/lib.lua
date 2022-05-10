@@ -383,11 +383,10 @@ local function refresh_current_tree(node_or_path)
   tree.refreshing = true
 
   async.void(function()
-    -- only refresh git if git watcher is _not_ enabled
-    tree.root:refresh({ recurse = true, refresh_git = not config.git.watch_git_dir })
+    tree.root:refresh({ recurse = true, refresh_git = not config.git.enable })
 
     if type(node_or_path) == "table" then
-      ---@type YaTreeNode
+      ---@cast node_or_path YaTreeNode
       tree.current_node = node_or_path
     elseif type(node_or_path) == "string" then
       local node = tree.root:expand({ to = node_or_path })
