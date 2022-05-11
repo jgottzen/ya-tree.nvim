@@ -19,6 +19,10 @@ local M = {
   helpers = {},
 }
 
+---@class RenderingContext
+---@field display_mode YaTreeCanvasDisplayMode
+---@field config YaTreeConfig
+
 ---@class RenderResult
 ---@field padding string
 ---@field text string
@@ -28,7 +32,7 @@ local M = {
 local marker_at = {}
 
 ---@param node YaTreeNode
----@param _ YaTreeConfig
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Indentation
 ---@return RenderResult?
 function M.indentation(node, _, renderer)
@@ -60,7 +64,7 @@ function M.indentation(node, _, renderer)
 end
 
 ---@param node YaTreeNode
----@param _ YaTreeConfig
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Icon
 ---@return RenderResult?
 function M.icon(node, _, renderer)
@@ -122,7 +126,7 @@ function M.icon(node, _, renderer)
 end
 
 ---@param node YaTreeSearchNode
----@param _ YaTreeConfig
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Filter
 ---@return RenderResult[]?
 function M.filter(node, _, renderer)
@@ -148,10 +152,10 @@ function M.filter(node, _, renderer)
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
+---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Name
 ---@return RenderResult
-function M.name(node, config, renderer)
+function M.name(node, context, renderer)
   if node.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
     if text:sub(-1) ~= utils.os_sep then
@@ -187,7 +191,7 @@ function M.name(node, config, renderer)
       highlight = hl.FILE_NAME
     end
 
-    if config.git.show_ignored then
+    if context.config.git.show_ignored then
       if node:is_git_ignored() then
         highlight = hl.GIT_IGNORED
       end
@@ -207,7 +211,7 @@ function M.name(node, config, renderer)
 end
 
 ---@param node YaTreeNode
----@param _ YaTreeConfig
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Repository
 ---@return RenderResult[]?
 function M.repository(node, _, renderer)
@@ -290,7 +294,7 @@ function M.repository(node, _, renderer)
 end
 
 ---@param node YaTreeNode
----@param _ YaTreeConfig
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.SymlinkTarget
 ---@return RenderResult?
 function M.symlink_target(node, _, renderer)
@@ -304,11 +308,11 @@ function M.symlink_target(node, _, renderer)
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
+---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.GitStatus
 ---@return RenderResult[]?
-function M.git_status(node, config, renderer)
-  if config.git.enable then
+function M.git_status(node, context, renderer)
+  if context.config.git.enable then
     local git_status = node:get_git_status()
     if git_status then
       ---@type RenderResult[]
@@ -330,11 +334,11 @@ function M.git_status(node, config, renderer)
 end
 
 ---@param node YaTreeNode
----@param config YaTreeConfig
+---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Diagnostics
 ---@return RenderResult
-function M.diagnostics(node, config, renderer)
-  if config.diagnostics.enable then
+function M.diagnostics(node, context, renderer)
+  if context.config.diagnostics.enable then
     local severity = node:get_diagnostics_severity()
     if severity then
       if renderer.min_severity == nil or severity <= renderer.min_severity then
@@ -352,7 +356,7 @@ function M.diagnostics(node, config, renderer)
 end
 
 ---@param node YaTreeNode
----@param _ YaTreeConfig
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Clipboard
 ---@return RenderResult
 function M.clipboard(node, _, renderer)

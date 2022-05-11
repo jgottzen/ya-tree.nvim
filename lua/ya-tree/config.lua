@@ -165,16 +165,20 @@ local M = {
     },
 
     ---@class YaTreeRendererConfig
+    ---@field padding string The padding to use to the left of the renderer.
+    ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in.
 
     ---@class YaTreeConfig.Renderers Renderer configuration.
     renderers = {
       ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig Indentation rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       ---@field use_marker boolean Wether to show indent markers, default: `false`.
       ---@field indent_marker string Default: `"│"`.
       ---@field last_indent_marker string Default: `"└"`.
       indentation = {
         padding = "",
+        view_mode = { "tree", "search", "buffers" },
         use_marker = false,
         indent_marker = "│",
         last_indent_marker = "└",
@@ -182,8 +186,10 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig Icon rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       icon = {
         padding = "",
+        view_mode = { "tree", "search", "buffers" },
 
         ---@class YaTreeConfig.Renderers.Icon.Directory Directory icon rendering configuration.
         ---@field default string The icon for closed directories, default: `""`.
@@ -214,18 +220,22 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Filter : YaTreeRendererConfig Filter display configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "search" }`.
       filter = {
         padding = "",
+        view_mode = { "search" },
       },
 
       ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig File and directory name rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
       ---@field trailing_slash boolean Wether to show a trailing os directory separator after directory names, default: `false`.
       ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
       ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `false`.
       name = {
         padding = " ",
+        view_mode = { "tree", "search", "buffers" },
         root_folder_format = ":~",
         trailing_slash = false,
         use_git_status_colors = false,
@@ -234,9 +244,11 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig Repository rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       ---@field show_status boolean Whether to show repository status on the repository toplevel directory, default: `true`.
       repository = {
         padding = " ",
+        view_mode = { "tree", "search", "buffers" },
         show_status = true,
 
         ---@class YaTreeConfig.Renderers.Repository.Icons Repository icons.
@@ -270,16 +282,20 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig Symbolic link rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
       symlink_target = {
         padding = " ",
+        view_mode = { "tree", "search", "buffers" },
         arrow_icon = "➛",
       },
 
       ---@class YaTreeConfig.Renderers.GitStatus : YaTreeRendererConfig Git status rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       git_status = {
         padding = " ",
+        view_mode = { "tree", "search", "buffers" },
 
         ---@class YaTreeConfig.Renderers.GitStatus.Icons Git status icon configuration.
         ---@field staged string The icon for staged changes, default: `""`.
@@ -318,16 +334,20 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Diagnostics : YaTreeRendererConfig Lsp diagnostics rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       ---@field min_severity number The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
       diagnostics = {
         padding = " ",
+        view_mode = { "tree", "search", "buffers" },
         min_severity = vim.diagnostic.severity.HINT,
       },
 
       ---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig Clipboard rendering configuration.
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree" }`.
       clipboard = {
         padding = " ",
+        view_mode = { "tree" },
       },
     },
 

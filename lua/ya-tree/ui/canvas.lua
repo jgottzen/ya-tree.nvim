@@ -395,8 +395,9 @@ local function line_part(pos, padding, text, hl_name)
 end
 
 ---@param node YaTreeNode
+---@param mode YaTreeCanvasDisplayMode
 ---@return string content, highlight_group[] highlights
-local function render_node(node)
+local function render_node(node, mode)
   ---@type string[]
   local content = {}
   ---@type highlight_group[]
@@ -405,16 +406,20 @@ local function render_node(node)
   ---@type YaTreeViewRenderer[]
   local renderers = node:is_directory() and directory_renderers or file_renderers
   local pos = 0
+  ---@type RenderingContext
+  local context = { display_mode = mode, config = config }
   for _, renderer in ipairs(renderers) do
-    local results = renderer.fun(node, config, renderer.config)
-    if results then
-      results = results[1] and results or { results }
-      for _, result in ipairs(results) do
-        if result.text then
-          if not result.highlight then
-            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
+    if vim.tbl_contains(renderer.config.view_mode, mode) then
+      local results = renderer.fun(node, context, renderer.config)
+      if results then
+        results = results[1] and results or { results }
+        for _, result in ipairs(results) do
+          if result.text then
+            if not result.highlight then
+              log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
+            end
+            pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
           end
-          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
         end
       end
     end
@@ -435,7 +440,7 @@ function Canvas:_render_tree(root)
   local highlights = {}
 
   root.depth = 0
-  local content, highlight_groups = render_node(root)
+  local content, highlight_groups = render_node(root, self.display_mode)
 
   local linenr = 1
   self.nodes[linenr] = root
@@ -451,7 +456,7 @@ function Canvas:_render_tree(root)
     if self.display_mode == "buffers" or utils.should_display_node(node, config) then
       node.depth = depth
       node.last_child = last_child
-      content, highlight_groups = render_node(node)
+      content, highlight_groups = render_node(node, self.display_mode)
 
       linenr = linenr + 1
       self.nodes[linenr] = node
@@ -764,7 +769,7 @@ end
 
 ---@class YaTreeViewRenderer
 ---@field name string
----@field fun fun(node: YaTreeNode, config: YaTreeConfig, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
+---@field fun fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
 ---@field config? YaTreeRendererConfig
 
 do
