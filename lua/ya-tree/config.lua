@@ -159,6 +159,7 @@ local M = {
           { "symlink_target" },
           { "git_status" },
           { "diagnostics" },
+          { "buffer_number" },
           { "clipboard" },
         },
       },
@@ -340,6 +341,14 @@ local M = {
         padding = " ",
         view_mode = { "tree", "search", "buffers" },
         min_severity = vim.diagnostic.severity.HINT,
+      },
+
+      ---@class YaTreeConfig.Renderers.BufferNumber : YaTreeRendererConfig Buffer number rendering configuration.
+      ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "buffers" }`.
+      buffer_number = {
+        padding = " ",
+        view_mode = { "buffers" },
       },
 
       ---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig Clipboard rendering configuration.

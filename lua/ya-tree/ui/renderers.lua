@@ -357,6 +357,23 @@ end
 
 ---@param node YaTreeNode
 ---@param _ RenderingContext
+---@param renderer YaTreeConfig.Renderers.BufferNumber
+---@return RenderResult
+function M.buffer_number(node, _, renderer)
+  if fn.bufloaded(node.path) > 0 then
+    local bufnr = fn.bufnr(node.path)
+    if bufnr > 0 then
+      return {
+        padding = renderer.padding,
+        text = "#" .. bufnr,
+        highlight = hl.BUFFER_NUMBER,
+      }
+    end
+  end
+end
+
+---@param node YaTreeNode
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Clipboard
 ---@return RenderResult
 function M.clipboard(node, _, renderer)
