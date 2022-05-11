@@ -15,16 +15,21 @@ local M = {}
 
 ---@alias cmdmode "edit"|"vsplit"|"split"
 
----@param node YaTreeNode
-function M.open(node)
-  if not node then
-    return
-  end
-
-  if node:is_file() then
-    ui.open_file(node.path, "edit")
+function M.open()
+  local nodes = ui.get_selected_nodes()
+  if #nodes == 1 then
+    local node = nodes[1]
+    if node:is_file() then
+      ui.open_file(node.path, "edit")
+    else
+      lib.toggle_directory(node)
+    end
   else
-    lib.toggle_directory(node)
+    for _, node in ipairs(nodes) do
+      if node:is_file() then
+        ui.open_file(node.path, "edit")
+      end
+    end
   end
 end
 

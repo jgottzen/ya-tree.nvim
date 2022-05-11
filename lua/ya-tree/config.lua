@@ -372,7 +372,7 @@ local M = {
 
     mappings = {
       ["q"] = { action = "close_tree", views = { "tree", "search", "buffers" } },
-      [{ "<CR>", "o", "<2-LeftMouse>" }] = { action = "open", views = { "tree", "search", "buffers" } },
+      [{ "<CR>", "o", "<2-LeftMouse>" }] = { mode = { "n", "v" }, action = "open", views = { "tree", "search", "buffers" } },
       ["<C-v>"] = { action = "vsplit", views = { "tree", "search" } },
       ["<C-s>"] = { action = "split", views = { "tree", "search" } },
       ["<Tab>"] = { action = "preview", views = { "tree", "search", "buffers" } },
