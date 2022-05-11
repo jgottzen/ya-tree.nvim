@@ -125,6 +125,8 @@ function M.get_selected_nodes()
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
     return tab.canvas:get_selected_nodes()
+  else
+    return {}
   end
 end
 
@@ -292,6 +294,7 @@ end
 local function create_edit_window(canvas)
   local position = config.view.side ~= "left" and "aboveleft" or "belowright"
   vim.cmd(position .. " vsplit")
+  ---@type number
   local winid = api.nvim_get_current_win()
   canvas:set_edit_winid(winid)
   canvas:resize()

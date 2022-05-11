@@ -14,19 +14,13 @@ local M = {}
 ---@alias cmdmode "edit"|"vsplit"|"split"
 
 ---@param node YaTreeNode
----@param cmd cmdmode
-local function open_file(node, cmd)
-  ui.open_file(node.path, cmd)
-end
-
----@param node YaTreeNode
 function M.open(node)
   if not node then
     return
   end
 
   if node:is_file() then
-    open_file(node, "edit")
+    ui.open_file(node.path, "edit")
   else
     lib.toggle_directory(node)
   end
@@ -39,7 +33,7 @@ function M.vsplit(node)
   end
 
   if node:is_file() then
-    open_file(node, "vsplit")
+    ui.open_file(node.path, "vsplit")
   end
 end
 
@@ -50,7 +44,7 @@ function M.split(node)
   end
 
   if node:is_file() then
-    open_file(node, "split")
+    ui.open_file(node.path, "split")
   end
 end
 
@@ -58,7 +52,7 @@ function M.preview()
   local nodes = ui.get_selected_nodes()
   for _, node in ipairs(nodes) do
     if node:is_file() then
-      open_file(node, "edit")
+      ui.open_file(node.path, "edit")
     end
   end
   ui.focus()

@@ -808,10 +808,12 @@ do
     renderers.setup(config)
 
     -- reset the renderer arrays, since the setup can be called repeatedly
+    ---@type YaTreeRendererConfig[]
     directory_renderers = {}
+    ---@type YaTreeRendererConfig[]
     file_renderers = {}
 
-    for _, directory_renderer in pairs(config.view.renderers.directory) do
+    for _, directory_renderer in ipairs(config.view.renderers.directory) do
       local renderer = create_renderer(directory_renderer)
       if renderer then
         for k, v in pairs(directory_renderer) do
@@ -825,7 +827,7 @@ do
     end
     log.trace("directory renderers=%s", directory_renderers)
 
-    for _, file_renderer in pairs(config.view.renderers.file) do
+    for _, file_renderer in ipairs(config.view.renderers.file) do
       local renderer = create_renderer(file_renderer)
       if renderer then
         for k, v in pairs(file_renderer) do
