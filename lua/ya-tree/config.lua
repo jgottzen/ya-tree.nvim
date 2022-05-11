@@ -375,7 +375,7 @@ local M = {
       [{ "<CR>", "o", "<2-LeftMouse>" }] = { action = "open", views = { "tree", "search", "buffers" } },
       ["<C-v>"] = { action = "vsplit", views = { "tree", "search" } },
       ["<C-s>"] = { action = "split", views = { "tree", "search" } },
-      ["<Tab>"] = { mode = { "n", "v" }, action = "preview", views = { "tree", "search" } },
+      ["<Tab>"] = { action = "preview", views = { "tree", "search", "buffers" } },
       ["<BS>"] = { action = "close_node", views = { "tree", "search", "buffers" } },
       ["z"] = { action = "close_all_nodes", views = { "tree", "search", "buffers" } },
       [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to", views = { "tree" } },

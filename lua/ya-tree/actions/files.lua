@@ -9,6 +9,8 @@ local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
+local api = vim.api
+
 local M = {}
 
 ---@alias cmdmode "edit"|"vsplit"|"split"
@@ -48,14 +50,26 @@ function M.split(node)
   end
 end
 
-function M.preview()
-  local nodes = ui.get_selected_nodes()
-  for _, node in ipairs(nodes) do
-    if node:is_file() then
-      ui.open_file(node.path, "edit")
+---@param node YaTreeNode
+function M.preview(node)
+  if node:is_file() then
+    local already_loaded = vim.fn.bufloaded(node.path) > 0
+    ui.open_file(node.path, "edit")
+
+    -- taken from nvim-tree
+    if not already_loaded then
+      local bufnr = api.nvim_get_current_buf()
+      api.nvim_buf_set_option(bufnr, "bufhidden", "delete")
+      local group = api.nvim_create_augroup("RemoveBufHidden", { clear = true })
+      api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+        group = group,
+        buffer = bufnr,
+        command = "setlocal bufhidden= | autocmd! RemoveBufHidden",
+      })
     end
+
+    ui.focus()
   end
-  ui.focus()
 end
 
 ---@param node YaTreeNode
