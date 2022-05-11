@@ -170,7 +170,7 @@ function M.live_search(node)
         term = text
         timer:stop()
         vim.schedule(function()
-          lib.clear_search()
+          lib.close_search()
         end)
       else
         term = text
@@ -198,7 +198,7 @@ function M.live_search(node)
       end
     end,
     on_close = function()
-      lib.clear_search()
+      lib.close_search()
     end,
   })
   input:open()

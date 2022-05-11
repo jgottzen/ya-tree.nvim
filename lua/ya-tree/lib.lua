@@ -461,7 +461,7 @@ function M.display_search_result(node, term, search_result, focus_node)
     tree.current_node = tree.search.current_node
 
     scheduler()
-    ui.open_search(tree.search.result, focus_node and tree.search.current_node or nil)
+    ui.open_search(tree.root, focus_node and tree.current_node or nil)
   end)()
 end
 
@@ -472,17 +472,31 @@ function M.focus_first_search_result()
   end
 end
 
-function M.clear_search()
+function M.close_search()
   local tree = Tree.get_tree()
   if not tree then
     return
   end
 
-  tree.search.result = nil
-  tree.search.current_node = nil
+  -- save the current node in the search tree
+  tree.search.current_node = ui.get_current_node()
   tree.root = tree.tree.root
   tree.current_node = tree.tree.current_node
   ui.close_search(tree.root, tree.current_node)
+end
+
+function M.show_last_search(node)
+  local tree = Tree.get_tree()
+  if not tree or not tree.search.result then
+    return
+  end
+
+  tree.tree.root = tree.root
+  tree.tree.current_node = node
+  tree.root = tree.search.result
+  tree.current_node = tree.search.current_node
+
+  ui.open_search(tree.search.result, tree.search.current_node)
 end
 
 function M.open_help()

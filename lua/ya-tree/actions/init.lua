@@ -39,7 +39,8 @@ local actions = {
 
   live_search = { fun = search.live_search, desc = "Live search" },
   search = { fun = search.search, desc = "Search" },
-  clear_search = { fun = lib.clear_search, desc = "Clear search result" },
+  close_search = { fun = lib.close_search, desc = "Close the search result" },
+  show_last_search = { fun = lib.show_last_search, desc = "Show last search result" },
 
   close_tree = { fun = lib.close_tree, desc = "Close the tree window" },
   close_node = { fun = lib.close_node, desc = "Close directory" },
