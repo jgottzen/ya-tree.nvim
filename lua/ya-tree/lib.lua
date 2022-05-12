@@ -549,7 +549,8 @@ function M.system_open(node)
   end)
 end
 
-function M.toggle_buffers()
+---@param node YaTreeNode
+function M.toggle_buffers(node)
   local tree = Tree.get_tree()
   if not tree then
     return
@@ -574,13 +575,19 @@ function M.toggle_buffers()
       end
 
       tree.tree.root = tree.root
-      tree.tree.current_node = tree.current_node
+      tree.tree.current_node = node
 
-      local common_path = utils.find_common_ancestor(paths)
-      if tree.root:is_ancestor_of(common_path) or tree.root.path == common_path then
-        common_path = tree.root.path
+      ---@type string
+      local root_path
+      if #paths == 1 then
+        root_path = Path:new(paths[1]):parent().filename
+      else
+        root_path = utils.find_common_ancestor(paths)
       end
-      tree.root, tree.current_node = Nodes.create_tree_from_paths(common_path, paths)
+      if tree.root:is_ancestor_of(root_path) then
+        root_path = tree.root.path
+      end
+      tree.root, tree.current_node = Nodes.create_tree_from_paths(root_path, paths)
       scheduler()
       ui.open_buffers(tree.root, tree.current_node)
     end)()
