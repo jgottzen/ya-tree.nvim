@@ -237,6 +237,16 @@ function M.close_all_nodes()
 end
 
 ---@param tree YaTree
+---@param current_node YaTreeNode
+local function close_search(tree, current_node)
+  -- save the current node in the search tree
+  tree.search.current_node = current_node
+  tree.root = tree.tree.root
+  tree.current_node = tree.tree.current_node
+  ui.close_search(tree.root, tree.current_node)
+end
+
+---@param tree YaTree
 ---@param new_root string|YaTreeNode
 local function change_root_node_for_tree(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
@@ -245,11 +255,18 @@ local function change_root_node_for_tree(tree, new_root)
   local tabpage = api.nvim_get_current_tabpage()
 
   async.void(function()
+    tree.root = tree.tree.root
     tree = Tree.update_tree_root_node(tree, new_root)
 
     if tree.tabpage == tabpage then
       scheduler()
-      ui.update(tree.root, tree.current_node)
+      if ui.is_search_open() then
+        close_search(tree, ui.get_current_node())
+      elseif ui.is_buffers_open() then
+        ui.close_buffers(tree.root, tree.current_node)
+      else
+        ui.update(tree.root, tree.current_node)
+      end
     end
   end)()
 end
@@ -485,18 +502,14 @@ function M.goto_node_in_tree(node)
     return
   end
 
-  if ui.is_search_open() then
-    -- save the current node in the search tree
-    tree.search.current_node = node
-  end
-
   tree.root = tree.tree.root
   async.void(function()
-    tree.current_node = tree.root:expand({ to = node.path })
+    tree.tree.current_node = tree.root:expand({ to = node.path })
     scheduler()
     if ui.is_search_open() then
-      ui.close_search(tree.root, tree.current_node)
+      close_search(tree, node)
     elseif ui.is_buffers_open() then
+      tree.current_node = tree.tree.current_node
       ui.close_buffers(tree.root, tree.current_node)
     end
   end)()
@@ -504,15 +517,9 @@ end
 
 function M.close_search(node)
   local tree = Tree.get_tree()
-  if not tree then
-    return
+  if tree then
+    close_search(tree, node)
   end
-
-  -- save the current node in the search tree
-  tree.search.current_node = node
-  tree.root = tree.tree.root
-  tree.current_node = tree.tree.current_node
-  ui.close_search(tree.root, tree.current_node)
 end
 
 function M.show_last_search(node)

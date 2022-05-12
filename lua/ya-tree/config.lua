@@ -380,7 +380,7 @@ local M = {
       ["<Tab>"] = { action = "preview", views = { "tree", "search", "buffers" } },
       ["<BS>"] = { action = "close_node", views = { "tree", "search", "buffers" } },
       ["z"] = { action = "close_all_nodes", views = { "tree", "search", "buffers" } },
-      [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to", views = { "tree" } },
+      [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to", views = { "tree", "search", "buffers" } },
       ["-"] = { action = "cd_up", views = { "tree" } },
       ["P"] = { action = "parent_node", views = { "tree", "search", "buffers" } },
       ["<"] = { action = "prev_sibling", views = { "tree", "search", "buffers" } },
