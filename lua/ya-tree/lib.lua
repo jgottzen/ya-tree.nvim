@@ -389,7 +389,7 @@ local function refresh_current_tree(node_or_path)
   tree.refreshing = true
 
   async.void(function()
-    tree.root:refresh({ recurse = true, refresh_git = not config.git.enable })
+    tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
 
     if type(node_or_path) == "table" then
       ---@cast node_or_path YaTreeNode
