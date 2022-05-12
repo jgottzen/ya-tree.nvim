@@ -257,13 +257,19 @@ end
 ---@param node YaTreeNode
 function M.cd_to(node)
   local tree = Tree.get_tree()
-  if not tree or not node or not node:is_directory() or node == tree.root then
+  if not tree or not node or node == tree.root then
     return
   end
-  log.debug("cd to %q", node.path)
 
   -- save current position
   tree.current_node = node
+  if not node:is_directory() then
+    if not node.parent or node.parent == tree.root then
+      return
+    end
+    node = node.parent
+  end
+  log.debug("cd to %q", node.path)
 
   -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
   if config.cwd.update_from_tree and node.path ~= tree.cwd then
