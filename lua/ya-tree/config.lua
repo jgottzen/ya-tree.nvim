@@ -394,6 +394,7 @@ local M = {
       ["R"] = { action = "refresh", views = { "tree" } },
       ["/"] = { action = "live_search", views = { "tree", "search" } },
       ["f"] = { action = "search", views = { "tree", "search" } },
+      ["gt"] = { action = "goto_node_in_tree", views = { "search", "buffers" } },
       ["<C-x>"] = { action = "close_search", views = { "search" } },
       ["<C-_>"] = { action = "show_last_search", views = { "tree" } },
       ["<C-g>"] = { action = "rescan_dir_for_git", views = { "tree" } },

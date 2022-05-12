@@ -472,14 +472,38 @@ function M.focus_first_search_result()
   end
 end
 
-function M.close_search()
+---@param node YaTreeNode
+function M.goto_node_in_tree(node)
+  local tree = Tree.get_tree()
+  if not tree then
+    return
+  end
+
+  if ui.is_search_open() then
+    -- save the current node in the search tree
+    tree.search.current_node = node
+  end
+
+  tree.root = tree.tree.root
+  async.void(function()
+    tree.current_node = tree.root:expand({ to = node.path })
+    scheduler()
+    if ui.is_search_open() then
+      ui.close_search(tree.root, tree.current_node)
+    elseif ui.is_buffers_open() then
+      ui.close_buffers(tree.root, tree.current_node)
+    end
+  end)()
+end
+
+function M.close_search(node)
   local tree = Tree.get_tree()
   if not tree then
     return
   end
 
   -- save the current node in the search tree
-  tree.search.current_node = ui.get_current_node()
+  tree.search.current_node = node
   tree.root = tree.tree.root
   tree.current_node = tree.tree.current_node
   ui.close_search(tree.root, tree.current_node)
