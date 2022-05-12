@@ -1,3 +1,5 @@
+local fn = vim.fn
+
 local M = {
   ---@class YaTreeConfig
   ---@field auto_close boolean Force closing Neovim when YaTree is the last window, default: `false`.
@@ -46,9 +48,9 @@ local M = {
     },
 
     ---@class YaTreeConfig.Search Tree search configuration.
-    ---@field max_results number Max number of search results, default: `200`.
+    ---@field max_results number Max number of search results, only `fd` supports it, setting to 0 will disable it, default: `200`.
     ---@field cmd string|nil Override the search command to use, default: `nil`.
-    ---@field args string[]|fun(cmd: string, term: string, path:string, config: YaTreeConfig):string[]|nil Override the search command arguments to use, default: `nil`.
+    ---@field args string[]|fun(cmd: string, term: string, path:string, config: YaTreeConfig):string[] Override the search command arguments to use, default: `nil`.
     search = {
       max_results = 200,
       cmd = nil,
@@ -449,19 +451,40 @@ function M.setup(opts)
     end
   end
 
+  if M.config.git.enable and fn.executable("git") == 0 then
+    utils.notify("git is not detected in the PATH. Disabling 'git.enable' in the configuration.")
+    M.config.git.enable = false
+  end
   if M.config.git.yadm.enable then
     if not M.config.git.enable then
-      utils.notify("git is not enabled. Disabling 'git.yadm.enable' in the configuration")
+      utils.notify("git is not enabled. Disabling 'git.yadm.enable' in the configuration.")
       M.config.git.yadm.enable = false
-    elseif vim.fn.executable("yadm") == 0 then
-      utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in the configuration")
+    elseif fn.executable("yadm") == 0 then
+      utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in the configuration.")
       M.config.git.yadm.enable = false
     end
   end
 
-  if M.config.trash.enable and vim.fn.executable("trash") == 0 then
-    utils.notify("trash is not in the PATH. Disabling 'trash.enable' in the configuration")
+  if M.config.trash.enable and fn.executable("trash") == 0 then
+    utils.notify("trash is not in the PATH. Disabling 'trash.enable' in the configuration.")
     M.config.trash.enable = false
+  end
+
+  if not M.config.search.cmd then
+    if fn.executable("fd") == 1 then
+      M.config.search.cmd = "fd"
+    elseif fn.executable("fdfind") == 1 then
+      M.config.search.cmd = "fdfind"
+    elseif fn.executable("find") == 1 and not fn.has("win32") == 1 then
+      M.config.search.cmd = "find"
+    elseif fn.executable("where") == 1 then
+      M.config.search.cmd = "where"
+    else
+      utils.warn("None of the default search programs was found in the PATH.")
+    end
+  end
+  if M.config.search.max_results == 0 then
+    utils.warn("search.max_results is set to 0, disabling it, can cause performance issues!")
   end
 
   return M.config

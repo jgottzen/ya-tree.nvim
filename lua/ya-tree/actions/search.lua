@@ -13,12 +13,6 @@ local uv = vim.loop
 
 local M = {}
 
-local has_fd = fn.executable("fd") == 1
-local has_fdfind = fn.executable("fdfind") == 1
-local has_find = fn.executable("find") == 1
-local has_where = fn.executable("where") == 1
-local has_win32 = fn.has("win32") == 1
-
 ---@type boolean
 local fd_has_max_results
 ---@type boolean
@@ -31,6 +25,8 @@ do
     return not test:match("^error:")
   end
 
+  local has_fd = fn.executable("fd") == 1
+  local has_fdfind = fn.executable("fdfind") == 1
   fd_has_max_results = has_fd and has_max_results("fd")
   fdfind_has_max_results = has_fdfind and has_max_results("fdfind")
 end
@@ -40,19 +36,7 @@ end
 ---@param config YaTreeConfig
 ---@return string cmd, string[] arguments
 local function build_search(term, path, config)
-  ---@type string
-  local cmd
-  if config.search.cmd then
-    cmd = config.search.cmd
-  elseif has_fd then
-    cmd = "fd"
-  elseif has_fdfind then
-    cmd = "fdfind"
-  elseif has_find and not has_win32 then
-    cmd = "find"
-  elseif has_where then
-    cmd = "where"
-  end
+  local cmd = config.search.cmd
 
   ---@type string[]
   local args
@@ -60,35 +44,37 @@ local function build_search(term, path, config)
     args = config.search.args(cmd, term, path, config)
   else
     if cmd == "fd" or cmd == "fdfind" then
-      args = { "--color=never" }
+      args = { "--color=never", "-tf", "-td", "-tl" }
+      if not config.filters.enable or not config.filters.dotfiles then
+        table.insert(args, "--hidden")
+      end
       if config.filters.enable then
-        if not config.filters.dotfiles then
-          table.insert(args, "--hidden")
+        for name, _ in pairs(config.filters.custom) do
+          table.insert(args, "--exclude")
+          table.insert(args, name)
         end
       end
       if config.git.show_ignored then
         table.insert(args, "--no-ignore")
       end
-      if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results then
+      if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
         table.insert(args, "--max-results=" .. config.search.max_results)
       end
       table.insert(args, "--glob")
       table.insert(args, term)
       table.insert(args, path)
     elseif cmd == "find" then
-      args = { path, "-type", "f,d" }
-      if config.filters.enable then
-        if not config.filters.dotfiles then
-          table.insert(args, "-not")
-          table.insert(args, "-path")
-          table.insert(args, "*/.*")
-        end
+      args = { path, "-type", "f,d,l" }
+      if config.filters.enable and config.filters.dotfiles then
+        table.insert(args, "-not")
+        table.insert(args, "-path")
+        table.insert(args, "*/.*")
       end
       table.insert(args, "-iname")
       table.insert(args, term)
     elseif cmd == "where" then
       args = { "/r", path, term }
-    elseif not config.search.cmd then
+    else
       -- no search command available
       return
     end
@@ -126,7 +112,7 @@ local function search(term, node, focus_node, config)
     if code == 0 then
       ---@type string[]
       local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
-      log.debug("%q found %s matches", cmd, #lines)
+      utils.notify(string.format("%q found %s matches", cmd, #lines))
       lib.display_search_result(node, term, lines, focus_node)
     else
       stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
