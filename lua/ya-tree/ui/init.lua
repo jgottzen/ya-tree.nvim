@@ -138,45 +138,59 @@ function M.focus_node(node)
   end
 end
 
-function M.focus_prev_sibling()
+---@param node YaTreeNode
+function M.focus_parent(node)
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
-    tab.canvas:focus_prev_sibling()
+    tab.canvas:focus_parent(node)
   end
 end
 
-function M.focus_next_sibling()
+---@param node YaTreeNode
+function M.focus_prev_sibling(node)
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
-    tab.canvas:focus_next_sibling()
+    tab.canvas:focus_prev_sibling(node)
   end
 end
 
-function M.focus_first_sibling()
+---@param node YaTreeNode
+function M.focus_next_sibling(node)
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
-    tab.canvas:focus_first_sibling()
+    tab.canvas:focus_next_sibling(node)
   end
 end
 
-function M.focus_last_sibling()
+---@param node YaTreeNode
+function M.focus_first_sibling(node)
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
-    tab.canvas:focus_last_sibling()
+    tab.canvas:focus_first_sibling(node)
   end
 end
 
-function M.focus_prev_git_item()
+---@param node YaTreeNode
+function M.focus_last_sibling(node)
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
-    tab.canvas:focus_prev_git_item()
+    tab.canvas:focus_last_sibling(node)
   end
 end
 
-function M.focus_next_git_item()
+---@param node YaTreeNode
+function M.focus_prev_git_item(node)
   local tab = get_tab()
   if tab and tab.canvas:is_open() then
-    tab.canvas:focus_next_git_item()
+    tab.canvas:focus_prev_git_item(node)
+  end
+end
+
+---@param node YaTreeNode
+function M.focus_next_git_item(node)
+  local tab = get_tab()
+  if tab and tab.canvas:is_open() then
+    tab.canvas:focus_next_git_item(node)
   end
 end
 

@@ -181,11 +181,6 @@ function M.redraw()
   end
 end
 
----@return YaTreeNode? current_node
-function M.get_current_node()
-  return ui.get_current_node()
-end
-
 ---@param node YaTreeNode
 function M.toggle_directory(node)
   local tree = Tree.get_tree()
@@ -312,58 +307,6 @@ function M.cd_up(node)
     vim.cmd("tcd " .. fn.fnameescape(new_cwd))
   else
     change_root_node_for_tree(tree, tree.root.parent or new_cwd)
-  end
-end
-
----@param node YaTreeNode
-function M.parent_node(node)
-  -- check that the node isn't the current root node
-  local tree = Tree.get_tree()
-  if tree and node and tree.root ~= node then
-    node = node.parent
-    ui.focus_node(node)
-  end
-end
-
----@param node YaTreeNode
-function M.prev_sibling(node)
-  if node then
-    ui.focus_prev_sibling()
-  end
-end
-
----@param node YaTreeNode
-function M.next_sibling(node)
-  if node then
-    ui.focus_next_sibling()
-  end
-end
-
----@param node YaTreeNode
-function M.first_sibling(node)
-  if node then
-    ui.focus_first_sibling()
-  end
-end
-
----@param node YaTreeNode
-function M.last_sibling(node)
-  if node then
-    ui.focus_last_sibling()
-  end
-end
-
----@param node YaTreeNode
-function M.prev_git_item(node)
-  if node then
-    ui.focus_prev_git_item()
-  end
-end
-
----@param node YaTreeNode
-function M.next_git_item(node)
-  if node then
-    ui.focus_next_git_item()
   end
 end
 
@@ -677,10 +620,6 @@ function M.show_last_search(node)
   tree.current_node = tree.search.current_node
 
   ui.open_search(tree.search.result, tree.search.current_node)
-end
-
-function M.open_help()
-  ui.open_help()
 end
 
 ---@param node YaTreeNode

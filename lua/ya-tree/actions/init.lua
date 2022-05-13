@@ -46,19 +46,20 @@ local actions = {
   close_all_nodes = { fun = lib.close_all_nodes, desc = "Close all directories" },
   cd_to = { fun = lib.cd_to, desc = "Set tree root to directory" },
   cd_up = { fun = lib.cd_up, desc = "Set tree root one level up" },
-  parent_node = { fun = lib.parent_node, desc = "Go to parent directory" },
-  prev_sibling = { fun = lib.prev_sibling, desc = "Go to previous sibling node" },
-  next_sibling = { fun = lib.next_sibling, desc = "Go to next sibling node" },
-  first_sibling = { fun = lib.first_sibling, desc = "Go to first sibling node" },
-  last_sibling = { fun = lib.last_sibling, desc = "Go to last sibling node" },
-  prev_git_item = { fun = lib.prev_git_item, desc = "Go to previous git item" },
-  next_git_item = { fun = lib.next_git_item, desc = "Go to next git item" },
   toggle_ignored = { fun = lib.toggle_ignored, desc = "Toggle git ignored files and directories" },
   toggle_filter = { fun = lib.toggle_filter, desc = "Toggle filtered files and directories" },
   refresh_tree = { fun = lib.refresh_tree, desc = "Refresh the tree" },
   rescan_dir_for_git = { fun = lib.rescan_dir_for_git, desc = "Rescan directory for git repo" },
-  open_help = { fun = lib.open_help, desc = "Open keybindings help" },
   toggle_buffers = { fun = lib.toggle_buffers, desc = "Show the current buffers in a tree view" },
+
+  focus_parent = { fun = ui.focus_parent, desc = "Go to parent directory" },
+  focus_prev_sibling = { fun = ui.focus_prev_sibling, desc = "Go to previous sibling node" },
+  focus_next_sibling = { fun = ui.focus_next_sibling, desc = "Go to next sibling node" },
+  focus_first_sibling = { fun = ui.focus_first_sibling, desc = "Go to first sibling node" },
+  focus_last_sibling = { fun = ui.focus_last_sibling, desc = "Go to last sibling node" },
+  focus_prev_git_item = { fun = ui.focus_prev_git_item, desc = "Go to previous git item" },
+  focus_next_git_item = { fun = ui.focus_next_git_item, desc = "Go to next git item" },
+  open_help = { fun = ui.open_help, desc = "Open keybindings help" },
 }
 
 ---@param mapping ActionMapping

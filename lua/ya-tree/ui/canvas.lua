@@ -623,113 +623,123 @@ function Canvas:focus_node(node)
   end
 end
 
-function Canvas:focus_prev_sibling()
-  local node, _, col = self:_get_current_node_and_position()
-  if not node then
-    return
-  end
-  local parent = node.parent
-  if not parent or not parent.children then
+---@param node YaTreeNode
+function Canvas:focus_parent(node)
+  if not node or node == self.nodes[1] or not node.parent then
     return
   end
 
-  for prev in parent:iterate_children({ reverse = true, from = node }) do
+  local index = self.node_path_to_index_lookup[node.parent.path]
+  if index then
+    ---@type number
+    local _, column = unpack(api.nvim_win_get_cursor(self.winid))
+    set_cursor_position(self.winid, index, column)
+  end
+end
+
+---@param node YaTreeNode
+function Canvas:focus_prev_sibling(node)
+  if not node or not node.parent or not node.parent.children then
+    return
+  end
+
+  for prev in node.parent:iterate_children({ reverse = true, from = node }) do
     if utils.should_display_node(prev, config) then
       local index = self.node_path_to_index_lookup[prev.path]
       if index then
-        set_cursor_position(self.winid, index, col)
+        ---@type number
+        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
+        set_cursor_position(self.winid, index, column)
         return
       end
     end
   end
 end
 
-function Canvas:focus_next_sibling()
-  local node, _, col = self:_get_current_node_and_position()
-  if not node then
-    return
-  end
-  local parent = node.parent
-  if not parent or not parent.children then
+---@param node YaTreeNode
+function Canvas:focus_next_sibling(node)
+  if not node or not node.parent or not node.parent.children then
     return
   end
 
-  for next in parent:iterate_children({ from = node }) do
+  for next in node.parent:iterate_children({ from = node }) do
     if utils.should_display_node(next, config) then
       local index = self.node_path_to_index_lookup[next.path]
       if index then
-        set_cursor_position(self.winid, index, col)
+        ---@type number
+        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
+        set_cursor_position(self.winid, index, column)
         return
       end
     end
   end
 end
 
-function Canvas:focus_first_sibling()
-  local node, _, col = self:_get_current_node_and_position()
-  if not node then
-    return
-  end
-  local parent = node.parent
-  if not parent or not parent.children then
+---@param node YaTreeNode
+function Canvas:focus_first_sibling(node)
+  if not node or not node.parent or not node.parent.children then
     return
   end
 
-  for next in parent:iterate_children() do
+  for next in node.parent:iterate_children() do
     if utils.should_display_node(next, config) then
       local index = self.node_path_to_index_lookup[next.path]
       if index then
-        set_cursor_position(self.winid, index, col)
+        ---@type number
+        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
+        set_cursor_position(self.winid, index, column)
         return
       end
     end
   end
 end
 
-function Canvas:focus_last_sibling()
-  local node, _, col = self:_get_current_node_and_position()
-  if not node then
-    return
-  end
-  local parent = node.parent
-  if not parent or not parent.children then
+---@param node YaTreeNode
+function Canvas:focus_last_sibling(node)
+  if not node or not node.parent or not node.parent.children then
     return
   end
 
-  for prev in parent:iterate_children({ reverse = true }) do
+  for prev in node.parent:iterate_children({ reverse = true }) do
     if utils.should_display_node(prev, config) then
       local index = self.node_path_to_index_lookup[prev.path]
       if index then
-        set_cursor_position(self.winid, index, col)
+        ---@type number
+        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
+        set_cursor_position(self.winid, index, column)
         return
       end
     end
   end
 end
 
-function Canvas:focus_prev_git_item()
-  local node, row, col = self:_get_current_node_and_position()
+---@param node YaTreeNode
+function Canvas:focus_prev_git_item(node)
   if not node then
     return
   end
 
+  ---@type number
+  local row, column = unpack(api.nvim_win_get_cursor(self.winid))
   for index = row - 1, 1, -1 do
     if self.nodes[index]:get_git_status() then
-      set_cursor_position(self.winid, index, col)
+      set_cursor_position(self.winid, index, column)
       return
     end
   end
 end
 
-function Canvas:focus_next_git_item()
-  local node, row, col = self:_get_current_node_and_position()
+---@param node YaTreeNode
+function Canvas:focus_next_git_item(node)
   if not node then
     return
   end
 
+  ---@type number
+  local row, column = unpack(api.nvim_win_get_cursor(self.winid))
   for index = row + 1, #self.nodes do
     if self.nodes[index]:get_git_status() then
-      set_cursor_position(self.winid, index, col)
+      set_cursor_position(self.winid, index, column)
       return
     end
   end
