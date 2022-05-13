@@ -684,28 +684,6 @@ function M.open_help()
 end
 
 ---@param node YaTreeNode
-function M.system_open(node)
-  if not node then
-    return
-  end
-
-  if not config.system_open.cmd then
-    utils.warn("No sytem open command set, or OS cannot be recognized!")
-    return
-  end
-
-  local args = vim.deepcopy(config.system_open.args)
-  table.insert(args, node.link_to or node.path)
-  job.run({ cmd = config.system_open.cmd, args = args, detached = true, wrap_callback = true }, function(code, _, stderr)
-    if code ~= 0 then
-      stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
-      stderr = table.concat(stderr, " ")
-      utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, stderr))
-    end
-  end)
-end
-
----@param node YaTreeNode
 function M.toggle_buffers(node)
   local tree = Tree.get_tree()
   if tree then

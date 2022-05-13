@@ -22,6 +22,7 @@ local actions = {
   rename = { fun = files.rename, desc = "Rename file or directory" },
   delete = { fun = files.delete, desc = "Delete files and directories" },
   trash = { fun = files.trash, desc = "Trash files and directories" },
+  system_open = { fun = files.system_open, desc = "Open the node with the default system application" },
 
   copy_node = { fun = clipboard.copy_node, desc = "Select files and directories for copy" },
   cut_node = { fun = clipboard.cut_node, desc = "Select files and directories for cut" },
@@ -57,7 +58,6 @@ local actions = {
   refresh_tree = { fun = lib.refresh_tree, desc = "Refresh the tree" },
   rescan_dir_for_git = { fun = lib.rescan_dir_for_git, desc = "Rescan directory for git repo" },
   open_help = { fun = lib.open_help, desc = "Open keybindings help" },
-  system_open = { fun = lib.system_open, desc = "Open the node with the default system application" },
   toggle_buffers = { fun = lib.toggle_buffers, desc = "Show the current buffers in a tree view" },
 }
 
