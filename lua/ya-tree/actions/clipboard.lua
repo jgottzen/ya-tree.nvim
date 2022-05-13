@@ -158,7 +158,7 @@ function M.paste_nodes(node)
         end
       end
       clear_clipboard()
-      lib.refresh_and_navigate(first_file)
+      lib.refresh_tree(first_file)
     else
       utils.notify("Nothing in clipboard")
     end

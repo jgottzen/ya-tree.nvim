@@ -391,12 +391,42 @@ function M.toggle_filter(node)
   end
 end
 
----@param node_or_path YaTreeNode|string
-local function refresh_current_tree(node_or_path)
-  local tree = Tree.get_tree()
-  if not tree then
-    return
+---@param tree YaTree
+local function open_buffers(tree)
+  ---@type string[]
+  local paths = {}
+  for _, bufnr in ipairs(api.nvim_list_bufs()) do
+    if api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+      ---@type string
+      local path = api.nvim_buf_get_name(bufnr)
+      if path ~= "" then
+        paths[#paths + 1] = path
+      end
+    end
   end
+
+  async.void(function()
+    ---@type string
+    local root_path
+    if #paths == 0 then
+      root_path = tree.tree.root.path
+    elseif #paths == 1 then
+      root_path = Path:new(paths[1]):parent().filename
+    else
+      root_path = utils.find_common_ancestor(paths)
+    end
+    if tree.tree.root:is_ancestor_of(root_path) then
+      root_path = tree.tree.root.path
+    end
+    tree.root, tree.current_node = Nodes.create_tree_from_paths(root_path, paths)
+    scheduler()
+    ui.open_buffers(tree.root, tree.current_node)
+  end)()
+end
+
+---@param tree YaTree
+---@param node_or_path YaTreeNode|string
+local function refresh_tree(tree, node_or_path)
   if tree.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return
@@ -427,14 +457,18 @@ local function refresh_current_tree(node_or_path)
   end)()
 end
 
----@param node YaTreeNode
-function M.refresh(node)
-  refresh_current_tree(node)
-end
-
----@param path string
-function M.refresh_and_navigate(path)
-  refresh_current_tree(path)
+---@param node_or_path YaTreeNode|string
+function M.refresh_tree(node_or_path)
+  local tree = Tree.get_tree()
+  if tree then
+    if ui.is_buffers_open() then
+      open_buffers(tree)
+    elseif ui.is_search_open() then
+      M.search(tree.root, tree.root.search_term, false)
+    else
+      refresh_tree(tree, node_or_path)
+    end
+  end
 end
 
 ---@param node YaTreeNode
@@ -458,34 +492,143 @@ function M.rescan_dir_for_git(node)
   end)()
 end
 
----@param node YaTreeNode
----@param term string
----@param search_result string[]
----@param focus_node boolean
-function M.display_search_result(node, term, search_result, focus_node)
-  local tree = Tree.get_tree()
-  if not tree or not node then
-    return
+do
+  ---@type boolean
+  local fd_has_max_results
+  ---@type boolean
+  local fdfind_has_max_results
+  do
+    ---@param cmd string
+    ---@return boolean
+    local function has_max_results(cmd)
+      local test = fn.system(cmd .. " this_is_only_a_test_search --max-depth=1 --max-results=1")
+      return not test:match("^error:")
+    end
+
+    fd_has_max_results = fn.executable("fd") == 1 and has_max_results("fd")
+    fdfind_has_max_results = fn.executable("fdfind") == 1 and has_max_results("fdfind")
   end
 
-  -- store the current tree only once, before the search is done
-  if not ui.is_search_open() then
-    tree.tree.root = tree.root
-    tree.tree.current_node = ui.get_current_node()
+  ---@param term string
+  ---@param path string
+  ---@return string? cmd, string[] arguments
+  local function build_search(term, path)
+    local cmd = config.search.cmd
+
+    ---@type string[]
+    local args
+    if type(config.search.args) == "function" then
+      args = config.search.args(cmd, term, path, config)
+    else
+      if cmd == "fd" or cmd == "fdfind" then
+        args = { "--color=never", "-tf", "-td", "-tl" }
+        if not config.filters.enable or not config.filters.dotfiles then
+          table.insert(args, "--hidden")
+        end
+        if config.filters.enable then
+          for name, _ in pairs(config.filters.custom) do
+            table.insert(args, "--exclude")
+            table.insert(args, name)
+          end
+        end
+        if config.git.show_ignored then
+          table.insert(args, "--no-ignore")
+        end
+        if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
+          table.insert(args, "--max-results=" .. config.search.max_results)
+        end
+        table.insert(args, "--glob")
+        table.insert(args, term)
+        table.insert(args, path)
+      elseif cmd == "find" then
+        args = { path, "-type", "f,d,l" }
+        if config.filters.enable and config.filters.dotfiles then
+          table.insert(args, "-not")
+          table.insert(args, "-path")
+          table.insert(args, "*/.*")
+        end
+        table.insert(args, "-iname")
+        table.insert(args, term)
+      elseif cmd == "where" then
+        args = { "/r", path, term }
+      else
+        -- no search command available
+        return
+      end
+
+      if type(config.search.args) == "table" then
+        for _, arg in ipairs(config.search.args) do
+          table.insert(args, arg)
+        end
+      end
+    end
+
+    return cmd, args
   end
 
-  async.void(function()
-    local result, first_node = node:create_tree_from_paths(search_result)
-    ---@cast result YaTreeSearchNode
-    tree.search.result = result
-    tree.search.result.search_term = term
-    tree.search.current_node = first_node
-    tree.root = tree.search.result
-    tree.current_node = tree.search.current_node
+  ---@param node YaTreeNode
+  ---@param term string
+  ---@param search_result string[]
+  ---@param focus_node boolean
+  local function display_search_result(node, term, search_result, focus_node)
+    local tree = Tree.get_tree()
+    if not tree or not node then
+      return
+    end
 
-    scheduler()
-    ui.open_search(tree.root, focus_node and tree.current_node or nil)
-  end)()
+    -- store the current tree only once, before the search is done
+    if not ui.is_search_open() then
+      tree.tree.root = tree.root
+      tree.tree.current_node = ui.get_current_node()
+    end
+
+    async.void(function()
+      local result, first_node = node:create_tree_from_paths(search_result)
+      ---@cast result YaTreeSearchNode
+      tree.search.result = result
+      tree.search.result.search_term = term
+      tree.search.current_node = first_node
+      tree.root = tree.search.result
+      tree.current_node = tree.search.current_node
+
+      scheduler()
+      ui.open_search(tree.root, focus_node and tree.current_node or nil)
+    end)()
+  end
+
+  ---@param node YaTreeNode
+  ---@param term string
+  ---@param focus_node boolean
+  function M.search(node, term, focus_node)
+    if not node or not term then
+      return
+    end
+
+    local search_term = term
+    if term ~= "*" and not term:find("*") then
+      search_term = "*" .. term .. "*"
+    end
+    local cmd, args = build_search(search_term, node.path)
+    if not cmd then
+      utils.warn("No suitable search command found!")
+      return
+    end
+
+    log.debug("searching for %q in %q", term, node.path)
+
+    job.run({ cmd = cmd, args = args, cwd = node.path, wrap_callback = true }, function(code, stdout, stderr)
+      if code == 0 then
+        ---@type string[]
+        local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+        utils.notify(string.format("%q found %s matches for %q", cmd, #lines, term))
+        display_search_result(node, term, lines, focus_node)
+      else
+        stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
+        stderr = table.concat(stderr, " ")
+        utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
+      end
+    end)
+  end
 end
 
 function M.focus_first_search_result()
@@ -565,45 +708,16 @@ end
 ---@param node YaTreeNode
 function M.toggle_buffers(node)
   local tree = Tree.get_tree()
-  if not tree then
-    return
-  end
-
-  if ui.is_buffers_open() then
-    tree.root = tree.tree.root
-    tree.current_node = tree.tree.current_node
-    ui.close_buffers(tree.root, tree.current_node)
-  else
-    async.void(function()
-      ---@type string[]
-      local paths = {}
-      for _, bufnr in ipairs(api.nvim_list_bufs()) do
-        if api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
-          ---@type string
-          local path = api.nvim_buf_get_name(bufnr)
-          if path ~= "" then
-            paths[#paths + 1] = path
-          end
-        end
-      end
-
+  if tree then
+    if ui.is_buffers_open() then
+      tree.root = tree.tree.root
+      tree.current_node = tree.tree.current_node
+      ui.close_buffers(tree.root, tree.current_node)
+    else
       tree.tree.root = tree.root
       tree.tree.current_node = node
-
-      ---@type string
-      local root_path
-      if #paths == 1 then
-        root_path = Path:new(paths[1]):parent().filename
-      else
-        root_path = utils.find_common_ancestor(paths)
-      end
-      if tree.root:is_ancestor_of(root_path) then
-        root_path = tree.root.path
-      end
-      tree.root, tree.current_node = Nodes.create_tree_from_paths(root_path, paths)
-      scheduler()
-      ui.open_buffers(tree.root, tree.current_node)
-    end)()
+      open_buffers(tree)
+    end
   end
 end
 

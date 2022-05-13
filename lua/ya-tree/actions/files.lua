@@ -98,32 +98,22 @@ function M.add(node)
       end
 
       local new_path = utils.join_path(node.path, name)
-
-      if vim.endswith(new_path, utils.os_sep) then
+      local is_directory = vim.endswith(new_path, utils.os_sep)
+      if is_directory then
         new_path = new_path:sub(1, -2)
-        if fs.exists(new_path) then
-          utils.warn(string.format("%q already exists!", new_path))
-          return
-        end
+      end
 
-        if fs.create_dir(new_path) then
-          utils.notify(string.format("Created directory %q", new_path))
-          lib.refresh_and_navigate(new_path)
-        else
-          utils.warn(string.format("Failed to create directory %q", new_path))
-        end
+      if fs.exists(new_path) then
+        utils.warn(string.format("%q already exists!", new_path))
+        return
+      end
+
+      local ok = is_directory and fs.create_dir(new_path) or fs.create_file(new_path)
+      if ok then
+        utils.notify(string.format("Created %s %q", is_directory and "directory" or "file", new_path))
+        lib.refresh_tree(new_path)
       else
-        if fs.exists(new_path) then
-          utils.warn(string.format("%q already exists!", new_path))
-          return
-        end
-
-        if fs.create_file(new_path) then
-          utils.notify(string.format("Created file %q", new_path))
-          lib.refresh_and_navigate(new_path)
-        else
-          utils.warn(string.format("Failed to create file %q", new_path))
-        end
+        utils.warn(string.format("Failed to create %s %q", is_directory and "directory" or "file", new_path))
       end
     end,
   })
@@ -150,7 +140,7 @@ function M.rename(node)
     local new_name = utils.join_path(node.parent.path, name)
     if fs.rename(node.path, new_name) then
       utils.notify(string.format("Renamed %q to %q", node.path, new_name))
-      lib.refresh_and_navigate(new_name)
+      lib.refresh_tree(new_name)
     else
       utils.warn(string.format("Failed to rename %q to %q", node.path, new_name))
     end
@@ -219,7 +209,7 @@ function M.delete()
       scheduler()
     end
 
-    lib.refresh(selected_node)
+    lib.refresh_tree(selected_node)
   end)()
 end
 
@@ -257,7 +247,7 @@ function M.trash(_)
       log.debug("trashing files %s", files)
       job.run({ cmd = "trash", args = files, wrap_callback = true }, function(code, _, stderr)
         if code == 0 then
-          lib.refresh(selected_node)
+          lib.refresh_tree(selected_node)
         else
           stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
           stderr = table.concat(stderr, " ")
