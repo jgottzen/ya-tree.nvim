@@ -109,20 +109,14 @@ local function paste_node(dest_node, node, action)
     elseif node:is_file() then
       ok = fs.copy_file(node.path, destination, replace)
     end
-
-    if ok then
-      utils.notify(string.format("Copied %q to %q", node.path, destination))
-    else
-      utils.warn(string.format("Failed to copy %q to %q", node.path, destination))
-    end
   else
     ok = fs.rename(node.path, destination)
+  end
 
-    if ok then
-      utils.notify(string.format("Moved %q to %q", node.path, destination))
-    else
-      utils.warn(string.format("Failed to move %q to %q", node.path, destination))
-    end
+  if ok then
+    utils.notify(string.format("%s %q to %q", copy_action == "copy" and "Copied" or "Moved", node.path, destination))
+  else
+    utils.warn(string.format("Failed to %s %q to %q", copy_action == "copy" and "copy" or "move", node.path, destination))
   end
 
   return ok, destination

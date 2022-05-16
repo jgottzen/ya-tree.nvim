@@ -150,6 +150,7 @@ function M.node_for(path)
     return
   end
 
+  ---@type string
   local parent_path = Path:new(path):parent():absolute()
   local name = get_file_name(path)
   if _type == "directory" then
@@ -267,6 +268,7 @@ function M.create_dir(path)
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
   if not uv.fs_mkdir(p:absolute(), mode) and not p:exists() then
+    ---@type string[]
     local dirs = vim.split(p:absolute(), utils.os_sep)
     local acc = ""
     for _, dir in ipairs(dirs) do

@@ -189,12 +189,10 @@ function M.delete()
 
   async.void(function()
     scheduler()
-
     for _, node in ipairs(nodes) do
       delete_node(node)
       scheduler()
     end
-
     lib.refresh_tree(selected_node)
   end)()
 end
@@ -221,6 +219,7 @@ function M.trash()
         end
       end
     else
+      ---@param n YaTreeNode
       files = vim.tbl_map(function(n)
         return n.path
       end, nodes)

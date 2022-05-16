@@ -50,10 +50,12 @@ function M.find_common_ancestor(paths)
   table.sort(paths, function(a, b)
     return #a < #b
   end)
+  ---@type string[]
   local common_ancestor = {}
+  ---@type string[][]
   local splits = {}
-  for _, path in ipairs(paths) do
-    splits[#splits + 1] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
+  for i, path in ipairs(paths) do
+    splits[i] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
   end
 
   for pos, dir_name in ipairs(splits[1]) do
@@ -102,16 +104,20 @@ end
 
 ---@return boolean is_directory, string? path
 function M.get_path_from_directory_buffer()
+  ---@type number
   local bufnr = api.nvim_get_current_buf()
+  ---@type string
   local bufname = api.nvim_buf_get_name(bufnr)
   if not M.is_directory(bufname) then
     return false
   end
+  ---@type string
   local buftype = api.nvim_buf_get_option(bufnr, "filetype")
   if buftype ~= "" then
     return false
   end
 
+  ---@type string[]
   local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
   if #lines == 0 or (#lines == 1 and lines[1] == "") then
     return true, bufname

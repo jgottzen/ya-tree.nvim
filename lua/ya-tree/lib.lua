@@ -108,6 +108,7 @@ function M.open_tree(opts)
     local tree
     if opts.switch_root and opts.file then
       issue_tcd = config.cwd.update_from_tree
+      ---@type string
       local cwd = Path:new(opts.file):absolute()
       if not utils.is_directory(cwd) then
         cwd = Path:new(cwd):parent().filename
@@ -774,7 +775,6 @@ end
 local function on_buf_write_post(file)
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
-
   async.void(function()
     Tree.for_each_tree(function(tree)
       if tree.root:is_ancestor_of(file) then

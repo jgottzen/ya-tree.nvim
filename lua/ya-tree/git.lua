@@ -426,6 +426,7 @@ function Repo:_propagate_status_to_parents(path, fully_staged)
   local size = #self.toplevel
   for _, parent in next, Path:new(path):parents() do
     -- stop at directories below the toplevel directory
+    ---@cast parent string
     if #parent <= size then
       break
     end

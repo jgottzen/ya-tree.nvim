@@ -403,7 +403,6 @@ local function render_node(node, mode)
   ---@type highlight_group[]
   local highlights = {}
 
-  ---@type YaTreeViewRenderer[]
   local renderers = node:is_directory() and directory_renderers or file_renderers
   local pos = 0
   ---@type RenderingContext

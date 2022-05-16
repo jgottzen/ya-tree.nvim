@@ -521,12 +521,16 @@ do
       sign = sign and sign[1]
       if sign then
         diagnostic_icon_and_hl[k] = {
+          ---@type string
           text = sign.text,
+          ---@type string
           highlight = sign.texthl,
         }
       else
         diagnostic_icon_and_hl[k] = {
+          ---@type string
           text = v[2]:sub(1, 1),
+          ---@type string
           highlight = "LspDiagnosticsDefault" .. v[2],
         }
       end
