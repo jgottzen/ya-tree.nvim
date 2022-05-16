@@ -119,6 +119,11 @@ function M.rename(node)
       return
     end
 
+    if fs.exists(path) then
+      utils.warn(string.format("%q already exists!", path))
+      return
+    end
+
     if fs.rename(node.path, path) then
       utils.notify(string.format("Renamed %q to %q", node.path, path))
       lib.refresh_tree(path)

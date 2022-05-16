@@ -1,7 +1,6 @@
 local Path = require("plenary.path")
 
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")
 
 local uv = vim.loop
 
@@ -247,7 +246,6 @@ end
 ---@param replace boolean whether to replace an existing file.
 ---@return boolean success #success or not.
 function M.copy_file(source, destination, replace)
-  log.debug("copying %s to %s", source, destination)
   return uv.fs_copyfile(Path:new(source):absolute(), Path:new(destination):absolute(), { excl = not replace or false })
 end
 
@@ -317,7 +315,7 @@ end
 function M.remove_dir(path)
   local fd = uv.fs_scandir(path)
   if not fd then
-    return
+    return false
   end
 
   while true do
