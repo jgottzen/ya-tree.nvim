@@ -37,7 +37,7 @@ local function tree_tostring(tree)
 end
 
 ---@param tabpage? number
----@return YaTree? tree
+---@return YaTree tree
 function M.get_tree(tabpage)
   ---@type number
   tabpage = tabpage or api.nvim_get_current_tabpage()
@@ -70,7 +70,7 @@ function M.get_or_create_tree(opts)
     local cwd = uv.cwd()
     local root = opts.root_path or cwd
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
-    local root_node = Nodes.root(root, nil, true)
+    local root_node = Nodes.root(root, nil, require("ya-tree.config").config.git.enable)
     tree = setmetatable({
       cwd = cwd,
       refreshing = false,

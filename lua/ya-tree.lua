@@ -1,3 +1,4 @@
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
@@ -73,7 +74,7 @@ end
 ---@param fargs string[]
 ---@return string? path, boolean focus
 local function parse_open_command_input(fargs)
-  ---@type string
+  ---@type string|nil
   local path = nil
   local focus = false
   for _, v in ipairs(fargs) do
@@ -124,15 +125,10 @@ function M.setup(opts)
   api.nvim_create_user_command("YaTreeFindFile", function(input)
     if input.args == "" then
       local file = api.nvim_buf_get_name(0)
-      input.args = require("ya-tree.utils").is_readable_file(file) and file or nil
+      input.args = utils.is_readable_file(file) and file or nil
     end
     M.open(input.args, input.bang, true)
-  end, {
-    bang = true,
-    nargs = "?",
-    complete = "file",
-    desc = "Opens the tree and focuses on the file of the current buffer, or the supplied file name",
-  })
+  end, { bang = true, nargs = "?", complete = "file", desc = "Focuses on the current file, or the supplied file name" })
 end
 
 return M

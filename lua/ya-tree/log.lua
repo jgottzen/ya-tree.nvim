@@ -1,3 +1,6 @@
+local api = vim.api
+local fn = vim.fn
+
 ---@class YaTreeLogger
 ---@field config YaTreeLoggerConfig
 local logger = {}
@@ -70,7 +73,7 @@ function logger.new(opts)
   ---@type YaTreeLoggerConfig
   local config = vim.tbl_deep_extend("force", default, opts or {})
 
-  local log_file = fmt("%s/%s.log", vim.fn.stdpath("data"), config.name)
+  local log_file = fmt("%s/%s.log", fn.stdpath("data"), config.name)
   ---@type YaTreeLogger
   local self = {
     config = config,
@@ -158,7 +161,7 @@ function logger.new(opts)
         for _, m in ipairs(vim.split(fmt_message, "\n")) do
           m = fmt("[%s] %s", config.name, m)
           local chunk = (self.config.highlight and highlight) and { m, highlight } or { m }
-          vim.api.nvim_echo({ chunk }, true, {})
+          api.nvim_echo({ chunk }, true, {})
         end
       end)
     end

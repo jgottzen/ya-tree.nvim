@@ -8,40 +8,30 @@ local log = require("ya-tree.log")
 
 local api = vim.api
 
----@class TabData
----@field canvas YaTreeCanvas
-
 local M = {
   ---@private
-  ---@type table<string, TabData>
-  _tabs = {},
+  ---@type table<string, YaTreeCanvas>
+  _canvases = {},
 }
 
 ---@param tabpage number
 function M.delete_ui(tabpage)
-  ---@type string
-  tabpage = tostring(tabpage)
-  if M._tabs[tabpage] then
-    M._tabs[tabpage].canvas:delete()
-    M._tabs[tabpage] = nil
+  local tab = tostring(tabpage)
+  if M._canvases[tab] then
+    M._canvases[tab]:delete()
+    M._canvases[tab] = nil
   end
 end
 
----@return TabData|nil tab
-local function get_tab()
-  return M._tabs[tostring(api.nvim_get_current_tabpage())]
+---@return YaTreeCanvas canvas
+local function get_canvas()
+  return M._canvases[tostring(api.nvim_get_current_tabpage())]
 end
 
----@return boolean
+---@return boolean is_open
 function M.is_open()
-  local tab = get_tab()
-  return tab and tab.canvas:is_open() or false
-end
-
----@param tab TabData
----@return string
-local function tab_tostring(tab)
-  return string.format("(canvas=%s)", tostring(tab.canvas))
+  local canvas = get_canvas()
+  return canvas and canvas:is_open() or false
 end
 
 ---@param root YaTreeNode
@@ -52,17 +42,15 @@ end
 function M.open(root, node, opts)
   opts = opts or {}
   local tabpage = tostring(api.nvim_get_current_tabpage())
-  local tab = M._tabs[tabpage]
-  if not tab then
-    ---@type TabData
-    tab = setmetatable({ canvas = Canvas:new() }, { __tostring = tab_tostring })
-    M._tabs[tabpage] = tab
+  local canvas = M._canvases[tabpage]
+  if not canvas then
+    canvas = Canvas:new()
+    M._canvases[tabpage] = canvas
   end
 
-  local canvas = tab.canvas
   if not canvas:is_open() then
     canvas:open(root, opts)
-  elseif node and not tab.canvas:is_node_visible(node) then
+  elseif node and not canvas:is_node_visible(node) then
     -- redraw the tree if a specific node is to be focused, and it's currently not rendered
     canvas:render(root)
   end
@@ -79,16 +67,16 @@ function M.open(root, node, opts)
 end
 
 function M.focus()
-  local tab = get_tab()
-  if tab then
-    tab.canvas:focus()
+  local canvas = get_canvas()
+  if canvas then
+    canvas:focus()
   end
 end
 
 function M.close()
-  local tab = get_tab()
-  if tab then
-    tab.canvas:close()
+  local canvas = get_canvas()
+  if canvas then
+    canvas:close()
   end
 end
 
@@ -98,100 +86,65 @@ end
 ---  - {opts.focus_node?} `boolean` focuse `node`
 function M.update(root, node, opts)
   opts = opts or {}
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    return
-  end
-
-  local canvas = tab.canvas
-  canvas:render(root)
-  -- only update the focused node if the current window is the view window,
-  -- or explicitly requested
-  if node and (opts.focus_node or canvas:has_focus()) then
-    canvas:focus_node(node)
+  local canvas = get_canvas()
+  if canvas and canvas:is_open() then
+    canvas:render(root)
+    -- only update the focused node if the current window is the view window,
+    -- or explicitly requested
+    if node and (opts.focus_node or canvas:has_focus()) then
+      canvas:focus_node(node)
+    end
   end
 end
 
----@return YaTreeNode? current_node
+---@return YaTreeNode current_node
 function M.get_current_node()
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    return tab.canvas:get_current_node()
-  end
+  return get_canvas():get_current_node()
 end
 
 ---@return YaTreeNode[] selected_nodes
 function M.get_selected_nodes()
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    return tab.canvas:get_selected_nodes()
-  else
-    return {}
-  end
+  return get_canvas():get_selected_nodes()
 end
 
 ---@param node YaTreeNode
 function M.focus_node(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_node(node)
-  end
+  get_canvas():focus_node(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_parent(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_parent(node)
-  end
+  get_canvas():focus_parent(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_prev_sibling(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_prev_sibling(node)
-  end
+  get_canvas():focus_prev_sibling(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_next_sibling(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_next_sibling(node)
-  end
+  get_canvas():focus_next_sibling(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_first_sibling(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_first_sibling(node)
-  end
+  get_canvas():focus_first_sibling(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_last_sibling(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_last_sibling(node)
-  end
+  get_canvas():focus_last_sibling(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_prev_git_item(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_prev_git_item(node)
-  end
+  get_canvas():focus_prev_git_item(node)
 end
 
 ---@param node YaTreeNode
 function M.focus_next_git_item(node)
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:focus_next_git_item(node)
-  end
+  get_canvas():focus_next_git_item(node)
 end
 
 ---@param winid? number
@@ -204,8 +157,8 @@ end
 
 ---@return boolean
 function M.is_current_window_ui()
-  local tab = get_tab()
-  return tab and tab.canvas:is_current_window_canvas() or false
+  local canvas = get_canvas()
+  return canvas and canvas:is_current_window_canvas() or false
 end
 
 ---@param bufnr number
@@ -217,16 +170,13 @@ end
 
 ---@return number height, number width
 function M.get_size()
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    return tab.canvas:get_size()
-  end
+  return get_canvas():get_size()
 end
 
 ---@return YaTreeCanvasDisplayMode mode
-function M.get_view_mode()
-  local tab = get_tab()
-  return tab and tab.canvas.display_mode
+function M.get_current_view_mode()
+  local canvas = get_canvas()
+  return canvas and canvas.display_mode
 end
 
 function M.open_help()
@@ -235,53 +185,48 @@ end
 
 ---@return boolean
 function M.is_search_open()
-  return M.get_view_mode() == "search"
+  return M.get_current_view_mode() == "search"
 end
 
 ---@param mode YaTreeCanvasDisplayMode
 ---@param root YaTreeNode|YaTreeSearchNode
 ---@param node? YaTreeNode
-local function open_mode(mode, root, node)
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() then
-    return
-  end
-
-  tab.canvas.display_mode = mode
-  tab.canvas:render(root)
+local function change_display_mode(mode, root, node)
+  local canvas = get_canvas()
+  canvas.display_mode = mode
+  canvas:render(root)
   if node then
-    tab.canvas:focus_node(node)
+    canvas:focus_node(node)
   end
 end
 
 ---@param search_root YaTreeSearchNode
 ---@param node? YaTreeNode
 function M.open_search(search_root, node)
-  open_mode("search", search_root, node)
+  change_display_mode("search", search_root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_search(root, node)
-  open_mode("tree", root, node)
+  change_display_mode("tree", root, node)
 end
 
 ---@return boolean
 function M.is_buffers_open()
-  return M.get_view_mode() == "buffers"
+  return M.get_current_view_mode() == "buffers"
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.open_buffers(root, node)
-  open_mode("buffers", root, node)
+  change_display_mode("buffers", root, node)
 end
-
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_buffers(root, node)
-  open_mode("tree", root, node)
+  change_display_mode("tree", root, node)
 end
 
 ---@param bufnr number
@@ -290,17 +235,14 @@ function M.on_win_leave(bufnr)
     return
   end
 
-  local tab = get_tab()
-  if tab and not tab.canvas:is_current_window_canvas() then
-    tab.canvas:set_edit_winid(api.nvim_get_current_win())
+  local canvas = get_canvas()
+  if canvas and not canvas:is_current_window_canvas() then
+    canvas:set_edit_winid(api.nvim_get_current_win())
   end
 end
 
 function M.restore()
-  local tab = get_tab()
-  if tab and tab.canvas:is_open() then
-    tab.canvas:restore()
-  end
+  get_canvas():restore()
 end
 
 ---@param canvas YaTreeCanvas
@@ -318,30 +260,17 @@ end
 
 ---@param bufnr number
 function M.move_buffer_to_edit_window(bufnr)
-  local tab = get_tab()
-  if not tab or not tab.canvas:is_open() or M.is_buffer_yatree(bufnr) then
-    return
+  local canvas = get_canvas()
+  if not canvas:get_edit_winid() then
+    create_edit_window(canvas)
   end
-
-  local canvas = tab.canvas
-  if canvas:is_current_window_canvas() then
-    if not canvas:get_edit_winid() then
-      create_edit_window(canvas)
-    end
-    canvas:move_buffer_to_edit_window(bufnr)
-  end
+  canvas:move_buffer_to_edit_window(bufnr)
 end
 
 ---@param file string the file path to open
 ---@param cmd cmdmode
 function M.open_file(file, cmd)
-  local tab = get_tab()
-  if not tab then
-    log.error("ui is not present, cannot open file %q with command %q", file, cmd)
-    return
-  end
-
-  local canvas = tab.canvas
+  local canvas = get_canvas()
   local winid = canvas:get_edit_winid()
   if not winid then
     -- only the tree window is open, e.g. netrw replacement

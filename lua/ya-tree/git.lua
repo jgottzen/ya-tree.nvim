@@ -119,7 +119,7 @@ function Repo:new(path)
 
   local toplevel, git_dir, branch = get_repo_info(path)
   local is_yadm = false
-  if config.git.yadm.enable and not toplevel then
+  if not toplevel and config.git.yadm.enable then
     if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
       toplevel, git_dir, branch = get_repo_info(path, "yadm")
       is_yadm = toplevel ~= nil

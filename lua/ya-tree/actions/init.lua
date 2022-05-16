@@ -74,14 +74,13 @@ local function create_keymap_function(mapping)
     end
   elseif mapping.func then
     fun = mapping.func
+  else
+    log.error("cannot create keymap function for mappings %s", mapping)
+    return nil
   end
 
   return function()
-    if fun then
-      if not mapping.views[ui.get_view_mode()] then
-        return
-      end
-
+    if mapping.views[ui.get_current_view_mode()] then
       fun(ui.get_current_node())
     end
   end
@@ -92,16 +91,17 @@ function M.apply_mappings(bufnr)
   for _, mapping in pairs(M.mappings) do
     for _, key in ipairs(mapping.keys) do
       local opts = { remap = false, silent = true, nowait = true, buffer = bufnr, desc = mapping.desc }
-      ---@type string|function
       local rhs
       if mapping.command then
+        ---@type string
         rhs = mapping.command
       else
+        ---@type function
         rhs = create_keymap_function(mapping)
       end
 
-      if not pcall(vim.keymap.set, mapping.mode, key, rhs, opts) then
-        utils.warn(string.format("cannot construct mapping for key=%s", key))
+      if not rhs or not pcall(vim.keymap.set, mapping.mode, key, rhs, opts) then
+        utils.warn(string.format("cannot construct mapping for key %q", key))
       end
     end
   end
@@ -114,6 +114,7 @@ local function validate_and_create_mappings(mappings)
   local valid = {}
 
   for k, m in pairs(mappings) do
+    local name = "unknown"
     ---@type string[]
     local modes = type(m.mode) == "table" and m.mode or (m.mode and { m.mode } or { "n" })
     ---@type string[]
@@ -128,6 +129,7 @@ local function validate_and_create_mappings(mappings)
       views = {
         tree = true,
         search = true,
+        buffers = true,
       }
     else
       for _, view in ipairs(m.views) do
@@ -144,6 +146,7 @@ local function validate_and_create_mappings(mappings)
         action = nil
         utils.warn(string.format("key %s is mapped to 'action' %s, which does not exist, mapping ignored!", vim.inspect(keys), m.action))
       else
+        name = action
         desc = desc or actions[action].desc
         nr_of_mappings = nr_of_mappings + 1
       end
@@ -153,6 +156,7 @@ local function validate_and_create_mappings(mappings)
     end
 
     if type(func) == "function" then
+      name = "'<function>'"
       nr_of_mappings = nr_of_mappings + 1
     elseif func then
       func = nil
@@ -160,6 +164,7 @@ local function validate_and_create_mappings(mappings)
     end
 
     if type(command) == "string" then
+      name = "'" .. command .. "'"
       nr_of_mappings = nr_of_mappings + 1
     elseif command then
       command = nil
@@ -181,7 +186,7 @@ local function validate_and_create_mappings(mappings)
           views = views,
           mode = mode,
           keys = keys,
-          name = action and action or (func and "'<function>'") or (command and ('"' .. command .. '"')),
+          name = name,
           desc = desc,
           action = action,
           func = func,

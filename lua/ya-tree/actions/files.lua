@@ -35,10 +35,6 @@ end
 
 ---@param node YaTreeNode
 function M.vsplit(node)
-  if not node then
-    return
-  end
-
   if node:is_file() then
     ui.open_file(node.path, "vsplit")
   end
@@ -46,10 +42,6 @@ end
 
 ---@param node YaTreeNode
 function M.split(node)
-  if not node then
-    return
-  end
-
   if node:is_file() then
     ui.open_file(node.path, "split")
   end
@@ -79,10 +71,6 @@ end
 
 ---@param node YaTreeNode
 function M.add(node)
-  if not node then
-    return
-  end
-
   if node:is_file() then
     node = node.parent
   end
@@ -122,10 +110,6 @@ end
 
 ---@param node YaTreeNode
 function M.rename(node)
-  if not node then
-    return
-  end
-
   -- prohibit renaming the root node
   if lib.is_node_root(node) then
     return
@@ -213,8 +197,7 @@ function M.delete()
   end)()
 end
 
----@param _ YaTreeNode
-function M.trash(_)
+function M.trash()
   local config = require("ya-tree.config").config
   if not config.trash.enable then
     return
@@ -260,10 +243,6 @@ end
 
 ---@param node YaTreeNode
 function M.system_open(node)
-  if not node then
-    return
-  end
-
   local config = require("ya-tree.config").config
   if not config.system_open.cmd then
     utils.warn("No sytem open command set, or OS cannot be recognized!")

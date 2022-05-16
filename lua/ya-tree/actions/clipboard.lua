@@ -7,6 +7,8 @@ local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
+local fn = vim.fn
+
 ---@class ClipboardItem
 ---@field node YaTreeNode
 ---@field action clipboard_action
@@ -135,9 +137,6 @@ end
 
 ---@param node YaTreeNode
 function M.paste_nodes(node)
-  if not node then
-    return
-  end
   -- paste can only be done into directories
   if not node:is_directory() then
     node = node.parent
@@ -173,26 +172,18 @@ end
 
 ---@param content string
 local function copy_to_system_clipboard(content)
-  vim.fn.setreg("+", content)
-  vim.fn.setreg('"', content)
+  fn.setreg("+", content)
+  fn.setreg('"', content)
   utils.notify(string.format("Copied %s to system clipboad", content))
 end
 
 ---@param node YaTreeNode
 function M.copy_name_to_clipboard(node)
-  if not node then
-    return
-  end
-
   copy_to_system_clipboard(node.name)
 end
 
 ---@param node YaTreeNode
 function M.copy_root_relative_path_to_clipboard(node)
-  if not node then
-    return
-  end
-
   local relative = utils.relative_path_for(node.path, lib.get_root_node_path())
   if node:is_directory() then
     relative = relative .. utils.os_sep
@@ -202,10 +193,6 @@ end
 
 ---@param node YaTreeNode
 function M.copy_absolute_path_to_clipboard(node)
-  if not node then
-    return
-  end
-
   copy_to_system_clipboard(node.path)
 end
 

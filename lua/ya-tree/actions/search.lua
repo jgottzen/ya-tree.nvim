@@ -8,10 +8,6 @@ local M = {}
 
 ---@param node YaTreeNode
 function M.search_interactively(node)
-  if not node then
-    return
-  end
-
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
     node = node.parent
@@ -74,10 +70,6 @@ end
 
 ---@param node YaTreeNode
 function M.search_once(node)
-  if not node then
-    return
-  end
-
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
     node = node.parent
