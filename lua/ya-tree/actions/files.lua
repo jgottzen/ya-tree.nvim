@@ -75,33 +75,31 @@ function M.add(node)
     node = node.parent
   end
 
-  ---@type string
-  local prompt = "New file (an ending " .. utils.os_sep .. " will create a directory):"
-  local input = Input:new({ title = prompt, width = #prompt + 4 }, {
-    ---@param name string
-    on_submit = function(name)
-      if not name then
+  local title = "New file (an ending " .. utils.os_sep .. " will create a directory):"
+  local input = Input:new({ prompt = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4 }, {
+    ---@param path string
+    on_submit = function(path)
+      if not path then
         utils.notify("No name given, not creating new file/directory")
         return
       end
 
-      local new_path = utils.join_path(node.path, name)
-      local is_directory = vim.endswith(new_path, utils.os_sep)
+      local is_directory = vim.endswith(path, utils.os_sep)
       if is_directory then
-        new_path = new_path:sub(1, -2)
+        path = path:sub(1, -2)
       end
 
-      if fs.exists(new_path) then
-        utils.warn(string.format("%q already exists!", new_path))
+      if fs.exists(path) then
+        utils.warn(string.format("%q already exists!", path))
         return
       end
 
-      local ok = is_directory and fs.create_dir(new_path) or fs.create_file(new_path)
+      local ok = is_directory and fs.create_dir(path) or fs.create_file(path)
       if ok then
-        utils.notify(string.format("Created %s %q", is_directory and "directory" or "file", new_path))
-        lib.refresh_tree(new_path)
+        utils.notify(string.format("Created %s %q", is_directory and "directory" or "file", path))
+        lib.refresh_tree(path)
       else
-        utils.warn(string.format("Failed to create %s %q", is_directory and "directory" or "file", new_path))
+        utils.warn(string.format("Failed to create %s %q", is_directory and "directory" or "file", path))
       end
     end,
   })
@@ -115,18 +113,17 @@ function M.rename(node)
     return
   end
 
-  vim.ui.input({ prompt = "New name:", default = node.name }, function(name)
-    if not name then
-      utils.notify('No new name given, not renaming file "' .. node.name .. '"')
+  vim.ui.input({ prompt = "New name:", default = node.path, completion = "file" }, function(path)
+    if not path then
+      utils.notify('No new name given, not renaming "' .. node.path .. '"')
       return
     end
 
-    local new_name = utils.join_path(node.parent.path, name)
-    if fs.rename(node.path, new_name) then
-      utils.notify(string.format("Renamed %q to %q", node.path, new_name))
-      lib.refresh_tree(new_name)
+    if fs.rename(node.path, path) then
+      utils.notify(string.format("Renamed %q to %q", node.path, path))
+      lib.refresh_tree(path)
     else
-      utils.warn(string.format("Failed to rename %q to %q", node.path, new_name))
+      utils.warn(string.format("Failed to rename %q to %q", node.path, path))
     end
   end)
 end

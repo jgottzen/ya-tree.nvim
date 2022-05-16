@@ -24,7 +24,7 @@ function M.search_interactively(node)
 
   local term = ""
   local height, width = ui.get_size()
-  local input = Input:new({ title = "Search:", relative = "win", row = height, col = 0, width = width - 2 }, {
+  local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2 }, {
     ---@param text string
     on_change = function(text)
       if text == term or text == nil then

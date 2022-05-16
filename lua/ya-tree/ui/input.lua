@@ -5,10 +5,11 @@ local api = vim.api
 local fn = vim.fn
 
 ---@class Input
+---@field private prompt string
+---@field private default string
+---@field private completion boolean
 ---@field private winid number
 ---@field private bufnr number
----@field private prompt string
----@field private title string
 ---@field private title_winid? number
 ---@field private win_config table<string, any>
 ---@field private callbacks table<string, function>
@@ -48,9 +49,11 @@ local win_options = {
 
 --- Create a new `Input`.
 ---
----@param opts {title: string, prompt?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number}
+---@param opts {prompt?: string, default?: string, completion?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number}
 ---  - {opts.title} `string`
 ---  - {opts.prompt?} `string` defaults to an empty string.
+---  - {opts.default?} `string`
+---  - {opts.completion?} `string`
 ---  - {opts.win?} `number`
 ---  - {opts.relative?} `string` defaults to `"cursor"`.
 ---  - {opts.anchor?} `string` defaults to `"SW"`.
@@ -66,7 +69,8 @@ local win_options = {
 function Input:new(opts, callbacks)
   local this = setmetatable({
     prompt = opts.prompt or "",
-    title = opts.title,
+    default = opts.default or "",
+    completion = opts.completion,
     win_config = {
       relative = opts.relative or "cursor",
       win = opts.win,
@@ -76,8 +80,8 @@ function Input:new(opts, callbacks)
       width = opts.width or 30,
       height = 1,
       style = "minimal",
-      zindex = 150,
       border = "rounded",
+      noautocmd = true,
     },
   }, self)
 
@@ -110,6 +114,16 @@ function Input:new(opts, callbacks)
   return this
 end
 
+local current_completion
+
+-- selene: allow(global_usage)
+_G._ya_tree_input_complete = function(start, base)
+  if start == 1 then
+    return 0
+  end
+  return fn.getcompletion(base, current_completion)
+end
+
 function Input:open()
   if self.winid then
     return
@@ -122,6 +136,11 @@ function Input:open()
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
+  if self.completion then
+    api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
+    api.nvim_buf_set_option(self.bufnr, "omnifunc", "")
+    current_completion = self.completion
+  end
 
   ---@type number
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
@@ -133,24 +152,40 @@ function Input:open()
     api.nvim_buf_attach(self.bufnr, false, { on_lines = self.callbacks.on_change })
   end
 
-  fn.prompt_setprompt(self.bufnr, self.prompt)
+  fn.prompt_setprompt(self.bufnr, "")
+  if self.default then
+    api.nvim_buf_set_lines(self.bufnr, 0, -1, true, { self.default })
+  end
   fn.prompt_setcallback(self.bufnr, self.callbacks.on_submit)
   fn.prompt_setinterrupt(self.bufnr, self.callbacks.on_close)
 
   self:map("i", "<Esc>", self.callbacks.on_close)
+  if self.completion then
+    self:map("i", "<Tab>", function()
+      if fn.pumvisible() == 1 then
+        return api.nvim_replace_termcodes("<C-n>", true, false, true)
+      else
+        return api.nvim_replace_termcodes("<C-x><C-u>", true, false, true)
+      end
+    end, { expr = true })
+  end
 
   vim.cmd("startinsert!")
+  if self.completion and fn.pumvisible() == 1 then
+    local escape_key = api.nvim_replace_termcodes("<C-e>", true, false, true)
+    api.nvim_feedkeys(escape_key, "n", true)
+  end
 end
 
 function Input:_create_title()
-  if self.title then
+  if self.prompt then
     -- Force the Input window to position itself, otherwise relative = "win" is
     -- to the parent window of Input and not Input itself...
     -- See https://github.com/neovim/neovim/issues/13403
     -- which though closed hasn't fixed the issue
     vim.cmd("redraw")
 
-    local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.title))
+    local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.prompt))
     local bufnr = api.nvim_create_buf(false, true)
     ---@type number
     self.title_winid = api.nvim_open_win(bufnr, false, {
@@ -161,13 +196,13 @@ function Input:_create_title()
       row = -1,
       col = 1,
       focusable = false,
-      zindex = self.win_config.zindex + 1,
+      zindex = 151,
       style = "minimal",
-      noautocmd = false,
+      noautocmd = true,
     })
     utils.win_set_local_options(self.title_winid, { winblend = api.nvim_win_get_option(self.winid, "winblend") })
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
-    local title = " " .. self.title:sub(1, math.min(width - 2, api.nvim_strwidth(self.title))) .. " "
+    local title = " " .. self.prompt:sub(1, math.min(width - 2, api.nvim_strwidth(self.prompt))) .. " "
     api.nvim_buf_set_lines(bufnr, 0, -1, true, { title })
     local ns = api.nvim_create_namespace("YaTreeInput")
     api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
@@ -180,6 +215,7 @@ function Input:close()
     return
   end
 
+  current_completion = nil
   -- we don't need to delete the buffer, it's wiped automatically, and doing so causes tabline issues...
   self.bufnr = nil
 
