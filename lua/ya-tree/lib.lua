@@ -755,10 +755,9 @@ local function on_win_closed(closed_winid)
     return
   end
 
-  -- defer until the window in question has closed, so that
-  -- we can check only the remaining windows
+  -- defer until the window in question has closed, so that we can check only the remaining windows
   vim.defer_fn(function()
-    if #api.nvim_list_wins() == 1 and vim.bo.filetype == "YaTree" then
+    if #api.nvim_tabpage_list_wins(0) == 1 and vim.bo.filetype == "YaTree" then
       -- check that there are no buffers with unsaved modifications,
       -- if so, just return
       for _, bufnr in ipairs(api.nvim_list_bufs()) do
@@ -766,6 +765,7 @@ local function on_win_closed(closed_winid)
           return
         end
       end
+      log.debug("is last window, closing it")
       api.nvim_command(":silent q!")
     end
   end, 50)
