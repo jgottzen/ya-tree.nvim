@@ -77,7 +77,7 @@ function M.root(path, old_root, check_for_git_repo)
   local root = Node:new(fs.node_for(path))
 
   if check_for_git_repo then
-    local repo = git.Repo:new(root.path)
+    local repo = git.create_repo(root.path)
     if repo then
       log.debug("node %q is in a git repo with toplevel %q", root.path, repo.toplevel)
       root.repo = repo
@@ -160,7 +160,7 @@ function Node:check_for_git_repo()
     return false
   end
 
-  local repo = git.Repo:new(self.path)
+  local repo = git.create_repo(self.path)
   if repo then
     repo:refresh_status({ ignored = true })
     local toplevel = repo.toplevel
@@ -187,18 +187,6 @@ function Node:check_for_git_repo()
     log.debug("path %s is not in a git repository", self.path)
     return false
   end
-end
-
----@private
-function Node:_debug_table()
-  local t = { path = self.path }
-  if self:is_directory() then
-    t.children = {}
-    for _, child in ipairs(self.children) do
-      t.children[#t.children + 1] = child:_debug_table()
-    end
-  end
-  return t
 end
 
 ---@return boolean

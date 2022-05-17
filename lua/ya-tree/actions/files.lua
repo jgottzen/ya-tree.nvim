@@ -17,13 +17,8 @@ local M = {}
 
 function M.open()
   local nodes = ui.get_selected_nodes()
-  if #nodes == 1 then
-    local node = nodes[1]
-    if node:is_file() then
-      ui.open_file(node.path, "edit")
-    else
-      lib.toggle_directory(node)
-    end
+  if #nodes == 1 and nodes[1]:is_directory() then
+    lib.toggle_directory(nodes[1])
   else
     for _, node in ipairs(nodes) do
       if node:is_file() then
@@ -50,6 +45,7 @@ end
 ---@param node YaTreeNode
 function M.preview(node)
   if node:is_file() then
+    ---@type boolean
     local already_loaded = vim.fn.bufloaded(node.path) > 0
     ui.open_file(node.path, "edit")
 
@@ -133,12 +129,12 @@ function M.rename(node)
   end)
 end
 
----@return YaTreeNode[], YaTreeNode
+---@return YaTreeNode[] nodes, string common_parent
 local function get_nodes_to_delete()
   local nodes = ui.get_selected_nodes()
 
-  ---@type table<string, YaTreeNode>
-  local parents_map = {}
+  ---@type string[]
+  local parents = {}
   for _, node in ipairs(nodes) do
     -- prohibit deleting the root node
     if lib.is_node_root(node) then
@@ -146,54 +142,47 @@ local function get_nodes_to_delete()
       return
     end
 
-    -- if this node is a parent of one of the nodes to delete,
-    -- remove it from the list
-    parents_map[node.path] = nil
     if node.parent then
-      parents_map[node.parent.path] = node.parent
+      parents[#parents + 1] = node.parent.path
     end
   end
-  ---@type YaTreeNode[]
-  local parents = vim.tbl_values(parents_map)
-  table.sort(parents, function(a, b)
-    return a.path < b.path
-  end)
+  local common_parent = utils.find_common_ancestor(parents) or nodes[1].path
 
-  return nodes, parents[1]
+  return nodes, common_parent
 end
 
 ---@param node YaTreeNode
+---@return boolean
 local function delete_node(node)
   local response = ui.select({ "Yes", "No" }, { prompt = "Delete " .. node.path .. "?" })
   if response == "Yes" then
-    local ok
-    if node:is_directory() then
-      ok = fs.remove_dir(node.path)
-    else
-      ok = fs.remove_file(node.path)
-    end
-
+    local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
     if ok then
       utils.notify("Deleted " .. node.path)
     else
       utils.warn("Failed to delete " .. node.path)
     end
+    return true
+  else
+    return false
   end
 end
 
 function M.delete()
-  local nodes, selected_node = get_nodes_to_delete()
+  local nodes, common_parent = get_nodes_to_delete()
   if not nodes then
     return
   end
 
   async.void(function()
-    scheduler()
+    local refresh = false
     for _, node in ipairs(nodes) do
-      delete_node(node)
+      refresh = refresh or delete_node(node)
       scheduler()
     end
-    lib.refresh_tree(selected_node)
+    if refresh then
+      lib.refresh_tree(common_parent)
+    end
   end)()
 end
 
@@ -203,7 +192,7 @@ function M.trash()
     return
   end
 
-  local nodes, selected_node = get_nodes_to_delete()
+  local nodes, common_parent = get_nodes_to_delete()
   if not nodes then
     return
   end
@@ -217,6 +206,7 @@ function M.trash()
         if response == "Yes" then
           files[#files + 1] = node.path
         end
+        scheduler()
       end
     else
       ---@param n YaTreeNode
@@ -225,13 +215,11 @@ function M.trash()
       end, nodes)
     end
 
-    scheduler()
-
     if #files > 0 then
       log.debug("trashing files %s", files)
       job.run({ cmd = "trash", args = files, wrap_callback = true }, function(code, _, stderr)
         if code == 0 then
-          lib.refresh_tree(selected_node)
+          lib.refresh_tree(common_parent)
         else
           stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
           stderr = table.concat(stderr, " ")

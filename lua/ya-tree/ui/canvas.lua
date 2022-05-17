@@ -25,8 +25,8 @@ local buf_options = {
 
 local win_options = {
   -- number and relativenumber are taken directly from config
-  -- number = false,
-  -- relativenumber = false,
+  number = config.view.number,
+  relativenumber = config.view.relativenumber,
   list = false,
   winfixwidth = true,
   winfixheight = true,
@@ -53,12 +53,12 @@ local tab_var_barbar_set_name = "_YaTreeBarbar"
 ---@alias YaTreeCanvasDisplayMode "tree"|"search"|"buffers"
 
 ---@class YaTreeCanvas
+---@field public display_mode YaTreeCanvasDisplayMode
 ---@field private winid number
 ---@field private edit_winid number
 ---@field private bufnr number
----@field public display_mode YaTreeCanvasDisplayMode
----@field private _window_augroup number
----@field private _previous_row number
+---@field private window_augroup number
+---@field private previous_row number
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
 local Canvas = {}
@@ -80,11 +80,11 @@ end
 
 ---@return YaTreeCanvas canvas
 function Canvas:new()
-  return setmetatable({
-    display_mode = "tree",
-    nodes = {},
-    node_path_to_index_lookup = {},
-  }, self)
+  local this = setmetatable({}, self)
+  this.display_mode = "tree"
+  this.nodes = {}
+  this.node_path_to_index_lookup = {}
+  return this
 end
 
 ---@return number height, number width
@@ -113,6 +113,17 @@ function Canvas:set_edit_winid(winid)
   if self.edit_winid and self.edit_winid == self.winid then
     log.error("setting edit_winid to %s, the same as winid", self.edit_winid)
   end
+end
+
+function Canvas:create_edit_window()
+  local position = config.view.side ~= "left" and "aboveleft" or "belowright"
+  vim.cmd(position .. " vsplit")
+  ---@type number
+  local winid = api.nvim_get_current_win()
+  self.edit_winid = winid
+  self:resize()
+
+  log.debug("created edit window %s", winid)
 end
 
 ---@return boolean is_open
@@ -182,13 +193,14 @@ function Canvas:_set_window_options_and_size()
   api.nvim_command("noautocmd wincmd " .. (config.view.side == "right" and "L" or "H"))
   api.nvim_command("noautocmd vertical resize " .. config.view.width)
 
+  win_options.number = config.view.number
+  win_options.relativenumber = config.view.relativenumber
   utils.win_set_local_options(self.winid, win_options)
-  local options = { number = config.view.number, relativenumber = config.view.relativenumber }
-  utils.win_set_local_options(self.winid, options)
 
-  self._window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
+  ---@type number
+  self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
   api.nvim_create_autocmd("WinClosed", {
-    group = self._window_augroup,
+    group = self.window_augroup,
     pattern = tostring(self.winid),
     callback = function()
       self:_on_win_closed()
@@ -197,7 +209,7 @@ function Canvas:_set_window_options_and_size()
   })
   if config.hijack_cursor then
     api.nvim_create_autocmd("CursorMoved", {
-      group = self._window_augroup,
+      group = self.window_augroup,
       buffer = self.bufnr,
       callback = function()
         self:_move_cursor_to_name()
@@ -245,12 +257,12 @@ function Canvas:_on_win_closed()
     end
   end
 
-  local ok, result = pcall(api.nvim_del_augroup_by_id, self._window_augroup)
+  local ok, result = pcall(api.nvim_del_augroup_by_id, self.window_augroup)
   if not ok then
     log.error("error deleting window local augroup: %s", result)
   end
 
-  self._window_augroup = nil
+  self.window_augroup = nil
   self.winid = nil
 end
 
@@ -381,13 +393,13 @@ local file_renderers = {}
 ---@param pos number
 ---@param padding string
 ---@param text string
----@param hl_name string
+---@param highlight string
 ---@return number end_position, string content, highlight_group highlight
-local function line_part(pos, padding, text, hl_name)
+local function line_part(pos, padding, text, highlight)
   local from = pos + #padding
   local size = #text
   local group = {
-    name = hl_name,
+    name = highlight,
     from = from,
     to = from + size,
   }
@@ -396,7 +408,7 @@ end
 
 ---@param node YaTreeNode
 ---@param mode YaTreeCanvasDisplayMode
----@return string content, highlight_group[] highlights
+---@return string text, highlight_group[] highlights
 local function render_node(node, mode)
   ---@type string[]
   local content = {}
@@ -437,31 +449,20 @@ function Canvas:_render_tree(root)
   local lines = {}
   ---@type highlight_group[][]
   local highlights = {}
-
-  root.depth = 0
-  local content, highlight_groups = render_node(root, self.display_mode)
-
-  local linenr = 1
-  self.nodes[linenr] = root
-  self.node_path_to_index_lookup[root.path] = linenr
-  lines[linenr] = content
-  highlights[linenr] = highlight_groups
+  local linenr = 0
 
   ---@param node YaTreeNode
   ---@param depth number
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
     -- all nodes should be displayed if in 'buffers' display mode
-    if self.display_mode == "buffers" or utils.should_display_node(node, config) then
+    if utils.should_display_node(node, config) or self.display_mode == "buffers" or depth == 0 then
+      linenr = linenr + 1
       node.depth = depth
       node.last_child = last_child
-      content, highlight_groups = render_node(node, self.display_mode)
-
-      linenr = linenr + 1
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr] = content
-      highlights[linenr] = highlight_groups
+      lines[linenr], highlights[linenr] = render_node(node, self.display_mode)
 
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
@@ -472,10 +473,7 @@ function Canvas:_render_tree(root)
     end
   end
 
-  local nr_of_children = #root.children
-  for i, node in ipairs(root.children) do
-    append_node(node, 1, i == nr_of_children)
-  end
+  append_node(root, 0, false)
 
   return lines, highlights
 end
@@ -489,8 +487,8 @@ function Canvas:render(root)
 
   api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
 
-  for linenr, chunk in ipairs(highlights) do
-    for _, highlight in ipairs(chunk) do
+  for linenr, line_highlights in ipairs(highlights) do
+    for _, highlight in ipairs(line_highlights) do
       -- guard against bugged out renderer highlights, which will cause an avalanche of errors...
       if not highlight.name then
         log.error("missing highlight name for node=%q, hl=%s", self.nodes[linenr].path, highlight)
@@ -569,11 +567,11 @@ function Canvas:_move_cursor_to_name()
     return
   end
   local node, row, col = self:_get_current_node_and_position()
-  if not node or row == self._previous_row then
+  if not node or row == self.previous_row then
     return
   end
 
-  self._previous_row = row
+  self.previous_row = row
   -- don't move the cursor on the first line
   if row == 1 then
     return
@@ -581,7 +579,6 @@ function Canvas:_move_cursor_to_name()
 
   ---@type string
   local line = api.nvim_get_current_line()
-  ---@type number
   local pos = (line:find(node.name, 1, true) or 0) - 1
   if pos > 0 and pos ~= col then
     api.nvim_win_set_cursor(self.winid, { row, pos })
@@ -796,6 +793,7 @@ do
       local fun = renderers[name]
       if type(fun) == "function" then
         renderer.fun = fun
+        ---@type YaTreeRendererConfig
         renderer.config = vim.deepcopy(config.renderers[name])
       else
         fun = config.renderers[name]

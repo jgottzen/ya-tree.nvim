@@ -78,15 +78,10 @@ local function parse_open_command_input(fargs)
   local path = nil
   local focus = false
   for _, v in ipairs(fargs) do
-    local pos = v:find("=")
-    if pos then
-      local kind = v:sub(1, pos - 1)
-      local arg = v:sub(pos + 1)
-      if kind == "focus" then
-        focus = arg == "true"
-      elseif kind == "path" then
-        path = arg
-      end
+    if vim.startswith(v, "path=") then
+      path = v:sub(6)
+    elseif vim.startswith(v, "focus=") then
+      focus = v:sub(7) == "true"
     end
   end
 
@@ -123,11 +118,12 @@ function M.setup(opts)
     M.focus()
   end, { desc = "Focuses the tree view, opens it if not open" })
   api.nvim_create_user_command("YaTreeFindFile", function(input)
-    if input.args == "" then
-      local file = api.nvim_buf_get_name(0)
-      input.args = utils.is_readable_file(file) and file or nil
+    local file = input.args
+    if file == "" then
+      file = api.nvim_buf_get_name(0)
+      file = utils.is_readable_file(file) and file or nil
     end
-    M.open(input.args, input.bang, true)
+    M.open(file, input.bang, true)
   end, { bang = true, nargs = "?", complete = "file", desc = "Focuses on the current file, or the supplied file name" })
 end
 

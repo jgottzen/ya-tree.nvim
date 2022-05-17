@@ -13,8 +13,6 @@ local os_sep = Path.path.sep
 local uv = vim.loop
 
 local M = {
-  ---@type GitRepo
-  Repo = {},
   ---@type table<string, GitRepo>
   repos = setmetatable({}, { __mode = "kv" }),
 }
@@ -55,9 +53,8 @@ local function get_repo_info(path, cmd)
     "HEAD",
   }
 
-  scheduler()
-
   local result = command(args, false, cmd)
+  scheduler()
   if #result == 0 then
     return nil
   end
@@ -94,13 +91,19 @@ end
 ---@field private _ignored string[]
 ---@field private _git_dir_watcher? uv_fs_poll_t
 ---@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)>
-local Repo = M.Repo
+local Repo = {}
 Repo.__index = Repo
 
 ---@param self GitRepo
 ---@return string
 Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
+end
+
+---@param path string
+---@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
+function M.create_repo(path)
+  return Repo:new(path)
 end
 
 ---@param path string
@@ -175,10 +178,10 @@ function Repo:command(args, null_terminated)
     return {}
   end
 
-  scheduler()
   -- always run in the the toplevel directory, so all paths are relative the root,
   -- this way we can just concatenate the paths returned by git with the toplevel
   local result, e = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
+  scheduler()
   if e then
     local message = vim.split(e, "\n", { plain = true, trimempty = true })
     log.error("error running git command, %s", table.concat(message, " "))

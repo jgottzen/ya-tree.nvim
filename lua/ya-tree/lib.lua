@@ -150,7 +150,7 @@ function M.open_tree(opts)
     end
 
     scheduler()
-    tree.current_node = node or (ui.is_open() and ui.get_current_node()) or tree.current_node
+    tree.current_node = node or (ui.is_open() and ui.get_current_node())
     ui.open(tree.root, tree.current_node, { focus = opts.focus })
 
     if issue_tcd then
@@ -346,7 +346,7 @@ local function open_buffers(tree)
     elseif #paths == 1 then
       root_path = Path:new(paths[1]):parent().filename
     else
-      root_path = utils.find_common_ancestor(paths)
+      root_path = utils.find_common_ancestor(paths) or tree.tree.root.path
     end
     if tree.tree.root:is_ancestor_of(root_path) then
       root_path = tree.tree.root.path
@@ -861,10 +861,11 @@ local function on_diagnostics_changed()
   end
 
   local previous_diagnostics = Nodes.set_diagnostics(diagnostics)
-
   local tree = Tree.get_tree()
   if tree and ui.is_open() then
+    ---@type number
     local diagnostics_count = vim.tbl_count(diagnostics)
+    ---@type number
     local previous_diagnostics_count = vim.tbl_count(previous_diagnostics)
 
     local changed = false

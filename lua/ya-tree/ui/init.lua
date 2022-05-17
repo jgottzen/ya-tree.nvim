@@ -1,10 +1,8 @@
 local wrap = require("plenary.async").wrap
 
-local config = require("ya-tree.config").config
 local Canvas = require("ya-tree.ui.canvas")
 local help = require("ya-tree.ui.help")
 local hl = require("ya-tree.ui.highlights")
-local log = require("ya-tree.log")
 
 local api = vim.api
 
@@ -245,24 +243,11 @@ function M.restore()
   get_canvas():restore()
 end
 
----@param canvas YaTreeCanvas
----@return number winid the winid of the created edit window
-local function create_edit_window(canvas)
-  local position = config.view.side ~= "left" and "aboveleft" or "belowright"
-  vim.cmd(position .. " vsplit")
-  ---@type number
-  local winid = api.nvim_get_current_win()
-  canvas:set_edit_winid(winid)
-  canvas:resize()
-
-  log.debug("created edit window %s", winid)
-end
-
 ---@param bufnr number
 function M.move_buffer_to_edit_window(bufnr)
   local canvas = get_canvas()
   if not canvas:get_edit_winid() then
-    create_edit_window(canvas)
+    canvas:create_edit_window()
   end
   canvas:move_buffer_to_edit_window(bufnr)
 end
@@ -276,7 +261,7 @@ function M.open_file(file, cmd)
     -- only the tree window is open, e.g. netrw replacement
     -- create a new window for buffers
 
-    create_edit_window(canvas)
+    canvas:create_edit_window()
     if cmd == "split" or cmd == "vsplit" then
       cmd = "edit"
     end
@@ -308,8 +293,6 @@ M.select = wrap(function(items, opts, on_choice)
 end, 3)
 
 function M.setup()
-  config = require("ya-tree.config").config
-
   M.setup_highlights()
   Canvas.setup()
 end

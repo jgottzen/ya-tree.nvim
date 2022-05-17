@@ -45,8 +45,12 @@ function M.is_readable_file(path)
 end
 
 ---@param paths string[]
----@return string path
+---@return string? path
 function M.find_common_ancestor(paths)
+  if #paths == 0 then
+    return nil
+  end
+
   table.sort(paths, function(a, b)
     return #a < #b
   end)
@@ -139,15 +143,15 @@ local function format_option(key, value)
   end
 end
 
----@param win number
+---@param winid number
 ---@param opts table<string, string|boolean>
 ---@see:
 -- https://github.com/b0o/incline.nvim/issues/4
 -- https://github.com/j-hui/fidget.nvim/pull/77
 -- https://github.com/neovim/neovim/issues/18283
 -- https://github.com/neovim/neovim/issues/14670
-function M.win_set_local_options(win, opts)
-  api.nvim_win_call(win, function()
+function M.win_set_local_options(winid, opts)
+  api.nvim_win_call(winid, function()
     for option, value in pairs(opts) do
       vim.cmd(string.format("noautocmd setlocal %s", format_option(option, value)))
     end

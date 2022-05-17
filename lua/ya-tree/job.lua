@@ -16,11 +16,14 @@ function M.run(opts, on_complete)
   local state = {
     stdout = uv.new_pipe(false),
     stderr = uv.new_pipe(false),
-
     ---@type string[]
     stdout_data = {},
     ---@type string[]
     stderr_data = {},
+    ---@type userdata
+    handle = nil,
+    ---@type number
+    pid = nil,
   }
   local cb = opts.wrap_callback and vim.schedule_wrap(on_complete) or on_complete
 
@@ -49,9 +52,7 @@ function M.run(opts, on_complete)
       state.stderr:close()
     end
 
-    ---@type string
     local stdout = #state.stdout_data > 0 and table.concat(state.stdout_data) or nil
-    ---@type string
     local stderr = #state.stderr_data > 0 and table.concat(state.stderr_data) or nil
 
     cb(code, stdout, stderr)

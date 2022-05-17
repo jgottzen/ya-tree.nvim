@@ -28,39 +28,41 @@ local M = {
 ---@field text string
 ---@field highlight string
 
----@type table<number, boolean>
-local marker_at = {}
+do
+  ---@type table<number, boolean>
+  local marker_at = {}
 
----@param node YaTreeNode
----@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.Indentation
----@return RenderResult?
-function M.indentation(node, _, renderer)
-  if node.depth == 0 then
-    return
-  end
-
-  local text = ""
-  if renderer.use_marker then
-    marker_at[node.depth] = not node.last_child
-    for i = 1, node.depth do
-      local marker = (i == node.depth and node.last_child) and renderer.last_indent_marker or renderer.indent_marker
-
-      if marker_at[i] or i == node.depth then
-        text = text .. marker .. " "
-      else
-        text = text .. "  "
-      end
+  ---@param node YaTreeNode
+  ---@param _ RenderingContext
+  ---@param renderer YaTreeConfig.Renderers.Indentation
+  ---@return RenderResult?
+  function M.indentation(node, _, renderer)
+    if node.depth == 0 then
+      return
     end
-  else
-    text = string.rep("  ", node.depth)
-  end
 
-  return {
-    padding = renderer.padding,
-    text = text,
-    highlight = hl.INDENT_MARKER,
-  }
+    local text = ""
+    if renderer.use_marker then
+      marker_at[node.depth] = not node.last_child
+      for i = 1, node.depth do
+        local marker = (i == node.depth and node.last_child) and renderer.last_indent_marker or renderer.indent_marker
+
+        if marker_at[i] or i == node.depth then
+          text = text .. marker .. " "
+        else
+          text = text .. "  "
+        end
+      end
+    else
+      text = string.rep("  ", node.depth)
+    end
+
+    return {
+      padding = renderer.padding,
+      text = text,
+      highlight = hl.INDENT_MARKER,
+    }
+  end
 end
 
 ---@param node YaTreeNode
@@ -340,16 +342,14 @@ end
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
     local severity = node:get_diagnostics_severity()
-    if severity then
-      if renderer.min_severity == nil or severity <= renderer.min_severity then
-        local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
-        if diagnostic then
-          return {
-            padding = renderer.padding,
-            text = diagnostic.text,
-            highlight = diagnostic.highlight,
-          }
-        end
+    if severity and (renderer.min_severity == nil or severity <= renderer.min_severity) then
+      local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
+      if diagnostic then
+        return {
+          padding = renderer.padding,
+          text = diagnostic.text,
+          highlight = diagnostic.highlight,
+        }
       end
     end
   end
