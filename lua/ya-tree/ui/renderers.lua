@@ -238,49 +238,49 @@ function M.repository(node, _, renderer)
     } }
 
     if renderer.show_status then
-      if repo.behind > 0 then
+      if repo.behind > 0 and renderer.icons.behind ~= "" then
         result[#result + 1] = {
           padding = renderer.padding,
           text = renderer.icons.behind .. repo.behind,
           highlight = hl.GIT_BEHIND_COUNT,
         }
       end
-      if repo.ahead > 0 then
+      if repo.ahead > 0 and renderer.icons.ahead ~= "" then
         result[#result + 1] = {
           padding = repo.behind and "" or renderer.padding,
           text = renderer.icons.ahead .. repo.ahead,
           highlight = hl.GIT_AHEAD_COUNT,
         }
       end
-      if repo.stashed > 0 then
+      if repo.stashed > 0 and renderer.icons.stashed ~= "" then
         result[#result + 1] = {
           padding = renderer.padding,
           text = renderer.icons.stashed .. repo.stashed,
           highlight = hl.GIT_STASH_COUNT,
         }
       end
-      if repo.unmerged > 0 then
+      if repo.unmerged > 0 and renderer.icons.unmerged ~= "" then
         result[#result + 1] = {
           padding = renderer.padding,
           text = renderer.icons.unmerged .. repo.unmerged,
           highlight = hl.GIT_UNMERGED_COUNT,
         }
       end
-      if repo.staged > 0 then
+      if repo.staged > 0 and renderer.icons.staged ~= "" then
         result[#result + 1] = {
           padding = renderer.padding,
           text = renderer.icons.staged .. repo.staged,
           highlight = hl.GIT_STAGED_COUNT,
         }
       end
-      if repo.unstaged > 0 then
+      if repo.unstaged > 0 and renderer.icons.unstaged ~= "" then
         result[#result + 1] = {
           padding = renderer.padding,
           text = renderer.icons.unstaged .. repo.unstaged,
           highlight = hl.GIT_UNSTAGED_COUNT,
         }
       end
-      if repo.untracked > 0 then
+      if repo.untracked > 0 and renderer.icons.untracked ~= "" then
         result[#result + 1] = {
           padding = renderer.padding,
           text = renderer.icons.untracked .. repo.untracked,

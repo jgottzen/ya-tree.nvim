@@ -254,7 +254,7 @@ local M = {
         view_mode = { "tree", "search", "buffers" },
         show_status = true,
 
-        ---@class YaTreeConfig.Renderers.Repository.Icons Repository icons.
+        ---@class YaTreeConfig.Renderers.Repository.Icons Repository icons, setting an icon to an empty string will disabled that particular status information.
         ---@field behind string The icon for the behind count, default: `"⇣"`.
         ---@field ahead string The icon for the ahead count, default: `"⇡"`.
         ---@field stashed string The icon for the stashed count, default: `"*"`.
