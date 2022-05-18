@@ -23,6 +23,7 @@ local actions = {
   delete = { fun = files.delete, desc = "Delete files and directories" },
   trash = { fun = files.trash, desc = "Trash files and directories" },
   system_open = { fun = files.system_open, desc = "Open the node with the default system application" },
+  goto_path_in_tree = { fun = files.goto_path_in_tree, desc = "Go to path in tree" },
 
   copy_node = { fun = clipboard.copy_node, desc = "Select files and directories for copy" },
   cut_node = { fun = clipboard.cut_node, desc = "Select files and directories for cut" },

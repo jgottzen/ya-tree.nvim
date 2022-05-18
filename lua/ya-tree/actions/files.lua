@@ -249,4 +249,12 @@ function M.system_open(node)
   end)
 end
 
+function M.goto_path_in_tree()
+  vim.ui.input({ prompt = "Path:", completion = "file" }, function(path)
+    if path then
+      lib.goto_path_in_tree(path)
+    end
+  end)
+end
+
 return M

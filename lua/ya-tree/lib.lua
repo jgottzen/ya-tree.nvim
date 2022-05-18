@@ -594,6 +594,20 @@ function M.show_last_search(node)
   end
 end
 
+---@param path string
+function M.goto_path_in_tree(path)
+  local tree = Tree.get_tree()
+  local file = resolve_path_in_tree(tree, path)
+  if file then
+    async.void(function()
+      tree.current_node = tree.root:expand({ force_scan = true, to = file })
+      tree.current_node:expand()
+      scheduler()
+      ui.update(tree.root, tree.current_node, { focus_node = true })
+    end)()
+  end
+end
+
 ---@param node YaTreeNode
 function M.toggle_buffers(node)
   local tree = Tree.get_tree()
