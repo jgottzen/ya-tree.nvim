@@ -366,7 +366,7 @@ local M = {
 
     ---@class YaTreeConfig.Mapping Key mapping configuration.
     ---@field mode? string|string[] The mode(s) for the keybinding.
-    ---@field action? string The YaTree action to bind to.
+    ---@field action? YaTreeActionName The YaTree action to bind to.
     ---@field views YaTreeViewMode[] The view modes the mapping is available for.
     ---@field func? fun(node: YaTreeNode) Custom function.
     ---@field command? string Lua command string.

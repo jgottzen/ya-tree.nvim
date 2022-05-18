@@ -33,7 +33,7 @@ function M.open()
   for _, mapping in ipairs(mappings) do
     for _, key in ipairs(mapping.keys) do
       max_key_width = math.max(max_key_width, api.nvim_strwidth(key))
-      if mapping.name == "open_help" then
+      if mapping.action == "open_help" then
         table.insert(help_mappings, key)
       end
     end
@@ -71,6 +71,7 @@ function M.open()
 
   local ns = api.nvim_create_namespace("YaTreeKeyMaps")
   local bufnr = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_option(bufnr, "filetype", "YaTreeKeyMaps")
 
   local mapping_col_start = max_key_width + 3 + max_mapping_width
   api.nvim_buf_set_lines(bufnr, 0, -1, true, lines)

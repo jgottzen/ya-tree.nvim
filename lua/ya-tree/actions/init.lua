@@ -8,11 +8,53 @@ local log = require("ya-tree.log")
 
 local M = {}
 
+---@alias YaTreeActionName
+---| "open"
+---| "vsplit"
+---| "split"
+---| "preview"
+---| "add"
+---| "rename"
+---| "delete"
+---| "trash"
+---| "system_open"
+---| "goto_path_in_tree"
+---| "copy_node"
+---| "cut_node"
+---| "paste_nodes"
+---| "clear_clipboard"
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---| "search_interactively"
+---| "search_once"
+---| "goto_node_in_tree"
+---| "close_search"
+---| "show_last_search"
+---| "close_tree"
+---| "close_node"
+---| "close_all_nodes"
+---| "cd_to"
+---| "cd_up"
+---| "toggle_ignored"
+---| "toggle_filter"
+---| "refresh_tree"
+---| "rescan_dir_for_git"
+---| "toggle_buffers"
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+---| "focus_prev_git_item"
+---| "focus_next_git_item"
+---| "open_help"
+
 ---@class YaTreeAction
 ---@field fun fun(node: YaTreeNode)
 ---@field desc string
 
----@type table<string, YaTreeAction>
+---@type table<YaTreeActionName, YaTreeAction>
 local actions = {
   open = { fun = files.open, desc = "Open file or directory" },
   vsplit = { fun = files.vsplit, desc = "Open file in vertical split" },
@@ -23,7 +65,7 @@ local actions = {
   delete = { fun = files.delete, desc = "Delete files and directories" },
   trash = { fun = files.trash, desc = "Trash files and directories" },
   system_open = { fun = files.system_open, desc = "Open the node with the default system application" },
-  goto_path_in_tree = { fun = files.goto_path_in_tree, desc = "Go to path in tree" },
+  goto_path_in_tree = { fun = files.goto_path_in_tree, desc = "Go to entered path in tree" },
 
   copy_node = { fun = clipboard.copy_node, desc = "Select files and directories for copy" },
   cut_node = { fun = clipboard.cut_node, desc = "Select files and directories for cut" },
@@ -180,7 +222,7 @@ local function validate_and_create_mappings(mappings)
         ---@field keys string[]
         ---@field name string
         ---@field desc? string
-        ---@field action? string
+        ---@field action? YaTreeActionName
         ---@field func? fun(node: YaTreeNode)
         ---@field command? string
         local mapping = {
