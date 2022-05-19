@@ -1,5 +1,6 @@
 local api = vim.api
 local fn = vim.fn
+local uv = vim.loop
 
 ---@class YaTreeLogger
 ---@field config YaTreeLoggerConfig
@@ -73,12 +74,12 @@ function logger.new(opts)
   ---@type YaTreeLoggerConfig
   local config = vim.tbl_deep_extend("force", default, opts or {})
 
-  local log_file = fmt("%s/%s.log", fn.stdpath("data"), config.name)
+  local log_file = fmt("%s/%s.log", fn.stdpath("cache"), config.name)
   ---@type YaTreeLogger
   local self = {
     config = config,
   }
-  ---@type table<string, number>
+  ---@type table<LogLevel, number>
   local levels = {}
   for k, v in ipairs(self.config.levels) do
     levels[v.level] = k
@@ -153,8 +154,10 @@ function logger.new(opts)
 
     local message = format(arg, ...)
     local info = debug.getinfo(2, "nSl")
-    local timestamp = os.date("%H:%M:%S")
-    local fmt_message = fmt("[%-6s%s] %s:%s:%s: %s", name, timestamp, info.short_src, info.name or "<anonymous>", info.currentline, message)
+    local _, ms = uv.gettimeofday()
+    local timestamp = string.format("%s:%03d", os.date("%H:%M:%S"), ms / 1000)
+    local fun_name = info.name ~= "" and info.name or "<anonymous>"
+    local fmt_message = fmt("[%-6s%s] %s:%s:%s: %s", name, timestamp, info.short_src, fun_name, info.currentline, message)
 
     if self.config.to_console then
       vim.schedule(function()
@@ -179,9 +182,11 @@ function logger.new(opts)
     end
   end
 
-  for k, v in ipairs(config.levels) do
-    self[v.level] = function(arg, ...)
-      return log(k, v.level:upper(), v.highlight, arg, ...)
+  for i, v in ipairs(config.levels) do
+    local name = v.level
+    ---@cast name string
+    self[name] = function(arg, ...)
+      return log(i, name:upper(), v.highlight, arg, ...)
     end
   end
 
