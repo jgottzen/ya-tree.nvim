@@ -8,7 +8,7 @@ local M = {
   ---@field hijack_cursor boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field replace_netrw boolean Replace `netrw` windows, default: `true`.
-  ---@field mappings table<string|string[], YaTreeConfig.Mapping> Map of key mappings.
+  ---@field mappings table<string, YaTreeActionName|YaTreeConfig.CustomMapping> Map of key mappings.
   default = {
     auto_close = false,
     auto_reload_on_write = true,
@@ -362,57 +362,57 @@ local M = {
       },
     },
 
-    ---@alias YaTreeViewMode YaTreeCanvasDisplayMode|"all"
-
-    ---@class YaTreeConfig.Mapping Key mapping configuration.
-    ---@field mode? string|string[] The mode(s) for the keybinding.
-    ---@field action? YaTreeActionName The YaTree action to bind to.
-    ---@field views YaTreeViewMode[] The view modes the mapping is available for.
-    ---@field func? fun(node: YaTreeNode) Custom function.
-    ---@field command? string Lua command string.
+    ---@class YaTreeConfig.CustomMapping Key mapping for user functions configuration.
+    ---@field modes string[] The mode(s) for the keybinding.
+    ---@field views YaTreeCanvasDisplayMode[] The view modes the mapping is available for.
+    ---@field func fun(node: YaTreeNode) User function.
     ---@field desc? string Description of what the mapping does.
 
     mappings = {
-      ["q"] = { action = "close_tree", views = { "tree", "search", "buffers" } },
-      [{ "<CR>", "o", "<2-LeftMouse>" }] = { mode = { "n", "v" }, action = "open", views = { "tree", "search", "buffers" } },
-      ["<C-v>"] = { action = "vsplit", views = { "tree", "search" } },
-      ["<C-s>"] = { action = "split", views = { "tree", "search" } },
-      ["<Tab>"] = { action = "preview", views = { "tree", "search", "buffers" } },
-      ["<BS>"] = { action = "close_node", views = { "tree", "search", "buffers" } },
-      ["z"] = { action = "close_all_nodes", views = { "tree", "search", "buffers" } },
-      [{ "<2-RightMouse>", "<C-]>", "." }] = { action = "cd_to", views = { "tree", "search", "buffers" } },
-      ["-"] = { action = "cd_up", views = { "tree" } },
-      ["P"] = { action = "focus_parent", views = { "tree", "search", "buffers" } },
-      ["<"] = { action = "focus_prev_sibling", views = { "tree", "search", "buffers" } },
-      [">"] = { action = "focus_next_sibling", views = { "tree", "search", "buffers" } },
-      ["K"] = { action = "focus_first_sibling", views = { "tree", "search", "buffers" } },
-      ["J"] = { action = "focus_last_sibling", views = { "tree", "search", "buffers" } },
-      ["[c"] = { action = "focus_prev_git_item", views = { "tree", "search", "buffers" } },
-      ["]c"] = { action = "focus_next_git_item", views = { "tree", "search", "buffers" } },
-      ["I"] = { action = "toggle_ignored", views = { "tree", "search", "buffers" } },
-      ["H"] = { action = "toggle_filter", views = { "tree", "search", "buffers" } },
-      ["R"] = { action = "refresh_tree", views = { "tree", "search", "buffers" } },
-      ["/"] = { action = "search_interactively", views = { "tree", "search" } },
-      ["f"] = { action = "search_once", views = { "tree", "search" } },
-      ["gn"] = { action = "goto_node_in_tree", views = { "search", "buffers" } },
-      ["gp"] = { action = "goto_path_in_tree", views = { "tree" } },
-      ["<C-x>"] = { action = "close_search", views = { "search" } },
-      ["F"] = { action = "show_last_search", views = { "tree" } },
-      ["<C-g>"] = { action = "rescan_dir_for_git", views = { "tree" } },
-      ["a"] = { action = "add", views = { "tree" } },
-      ["r"] = { action = "rename", views = { "tree" } },
-      ["d"] = { mode = { "n", "v" }, action = "delete", views = { "tree" } },
-      ["D"] = { mode = { "n", "v" }, action = "trash", views = { "tree" } },
-      ["c"] = { mode = { "n", "v" }, action = "copy_node", views = { "tree" } },
-      ["x"] = { mode = { "n", "v" }, action = "cut_node", views = { "tree" } },
-      ["p"] = { action = "paste_nodes", views = { "tree" } },
-      ["<C-c>"] = { action = "clear_clipboard", views = { "tree" } },
-      ["y"] = { action = "copy_name_to_clipboard", views = { "tree", "search", "buffers" } },
-      ["Y"] = { action = "copy_root_relative_path_to_clipboard", views = { "tree", "search", "buffers" } },
-      ["gy"] = { action = "copy_absolute_path_to_clipboard", views = { "tree", "search", "buffers" } },
-      ["?"] = { action = "open_help", views = { "tree", "search", "buffers" } },
-      ["gx"] = { action = "system_open", views = { "tree", "search", "buffers" } },
-      ["b"] = { action = "toggle_buffers", views = { "tree", "buffers" } },
+      ["q"] = "close_tree",
+      ["<CR>"] = "open",
+      ["o"] = "open",
+      ["<2-LeftMouse>"] = "open",
+      ["<C-v>"] = "vsplit",
+      ["<C-s>"] = "split",
+      ["<Tab>"] = "preview",
+      ["<BS>"] = "close_node",
+      ["z"] = "close_all_nodes",
+      ["<2-RightMouse>"] = "cd_to",
+      ["<C-]>"] = "cd_to",
+      ["."] = "cd_to",
+      ["-"] = "cd_up",
+      ["P"] = "focus_parent",
+      ["<"] = "focus_prev_sibling",
+      [">"] = "focus_next_sibling",
+      ["K"] = "focus_first_sibling",
+      ["J"] = "focus_last_sibling",
+      ["[c"] = "focus_prev_git_item",
+      ["]c"] = "focus_next_git_item",
+      ["I"] = "toggle_ignored",
+      ["H"] = "toggle_filter",
+      ["R"] = "refresh_tree",
+      ["/"] = "search_interactively",
+      ["f"] = "search_once",
+      ["gn"] = "goto_node_in_tree",
+      ["gp"] = "goto_path_in_tree",
+      ["<C-x>"] = "close_search",
+      ["F"] = "show_last_search",
+      ["<C-g>"] = "rescan_dir_for_git",
+      ["a"] = "add",
+      ["r"] = "rename",
+      ["d"] = "delete",
+      ["D"] = "trash",
+      ["c"] = "copy_node",
+      ["x"] = "cut_node",
+      ["p"] = "paste_nodes",
+      ["<C-c>"] = "clear_clipboard",
+      ["y"] = "copy_name_to_clipboard",
+      ["Y"] = "copy_root_relative_path_to_clipboard",
+      ["gy"] = "copy_absolute_path_to_clipboard",
+      ["?"] = "open_help",
+      ["gx"] = "system_open",
+      ["b"] = "toggle_buffers",
     },
   },
 }

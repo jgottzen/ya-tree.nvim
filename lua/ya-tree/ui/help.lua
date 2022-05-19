@@ -7,52 +7,47 @@ local M = {}
 function M.open()
   local mappings = require("ya-tree.actions").mappings
 
-  ---@type string[]
-  local lines
-  ---@param mapping ActionMapping
-  ---@type ActionMapping[]
+  ---@param mapping YaTreeActionMapping
+  ---@type YaTreeActionMapping[]
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
   end, mappings)
-  ---@param mapping ActionMapping
-  ---@type ActionMapping[]
+  ---@param mapping YaTreeActionMapping
+  ---@type YaTreeActionMapping[]
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
   end, mappings)
   table.sort(insert, function(a, b)
-    return a.name < b.name
+    return a.key < b.key
   end)
   table.sort(visual, function(a, b)
-    return a.name < b.name
+    return a.key < b.key
   end)
 
-  ---@type string[]
-  local help_mappings = {}
   local max_key_width = 0
   local max_mapping_width = 0
+  ---@type string[]
+  local help_mappings = {}
   for _, mapping in ipairs(mappings) do
-    for _, key in ipairs(mapping.keys) do
-      max_key_width = math.max(max_key_width, api.nvim_strwidth(key))
-      if mapping.action == "open_help" then
-        table.insert(help_mappings, key)
-      end
+    max_key_width = math.max(max_key_width, api.nvim_strwidth(mapping.key))
+    max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(mapping.desc))
+    if mapping.action == "open_help" then
+      help_mappings[#help_mappings + 1] = mapping.key
     end
-    max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(mapping.desc or mapping.name))
   end
-  max_key_width = max_key_width + 1
+  max_key_width = max_key_width + 1 -- add 1 so we get 1 character space to the left of the key
   local format_string = "%" .. max_key_width .. "s : %-" .. max_mapping_width .. "s : %s"
 
   local header = string.format(format_string, "Key", "Mapping", "View")
-  lines = { " KEY MAPPINGS", header, "", " Normal Mode:" }
+  ---@type string[]
+  local lines = { " KEY MAPPINGS", header, "", " Normal Mode:" }
   local max_line_width = api.nvim_strwidth(header)
 
   local insert_start_linenr = #lines + 1
   for _, mapping in ipairs(insert) do
-    for _, key in ipairs(mapping.keys) do
-      local line = string.format(format_string, key, mapping.desc or mapping.name, table.concat(vim.tbl_keys(mapping.views), ", "))
-      lines[#lines + 1] = line
-      max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
-    end
+    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(vim.tbl_keys(mapping.views), ", "))
+    lines[#lines + 1] = line
+    max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
   end
   local insert_end_linenr = #lines
 
@@ -61,11 +56,9 @@ function M.open()
 
   local visual_start_linenr = #lines + 1
   for _, mapping in ipairs(visual) do
-    for _, key in ipairs(mapping.keys) do
-      local line = string.format(format_string, key, mapping.desc or mapping.name, table.concat(vim.tbl_keys(mapping.views), ", "))
-      lines[#lines + 1] = line
-      max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
-    end
+    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(vim.tbl_keys(mapping.views), ", "))
+    lines[#lines + 1] = line
+    max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
   end
   local visual_end_linenr = #lines
 
