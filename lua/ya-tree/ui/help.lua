@@ -98,7 +98,8 @@ function M.open()
   api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
 
   local width = vim.o.columns
-  local height = vim.o.lines - vim.o.cmdheight
+  -- have to take into account if the statusline is shown, and the two border line - top and bottom
+  local height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0) - 2
   api.nvim_open_win(bufnr, true, {
     relative = "editor",
     row = math.max(0, (height - #lines) / 2),
