@@ -13,7 +13,7 @@ local api = vim.api
 
 local M = {}
 
----@alias cmdmode "edit"|"vsplit"|"split"
+---@alias cmdmode "edit"|"vsplit"|"split"|"tabnew"
 
 function M.open()
   local nodes = ui.get_selected_nodes()
@@ -66,6 +66,13 @@ function M.preview(node)
 end
 
 ---@param node YaTreeNode
+function M.tabnew(node)
+  if node:is_file() then
+    ui.open_file(node.path, "tabnew")
+  end
+end
+
+---@param node YaTreeNode
 function M.add(node)
   if node:is_file() then
     node = node.parent
@@ -76,18 +83,15 @@ function M.add(node)
     ---@param path string
     on_submit = function(path)
       if not path then
-        utils.notify("No name given, not creating new file/directory")
+        return
+      elseif fs.exists(path) then
+        utils.warn(string.format("%q already exists!", path))
         return
       end
 
       local is_directory = vim.endswith(path, utils.os_sep)
       if is_directory then
         path = path:sub(1, -2)
-      end
-
-      if fs.exists(path) then
-        utils.warn(string.format("%q already exists!", path))
-        return
       end
 
       local ok = is_directory and fs.create_dir(path) or fs.create_file(path)
@@ -111,11 +115,8 @@ function M.rename(node)
 
   vim.ui.input({ prompt = "New name:", default = node.path, completion = "file" }, function(path)
     if not path then
-      utils.notify('No new name given, not renaming "' .. node.path .. '"')
       return
-    end
-
-    if fs.exists(path) then
+    elseif fs.exists(path) then
       utils.warn(string.format("%q already exists!", path))
       return
     end

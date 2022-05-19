@@ -12,6 +12,7 @@ local M = {}
 ---| "open"
 ---| "vsplit"
 ---| "split"
+---| "tabnew"
 ---| "preview"
 ---| "add"
 ---| "rename"
@@ -59,8 +60,9 @@ local M = {}
 ---@type table<YaTreeActionName, YaTreeAction>
 local actions = {
   open = { fun = files.open, desc = "Open file or directory", views = { "tree", "search", "buffers" }, modes = { "n", "v" } },
-  vsplit = { fun = files.vsplit, desc = "Open file in vertical split", views = { "tree", "search" }, modes = { "n" } },
-  split = { fun = files.split, desc = "Open file in split", views = { "tree", "search" }, modes = { "n" } },
+  vsplit = { fun = files.vsplit, desc = "Open file in a vertical split", views = { "tree", "search" }, modes = { "n" } },
+  split = { fun = files.split, desc = "Open file in a split", views = { "tree", "search" }, modes = { "n" } },
+  tabnew = { fun = files.tabnew, desc = "Open file in a new tabpage", views = { "tree", "search" }, modes = { "n" } },
   preview = { fun = files.preview, desc = "Open files (keep cursor in tree)", views = { "tree", "search", "buffers" }, modes = { "n" } },
   add = { fun = files.add, desc = "Add file or directory", views = { "tree" }, modes = { "n" } },
   rename = { fun = files.rename, desc = "Rename file or directory", views = { "tree" }, modes = { "n" } },

@@ -375,6 +375,7 @@ local M = {
       ["<2-LeftMouse>"] = "open",
       ["<C-v>"] = "vsplit",
       ["<C-s>"] = "split",
+      ["t"] = "tabnew",
       ["<Tab>"] = "preview",
       ["<BS>"] = "close_node",
       ["z"] = "close_all_nodes",
