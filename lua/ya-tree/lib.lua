@@ -89,10 +89,11 @@ end
 ---  - {opts.focus?} `boolean`
 function M.open_tree(opts)
   if setting_up then
+    log.debug("setup is in progress, deferring opening window...")
     vim.defer_fn(function()
-      log.debug("setup is in progress, deferring opening window...")
       M.open_tree(opts)
     end, 100)
+    return
   end
 
   async.void(function()
