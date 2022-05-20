@@ -59,6 +59,7 @@ local tab_var_barbar_set_name = "_YaTreeBarbar"
 ---@field private bufnr number
 ---@field private window_augroup number
 ---@field private previous_row number
+---@field private width number
 ---@field private nodes YaTreeNode[]
 ---@field private node_path_to_index_lookup table<string, number>
 local Canvas = {}
@@ -80,8 +81,10 @@ end
 
 ---@return YaTreeCanvas canvas
 function Canvas:new()
+  ---@type YaTreeCanvas
   local this = setmetatable({}, self)
   this.display_mode = "tree"
+  this.width = config.view.width
   this.nodes = {}
   this.node_path_to_index_lookup = {}
   return this
@@ -117,11 +120,11 @@ end
 
 function Canvas:create_edit_window()
   local position = config.view.side ~= "left" and "aboveleft" or "belowright"
-  vim.cmd(position .. " vsplit")
+  local size = vim.o.columns - self.width - 1
+  api.nvim_command("noautocmd " .. position .. " " .. size .. "vsplit")
   ---@type number
   local winid = api.nvim_get_current_win()
   self.edit_winid = winid
-  self:resize()
 
   log.debug("created edit window %s", winid)
 end
@@ -188,10 +191,8 @@ function Canvas:move_buffer_to_edit_window(bufnr)
 end
 
 ---@private
-function Canvas:_set_window_options_and_size()
+function Canvas:_set_window_options()
   api.nvim_win_set_buf(self.winid, self.bufnr)
-  api.nvim_command("noautocmd wincmd " .. (config.view.side == "right" and "L" or "H"))
-  api.nvim_command("noautocmd vertical resize " .. config.view.width)
 
   win_options.number = config.view.number
   win_options.relativenumber = config.view.relativenumber
@@ -199,6 +200,14 @@ function Canvas:_set_window_options_and_size()
 
   ---@type number
   self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
+  api.nvim_create_autocmd("WinLeave", {
+    group = self.window_augroup,
+    buffer = self.bufnr,
+    callback = function()
+      self.width = api.nvim_win_get_width(self.winid)
+    end,
+    desc = "Storing window width",
+  })
   api.nvim_create_autocmd("WinClosed", {
     group = self.window_augroup,
     pattern = tostring(self.winid),
@@ -217,28 +226,16 @@ function Canvas:_set_window_options_and_size()
       desc = "Moving cursor to name",
     })
   end
-
-  self:resize()
 end
 
-local function set_barbar_offset()
+---@param width number
+local function set_barbar_offset(width)
   if barbar_exists then
-    local ok, result = pcall(barbar_state.set_offset, config.view.width, config.view.barbar.title or "")
+    local ok, result = pcall(barbar_state.set_offset, width, config.view.barbar.title or "")
     if ok then
-      api.nvim_tabpage_set_var(0, tab_var_barbar_set_name, 1)
+      api.nvim_tabpage_set_var(0, tab_var_barbar_set_name, width)
     else
       log.error("error calling barbar to set offset: %", result)
-    end
-  end
-end
-
-local function unset_barbar_offset()
-  if barbar_exists then
-    local ok, result = pcall(barbar_state.set_offset, 0)
-    if ok then
-      api.nvim_tabpage_set_var(0, tab_var_barbar_set_name, 0)
-    else
-      log.error("error calling barbar remove offset: %", result)
     end
   end
 end
@@ -247,7 +244,7 @@ end
 function Canvas:_on_win_closed()
   log.debug("window %s was closed", self.winid)
   if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    unset_barbar_offset()
+    set_barbar_offset(0)
   end
 
   if type(config.view.on_close) == "function" then
@@ -276,11 +273,12 @@ function Canvas:_create_window()
     log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
   end
 
-  api.nvim_command("noautocmd vsplit")
+  local position = config.view.side == "left" and "aboveleft" or "belowright"
+  api.nvim_command("noautocmd " .. position .. " " .. self.width .. "vsplit")
   ---@type number
   self.winid = api.nvim_get_current_win()
   log.debug("created window %s", self.winid)
-  self:_set_window_options_and_size()
+  self:_set_window_options()
 end
 
 ---@param root YaTreeNode
@@ -301,7 +299,7 @@ function Canvas:open(root, opts)
     self.winid = api.nvim_get_current_win()
     log.debug("hijacking current window %s for canvas", self.winid)
     self.edit_winid = nil
-    self:_set_window_options_and_size()
+    self:_set_window_options()
   else
     self:_create_window()
   end
@@ -310,7 +308,7 @@ function Canvas:open(root, opts)
 
   -- barbar can only set offsets on the left side
   if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    set_barbar_offset()
+    set_barbar_offset(self.width)
   end
 
   if type(config.view.on_open) == "function" then
@@ -369,15 +367,6 @@ function Canvas:delete()
     end
     self.bufnr = nil
   end
-end
-
-function Canvas:resize()
-  if not self.winid then
-    return
-  end
-
-  api.nvim_win_set_width(self.winid, config.view.width)
-  vim.cmd("wincmd =")
 end
 
 ---@type YaTreeViewRenderer[]
@@ -754,20 +743,24 @@ do
   end
 
   ---@param tabpage number
-  ---@return boolean was_set
-  local function is_tabbar_offset_set(tabpage)
+  ---@return boolean was_set, number? width
+  local function get_tabbar_offset(tabpage)
     local ok, value = pcall(api.nvim_tabpage_get_var, tabpage, tab_var_barbar_set_name)
-    return ok and value == 1
+    if ok then
+      return ok, value
+    else
+      return false
+    end
   end
 
   on_tab_enter = function()
     if previous_tab_page then
-      local was_set = is_tabbar_offset_set(previous_tab_page)
-      local is_set = is_tabbar_offset_set(api.nvim_get_current_tabpage())
+      local was_set, _ = get_tabbar_offset(previous_tab_page)
+      local is_set, current_width = get_tabbar_offset(api.nvim_get_current_tabpage())
       if was_set and not is_set then
-        unset_barbar_offset()
-      elseif not was_set and is_set then
-        set_barbar_offset()
+        set_barbar_offset(0)
+      elseif is_set then
+        set_barbar_offset(current_width)
       end
     end
   end
