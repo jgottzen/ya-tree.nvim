@@ -67,6 +67,7 @@ local win_options = {
 ---  - {callbacks.on_change?} `function(text: string): void`
 ---@return Input input
 function Input:new(opts, callbacks)
+  ---@type Input
   local this = setmetatable({
     prompt = opts.prompt or "",
     default = opts.default or "",
@@ -107,7 +108,7 @@ function Input:new(opts, callbacks)
     this.callbacks.on_change = function()
       ---@type string
       local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1]
-      callbacks.on_change(value:sub(#this.prompt + 1))
+      callbacks.on_change(value:sub(#this.default + 1))
     end
   end
 
@@ -155,11 +156,9 @@ function Input:open()
   end
 
   fn.prompt_setprompt(self.bufnr, "")
-  if self.default then
-    api.nvim_buf_set_lines(self.bufnr, 0, -1, true, { self.default })
-  end
   fn.prompt_setcallback(self.bufnr, self.callbacks.on_submit)
   fn.prompt_setinterrupt(self.bufnr, self.callbacks.on_close)
+  api.nvim_buf_set_lines(self.bufnr, 0, -1, true, { self.default })
 
   self:map("i", "<Esc>", self.callbacks.on_close)
   if self.completion then
