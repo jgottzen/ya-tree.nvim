@@ -144,7 +144,9 @@ function Input:open()
 
   ---@type number
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
-  utils.win_set_local_options(self.winid, win_options)
+  for k, v in pairs(win_options) do
+    vim.opt_local[k] = v
+  end
 
   self:_create_title()
 
@@ -200,7 +202,7 @@ function Input:_create_title()
       style = "minimal",
       noautocmd = true,
     })
-    utils.win_set_local_options(self.title_winid, { winblend = api.nvim_win_get_option(self.winid, "winblend") })
+    vim.opt_local["winblend"] = api.nvim_win_get_option(self.winid, "winblend")
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     local title = " " .. self.prompt:sub(1, math.min(width - 2, api.nvim_strwidth(self.prompt))) .. " "
     api.nvim_buf_set_lines(bufnr, 0, -1, true, { title })

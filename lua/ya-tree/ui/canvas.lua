@@ -196,7 +196,9 @@ function Canvas:_set_window_options()
 
   win_options.number = config.view.number
   win_options.relativenumber = config.view.relativenumber
-  utils.win_set_local_options(self.winid, win_options)
+  for k, v in pairs(win_options) do
+    vim.opt_local[k] = v
+  end
 
   ---@type number
   self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
