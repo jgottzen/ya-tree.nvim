@@ -378,7 +378,6 @@ local function refresh_tree(tree, node_or_path)
     elseif type(node_or_path) == "string" then
       local node = tree.root:expand({ to = node_or_path })
       if node then
-        node:expand()
         tree.current_node = node
       end
     else
@@ -548,9 +547,8 @@ do
         utils.notify(string.format("%q found %s matches for %q", cmd, #lines, term))
         display_search_result(node, term, lines, focus_node)
       else
-        stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
-        stderr = table.concat(stderr, " ")
-        utils.warn(string.format("Search failed with code %s and message %s", code, stderr))
+        log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
+        utils.warn(string.format("%q failed with code %s and message:\n\n%s", cmd, code, stderr))
       end
     end)
   end
@@ -602,7 +600,6 @@ function M.goto_path_in_tree(path)
   if file then
     async.void(function()
       tree.current_node = tree.root:expand({ force_scan = true, to = file })
-      tree.current_node:expand()
       scheduler()
       ui.update(tree.root, tree.current_node, { focus_node = true })
     end)()

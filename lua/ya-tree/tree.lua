@@ -130,7 +130,6 @@ function M.update_tree_root_node(tree, new_root)
           root:expand({ force_scan = true })
         else
           root = tree.root:expand({ force_scan = true, to = new_root })
-          root:expand({ force_scan = true })
         end
       elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
         log.debug("current tree %s is a child of new root %q, creating parents up to it", tostring(tree), new_root)

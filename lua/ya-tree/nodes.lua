@@ -338,7 +338,7 @@ function Node:expand(opts)
 
   if opts.to then
     if self.path == opts.to then
-      log.debug("node %q is equal to path %q", self.path, opts.to)
+      log.debug("self %q is equal to path %q", self.path, opts.to)
       return self
     elseif self:is_directory() and self:is_ancestor_of(opts.to) then
       for _, node in ipairs(self.children) do
@@ -346,8 +346,7 @@ function Node:expand(opts)
           log.debug("child node %q is parent of %q, expanding...", node.path, opts.to)
           return node:expand(opts)
         elseif node.path == opts.to then
-          log.debug("found node %q equal to path %q", node.path, opts.to)
-          return node
+          return node:is_directory() and node:expand(opts) or node
         end
       end
     else

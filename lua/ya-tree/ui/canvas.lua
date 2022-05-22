@@ -732,13 +732,9 @@ function Canvas:focus_next_git_item(node)
   end
 end
 
-local function on_tab_leave() end
-
-local function on_tab_enter() end
-
+local on_tab_leave, on_tab_enter
 do
-  ---@type number
-  local previous_tab_page
+  local previous_tab_page = 0
 
   on_tab_leave = function()
     previous_tab_page = api.nvim_get_current_tabpage()
@@ -756,14 +752,12 @@ do
   end
 
   on_tab_enter = function()
-    if previous_tab_page then
-      local was_set, _ = get_tabbar_offset(previous_tab_page)
-      local is_set, current_width = get_tabbar_offset(api.nvim_get_current_tabpage())
-      if was_set and not is_set then
-        set_barbar_offset(0)
-      elseif is_set then
-        set_barbar_offset(current_width)
-      end
+    local was_set, _ = get_tabbar_offset(previous_tab_page)
+    local is_set, current_width = get_tabbar_offset(api.nvim_get_current_tabpage())
+    if was_set and not is_set then
+      set_barbar_offset(0)
+    elseif is_set then
+      set_barbar_offset(current_width)
     end
   end
 end

@@ -222,9 +222,8 @@ function M.trash()
         if code == 0 then
           lib.refresh_tree(common_parent)
         else
-          stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
-          stderr = table.concat(stderr, " ")
-          utils.warn(string.format("Failed to trash some of the files %s, %s", table.concat(files, ", "), stderr))
+          log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
+          utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
         end
       end)
     end
@@ -243,9 +242,8 @@ function M.system_open(node)
   table.insert(args, node.link_to or node.path)
   job.run({ cmd = config.system_open.cmd, args = args, detached = true, wrap_callback = true }, function(code, _, stderr)
     if code ~= 0 then
-      stderr = vim.split(stderr or "", "\n", { plain = true, trimempty = true })
-      stderr = table.concat(stderr, " ")
-      utils.warn(string.format("%q returned error code %q and message %q", config.system_open.cmd, code, stderr))
+      log.error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)
+      utils.warn(string.format("%q returned error code %q and message:\n\n%s", config.system_open.cmd, code, stderr))
     end
   end)
 end

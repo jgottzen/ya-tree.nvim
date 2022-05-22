@@ -140,6 +140,7 @@ function Repo:new(path)
     return cached
   end
 
+  ---@type GitRepo
   local this = setmetatable({
     toplevel = toplevel,
     branch = branch,
@@ -189,7 +190,6 @@ function Repo:command(args, null_terminated)
   return result
 end
 
----@type fun(): number
 local get_next_watcher_id
 do
   local watcher_id = 0
