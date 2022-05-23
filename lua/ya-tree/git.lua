@@ -282,11 +282,22 @@ function Repo:_read_remote_url()
   self.remote_url = self:command({ "ls-remote", "--get-url" })[1]
 end
 
----@param opts? { ignored?: boolean }
----  - {opts.ignored?} `boolean`
----@return boolean fs_changes
-function Repo:refresh_status(opts)
-  opts = opts or {}
+---@param status string
+---@return boolean staged
+local function is_staged(status)
+  return status:sub(1, 1) ~= "."
+end
+
+---@param status string
+---@return boolean unstaged
+local function is_unstaged(status)
+  return status:sub(2, 2) ~= "."
+end
+
+---@param with_header boolean
+---@param with_ignored boolean
+---@return string[] arguments
+local function create_status_arguments(with_header, with_ignored)
   -- use "-z" , otherwise bytes > 0x80 will be quoted, eg octal \303\244 for "ä"
   -- another option is using "-c" "core.quotePath=false"
   local args = {
@@ -295,17 +306,78 @@ function Repo:refresh_status(opts)
     -- "--ignore-submodules=all", -- this is the default
     "--porcelain=v2",
     "-unormal", -- "--untracked-files=normal",
-    "-b", --branch
-    "--show-stash",
     "-z",
   }
+  if with_header then
+    table.insert(args, "-b") --branch
+    table.insert(args, "--show-stash")
+  end
   -- only include ignored if requested
-  if opts.ignored then
+  if with_ignored then
     table.insert(args, "--ignored=matching")
   else
     table.insert(args, "--ignored=no")
   end
 
+  return args
+end
+
+---@param file string
+---@return boolean changed
+function Repo:refresh_status_for_file(file)
+  local args = create_status_arguments(false, false)
+  log.debug("git status for file %q, arguments %q", file, table.concat(args, " "))
+  table.insert(args, file)
+  local results = self:command(args, true)
+
+  local old_status = self._git_status[file]
+  if old_status then
+    if is_staged(old_status) then
+      self.staged = self.staged - 1
+    end
+    if is_unstaged(old_status) then
+      self.unstaged = self.unstaged - 1
+    end
+  end
+
+  local relative_path = utils.relative_path_for(file, self.toplevel)
+  local size = #results
+  local i = 1
+  local found = false
+  while i <= size do
+    local line = results[i]
+    if line:find(relative_path, 1, true) then
+      found = true
+      local line_type = line:sub(1, 1)
+      if line_type == "1" then
+        self:_parse_porcelainv2_change_row(line)
+      elseif line_type == "2" then
+        i = i + 1
+        self:_parse_porcelainv2_rename_row(line)
+      end
+    end
+    i = i + 1
+  end
+  if not found then
+    self._git_status[file] = nil
+    self._propagated_git_status = {}
+    for path, status in pairs(self._git_status) do
+      if status ~= "!" then
+        local fully_staged = is_staged(status) and not is_unstaged(status)
+        self:_propagate_status_to_parents(path, fully_staged)
+      end
+    end
+  end
+
+  return old_status ~= self._git_status[file]
+end
+
+---@param opts? { ignored?: boolean }
+---  - {opts.ignored?} `boolean`
+---@return boolean fs_changes
+function Repo:refresh_status(opts)
+  opts = opts or {}
+  local args = create_status_arguments(true, opts.ignored)
   log.debug("git status for %q, arguments %q", self.toplevel, table.concat(args, " "))
   local results = self:command(args, true)
 
@@ -417,16 +489,16 @@ end
 ---@param status string
 ---@return boolean fully_staged
 function Repo:_update_stage_counts(status)
-  local fully_staged = true
-  if status:sub(1, 1) ~= "." then
+  local staged = is_staged(status)
+  local unstaged = is_unstaged(status)
+  if staged then
     self.staged = self.staged + 1
   end
-  if status:sub(2, 2) ~= "." then
+  if unstaged then
     self.unstaged = self.unstaged + 1
-    fully_staged = false
   end
 
-  return fully_staged
+  return staged and not unstaged
 end
 
 ---@private

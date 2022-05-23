@@ -412,7 +412,7 @@ function Node:refresh(opts)
     if fs_node then
       self:_merge_new_data(fs_node)
       if refresh_git and self.repo then
-        self.repo:refresh_status({ ignored = true })
+        self.repo:refresh_status_for_file(self.path)
       end
     end
   end

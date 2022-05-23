@@ -5,6 +5,7 @@ local Path = require("plenary.path")
 local config = require("ya-tree.config").config
 local Tree = require("ya-tree.tree")
 local Nodes = require("ya-tree.nodes")
+local git = require("ya-tree.git")
 local job = require("ya-tree.job")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
 local ui = require("ya-tree.ui")
@@ -819,12 +820,19 @@ local function on_buf_write_post(file)
 
         local node = tree.root:get_child_if_loaded(file)
         if node then
-          node:refresh({ refresh_git = config.git.enable })
-          scheduler()
-          -- only update the ui if the tree is for the current tabpage
-          if tree.tabpage == tabpage and ui.is_open() then
-            ui.update(tree.root)
+          node:refresh()
+        end
+        local changed = false
+        if config.git.enable then
+          local repo = git.get_repo_for_path(file)
+          if repo then
+            changed = repo:refresh_status_for_file(file)
           end
+        end
+        scheduler()
+        -- only update the ui if something has change, and the tree is for the current tabpage
+        if node and changed and tree.tabpage == tabpage and ui.is_open() then
+          ui.update(tree.root)
         end
       end
     end)
