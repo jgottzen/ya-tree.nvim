@@ -75,6 +75,9 @@ end
 ---@param path string
 ---@return string name
 local function get_file_name(path)
+  if path:sub(-1) == utils.os_sep then
+    path = path:sub(1, -2)
+  end
   ---@type string[]
   local splits = vim.split(path, utils.os_sep, { plain = true })
   return splits[#splits]
