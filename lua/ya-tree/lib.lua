@@ -773,7 +773,7 @@ local function on_buf_delete(file, bufnr)
   end
 
   local tree = Tree.get_tree()
-  if not tree or not tree.root:is_ancestor_of(file) then
+  if not tree or not tree.root:is_ancestor_of(file) or not tree.root:get_child_if_loaded(file) then
     return
   end
 
