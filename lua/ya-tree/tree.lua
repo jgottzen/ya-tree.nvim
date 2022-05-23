@@ -44,6 +44,7 @@ function M.get_tree(tabpage)
   return M._trees[tostring(tabpage)]
 end
 
+---@async
 ---@param opts? {tabpage?: number, root_path?: string}
 ---  - {opts.tabpage?} `number`
 ---  - {opts.root_path?} `string`
@@ -110,6 +111,7 @@ function M.attach_git_watcher(tree, repo)
   end
 end
 
+---@async
 ---@param tree YaTree
 ---@param new_root string|YaTreeNode
 ---@return YaTree tree

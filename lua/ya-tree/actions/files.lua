@@ -155,6 +155,7 @@ local function get_nodes_to_delete()
   return nodes, common_parent
 end
 
+---@async
 ---@param node YaTreeNode
 ---@return boolean
 local function delete_node(node)

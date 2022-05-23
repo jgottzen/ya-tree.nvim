@@ -69,6 +69,7 @@ function Node:new(fs_node, parent)
 end
 
 ---Creates a new node tree root.
+---@async
 ---@param path string the path
 ---@param old_root? YaTreeNode the previous root
 ---@param check_for_git_repo? boolean whether to check for a git repo in `path`
@@ -154,6 +155,7 @@ local function set_git_repo_on_node_and_children(repo, node)
   end
 end
 
+---@async
 ---@return boolean is_git_repo whether a git repo was detected, returns `false` if a repo *already* exists
 function Node:check_for_git_repo()
   if self.repo and not self.repo:is_yadm() then
@@ -212,7 +214,7 @@ end
 
 ---@return boolean
 function Node:is_empty()
-  return self.empty
+  return self.empty or false
 end
 
 ---@return boolean
@@ -376,6 +378,7 @@ function Node:get_child_if_loaded(path)
   end
 end
 
+---@async
 ---@param node YaTreeNode
 ---@param recurse boolean
 ---@param refresh_git boolean
@@ -396,6 +399,7 @@ local function refresh_node(node, recurse, refresh_git, refreshed_git_repos)
   end
 end
 
+---@async
 ---@param opts? { recurse?: boolean, refresh_git?: boolean }
 ---  - {opts.recurse?} `boolean` whether to perform a recursive refresh, default: `false`.
 ---  - {opts.refresh_git?} `boolean` whether to refrsh the git status, default: `false`.

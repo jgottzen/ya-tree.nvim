@@ -17,7 +17,7 @@ local M = {
   repos = setmetatable({}, { __mode = "kv" }),
 }
 
----@type fun(args: string[], null_terminated?: boolean, cmd?: string): string[], string
+---@type async fun(args: string[], null_terminated?: boolean, cmd?: string): string[], string
 local command = wrap(function(args, null_terminated, cmd, callback)
   cmd = cmd or "git"
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
@@ -39,6 +39,7 @@ local function windowize_path(path)
   return path:gsub("/", "\\")
 end
 
+---@async
 ---@param path string
 ---@param cmd? string
 ---@return string toplevel, string git_dir, string branch
@@ -101,12 +102,14 @@ Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
+---@async
 ---@param path string
 ---@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
 function M.create_repo(path)
   return Repo:new(path)
 end
 
+---@async
 ---@param path string
 ---@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
@@ -178,6 +181,7 @@ function Repo:git_status()
   return self._git_status
 end
 
+---@async
 ---@param args string[]
 ---@param null_terminated? boolean
 ---@return string[]
@@ -211,6 +215,8 @@ end
 ---@return string watcher_id
 function Repo:add_git_watcher(fun)
   if not self._git_dir_watcher then
+    ---@async
+    ---@param err? string
     local function fs_poll_callback(err)
       log.debug("fs_poll for %s", tostring(self))
       if err then
@@ -225,14 +231,10 @@ function Repo:add_git_watcher(fun)
         return
       end
 
-      scheduler()
-
       local fs_changes = self:refresh_status({ ignored = true })
-
-      scheduler()
-
       for watcher_id, watcher in pairs(self._git_watchers) do
         pcall(watcher, self, watcher_id, fs_changes)
+        scheduler()
       end
     end
 
@@ -241,9 +243,9 @@ function Repo:add_git_watcher(fun)
 
     local result = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, void(fs_poll_callback))
     if result == 0 then
-      log.debug("successfully started fs_poll for %s", self._git_dir)
+      log.debug("successfully started fs_poll for directory %s", self._git_dir)
     else
-      log.error("failed to start fs_poll for %s, error: %s", self._git_dir, result)
+      log.error("failed to start fs_poll for directory %s, error: %s", self._git_dir, result)
     end
   end
 
@@ -271,13 +273,12 @@ function Repo:remove_git_watcher(watcher_id)
   end
 end
 
+---@async
 ---@private
 function Repo:_read_remote_url()
   if not self._git_dir then
     return
   end
-
-  scheduler()
 
   self.remote_url = self:command({ "ls-remote", "--get-url" })[1]
 end
@@ -294,10 +295,11 @@ local function is_unstaged(status)
   return status:sub(2, 2) ~= "."
 end
 
----@param with_header boolean
----@param with_ignored boolean
+---@param opts { header?: boolean, ignored?: boolean}
+---  - {opts.header?} `boolean`
+---  - {opts.ignored?} `boolean`
 ---@return string[] arguments
-local function create_status_arguments(with_header, with_ignored)
+local function create_status_arguments(opts)
   -- use "-z" , otherwise bytes > 0x80 will be quoted, eg octal \303\244 for "ä"
   -- another option is using "-c" "core.quotePath=false"
   local args = {
@@ -308,12 +310,12 @@ local function create_status_arguments(with_header, with_ignored)
     "-unormal", -- "--untracked-files=normal",
     "-z",
   }
-  if with_header then
+  if opts.header then
     table.insert(args, "-b") --branch
     table.insert(args, "--show-stash")
   end
   -- only include ignored if requested
-  if with_ignored then
+  if opts.ignored then
     table.insert(args, "--ignored=matching")
   else
     table.insert(args, "--ignored=no")
@@ -322,10 +324,11 @@ local function create_status_arguments(with_header, with_ignored)
   return args
 end
 
+---@async
 ---@param file string
 ---@return boolean changed
 function Repo:refresh_status_for_file(file)
-  local args = create_status_arguments(false, false)
+  local args = create_status_arguments({ header = false, ignored = false })
   log.debug("git status for file %q, arguments %q", file, table.concat(args, " "))
   table.insert(args, file)
   local results = self:command(args, true)
@@ -372,12 +375,13 @@ function Repo:refresh_status_for_file(file)
   return old_status ~= self._git_status[file]
 end
 
+---@async
 ---@param opts? { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
 ---@return boolean fs_changes
 function Repo:refresh_status(opts)
   opts = opts or {}
-  local args = create_status_arguments(true, opts.ignored)
+  local args = create_status_arguments({ header = true, ignored = opts.ignored })
   log.debug("git status for %q, arguments %q", self.toplevel, table.concat(args, " "))
   local results = self:command(args, true)
 
@@ -424,16 +428,6 @@ function Repo:refresh_status(opts)
   return fs_changes
 end
 
----@param toplevel string the toplevel path
----@param relative_path string the root-relative path
----@return string absolute_path the absolute path
-local function make_absolute_path(toplevel, relative_path)
-  if utils.is_windows == true then
-    relative_path = windowize_path(relative_path)
-  end
-  return utils.join_path(toplevel, relative_path)
-end
-
 ---@private
 ---@param line string
 function Repo:_parse_porcelainv2_header_row(line)
@@ -449,23 +443,31 @@ function Repo:_parse_porcelainv2_header_row(line)
 
   ---@type string[]
   local parts = vim.split(line, " ", { plain = true })
-  if parts then
-    local _type = parts[2]
-    if _type == "branch.head" then
-      self.branch = parts[3]
-    elseif _type == "branch.ab" then
-      local ahead = parts[3]
-      if ahead then
-        self.ahead = tonumber(ahead:sub(2)) or 0
-      end
-      local behind = parts[4]
-      if behind then
-        self.behind = tonumber(behind:sub(2)) or 0
-      end
-    elseif _type == "stash" then
-      self.stashed = tonumber(parts[3]) or 0
+  local _type = parts[2]
+  if _type == "branch.head" then
+    self.branch = parts[3]
+  elseif _type == "branch.ab" then
+    local ahead = parts[3]
+    if ahead then
+      self.ahead = tonumber(ahead:sub(2)) or 0
     end
+    local behind = parts[4]
+    if behind then
+      self.behind = tonumber(behind:sub(2)) or 0
+    end
+  elseif _type == "stash" then
+    self.stashed = tonumber(parts[3]) or 0
   end
+end
+
+---@param toplevel string the toplevel path
+---@param relative_path string the root-relative path
+---@return string absolute_path the absolute path
+local function make_absolute_path(toplevel, relative_path)
+  if utils.is_windows == true then
+    relative_path = windowize_path(relative_path)
+  end
+  return utils.join_path(toplevel, relative_path)
 end
 
 ---@private
