@@ -41,6 +41,7 @@ local M = {}
 ---| "toggle_filter"
 ---| "refresh_tree"
 ---| "rescan_dir_for_git"
+---| "toggle_git_status"
 ---| "toggle_buffers"
 ---| "focus_parent"
 ---| "focus_prev_sibling"
@@ -59,81 +60,208 @@ local M = {}
 
 ---@type table<YaTreeActionName, YaTreeAction>
 local actions = {
-  open = { fun = files.open, desc = "Open file or directory", views = { "tree", "search", "buffers" }, modes = { "n", "v" } },
-  vsplit = { fun = files.vsplit, desc = "Open file in a vertical split", views = { "tree", "search" }, modes = { "n" } },
-  split = { fun = files.split, desc = "Open file in a split", views = { "tree", "search" }, modes = { "n" } },
-  tabnew = { fun = files.tabnew, desc = "Open file in a new tabpage", views = { "tree", "search" }, modes = { "n" } },
-  preview = { fun = files.preview, desc = "Open files (keep cursor in tree)", views = { "tree", "search", "buffers" }, modes = { "n" } },
-  add = { fun = files.add, desc = "Add file or directory", views = { "tree" }, modes = { "n" } },
-  rename = { fun = files.rename, desc = "Rename file or directory", views = { "tree" }, modes = { "n" } },
-  delete = { fun = files.delete, desc = "Delete files and directories", views = { "tree" }, modes = { "n", "v" } },
-  trash = { fun = files.trash, desc = "Trash files and directories", views = { "tree" }, modes = { "n", "v" } },
+  open = {
+    fun = files.open,
+    desc = "Open file or directory",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n", "v" },
+  },
+  vsplit = {
+    fun = files.vsplit,
+    desc = "Open file in a vertical split",
+    views = { "tree", "search", "git_status" },
+    modes = { "n" },
+  },
+  split = {
+    fun = files.split,
+    desc = "Open file in a split",
+    views = { "tree", "search", "git_status" },
+    modes = { "n" },
+  },
+  tabnew = {
+    fun = files.tabnew,
+    desc = "Open file in a new tabpage",
+    views = { "tree", "search", "git_status" },
+    modes = { "n" },
+  },
+  preview = {
+    fun = files.preview,
+    desc = "Open files (keep cursor in tree)",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
+  add = {
+    fun = files.add,
+    desc = "Add file or directory",
+    views = { "tree" },
+    modes = { "n" },
+  },
+  rename = {
+    fun = files.rename,
+    desc = "Rename file or directory",
+    views = { "tree" },
+    modes = { "n" },
+  },
+  delete = {
+    fun = files.delete,
+    desc = "Delete files and directories",
+    views = { "tree" },
+    modes = { "n", "v" },
+  },
+  trash = {
+    fun = files.trash,
+    desc = "Trash files and directories",
+    views = { "tree" },
+    modes = { "n", "v" },
+  },
   system_open = {
     fun = files.system_open,
     desc = "Open the node with the default system application",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
-  goto_path_in_tree = { fun = files.goto_path_in_tree, desc = "Go to entered path in tree", views = { "tree" }, modes = { "n" } },
+  goto_path_in_tree = {
+    fun = files.goto_path_in_tree,
+    desc = "Go to entered path in tree",
+    views = { "tree" },
+    modes = { "n" },
+  },
 
-  copy_node = { fun = clipboard.copy_node, desc = "Select files and directories for copy", views = { "tree" }, modes = { "n", "v" } },
-  cut_node = { fun = clipboard.cut_node, desc = "Select files and directories for cut", views = { "tree" }, modes = { "n", "v" } },
-  paste_nodes = { fun = clipboard.paste_nodes, desc = "Paste files and directories", views = { "tree" }, modes = { "n" } },
-  clear_clipboard = { fun = clipboard.clear_clipboard, desc = "Clear selected files and directories", views = { "tree" }, modes = { "n" } },
+  copy_node = {
+    fun = clipboard.copy_node,
+    desc = "Select files and directories for copy",
+    views = { "tree" },
+    modes = { "n", "v" },
+  },
+  cut_node = {
+    fun = clipboard.cut_node,
+    desc = "Select files and directories for cut",
+    views = { "tree" },
+    modes = { "n", "v" },
+  },
+  paste_nodes = {
+    fun = clipboard.paste_nodes,
+    desc = "Paste files and directories",
+    views = { "tree" },
+    modes = { "n" },
+  },
+  clear_clipboard = {
+    fun = clipboard.clear_clipboard,
+    desc = "Clear selected files and directories",
+    views = { "tree" },
+    modes = { "n" },
+  },
   copy_name_to_clipboard = {
     fun = clipboard.copy_name_to_clipboard,
     desc = "Copy node name to system clipboard",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   copy_root_relative_path_to_clipboard = {
     fun = clipboard.copy_root_relative_path_to_clipboard,
     desc = "Copy root-relative path to system clipboard",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   copy_absolute_path_to_clipboard = {
     fun = clipboard.copy_absolute_path_to_clipboard,
     desc = "Copy absolute path to system clipboard",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
 
-  search_interactively = { fun = search.search_interactively, desc = "Search as you type", views = { "tree", "search" }, modes = { "n" } },
-  search_once = { fun = search.search_once, desc = "Search", views = { "tree", "search" }, modes = { "n" } },
+  search_interactively = {
+    fun = search.search_interactively,
+    desc = "Search as you type",
+    views = { "tree", "search" },
+    modes = { "n" },
+  },
+  search_once = {
+    fun = search.search_once,
+    desc = "Search",
+    views = { "tree", "search" },
+    modes = { "n" },
+  },
   goto_node_in_tree = {
     fun = lib.goto_node_in_tree,
     desc = "Close view and go to node in tree view",
-    views = { "search", "buffers" },
+    views = { "search", "buffers", "git_status" },
     modes = { "n" },
   },
-  close_search = { fun = lib.close_search, desc = "Close the search result", views = { "search" }, modes = { "n" } },
-  show_last_search = { fun = lib.show_last_search, desc = "Show last search result", views = { "tree" }, modes = { "n" } },
+  close_search = {
+    fun = lib.close_search,
+    desc = "Close the search result",
+    views = { "search" },
+    modes = { "n" },
+  },
+  show_last_search = {
+    fun = lib.show_last_search,
+    desc = "Show last search result",
+    views = { "tree" },
+    modes = { "n" },
+  },
 
-  close_tree = { fun = lib.close_tree, desc = "Close the tree window", views = { "tree", "search", "buffers" }, modes = { "n" } },
-  close_node = { fun = lib.close_node, desc = "Close directory", views = { "tree", "search", "buffers" }, modes = { "n" } },
+  close_tree = {
+    fun = lib.close_tree,
+    desc = "Close the tree window",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
+  close_node = {
+    fun = lib.close_node,
+    desc = "Close directory",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
   close_all_nodes = {
     fun = lib.close_all_nodes,
     desc = "Close all directories",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
-  cd_to = { fun = lib.cd_to, desc = "Set tree root to directory", views = { "tree", "search", "buffers" }, modes = { "n" } },
-  cd_up = { fun = lib.cd_up, desc = "Set tree root one level up", views = { "tree" }, modes = { "n" } },
+  cd_to = {
+    fun = lib.cd_to,
+    desc = "Set tree root to directory",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
+  cd_up = {
+    fun = lib.cd_up,
+    desc = "Set tree root one level up",
+    views = { "tree" },
+    modes = { "n" },
+  },
   toggle_ignored = {
     fun = lib.toggle_ignored,
     desc = "Toggle git ignored files and directories",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   toggle_filter = {
     fun = lib.toggle_filter,
     desc = "Toggle filtered files and directories",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
-  refresh_tree = { fun = lib.refresh_tree, desc = "Refresh the tree", views = { "tree", "search", "buffers" }, modes = { "n" } },
-  rescan_dir_for_git = { fun = lib.rescan_dir_for_git, desc = "Rescan directory for git repo", views = { "tree" }, modes = { "n" } },
+  refresh_tree = {
+    fun = lib.refresh_tree,
+    desc = "Refresh the tree",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
+  rescan_dir_for_git = {
+    fun = lib.rescan_dir_for_git,
+    desc = "Rescan directory for git repo",
+    views = { "tree" },
+    modes = { "n" },
+  },
+
+  toggle_git_status = {
+    fun = lib.toggle_git_status,
+    desc = "Show the current git status",
+    views = { "tree", "git_status" },
+    modes = { "n" },
+  },
   toggle_buffers = {
     fun = lib.toggle_buffers,
     desc = "Show the current buffers in a tree view",
@@ -141,44 +269,54 @@ local actions = {
     modes = { "n" },
   },
 
-  focus_parent = { fun = ui.focus_parent, desc = "Go to parent directory", views = { "tree", "search", "buffers" }, modes = { "n" } },
+  focus_parent = {
+    fun = ui.focus_parent,
+    desc = "Go to parent directory",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
   focus_prev_sibling = {
     fun = ui.focus_prev_sibling,
     desc = "Go to previous sibling node",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_next_sibling = {
     fun = ui.focus_next_sibling,
     desc = "Go to next sibling node",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_first_sibling = {
     fun = ui.focus_first_sibling,
     desc = "Go to first sibling node",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_last_sibling = {
     fun = ui.focus_last_sibling,
     desc = "Go to last sibling node",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_prev_git_item = {
     fun = ui.focus_prev_git_item,
     desc = "Go to previous git item",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_next_git_item = {
     fun = ui.focus_next_git_item,
     desc = "Go to next git item",
-    views = { "tree", "search", "buffers" },
+    views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
-  open_help = { fun = ui.open_help, desc = "Open keybindings help", views = { "tree", "search", "buffers" }, modes = { "n" } },
+  open_help = {
+    fun = ui.open_help,
+    desc = "Open keybindings help",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
 }
 
 ---@param mapping YaTreeActionMapping

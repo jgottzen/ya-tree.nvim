@@ -88,6 +88,7 @@ end
 ---@field private _is_yadm boolean
 ---@field private _git_dir string
 ---@field private _git_status table<string, string>
+---@field private _propagated_git_status table<string, string>
 ---@field private _ignored string[]
 ---@field private _git_dir_watcher? uv_fs_poll_t
 ---@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)>
@@ -154,6 +155,7 @@ function Repo:new(path)
     _is_yadm = is_yadm,
     _git_dir = git_dir,
     _git_status = {},
+    _propagated_git_status = {},
     _ignored = {},
     _git_watchers = {},
   }, self)
@@ -169,6 +171,11 @@ end
 ---@return boolean is_yadm
 function Repo:is_yadm()
   return self._is_yadm
+end
+
+---@return table<string, string> git_status
+function Repo:git_status()
+  return self._git_status
 end
 
 ---@param args string[]
@@ -310,6 +317,7 @@ function Repo:refresh_status(opts)
   self.ahead = 0
   self.behind = 0
   self._git_status = {}
+  self._propagated_git_status = {}
   self._ignored = {}
 
   local fs_changes = false
@@ -433,11 +441,11 @@ function Repo:_propagate_status_to_parents(path, fully_staged)
     if #parent <= size then
       break
     end
-    if self._git_status[parent] == "dirty" then
+    if self._propagated_git_status[parent] == "dirty" then
       -- if the status of a parent is already "dirty", don't overwrite it, and stop
       return
     end
-    self._git_status[parent] = status
+    self._propagated_git_status[parent] = status
   end
 end
 
@@ -510,7 +518,7 @@ end
 ---@param path string
 ---@return string|nil status
 function Repo:status_of(path)
-  return self._git_status[path]
+  return self._git_status[path] or self._propagated_git_status[path]
 end
 
 ---@param path string

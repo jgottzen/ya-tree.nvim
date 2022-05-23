@@ -584,7 +584,6 @@ end
 function M.show_last_search(node)
   local tree = Tree.get_tree()
   if tree.search.result then
-    tree.tree.root = tree.root
     tree.tree.current_node = node
     tree.root = tree.search.result
     tree.current_node = tree.search.current_node
@@ -607,6 +606,27 @@ function M.goto_path_in_tree(path)
 end
 
 ---@param node YaTreeNode
+function M.toggle_git_status(node)
+  local tree = Tree.get_tree()
+  if ui.is_git_status_open() then
+    tree.root = tree.tree.root
+    tree.current_node = tree.tree.current_node
+    ui.close_git_status(tree.root, tree.current_node)
+  elseif node.repo then
+    tree.tree.current_node = node
+    local git_status = node.repo:git_status()
+
+    async.void(function()
+      ---@type string[]
+      local paths = vim.tbl_keys(git_status)
+      tree.root, tree.current_node = Nodes.create_tree_from_paths(node.repo.toplevel, paths)
+      scheduler()
+      ui.open_git_status(tree.root, tree.current_node)
+    end)()
+  end
+end
+
+---@param node YaTreeNode
 function M.toggle_buffers(node)
   local tree = Tree.get_tree()
   if ui.is_buffers_open() then
@@ -614,7 +634,6 @@ function M.toggle_buffers(node)
     tree.current_node = tree.tree.current_node
     ui.close_buffers(tree.root, tree.current_node)
   else
-    tree.tree.root = tree.root
     tree.tree.current_node = node
     open_buffers(tree)
   end

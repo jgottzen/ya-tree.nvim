@@ -50,7 +50,7 @@ local win_options = {
 
 local tab_var_barbar_set_name = "_YaTreeBarbar"
 
----@alias YaTreeCanvasDisplayMode "tree"|"search"|"buffers"
+---@alias YaTreeCanvasDisplayMode "tree"|"search"|"buffers"|"git_status"
 
 ---@class YaTreeCanvas
 ---@field public display_mode YaTreeCanvasDisplayMode

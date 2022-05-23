@@ -181,7 +181,7 @@ local M = {
       ---@field last_indent_marker string Default: `"└"`.
       indentation = {
         padding = "",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
         use_marker = false,
         indent_marker = "│",
         last_indent_marker = "└",
@@ -192,7 +192,7 @@ local M = {
       ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       icon = {
         padding = "",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
 
         ---@class YaTreeConfig.Renderers.Icon.Directory Directory icon rendering configuration.
         ---@field default string The icon for closed directories, default: `""`.
@@ -238,7 +238,7 @@ local M = {
       ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `false`.
       name = {
         padding = " ",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
         root_folder_format = ":~",
         trailing_slash = false,
         use_git_status_colors = false,
@@ -251,7 +251,7 @@ local M = {
       ---@field show_status boolean Whether to show repository status on the repository toplevel directory, default: `true`.
       repository = {
         padding = " ",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
         show_status = true,
 
         ---@class YaTreeConfig.Renderers.Repository.Icons Repository icons, setting an icon to an empty string will disabled that particular status information.
@@ -289,7 +289,7 @@ local M = {
       ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
       symlink_target = {
         padding = " ",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
         arrow_icon = "➛",
       },
 
@@ -298,7 +298,7 @@ local M = {
       ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "tree", "search", "buffers" }`.
       git_status = {
         padding = " ",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
 
         ---@class YaTreeConfig.Renderers.GitStatus.Icons Git status icon configuration.
         ---@field staged string The icon for staged changes, default: `""`.
@@ -341,7 +341,7 @@ local M = {
       ---@field min_severity number The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
       diagnostics = {
         padding = " ",
-        view_mode = { "tree", "search", "buffers" },
+        view_mode = { "tree", "search", "buffers", "git_status" },
         min_severity = vim.diagnostic.severity.HINT,
       },
 
@@ -399,7 +399,7 @@ local M = {
       ["gp"] = "goto_path_in_tree",
       ["<C-x>"] = "close_search",
       ["F"] = "show_last_search",
-      ["<C-g>"] = "rescan_dir_for_git",
+      ["<C-r>"] = "rescan_dir_for_git",
       ["a"] = "add",
       ["r"] = "rename",
       ["d"] = "delete",
@@ -414,6 +414,7 @@ local M = {
       ["?"] = "open_help",
       ["gx"] = "system_open",
       ["b"] = "toggle_buffers",
+      ["<C-g>"] = "toggle_git_status",
     },
   },
 }

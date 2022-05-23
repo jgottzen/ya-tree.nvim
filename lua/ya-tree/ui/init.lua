@@ -211,6 +211,23 @@ function M.close_search(root, node)
 end
 
 ---@return boolean
+function M.is_git_status_open()
+  return M.get_current_view_mode() == "git_status"
+end
+
+---@param root YaTreeNode
+---@param node YaTreeNode
+function M.open_git_status(root, node)
+  change_display_mode("git_status", root, node)
+end
+
+---@param root YaTreeNode
+---@param node YaTreeNode
+function M.close_git_status(root, node)
+  change_display_mode("tree", root, node)
+end
+
+---@return boolean
 function M.is_buffers_open()
   return M.get_current_view_mode() == "buffers"
 end
