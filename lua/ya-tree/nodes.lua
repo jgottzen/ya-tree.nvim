@@ -516,20 +516,17 @@ end
 ---@param paths string[]
 ---@return YaTreeNode root, YaTreeNode first_node
 function M.create_tree_from_paths(root_path, paths)
-  local splits = vim.split(root_path, utils.os_sep, { plain = true })
-  local root = Node:new({
-    name = splits[#splits],
-    type = "directory",
-    path = root_path,
-    children = {},
-    expanded = true,
-  })
+  local root = Node:new(fs.node_for(root_path))
+  root.expanded = true
   local repo = git.get_repo_for_path(root_path)
   if repo then
     root.repo = repo
   end
 
-  return create_tree_from_paths(root, paths, function(path)
+  return create_tree_from_paths(root, paths, function(path, parent)
+    if parent.repo and not parent.repo:is_yadm() then
+      return parent.repo
+    end
     return git.get_repo_for_path(path)
   end)
 end

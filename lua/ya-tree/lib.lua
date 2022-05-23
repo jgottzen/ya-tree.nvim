@@ -617,9 +617,15 @@ function M.toggle_git_status(node)
     local git_status = node.repo:git_status()
 
     async.void(function()
+      node = node.repo:is_yadm() and tree.root or (node:is_directory() and node or node.parent)
       ---@type string[]
-      local paths = vim.tbl_keys(git_status)
-      tree.root, tree.current_node = Nodes.create_tree_from_paths(node.repo.toplevel, paths)
+      local paths = {}
+      for path, status in pairs(git_status) do
+        if (config.git.show_ignored or status ~= "!") and node:is_ancestor_of(path) then
+          paths[#paths + 1] = path
+        end
+      end
+      tree.root, tree.current_node = Nodes.create_tree_from_paths(node.path, paths)
       scheduler()
       ui.open_git_status(tree.root, tree.current_node)
     end)()
