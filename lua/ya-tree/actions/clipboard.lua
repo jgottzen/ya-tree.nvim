@@ -84,19 +84,19 @@ local function paste_node(dest_node, node, action)
     local response = ui.select({ "Yes", "Rename", "No" }, { prompt = destination .. " already exists" })
 
     if response == "Yes" then
-      utils.notify('Will replace "' .. destination .. '"')
+      utils.notify(string.format("Will replace %q.", destination))
       replace = true
     elseif response == "Rename" then
       local name = ui.input({ prompt = "New name: ", default = node.name })
       if not name then
-        utils.notify('No new name given, not pasting file "' .. node.name .. '" to "' .. destination .. '"')
+        utils.notify(string.format("No new name given, not pasting file %q to %q.", node.name, destination))
         return false
       else
         destination = utils.join_path(dest_node.path, name)
         log.debug("new destination=%q", destination)
       end
     else
-      utils.notify('Skipping file "' .. node.path .. '"')
+      utils.notify(string.format("Skipping file %q.", node.path))
       return false
     end
   end
@@ -114,9 +114,9 @@ local function paste_node(dest_node, node, action)
   end
 
   if ok then
-    utils.notify(string.format("%s %q to %q", copy_action == "copy" and "Copied" or "Moved", node.path, destination))
+    utils.notify(string.format("%s %q to %q.", copy_action == "copy" and "Copied" or "Moved", node.path, destination))
   else
-    utils.warn(string.format("Failed to %s %q to %q", copy_action == "copy" and "copy" or "move", node.path, destination))
+    utils.warn(string.format("Failed to %s %q to %q!", copy_action == "copy" and "copy" or "move", node.path, destination))
   end
 
   return ok, destination

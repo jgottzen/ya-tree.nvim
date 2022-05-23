@@ -789,11 +789,11 @@ do
         if type(fun) == "function" then
           renderer.fun = fun
         else
-          utils.warn(string.format("Renderer %s is not a function in the renderers table, ignoring renderer", name))
+          utils.warn(string.format("Renderer %s is not a function in the renderers table, ignoring renderer!", name))
         end
       end
     else
-      utils.warn("Invalid renderer " .. vim.inspect(view_renderer))
+      utils.warn("Invalid renderer:\n" .. vim.inspect(view_renderer))
     end
 
     if renderer.fun then

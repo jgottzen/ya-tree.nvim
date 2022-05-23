@@ -435,7 +435,7 @@ function M.setup(opts)
   M.config.filters.custom = {}
   local custom_filters = opts.filters and opts.filters.custom or {}
   if not vim.tbl_islist(custom_filters) then
-    utils.warn("filters.custom must be an array, ignoring the configuration.")
+    utils.warn("'filters.custom' must be an array, ignoring the configuration!")
   else
     for _, name in ipairs(custom_filters) do
       M.config.filters.custom[name] = true
@@ -484,11 +484,11 @@ function M.setup(opts)
     elseif fn.executable("where") == 1 then
       M.config.search.cmd = "where"
     else
-      utils.warn("None of the default search programs was found in the PATH.")
+      utils.warn("None of the default search programs was found in the PATH!\nSearching will not be possible.")
     end
   end
   if M.config.search.max_results == 0 then
-    utils.warn("search.max_results is set to 0, disabling it, can cause performance issues!")
+    utils.warn("'search.max_results' is set to 0, disabling it, this can cause performance issues!")
   end
 
   return M.config

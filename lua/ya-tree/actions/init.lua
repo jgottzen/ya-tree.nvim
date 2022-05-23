@@ -350,7 +350,7 @@ function M.apply_mappings(bufnr)
     local rhs = create_keymap_function(mapping)
 
     if not rhs or not pcall(vim.keymap.set, mapping.mode, mapping.key, rhs, opts) then
-      utils.warn(string.format("cannot construct mapping for key %q", mapping.key))
+      utils.warn(string.format("Cannot construct mapping for key %q!", mapping.key))
     end
   end
 end
@@ -388,7 +388,7 @@ local function validate_and_create_mappings(mappings)
       if #name == 0 then
         log.debug("key %s is disabled by user config", key)
       elseif not actions[name] then
-        utils.warn(string.format("key %s is mapped to 'action' %q, which does not exist, mapping ignored!", vim.inspect(key), name))
+        utils.warn(string.format("Key %s is mapped to 'action' %q, which does not exist, mapping ignored!", vim.inspect(key), name))
       else
         local action = actions[name]
         for _, mode in ipairs(action.modes) do
@@ -414,7 +414,7 @@ local function validate_and_create_mappings(mappings)
           }
         end
       elseif func then
-        utils.warn(string.format("key %s is mapped to 'func' %s, which is not a function, mapping ignored!", vim.inspect(key), func))
+        utils.warn(string.format("Key %s is mapped to 'func' %s, which is not a function, mapping ignored!", vim.inspect(key), func))
       end
     end
   end

@@ -52,12 +52,15 @@ function M.preview(node)
     -- taken from nvim-tree
     if not already_loaded then
       local bufnr = api.nvim_get_current_buf()
-      api.nvim_buf_set_option(bufnr, "bufhidden", "delete")
+      vim.bo.bufhidden = "delete"
       local group = api.nvim_create_augroup("RemoveBufHidden", { clear = true })
       api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         group = group,
         buffer = bufnr,
-        command = "setlocal bufhidden= | autocmd! RemoveBufHidden",
+        once = true,
+        callback = function()
+          vim.bo.bufhidden = ""
+        end,
       })
     end
 
@@ -96,10 +99,10 @@ function M.add(node)
 
       local ok = is_directory and fs.create_dir(path) or fs.create_file(path)
       if ok then
-        utils.notify(string.format("Created %s %q", is_directory and "directory" or "file", path))
+        utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
         lib.refresh_tree(path)
       else
-        utils.warn(string.format("Failed to create %s %q", is_directory and "directory" or "file", path))
+        utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
       end
     end,
   })
@@ -122,10 +125,10 @@ function M.rename(node)
     end
 
     if fs.rename(node.path, path) then
-      utils.notify(string.format("Renamed %q to %q", node.path, path))
+      utils.notify(string.format("Renamed %q to %q.", node.path, path))
       lib.refresh_tree(path)
     else
-      utils.warn(string.format("Failed to rename %q to %q", node.path, path))
+      utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
     end
   end)
 end
@@ -139,7 +142,7 @@ local function get_nodes_to_delete()
   for _, node in ipairs(nodes) do
     -- prohibit deleting the root node
     if lib.is_node_root(node) then
-      utils.warn(string.format("path %s is the root of the tree, aborting.", node.path))
+      utils.warn(string.format("Path %q is the root of the tree, aborting!", node.path))
       return
     end
 
@@ -159,9 +162,9 @@ local function delete_node(node)
   if response == "Yes" then
     local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
     if ok then
-      utils.notify("Deleted " .. node.path)
+      utils.notify(string.format("Deleted %q.", node.path))
     else
-      utils.warn("Failed to delete " .. node.path)
+      utils.warn(string.format("Failed to delete %q!", node.path))
     end
     return true
   else
