@@ -127,48 +127,71 @@ function M.icon(node, _, renderer)
   }
 end
 
----@param node YaTreeSearchNode
----@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.Filter
----@return RenderResult[]?
-function M.filter(node, _, renderer)
-  if node.search_term then
-    return {
-      {
-        padding = renderer.padding,
-        text = "Find ",
-        highlight = hl.TEXT,
-      },
-      {
-        padding = "",
-        text = string.format("%q", node.search_term),
-        highlight = hl.SEARCH_TERM,
-      },
-      {
-        padding = "",
-        text = " in ",
-        highlight = hl.TEXT,
-      },
-    }
-  end
-end
-
----@param node YaTreeNode
+---@param node YaTreeNode|YaTreeSearchNode
 ---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Name
----@return RenderResult
+---@return RenderResult[]
 function M.name(node, context, renderer)
   if node.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
     if text:sub(-1) ~= utils.os_sep then
       text = text .. utils.os_sep
     end
-
-    return {
+    ---@type RenderResult
+    local root = {
       padding = "",
       text = text,
       highlight = hl.ROOT_NAME,
     }
+
+    ---@type RenderResult[]
+    local results
+    if context.display_mode == "search" and node.search_term then
+      results = {
+        {
+          padding = "",
+          text = 'Find "',
+          highlight = hl.TEXT,
+        },
+        {
+          padding = "",
+          text = node.search_term,
+          highlight = hl.SEARCH_TERM,
+        },
+        {
+          padding = "",
+          text = '" in: ',
+          highlight = hl.TEXT,
+        },
+        root,
+      }
+    elseif context.display_mode == "buffers" then
+      results = {
+        {
+          padding = "",
+          text = "Buffers: ",
+          highlight = hl.TEXT,
+        },
+        root,
+      }
+    elseif context.display_mode == "git_status" and node.repo then
+      results = {
+        {
+          padding = "",
+          text = "Git Status: ",
+          highlight = hl.TEXT,
+        },
+        {
+          padding = "",
+          text = fn.fnamemodify(node.repo.toplevel, renderer.root_folder_format),
+          highlight = hl.ROOT_NAME,
+        },
+      }
+    else
+      results = { root }
+    end
+
+    return results
   end
 
   ---@type string
@@ -205,11 +228,11 @@ function M.name(node, context, renderer)
     name = name .. utils.os_sep
   end
 
-  return {
+  return { {
     padding = renderer.padding,
     text = name,
     highlight = highlight,
-  }
+  } }
 end
 
 ---@param node YaTreeNode

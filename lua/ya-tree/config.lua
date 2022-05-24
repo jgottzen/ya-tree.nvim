@@ -146,7 +146,6 @@ local M = {
         directory = {
           { "indentation" },
           { "icon" },
-          { "filter" },
           { "name" },
           { "repository" },
           { "symlink_target" },
@@ -219,14 +218,6 @@ local M = {
           default = "",
           symlink = "",
         },
-      },
-
-      ---@class YaTreeConfig.Renderers.Filter : YaTreeRendererConfig Filter display configuration.
-      ---@field padding string The padding to use to the left of the renderer, default: `""`.
-      ---@field view_mode YaTreeCanvasDisplayMode[] Which view modes the renderer should display in, default: `{ "search" }`.
-      filter = {
-        padding = "",
-        view_mode = { "search" },
       },
 
       ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig File and directory name rendering configuration.

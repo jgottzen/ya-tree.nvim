@@ -446,7 +446,7 @@ function Canvas:_render_tree(root)
   ---@param depth number
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
-    -- all nodes should be displayed if in 'buffers' display mode
+    -- all nodes should be displayed if in 'buffers' display mode or it's the root node
     if utils.should_display_node(node, config) or self.display_mode == "buffers" or depth == 0 then
       linenr = linenr + 1
       node.depth = depth
@@ -789,6 +789,7 @@ do
         if type(fun) == "function" then
           renderer.fun = fun
         else
+          log.error("Renderer %q is not a function in the renderers table, renderer=%s", name, view_renderer)
           utils.warn(string.format("Renderer %s is not a function in the renderers table, ignoring renderer!", name))
         end
       end

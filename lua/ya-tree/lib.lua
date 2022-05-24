@@ -545,7 +545,7 @@ do
       if code == 0 then
         ---@type string[]
         local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
-        utils.notify(string.format("%q found %s matches for %q", cmd, #lines, term))
+        utils.notify(string.format("%q found %s matches for %q in %q", cmd, #lines, term, node.path))
         display_search_result(node, term, lines, focus_node)
       else
         log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
