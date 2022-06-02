@@ -106,6 +106,22 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
+---@return table<string, number> paths
+function M.get_current_buffers()
+  ---@type table<string, number>
+  local buffers = {}
+  for _, bufnr in ipairs(api.nvim_list_bufs()) do
+    if api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+      ---@type string
+      local path = api.nvim_buf_get_name(bufnr)
+      if path ~= "" then
+        buffers[path] = bufnr
+      end
+    end
+  end
+  return buffers
+end
+
 ---@return boolean is_directory, string? path
 function M.get_path_from_directory_buffer()
   ---@type number
@@ -115,9 +131,7 @@ function M.get_path_from_directory_buffer()
   if not M.is_directory(bufname) then
     return false
   end
-  ---@type string
-  local buftype = api.nvim_buf_get_option(bufnr, "filetype")
-  if buftype ~= "" then
+  if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then
     return false
   end
 
@@ -128,30 +142,6 @@ function M.get_path_from_directory_buffer()
   else
     return false
   end
-end
-
----@alias not_display_reason "filter"|"git"
-
----@param node YaTreeNode
----@param config YaTreeConfig
----@return boolean should_display, not_display_reason? reason
-function M.should_display_node(node, config)
-  if config.filters.enable then
-    if config.filters.dotfiles and node:is_dotfile() then
-      return false, "filter"
-    end
-    if config.filters.custom[node.name] then
-      return false, "filter"
-    end
-  end
-
-  if not config.git.show_ignored then
-    if node:is_git_ignored() then
-      return false, "git"
-    end
-  end
-
-  return true
 end
 
 do

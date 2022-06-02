@@ -7,22 +7,32 @@ local api = vim.api
 local uv = vim.loop
 
 ---@class YaTree
+---@field public tabpage number the current tabpage.
 ---@field public cwd string the workding directory of the tabpage.
 ---@field public refreshing boolean if the tree is currently refreshing.
----@field public root YaTreeNode|YaTreeSearchNode the root of the current tree.
+---@field public git_watchers table<GitRepo, string> the registered git watchers.
+---@field public root YaTreeNode|YaTreeSearchNode|YaTreeBufferNode|YaTreeGitStatusNode the root of the current tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 ---@field public tree YaTreeRoot the current tree.
----@field public search SearchTree the current search tree.
----@field public tabpage number the current tabpage.
----@field public git_watchers table<GitRepo, string> the registered git watchers.
+---@field public search YaSearchTree the current search tree.
+---@field public buffers YaBufferTree the buffers tree info.
+---@field public git_status YaGitStatusTree the git status info.
 
 ---@class YaTreeRoot
 ---@field public root YaTreeNode the root fo the tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 
----@class SearchTree
----@field public result? YaTreeSearchNode the root of the search tree.
+---@class YaSearchTree
+---@field public root? YaTreeSearchNode the root of the search tree.
 ---@field public current_node? YaTreeNode the currently selected node.
+
+---@class YaBufferTree
+---@field public root? YaTreeBufferNode
+---@field public current_node? YaTreeBufferNode
+
+---@class YaGitStatusTree
+---@field public root? YaTreeGitStatusNode
+---@field public current_node? YaTreeGitStatusNode
 
 local M = {
   ---@private
@@ -73,8 +83,10 @@ function M.get_or_create_tree(opts)
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
     local root_node = Nodes.root(root, nil, require("ya-tree.config").config.git.enable)
     tree = setmetatable({
+      tabpage = tabpage,
       cwd = cwd,
       refreshing = false,
+      git_watchers = {},
       root = root_node,
       current_node = nil,
       tree = {
@@ -82,11 +94,17 @@ function M.get_or_create_tree(opts)
         current_node = nil,
       },
       search = {
-        result = nil,
+        root = nil,
         current_node = nil,
       },
-      tabpage = tabpage,
-      git_watchers = {},
+      buffers = {
+        root = nil,
+        current_node = nil,
+      },
+      git_status = {
+        root = nil,
+        current_node = nil,
+      },
     }, { __tostring = tree_tostring })
     M._trees[tostring(tabpage)] = tree
 
@@ -164,9 +182,9 @@ function M.update_tree_root_node(tree, new_root)
       log.debug("the new root %q is the same as the current root %s, skipping", new_root, tostring(tree.root))
     end
   else
+    ---@cast new_root YaTreeNode
     if tree.root.path ~= new_root.path then
       log.debug("new root is node %q", tostring(new_root))
-      ---@type YaTreeNode
       tree.root = new_root
       tree.root:expand({ force_scan = true })
       tree.tree.root = tree.root

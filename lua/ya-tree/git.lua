@@ -102,6 +102,10 @@ Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
+Repo.__eq = function (r1, r2)
+  return r1._git_dir and r1._git_dir == r2._git_dir or false
+end
+
 ---@async
 ---@param path string
 ---@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.

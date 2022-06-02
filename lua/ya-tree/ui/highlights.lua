@@ -124,7 +124,7 @@ local function get_groups()
   local type_fg = get_foreground_color_from_hl({ "Type" }, "#d8a657")
 
   return {
-    [M.ROOT_NAME] = { fg = "#398593", bold = true, italic = true },
+    [M.ROOT_NAME] = { fg = "#ddc7a1", bold = true },
 
     [M.INDENT_MARKER] = { fg = "#5a524c" },
 

@@ -434,7 +434,7 @@ end
 ---@param root YaTreeNode
 ---@return string[] lines, highlight_group[][] highlights
 function Canvas:_render_tree(root)
-  log.debug("creating canvas tree with root node %s", root.path)
+  log.debug("creating %q canvas tree with root node %s", self.display_mode, root.path)
   self.nodes, self.node_path_to_index_lookup = {}, {}
   ---@type string[]
   local lines = {}
@@ -446,8 +446,7 @@ function Canvas:_render_tree(root)
   ---@param depth number
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
-    -- all nodes should be displayed if in 'buffers' display mode or it's the root node
-    if utils.should_display_node(node, config) or self.display_mode == "buffers" or depth == 0 then
+    if node:is_displayable(config) or depth == 0 then
       linenr = linenr + 1
       node.depth = depth
       node.last_child = last_child
@@ -596,7 +595,7 @@ end
 function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
-  while not utils.should_display_node(node, config) and node.parent do
+  while not node:is_displayable(config) and node.parent do
     node = node.parent
   end
   if node then
@@ -631,7 +630,7 @@ function Canvas:focus_prev_sibling(node)
   end
 
   for prev in node.parent:iterate_children({ reverse = true, from = node }) do
-    if utils.should_display_node(prev, config) then
+    if node:is_displayable(config) then
       local index = self.node_path_to_index_lookup[prev.path]
       if index then
         ---@type number
@@ -650,7 +649,7 @@ function Canvas:focus_next_sibling(node)
   end
 
   for next in node.parent:iterate_children({ from = node }) do
-    if utils.should_display_node(next, config) then
+    if node:is_displayable(config) then
       local index = self.node_path_to_index_lookup[next.path]
       if index then
         ---@type number
@@ -669,7 +668,7 @@ function Canvas:focus_first_sibling(node)
   end
 
   for next in node.parent:iterate_children() do
-    if utils.should_display_node(next, config) then
+    if node:is_displayable(config) then
       local index = self.node_path_to_index_lookup[next.path]
       if index then
         ---@type number
@@ -688,7 +687,7 @@ function Canvas:focus_last_sibling(node)
   end
 
   for prev in node.parent:iterate_children({ reverse = true }) do
-    if utils.should_display_node(prev, config) then
+    if node:is_displayable(config) then
       local index = self.node_path_to_index_lookup[prev.path]
       if index then
         ---@type number

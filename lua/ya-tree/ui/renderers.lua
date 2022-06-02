@@ -241,8 +241,8 @@ end
 ---@return RenderResult[]?
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() or (node.depth == 0 and node.repo) then
-    ---@type GitRepo
     local repo = node.repo
+    ---@cast repo -?
     local icon = renderer.icons.remote.default
     if repo.remote_url then
       for k, v in pairs(renderer.icons.remote) do
@@ -383,15 +383,20 @@ end
 ---@param renderer YaTreeConfig.Renderers.BufferNumber
 ---@return RenderResult
 function M.buffer_number(node, _, renderer)
-  if fn.bufloaded(node.path) > 0 then
-    local bufnr = fn.bufnr(node.path)
-    if bufnr > 0 then
-      return {
-        padding = renderer.padding,
-        text = "#" .. bufnr,
-        highlight = hl.BUFFER_NUMBER,
-      }
-    end
+  local bufnr
+  if node:node_type() == "Buffer" then
+    ---@cast node YaTreeBufferNode
+    bufnr = node.bufnr
+  elseif fn.bufloaded(node.path) > 0 then
+    bufnr = fn.bufnr(node.path)
+  end
+
+  if bufnr > 0 then
+    return {
+      padding = renderer.padding,
+      text = "#" .. bufnr,
+      highlight = hl.BUFFER_NUMBER,
+    }
   end
 end
 
@@ -553,7 +558,6 @@ do
         diagnostic_icon_and_hl[k] = {
           ---@type string
           text = v[2]:sub(1, 1),
-          ---@type string
           highlight = "LspDiagnosticsDefault" .. v[2],
         }
       end

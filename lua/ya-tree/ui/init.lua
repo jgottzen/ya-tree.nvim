@@ -32,11 +32,19 @@ function M.is_open()
   return canvas and canvas:is_open() or false
 end
 
+---@param node YaTreeNode
+---@return boolean
+function M.is_node_visible(node)
+  local canvas = get_canvas()
+  return canvas and canvas:is_node_visible(node) or false
+end
+
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
----@param opts? {hijack_buffer?: boolean, focus?: boolean}
+---@param opts? {hijack_buffer?: boolean, focus?: boolean, display_mode?: YaTreeCanvasDisplayMode}
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
+---  - {opts.display_mode?} `YaTreeCanvasDisplayMode`
 function M.open(root, node, opts)
   opts = opts or {}
   local tabpage = tostring(api.nvim_get_current_tabpage())
@@ -45,11 +53,15 @@ function M.open(root, node, opts)
     canvas = Canvas:new()
     M._canvases[tabpage] = canvas
   end
+  local display_mode_change = opts.display_mode and canvas.display_mode ~= opts.display_mode or false
+  if display_mode_change then
+    canvas.display_mode = opts.display_mode
+  end
 
   if not canvas:is_open() then
     canvas:open(root, opts)
-  elseif node and not canvas:is_node_visible(node) then
-    -- redraw the tree if a specific node is to be focused, and it's currently not rendered
+  elseif display_mode_change or (node and not canvas:is_node_visible(node)) then
+    -- redraw the tree if the diplay mode changed or a specific node is to be focused, and it's currently not rendered
     canvas:render(root)
   end
 
@@ -159,13 +171,6 @@ function M.is_current_window_ui()
   return canvas and canvas:is_current_window_canvas() or false
 end
 
----@param bufnr number
----@return boolean
-function M.is_buffer_yatree(bufnr)
-  local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
-  return ok and filetype == "YaTree" or false
-end
-
 ---@return number height, number width
 function M.get_size()
   return get_canvas():get_size()
@@ -187,21 +192,16 @@ function M.is_search_open()
 end
 
 ---@param mode YaTreeCanvasDisplayMode
----@param root YaTreeNode|YaTreeSearchNode
+---@param root YaTreeNode
 ---@param node? YaTreeNode
 local function change_display_mode(mode, root, node)
-  local canvas = get_canvas()
-  canvas.display_mode = mode
-  canvas:render(root)
-  if node then
-    canvas:focus_node(node)
-  end
+  M.open(root, node, { focus = true, display_mode = mode })
 end
 
----@param search_root YaTreeSearchNode
+---@param root YaTreeSearchNode
 ---@param node? YaTreeNode
-function M.open_search(search_root, node)
-  change_display_mode("search", search_root, node)
+function M.open_search(root, node)
+  change_display_mode("search", root, node)
 end
 
 ---@param root YaTreeNode
@@ -215,8 +215,8 @@ function M.is_git_status_open()
   return M.get_current_view_mode() == "git_status"
 end
 
----@param root YaTreeNode
----@param node YaTreeNode
+---@param root YaTreeGitStatusNode
+---@param node? YaTreeGitStatusNode
 function M.open_git_status(root, node)
   change_display_mode("git_status", root, node)
 end
@@ -232,8 +232,8 @@ function M.is_buffers_open()
   return M.get_current_view_mode() == "buffers"
 end
 
----@param root YaTreeNode
----@param node YaTreeNode
+---@param root YaTreeBufferNode
+---@param node? YaTreeBufferNode
 function M.open_buffers(root, node)
   change_display_mode("buffers", root, node)
 end
@@ -245,8 +245,15 @@ function M.close_buffers(root, node)
 end
 
 ---@param bufnr number
+---@return boolean
+local function is_buffer_yatree(bufnr)
+  local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
+  return ok and filetype == "YaTree" or false
+end
+
+---@param bufnr number
 function M.on_win_leave(bufnr)
-  if M.is_window_floating() or M.is_buffer_yatree(bufnr) then
+  if M.is_window_floating() or is_buffer_yatree(bufnr) then
     return
   end
 
@@ -290,21 +297,11 @@ function M.open_file(file, cmd)
 end
 
 ---@type fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
----  - {opts.prompt?} `string|nil` Text of the prompt.
----  - {opts.default?} `string|nil` Default reply to the input.
----  - {opts.completion?} `string|nil` Specifies type of completion supported for input.
----  - {opts.highlight?} `function|nil` Function that will be used for highlighting user input.
----@see |vim.ui.input()|
 M.input = wrap(function(opts, on_confirm)
   vim.ui.input(opts, on_confirm)
 end, 2)
 
 ---@type fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
----  - {items} `table` Arbitrary items.
----  - {opts.prompt?} `string|nil` Text of the input.
----  - {opts.format_item} `function(item: any):string` Function to format an individual item, defaults to `tostring`.
----  - {opts.kind} `string|nil` Arbitrary item hinting the shape of an item.
----@see |vim.ui.select()|
 M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)

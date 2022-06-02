@@ -258,13 +258,13 @@ local actions = {
 
   toggle_git_status = {
     fun = lib.toggle_git_status,
-    desc = "Show the current git status",
+    desc = "Open or close the current git status view",
     views = { "tree", "git_status" },
     modes = { "n" },
   },
   toggle_buffers = {
     fun = lib.toggle_buffers,
-    desc = "Show the current buffers in a tree view",
+    desc = "Open or close the current buffers view",
     views = { "tree", "buffers" },
     modes = { "n" },
   },

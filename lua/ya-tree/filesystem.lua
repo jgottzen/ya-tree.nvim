@@ -20,12 +20,12 @@ end
 ---@alias file_type "directory"|"file"
 
 ---@class FsNode
----@field name string
----@field type file_type
----@field path string
+---@field public name string
+---@field public type file_type
+---@field public path string
 
 ---@class FsDirectoryNode : FsNode
----@field empty boolean
+---@field public empty boolean
 
 ---Creates a directory node
 ---@param dir string the directory containing the directory
@@ -51,8 +51,8 @@ local function is_executable(path, extension)
 end
 
 ---@class FsFileNode : FsNode
----@field extension string
----@field executable boolean
+---@field public extension string
+---@field public executable boolean
 
 ---Creates a file node
 ---@param dir string the directory containing the file
@@ -84,14 +84,14 @@ local function get_file_name(path)
 end
 
 ---@class FsDirectoryLinkNode : FsDirectoryNode
----@field link boolean
----@field link_to string
+---@field public link boolean
+---@field public link_to string
 
 ---@class FsFileLinkNode : FsFileNode
----@field link boolean
----@field link_to string
----@field link_name string
----@field link_extension string
+---@field public link boolean
+---@field public link_to string
+---@field public link_name string
+---@field public link_extension string
 
 ---@param dir string the directory containing the link
 ---@param name string name of the link
@@ -198,10 +198,10 @@ function M.scan_dir(dir)
   return nodes
 end
 
----@vararg string path elements
+---@param path string
 ---@return boolean #whether the path exists.
-function M.exists(...)
-  return Path:new(...):exists()
+function M.exists(path)
+  return uv.fs_stat(path) ~= nil
 end
 
 ---Recursively copy a directory.
