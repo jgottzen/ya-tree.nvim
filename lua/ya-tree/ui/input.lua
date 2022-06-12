@@ -52,7 +52,7 @@ local win_options = {
 ---@param opts {prompt?: string, default?: string, completion?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number}
 ---  - {opts.title} `string`
 ---  - {opts.prompt?} `string` defaults to an empty string.
----  - {opts.default?} `string`
+---  - {opts.default?} `string` defaults to an empty string.
 ---  - {opts.completion?} `string`
 ---  - {opts.win?} `number`
 ---  - {opts.relative?} `string` defaults to `"cursor"`.

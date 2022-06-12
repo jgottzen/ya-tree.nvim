@@ -3,7 +3,6 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
-local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
@@ -412,7 +411,7 @@ local function render_node(node, mode)
   local context = { display_mode = mode, config = config }
   for _, renderer in ipairs(renderers) do
     if vim.tbl_contains(renderer.config.view_mode, mode) then
-      local results = renderer.fun(node, context, renderer.config)
+      local results = renderer.fn(node, context, renderer.config)
       if results then
         results = results[1] and results or { results }
         for _, result in ipairs(results) do
@@ -526,7 +525,7 @@ do
     local mode = api.nvim_get_mode().mode
     if mode == "v" or mode == "V" then
       ---@type number
-      local from = fn.getpos("v")[2]
+      local from = vim.fn.getpos("v")[2]
       ---@type number
       local to = api.nvim_win_get_cursor(self.winid)[1]
       if from > to then
@@ -763,7 +762,7 @@ end
 
 ---@class YaTreeViewRenderer
 ---@field name string
----@field fun fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
+---@field fn fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
 ---@field config? YaTreeRendererConfig
 
 do
@@ -772,21 +771,23 @@ do
   ---@param view_renderer YaTreeConfig.View.Renderers.DirectoryRenderer|YaTreeConfig.View.Renderers.FileRenderer
   ---@return YaTreeViewRenderer?
   local function create_renderer(view_renderer)
-    ---@type YaTreeViewRenderer
-    local renderer = {}
-
     local name = view_renderer[1]
     if type(name) == "string" then
-      renderer.name = name
-      local fun = renderers[name]
-      if type(fun) == "function" then
-        renderer.fun = fun
+      ---@type YaTreeViewRenderer
+      local renderer = { name = name }
+
+      local fn = renderers[name]
+      if type(fn) == "function" then
+        ---@type fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
+        renderer.fn = fn
         ---@type YaTreeRendererConfig
-        renderer.config = vim.deepcopy(config.renderers[name])
+        renderer.config = config.renderers[name]
+        return renderer
       else
-        fun = config.renderers[name]
-        if type(fun) == "function" then
-          renderer.fun = fun
+        fn = config.renderers[name]
+        if type(fn) == "function" then
+          renderer.fn = fn
+          return renderer
         else
           log.error("Renderer %q is not a function in the renderers table, renderer=%s", name, view_renderer)
           utils.warn(string.format("Renderer %s is not a function in the renderers table, ignoring renderer!", name))
@@ -794,10 +795,6 @@ do
       end
     else
       utils.warn("Invalid renderer:\n" .. vim.inspect(view_renderer))
-    end
-
-    if renderer.fun then
-      return renderer
     end
   end
 
@@ -809,16 +806,17 @@ do
     renderers.setup(config)
 
     -- reset the renderer arrays, since the setup can be called repeatedly
-    ---@type YaTreeRendererConfig[]
+    ---@type YaTreeViewRenderer[]
     directory_renderers = {}
-    ---@type YaTreeRendererConfig[]
+    ---@type YaTreeViewRenderer[]
     file_renderers = {}
 
     for _, directory_renderer in ipairs(config.view.renderers.directory) do
       local renderer = create_renderer(directory_renderer)
       if renderer then
         for k, v in pairs(directory_renderer) do
-          if type(k) ~= "number" then
+          if type(k) == "string" then
+            ---@cast k string
             log.debug("overriding directory renderer %q config value for %q with %s", renderer.name, k, v)
             renderer.config[k] = v
           end
@@ -832,7 +830,8 @@ do
       local renderer = create_renderer(file_renderer)
       if renderer then
         for k, v in pairs(file_renderer) do
-          if type(k) ~= "number" then
+          if type(k) == "string" then
+            ---@cast k string
             log.debug("overriding file renderer %q config value for %q with %s", renderer.name, k, v)
             renderer.config[k] = v
           end

@@ -785,15 +785,15 @@ function M.create_git_status_tree_from_paths(root_path, repo)
   return root, root:refresh()
 end
 
----@param fun fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
-function Node:walk(fun)
-  if fun(self) then
+---@param fn fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
+function Node:walk(fn)
+  if fn(self) then
     return
   end
 
   if self:is_directory() then
     for _, child in ipairs(self.children) do
-      if child:walk(fun) then
+      if child:walk(fn) then
         return
       end
     end

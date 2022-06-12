@@ -5,29 +5,23 @@ local api = vim.api
 
 local M = {}
 
--- use indirection so the config can be required as is for live changes to it
----@module "ya-tree.lib"
-local function lib()
-  return require("ya-tree.lib")
-end
-
 ---@param path? string
 ---@param switch_root? boolean
 ---@param focus? boolean
 function M.open(path, switch_root, focus)
-  lib().open_tree({ file = path, switch_root = switch_root, focus = focus })
+  require("ya-tree.lib").open_tree({ file = path, switch_root = switch_root, focus = focus })
 end
 
 function M.close()
-  lib().close_tree()
+  require("ya-tree.lib").close_tree()
 end
 
 function M.toggle()
-  lib().toggle_tree()
+  require("ya-tree.lib").toggle_tree()
 end
 
 function M.focus()
-  lib().open_tree({ focus = true })
+  require("ya-tree.lib").open_tree({ focus = true })
 end
 
 ---@param level LogLevel
@@ -101,8 +95,7 @@ function M.setup(opts)
   require("ya-tree.actions").setup()
   require("ya-tree.git").setup()
   require("ya-tree.ui").setup()
-
-  lib().setup()
+  require("ya-tree.lib").setup()
 
   api.nvim_create_user_command("YaTreeOpen", function(input)
     local path, focus = parse_open_command_input(input.fargs)

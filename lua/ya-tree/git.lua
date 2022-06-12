@@ -215,9 +215,9 @@ do
   end
 end
 
----@param fun async fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)
+---@param fn async fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)
 ---@return string watcher_id
-function Repo:add_git_watcher(fun)
+function Repo:add_git_watcher(fn)
   if not self._git_dir_watcher then
     ---@async
     ---@param err? string
@@ -254,8 +254,8 @@ function Repo:add_git_watcher(fun)
   end
 
   local watcher_id = get_next_watcher_id()
-  self._git_watchers[watcher_id] = fun
-  log.debug("add git watcher %s with id %s", fun, watcher_id)
+  self._git_watchers[watcher_id] = fn
+  log.debug("add git watcher %s with id %s", fn, watcher_id)
 
   return watcher_id
 end

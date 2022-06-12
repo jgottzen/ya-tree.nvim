@@ -53,7 +53,7 @@ local M = {}
 ---| "open_help"
 
 ---@class YaTreeAction
----@field fun fun(node: YaTreeNode)
+---@field fn fun(node: YaTreeNode)
 ---@field desc string
 ---@field views YaTreeCanvasDisplayMode[]
 ---@field modes string[]
@@ -61,258 +61,258 @@ local M = {}
 ---@type table<YaTreeActionName, YaTreeAction>
 local actions = {
   open = {
-    fun = files.open,
+    fn = files.open,
     desc = "Open file or directory",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n", "v" },
   },
   vsplit = {
-    fun = files.vsplit,
+    fn = files.vsplit,
     desc = "Open file in a vertical split",
     views = { "tree", "search", "git_status" },
     modes = { "n" },
   },
   split = {
-    fun = files.split,
+    fn = files.split,
     desc = "Open file in a split",
     views = { "tree", "search", "git_status" },
     modes = { "n" },
   },
   tabnew = {
-    fun = files.tabnew,
+    fn = files.tabnew,
     desc = "Open file in a new tabpage",
     views = { "tree", "search", "git_status" },
     modes = { "n" },
   },
   preview = {
-    fun = files.preview,
+    fn = files.preview,
     desc = "Open files (keep cursor in tree)",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   add = {
-    fun = files.add,
+    fn = files.add,
     desc = "Add file or directory",
     views = { "tree" },
     modes = { "n" },
   },
   rename = {
-    fun = files.rename,
+    fn = files.rename,
     desc = "Rename file or directory",
     views = { "tree" },
     modes = { "n" },
   },
   delete = {
-    fun = files.delete,
+    fn = files.delete,
     desc = "Delete files and directories",
     views = { "tree" },
     modes = { "n", "v" },
   },
   trash = {
-    fun = files.trash,
+    fn = files.trash,
     desc = "Trash files and directories",
     views = { "tree" },
     modes = { "n", "v" },
   },
   system_open = {
-    fun = files.system_open,
+    fn = files.system_open,
     desc = "Open the node with the default system application",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   goto_path_in_tree = {
-    fun = files.goto_path_in_tree,
+    fn = files.goto_path_in_tree,
     desc = "Go to entered path in tree",
     views = { "tree" },
     modes = { "n" },
   },
 
   copy_node = {
-    fun = clipboard.copy_node,
+    fn = clipboard.copy_node,
     desc = "Select files and directories for copy",
     views = { "tree" },
     modes = { "n", "v" },
   },
   cut_node = {
-    fun = clipboard.cut_node,
+    fn = clipboard.cut_node,
     desc = "Select files and directories for cut",
     views = { "tree" },
     modes = { "n", "v" },
   },
   paste_nodes = {
-    fun = clipboard.paste_nodes,
+    fn = clipboard.paste_nodes,
     desc = "Paste files and directories",
     views = { "tree" },
     modes = { "n" },
   },
   clear_clipboard = {
-    fun = clipboard.clear_clipboard,
+    fn = clipboard.clear_clipboard,
     desc = "Clear selected files and directories",
     views = { "tree" },
     modes = { "n" },
   },
   copy_name_to_clipboard = {
-    fun = clipboard.copy_name_to_clipboard,
+    fn = clipboard.copy_name_to_clipboard,
     desc = "Copy node name to system clipboard",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   copy_root_relative_path_to_clipboard = {
-    fun = clipboard.copy_root_relative_path_to_clipboard,
+    fn = clipboard.copy_root_relative_path_to_clipboard,
     desc = "Copy root-relative path to system clipboard",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   copy_absolute_path_to_clipboard = {
-    fun = clipboard.copy_absolute_path_to_clipboard,
+    fn = clipboard.copy_absolute_path_to_clipboard,
     desc = "Copy absolute path to system clipboard",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
 
   search_interactively = {
-    fun = search.search_interactively,
+    fn = search.search_interactively,
     desc = "Search as you type",
     views = { "tree", "search" },
     modes = { "n" },
   },
   search_once = {
-    fun = search.search_once,
+    fn = search.search_once,
     desc = "Search",
     views = { "tree", "search" },
     modes = { "n" },
   },
   goto_node_in_tree = {
-    fun = lib.goto_node_in_tree,
+    fn = lib.goto_node_in_tree,
     desc = "Close view and go to node in tree view",
     views = { "search", "buffers", "git_status" },
     modes = { "n" },
   },
   close_search = {
-    fun = lib.close_search,
+    fn = lib.close_search,
     desc = "Close the search result",
     views = { "search" },
     modes = { "n" },
   },
   show_last_search = {
-    fun = lib.show_last_search,
+    fn = lib.show_last_search,
     desc = "Show last search result",
     views = { "tree" },
     modes = { "n" },
   },
 
   close_tree = {
-    fun = lib.close_tree,
+    fn = lib.close_tree,
     desc = "Close the tree window",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   close_node = {
-    fun = lib.close_node,
+    fn = lib.close_node,
     desc = "Close directory",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   close_all_nodes = {
-    fun = lib.close_all_nodes,
+    fn = lib.close_all_nodes,
     desc = "Close all directories",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   cd_to = {
-    fun = lib.cd_to,
+    fn = lib.cd_to,
     desc = "Set tree root to directory",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   cd_up = {
-    fun = lib.cd_up,
+    fn = lib.cd_up,
     desc = "Set tree root one level up",
     views = { "tree" },
     modes = { "n" },
   },
   toggle_ignored = {
-    fun = lib.toggle_ignored,
+    fn = lib.toggle_ignored,
     desc = "Toggle git ignored files and directories",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   toggle_filter = {
-    fun = lib.toggle_filter,
+    fn = lib.toggle_filter,
     desc = "Toggle filtered files and directories",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   refresh_tree = {
-    fun = lib.refresh_tree,
+    fn = lib.refresh_tree,
     desc = "Refresh the tree",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   rescan_dir_for_git = {
-    fun = lib.rescan_dir_for_git,
+    fn = lib.rescan_dir_for_git,
     desc = "Rescan directory for git repo",
     views = { "tree" },
     modes = { "n" },
   },
 
   toggle_git_status = {
-    fun = lib.toggle_git_status,
+    fn = lib.toggle_git_status,
     desc = "Open or close the current git status view",
     views = { "tree", "git_status" },
     modes = { "n" },
   },
   toggle_buffers = {
-    fun = lib.toggle_buffers,
+    fn = lib.toggle_buffers,
     desc = "Open or close the current buffers view",
     views = { "tree", "buffers" },
     modes = { "n" },
   },
 
   focus_parent = {
-    fun = ui.focus_parent,
+    fn = ui.focus_parent,
     desc = "Go to parent directory",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_prev_sibling = {
-    fun = ui.focus_prev_sibling,
+    fn = ui.focus_prev_sibling,
     desc = "Go to previous sibling node",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_next_sibling = {
-    fun = ui.focus_next_sibling,
+    fn = ui.focus_next_sibling,
     desc = "Go to next sibling node",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_first_sibling = {
-    fun = ui.focus_first_sibling,
+    fn = ui.focus_first_sibling,
     desc = "Go to first sibling node",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_last_sibling = {
-    fun = ui.focus_last_sibling,
+    fn = ui.focus_last_sibling,
     desc = "Go to last sibling node",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_prev_git_item = {
-    fun = ui.focus_prev_git_item,
+    fn = ui.focus_prev_git_item,
     desc = "Go to previous git item",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   focus_next_git_item = {
-    fun = ui.focus_next_git_item,
+    fn = ui.focus_next_git_item,
     desc = "Go to next git item",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },
   open_help = {
-    fun = ui.open_help,
+    fn = ui.open_help,
     desc = "Open keybindings help",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
@@ -323,14 +323,14 @@ local actions = {
 ---@return function handler
 local function create_keymap_function(mapping)
   ---@type fun(node: YaTreeNode)
-  local fun
+  local fn
   if mapping.action then
     local action = actions[mapping.action]
-    if action and action.fun then
-      fun = action.fun
+    if action and action.fn then
+      fn = action.fn
     end
-  elseif mapping.func then
-    fun = mapping.func
+  elseif mapping.fn then
+    fn = mapping.fn
   else
     log.error("cannot create keymap function for mappings %s", mapping)
     return nil
@@ -338,7 +338,7 @@ local function create_keymap_function(mapping)
 
   return function()
     if mapping.views[ui.get_current_view_mode()] then
-      fun(ui.get_current_node())
+      fn(ui.get_current_node())
     end
   end
 end
@@ -373,7 +373,7 @@ end
 ---@field key string
 ---@field desc string
 ---@field action? YaTreeActionName
----@field func? fun(node: YaTreeNode)
+---@field fn? fun(node: YaTreeNode)
 
 ---@param mappings table<string, YaTreeActionName|YaTreeConfig.CustomMapping>
 ---@return YaTreeActionMapping[]
@@ -402,19 +402,19 @@ local function validate_and_create_mappings(mappings)
         end
       end
     elseif type(mapping) == "table" then
-      local func = mapping.func
-      if type(func) == "function" then
+      local fn = mapping.fn
+      if type(fn) == "function" then
         for _, mode in ipairs(mapping.modes) do
           action_mappings[#action_mappings + 1] = {
             views = create_views_map(mapping.views),
             mode = mode,
             key = key,
             desc = mapping.desc or "User '<function>'",
-            func = func,
+            fn = fn,
           }
         end
-      elseif func then
-        utils.warn(string.format("Key %s is mapped to 'func' %s, which is not a function, mapping ignored!", vim.inspect(key), func))
+      elseif fn then
+        utils.warn(string.format("Key %s is mapped to 'fn' %s, which is not a function, mapping ignored!", vim.inspect(key), fn))
       end
     end
   end

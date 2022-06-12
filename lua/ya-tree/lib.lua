@@ -520,13 +520,13 @@ do
       end
     end)
   end
+end
 
-  ---@param node YaTreeNode
-  ---@param term string
-  ---@param focus_node boolean
-  function M.search(node, term, focus_node)
-    do_search(node, term, focus_node)
-  end
+---@param node YaTreeNode
+---@param term string
+---@param focus_node boolean
+function M.search(node, term, focus_node)
+  do_search(node, term, focus_node)
 end
 
 function M.focus_first_search_result()

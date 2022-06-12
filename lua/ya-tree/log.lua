@@ -155,7 +155,7 @@ function logger.new(opts)
     local message = format(arg, ...)
     local info = debug.getinfo(2, "nSl")
     local _, ms = uv.gettimeofday()
-    local timestamp = string.format("%s:%03d", os.date("%H:%M:%S"), ms / 1000)
+    local timestamp = fmt("%s:%03d", os.date("%H:%M:%S"), ms / 1000)
     local fun_name = info.name ~= "" and info.name or "<anonymous>"
     local fmt_message = fmt("[%-6s%s] %s:%s:%s: %s", name, timestamp, info.short_src, fun_name, info.currentline, message)
 
