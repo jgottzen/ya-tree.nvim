@@ -195,7 +195,12 @@ end
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
 local function change_display_mode(mode, root, node)
-  M.open(root, node, { focus = true, display_mode = mode })
+  local canvas = get_canvas()
+  canvas.display_mode = mode
+  canvas:render(root)
+  if node then
+    canvas:focus_node(node)
+  end
 end
 
 ---@param root YaTreeSearchNode
