@@ -398,7 +398,7 @@ function M.rescan_dir_for_git(node)
   end)()
 end
 
-local do_search
+local do_search, build_search
 do
   ---@type boolean
   local fd_has_max_results
@@ -418,8 +418,9 @@ do
 
   ---@param term string
   ---@param path string
+  ---@param glob boolean
   ---@return string? cmd, string[] arguments
-  local function build_search(term, path)
+  build_search = function(term, path, glob)
     local cmd = config.search.cmd
 
     ---@type string[]
@@ -444,7 +445,11 @@ do
         if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
           table.insert(args, "--max-results=" .. config.search.max_results)
         end
-        table.insert(args, "--glob")
+        if glob then
+          table.insert(args, "--glob")
+        else
+          table.insert(args, "--full-path")
+        end
         table.insert(args, term)
         table.insert(args, path)
       elseif cmd == "find" then
@@ -454,8 +459,13 @@ do
           table.insert(args, "-path")
           table.insert(args, "*/.*")
         end
-        table.insert(args, "-iname")
-        table.insert(args, term)
+        if glob then
+          table.insert(args, "-iname")
+          table.insert(args, term)
+        else
+          table.insert(args, "-ipath")
+          table.insert(args, "*" .. term .. "*")
+        end
       elseif cmd == "where" then
         args = { "/r", path, term }
       else
@@ -506,7 +516,7 @@ do
     if term ~= "*" and not term:find("*") then
       search_term = "*" .. term .. "*"
     end
-    local cmd, args = build_search(search_term, node.path)
+    local cmd, args = build_search(search_term, node.path, true)
     if not cmd then
       utils.warn("No suitable search command found!")
       return
@@ -631,14 +641,26 @@ end
 ---@param path string
 function M.goto_path_in_tree(path)
   local tree = Tree.get_tree()
-  local file = resolve_path_in_tree(tree, path)
-  if file then
-    async.void(function()
-      tree.current_node = tree.root:expand({ force_scan = true, to = file })
-      scheduler()
-      ui.update(tree.root, tree.current_node, { focus_node = true })
-    end)()
+  local cmd, args = build_search(path, tree.root.path, false)
+  if not cmd then
+    return
   end
+
+  job.run({ cmd = cmd, args = args, cwd = tree.root.path }, function(code, stdout)
+    if code == 0 then
+      ---@type string[]
+      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+      log.debug("%q found %s matches for %q in %q", cmd, #lines, path, tree.root.path)
+
+      if #lines > 0 then
+        async.void(function()
+          tree.current_node = tree.root:expand({ to = lines[1] })
+          scheduler()
+          ui.update(tree.root, tree.current_node)
+        end)()
+      end
+    end
+  end)
 end
 
 ---@param node YaTreeNode

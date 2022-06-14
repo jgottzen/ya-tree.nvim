@@ -95,7 +95,12 @@ local actions = {
     { "tree", "search", "buffers", "git_status" },
     { "n" }
   ),
-  goto_path_in_tree = create_action(files.goto_path_in_tree, "Go to entered path in tree", { "tree" }, { "n" }),
+  goto_path_in_tree = create_action(
+    files.goto_path_in_tree,
+    "Go to entered path in tree",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
 
   copy_node = create_action(clipboard.copy_node, "Select files and directories for copy", { "tree" }, { "n", "v" }),
   cut_node = create_action(clipboard.cut_node, "Select files and directories for cut", { "tree" }, { "n", "v" }),

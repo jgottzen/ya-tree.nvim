@@ -253,11 +253,14 @@ function M.system_open(node)
 end
 
 function M.goto_path_in_tree()
-  vim.ui.input({ prompt = "Path:", completion = "file" }, function(path)
-    if path then
-      lib.goto_path_in_tree(path)
-    end
-  end)
+  local input = Input:new({ prompt = "Path:", completion = "file_in_path" }, {
+    on_submit = function(path)
+      if path then
+        lib.goto_path_in_tree(path)
+      end
+    end,
+  })
+  input:open()
 end
 
 return M

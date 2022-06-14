@@ -146,6 +146,9 @@ function Input:open()
   if self.completion then
     api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
     api.nvim_buf_set_option(self.bufnr, "omnifunc", "")
+    if self.completion == "file_in_path" then
+      api.nvim_buf_set_option(self.bufnr, "path", vim.loop.cwd() .. "/**")
+    end
     current_completion = self.completion
   end
 
