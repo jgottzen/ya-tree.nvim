@@ -360,8 +360,9 @@ end
 
 ---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
 --
----@param opts? {force_scan?: boolean, to?: string}
+---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
+---  - {opts.all?} `boolean` recursively expands all directory.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return YaTreeNode|nil node #if {opts.to} is specified, and found.
 function Node:expand(opts)
@@ -379,16 +380,22 @@ function Node:expand(opts)
       log.debug("self %q is equal to path %q", self.path, opts.to)
       return self
     elseif self:is_directory() and self:is_ancestor_of(opts.to) then
-      for _, node in ipairs(self.children) do
-        if node:is_ancestor_of(opts.to) then
-          log.debug("child node %q is parent of %q", node.path, opts.to)
-          return node:expand(opts)
-        elseif node.path == opts.to then
-          return node:is_directory() and node:expand(opts) or node
+      for _, child in ipairs(self.children) do
+        ---@cast child YaTreeNode
+        if child:is_ancestor_of(opts.to) then
+          log.debug("child node %q is parent of %q", child.path, opts.to)
+          return child:expand(opts)
+        elseif child.path == opts.to then
+          return child:is_directory() and child:expand(opts) or child
         end
       end
     else
       log.debug("node %q is not a parent of path %q", self.path, opts.to)
+    end
+  elseif opts.all and self:is_directory() then
+    for _, child in ipairs(self.children) do
+      ---@cast child YaTreeNode
+      child:expand(opts)
     end
   end
 end

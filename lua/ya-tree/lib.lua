@@ -262,6 +262,13 @@ function M.close_all_nodes()
   ui.update(tree.root, tree.current_node)
 end
 
+---@param node YaTreeNode
+function M.expand_all_nodes(node)
+  local tree = Tree.get_tree()
+  tree.root:expand({ all = true })
+  ui.update(tree.root, node)
+end
+
 ---@param tree YaTree
 ---@param current_node? YaTreeNode
 local function close_search(tree, current_node)

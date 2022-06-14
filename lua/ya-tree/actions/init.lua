@@ -35,6 +35,7 @@ local M = {}
 ---| "close_window"
 ---| "close_node"
 ---| "close_all_nodes"
+---| "expand_all_nodes"
 ---| "cd_to"
 ---| "cd_up"
 ---| "toggle_ignored"
@@ -216,6 +217,12 @@ local actions = {
   close_all_nodes = {
     fn = lib.close_all_nodes,
     desc = "Close all directories",
+    views = { "tree", "search", "buffers", "git_status" },
+    modes = { "n" },
+  },
+  expand_all_nodes = {
+    fn = lib.expand_all_nodes,
+    desc = "Recursively expand all directories",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },
   },

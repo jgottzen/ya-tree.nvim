@@ -370,6 +370,7 @@ local M = {
       ["<Tab>"] = "preview",
       ["<BS>"] = "close_node",
       ["z"] = "close_all_nodes",
+      ["E"] = "expand_all_nodes",
       ["<2-RightMouse>"] = "cd_to",
       ["<C-]>"] = "cd_to",
       ["."] = "cd_to",
