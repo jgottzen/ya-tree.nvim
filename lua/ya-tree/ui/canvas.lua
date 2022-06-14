@@ -4,6 +4,7 @@ local log = require("ya-tree.log")
 
 local api = vim.api
 
+---@type integer
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
 local barbar_exists = false
@@ -205,6 +206,7 @@ function Canvas:_set_window_options()
     group = self.window_augroup,
     buffer = self.bufnr,
     callback = function()
+      ---@type number
       self.width = api.nvim_win_get_width(self.winid)
     end,
     desc = "Storing window width",
@@ -456,6 +458,7 @@ function Canvas:_render_tree(root)
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
         for i, child in ipairs(node.children) do
+          ---@cast child YaTreeNode
           append_node(child, depth + 1, i == nr_of_children)
         end
       end
@@ -467,7 +470,7 @@ function Canvas:_render_tree(root)
   return lines, highlights
 end
 
----@param root YaTreeNode|YaTreeSearchNode
+---@param root YaTreeNode
 function Canvas:render(root)
   local lines, highlights = self:_render_tree(root)
 
@@ -497,7 +500,7 @@ function Canvas:is_node_visible(node)
 end
 
 ---@private
----@return YaTreeNode node, number row, number column
+---@return YaTreeNode? node, number row, number column
 function Canvas:_get_current_node_and_position()
   if not self.winid then
     return nil
@@ -578,10 +581,10 @@ end
 ---@param row number
 ---@param col number
 local function set_cursor_position(winid, row, col)
-  ---@type number
-  local win_height = api.nvim_win_get_height(winid)
   local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
   if ok then
+    ---@type number
+    local win_height = api.nvim_win_get_height(winid)
     if win_height > row then
       vim.cmd("normal! zb")
     elseif row < (win_height / 2) then
@@ -598,12 +601,23 @@ function Canvas:focus_node(node)
     node = node.parent
   end
   if node then
-    local index = self.node_path_to_index_lookup[node.path]
-    log.debug("node %s is at index %s", node.path, index)
-    if index then
+    local row = self.node_path_to_index_lookup[node.path]
+    log.debug("node %s is at index %s", node.path, row)
+    if row then
       ---@type number
-      local _, column = unpack(api.nvim_win_get_cursor(self.winid))
-      set_cursor_position(self.winid, index, column)
+      local col
+      -- don't move the cursor on the first line
+      if config.hijack_cursor and row > 2 then
+        ---@type string
+        local line = api.nvim_buf_get_lines(self.bufnr, row - 1, row, false)[1]
+        if line then
+          col = (line:find(node.name, 1, true) or 0) - 1
+        end
+      end
+      if not col then
+        col = api.nvim_win_get_cursor(self.winid)[2]
+      end
+      set_cursor_position(self.winid, row, col)
     end
   end
 end
@@ -614,11 +628,11 @@ function Canvas:focus_parent(node)
     return
   end
 
-  local index = self.node_path_to_index_lookup[node.parent.path]
-  if index then
+  local row = self.node_path_to_index_lookup[node.parent.path]
+  if row then
     ---@type number
-    local _, column = unpack(api.nvim_win_get_cursor(self.winid))
-    set_cursor_position(self.winid, index, column)
+    local column = api.nvim_win_get_cursor(self.winid)[2]
+    set_cursor_position(self.winid, row, column)
   end
 end
 
@@ -630,11 +644,11 @@ function Canvas:focus_prev_sibling(node)
 
   for prev in node.parent:iterate_children({ reverse = true, from = node }) do
     if node:is_displayable(config) then
-      local index = self.node_path_to_index_lookup[prev.path]
-      if index then
+      local row = self.node_path_to_index_lookup[prev.path]
+      if row then
         ---@type number
-        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
-        set_cursor_position(self.winid, index, column)
+        local column = api.nvim_win_get_cursor(self.winid)[2]
+        set_cursor_position(self.winid, row, column)
         return
       end
     end
@@ -649,11 +663,11 @@ function Canvas:focus_next_sibling(node)
 
   for next in node.parent:iterate_children({ from = node }) do
     if node:is_displayable(config) then
-      local index = self.node_path_to_index_lookup[next.path]
-      if index then
+      local row = self.node_path_to_index_lookup[next.path]
+      if row then
         ---@type number
-        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
-        set_cursor_position(self.winid, index, column)
+        local column = api.nvim_win_get_cursor(self.winid)[2]
+        set_cursor_position(self.winid, row, column)
         return
       end
     end
@@ -668,11 +682,11 @@ function Canvas:focus_first_sibling(node)
 
   for next in node.parent:iterate_children() do
     if node:is_displayable(config) then
-      local index = self.node_path_to_index_lookup[next.path]
-      if index then
+      local row = self.node_path_to_index_lookup[next.path]
+      if row then
         ---@type number
-        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
-        set_cursor_position(self.winid, index, column)
+        local column = api.nvim_win_get_cursor(self.winid)[2]
+        set_cursor_position(self.winid, row, column)
         return
       end
     end
@@ -687,11 +701,11 @@ function Canvas:focus_last_sibling(node)
 
   for prev in node.parent:iterate_children({ reverse = true }) do
     if node:is_displayable(config) then
-      local index = self.node_path_to_index_lookup[prev.path]
-      if index then
+      local row = self.node_path_to_index_lookup[prev.path]
+      if row then
         ---@type number
-        local _, column = unpack(api.nvim_win_get_cursor(self.winid))
-        set_cursor_position(self.winid, index, column)
+        local column = api.nvim_win_get_cursor(self.winid)[2]
+        set_cursor_position(self.winid, row, column)
         return
       end
     end
@@ -705,10 +719,10 @@ function Canvas:focus_prev_git_item(node)
   end
 
   ---@type number
-  local row, column = unpack(api.nvim_win_get_cursor(self.winid))
-  for index = row - 1, 1, -1 do
-    if self.nodes[index]:get_git_status() then
-      set_cursor_position(self.winid, index, column)
+  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid))
+  for row = current_row - 1, 1, -1 do
+    if self.nodes[row]:get_git_status() then
+      set_cursor_position(self.winid, row, column)
       return
     end
   end
@@ -721,10 +735,10 @@ function Canvas:focus_next_git_item(node)
   end
 
   ---@type number
-  local row, column = unpack(api.nvim_win_get_cursor(self.winid))
-  for index = row + 1, #self.nodes do
-    if self.nodes[index]:get_git_status() then
-      set_cursor_position(self.winid, index, column)
+  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid))
+  for row = current_row + 1, #self.nodes do
+    if self.nodes[row]:get_git_status() then
+      set_cursor_position(self.winid, row, column)
       return
     end
   end

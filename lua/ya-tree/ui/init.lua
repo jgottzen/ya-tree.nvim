@@ -41,9 +41,10 @@ end
 
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
----@param opts? {hijack_buffer?: boolean, focus?: boolean, display_mode?: YaTreeCanvasDisplayMode}
+---@param opts? {hijack_buffer?: boolean, focus?: boolean, focus_edit_window?: boolean, display_mode?: YaTreeCanvasDisplayMode}
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
+---  - {opts.focus_edit_window?} `boolean`
 ---  - {opts.display_mode?} `YaTreeCanvasDisplayMode`
 function M.open(root, node, opts)
   opts = opts or {}
@@ -71,7 +72,7 @@ function M.open(root, node, opts)
 
   if opts.focus then
     canvas:focus()
-  else
+  elseif opts.focus_edit_window then
     canvas:focus_edit_window()
   end
 end
@@ -107,7 +108,7 @@ function M.update(root, node, opts)
   end
 end
 
----@return YaTreeNode current_node
+---@return YaTreeNode? current_node
 function M.get_current_node()
   return get_canvas():get_current_node()
 end
@@ -282,7 +283,7 @@ function M.move_buffer_to_edit_window(bufnr)
 end
 
 ---@param file string the file path to open
----@param cmd cmdmode
+---@param cmd cmd_mode
 function M.open_file(file, cmd)
   local canvas = get_canvas()
   local winid = canvas:get_edit_winid()

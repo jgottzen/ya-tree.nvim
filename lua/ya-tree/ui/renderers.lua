@@ -370,7 +370,7 @@ function M.diagnostics(node, context, renderer)
       if diagnostic then
         return {
           padding = renderer.padding,
-          text = diagnostic.text,
+          text = diagnostic.icon,
           highlight = diagnostic.highlight,
         }
       end
@@ -383,10 +383,10 @@ end
 ---@param renderer YaTreeConfig.Renderers.BufferNumber
 ---@return RenderResult
 function M.buffer_number(node, _, renderer)
-  local bufnr
+  local bufnr = -1
   if node:node_type() == "Buffer" then
     ---@cast node YaTreeBufferNode
-    bufnr = node.bufnr
+    bufnr = node.bufnr or -1
   elseif fn.bufloaded(node.path) > 0 then
     bufnr = fn.bufnr(node.path)
   end
@@ -416,7 +416,7 @@ end
 
 do
   ---@type table<string, string>
-  local git_staus_to_hl
+  local git_staus_to_hl = {}
 
   ---@param status string
   ---@return string
@@ -428,11 +428,8 @@ do
   ---@field icon string
   ---@field highlight string
 
-  ---@class GitIconsAndHighLights
-  ---@field dirty IconAndHighlight[]
-  ---@field staged IconAndHighlight[]
-  ---@field [string] IconAndHighlight[]
-  local git_icons_and_hl
+  ---@type table<string, IconAndHighlight[]>
+  local git_icons_and_hl = {}
 
   ---@param status string
   ---@return IconAndHighlight[]
@@ -440,15 +437,11 @@ do
     return git_icons_and_hl[status] or git_icons_and_hl.dirty
   end
 
-  ---@class TextAndHighlight
-  ---@field text string
-  ---@field highlight string
-
-  ---@type table<number, TextAndHighlight>
-  local diagnostic_icon_and_hl
+  ---@type table<number, IconAndHighlight>
+  local diagnostic_icon_and_hl = {}
 
   ---@param severity number
-  ---@return TextAndHighlight
+  ---@return IconAndHighlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
     return diagnostic_icon_and_hl[severity]
   end
@@ -456,7 +449,7 @@ do
   ---@param config YaTreeConfig
   function M.setup(config)
     local icons = config.renderers.git_status.icons
-    ---@type GitIconsAndHighLights
+    ---@type table<string, IconAndHighlight[]>
     git_icons_and_hl = {}
 
     git_icons_and_hl["M."] = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
@@ -526,8 +519,10 @@ do
     git_icons_and_hl.dirty = { { icon = icons.modified, highlight = hl.GIT_DIRTY } }
     git_icons_and_hl.staged = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
 
+    ---@type table<string, string>
     git_staus_to_hl = {}
     for k, v in pairs(git_icons_and_hl) do
+      ---@cast k string
       if #v == 1 then
         git_staus_to_hl[k] = v[1].highlight
       elseif #v == 2 then
@@ -535,7 +530,7 @@ do
       end
     end
 
-    ---@type table<number, TextAndHighlight>
+    ---@type table<number, IconAndHighlight>
     diagnostic_icon_and_hl = {}
 
     ---@type table<number, string[]>
@@ -545,8 +540,9 @@ do
     map[vim.diagnostic.severity.INFO] = { "Info", "Information" }
     map[vim.diagnostic.severity.HINT] = { "Hint", "Hint" }
     for k, v in pairs(map) do
+      ---@cast k integer
       local sign = fn.sign_getdefined("DiagnosticSign" .. v[1])
-      sign = sign and sign[1]
+      sign = sign[1]
       if sign then
         diagnostic_icon_and_hl[k] = {
           ---@type string

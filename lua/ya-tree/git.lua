@@ -42,7 +42,7 @@ end
 ---@async
 ---@param path string
 ---@param cmd? string
----@return string toplevel, string git_dir, string branch
+---@return string? toplevel, string git_dir, string branch
 local function get_repo_info(path, cmd)
   local args = {
     "-C",
@@ -102,8 +102,11 @@ Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
-Repo.__eq = function (r1, r2)
-  return r1._git_dir and r1._git_dir == r2._git_dir or false
+---@param self GitRepo
+---@param other GitRepo
+---@return boolean
+Repo.__eq = function (self, other)
+  return self._git_dir == other._git_dir
 end
 
 ---@async
@@ -280,10 +283,6 @@ end
 ---@async
 ---@private
 function Repo:_read_remote_url()
-  if not self._git_dir then
-    return
-  end
-
   self.remote_url = self:command({ "ls-remote", "--get-url" })[1]
 end
 
@@ -594,7 +593,7 @@ function Repo:_parse_porcelainv2_ignored_row(line)
 end
 
 ---@param path string
----@return string|nil status
+---@return string? status
 function Repo:status_of(path)
   return self._git_status[path] or self._propagated_git_status[path]
 end

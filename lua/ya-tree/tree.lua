@@ -14,23 +14,23 @@ local uv = vim.loop
 ---@field public root YaTreeNode|YaTreeSearchNode|YaTreeBufferNode|YaTreeGitStatusNode the root of the current tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 ---@field public tree YaTreeRoot the current tree.
----@field public search YaSearchTree the current search tree.
----@field public buffers YaBufferTree the buffers tree info.
----@field public git_status YaGitStatusTree the git status info.
+---@field public search YaSearchTreeRoot the current search tree.
+---@field public buffers YaBufferTreeRoot the buffers tree info.
+---@field public git_status YaGitStatusTreeRoot the git status info.
 
 ---@class YaTreeRoot
 ---@field public root YaTreeNode the root fo the tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 
----@class YaSearchTree
+---@class YaSearchTreeRoot
 ---@field public root? YaTreeSearchNode the root of the search tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 
----@class YaBufferTree
+---@class YaBufferTreeRoot
 ---@field public root? YaTreeBufferNode
 ---@field public current_node? YaTreeBufferNode
 
----@class YaGitStatusTree
+---@class YaGitStatusTreeRoot
 ---@field public root? YaTreeGitStatusNode
 ---@field public current_node? YaTreeGitStatusNode
 

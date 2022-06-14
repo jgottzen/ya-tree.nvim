@@ -13,7 +13,7 @@ local api = vim.api
 
 local M = {}
 
----@alias cmdmode "edit"|"vsplit"|"split"|"tabnew"
+---@alias cmd_mode "edit"|"vsplit"|"split"|"tabnew"
 
 function M.open()
   local nodes = ui.get_selected_nodes()
@@ -133,7 +133,7 @@ function M.rename(node)
   end)
 end
 
----@return YaTreeNode[] nodes, string common_parent
+---@return YaTreeNode[]? nodes, string common_parent
 local function get_nodes_to_delete()
   local nodes = ui.get_selected_nodes()
 
@@ -182,7 +182,7 @@ function M.delete()
   async.void(function()
     local refresh = false
     for _, node in ipairs(nodes) do
-      refresh = refresh or delete_node(node)
+      refresh = delete_node(node) or refresh
       scheduler()
     end
     if refresh then

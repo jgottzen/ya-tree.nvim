@@ -320,7 +320,7 @@ local actions = {
 }
 
 ---@param mapping YaTreeActionMapping
----@return function handler
+---@return function? handler
 local function create_keymap_function(mapping)
   ---@type fun(node: YaTreeNode)
   local fn
@@ -388,6 +388,7 @@ local function validate_and_create_mappings(mappings)
       if #name == 0 then
         log.debug("key %s is disabled by user config", key)
       elseif not actions[name] then
+        log.error("Key %s is mapped to 'action' %q, which does not exist, mapping ignored!", vim.inspect(key), name)
         utils.warn(string.format("Key %s is mapped to 'action' %q, which does not exist, mapping ignored!", vim.inspect(key), name))
       else
         local action = actions[name]

@@ -9,37 +9,31 @@ local log = require("ya-tree.log")
 
 local fn = vim.fn
 
----@class ClipboardItem
----@field node YaTreeNode
----@field action clipboard_action
-
 local M = {
   ---@private
-  ---@type ClipboardItem[]
+  ---@type YaTreeNode[]
   queue = {},
 }
 
----@alias clipboard_action "copy"|"cut"
+-- TODO: correctly handle when a directory _and_ nodes in it are selected for cut/copy
 
----@type clipboard_action
-local copy_action, cut_action = "copy", "cut"
+---@alias clipboard_action "copy"|"cut"
 
 ---@param node YaTreeNode
 ---@param action clipboard_action
 local function add_or_remove_or_replace_in_queue(node, action)
   for i, item in ipairs(M.queue) do
-    if item.node.path == node.path then
-      if item.action == action then
+    if item.path == node.path then
+      if item.clipboard_status == action then
         table.remove(M.queue, i)
-        node:set_clipboard_status(nil)
+        node:clear_clipboard_status()
       else
-        item.action = action
         node:set_clipboard_status(action)
       end
       return
     end
   end
-  M.queue[#M.queue + 1] = { node = node, action = action }
+  M.queue[#M.queue + 1] = node
   node:set_clipboard_status(action)
 end
 
@@ -48,7 +42,7 @@ function M.copy_node()
   for _, node in ipairs(nodes) do
     -- copying the root node will not work
     if not lib.is_node_root(node) then
-      add_or_remove_or_replace_in_queue(node, copy_action)
+      add_or_remove_or_replace_in_queue(node, "copy")
     end
   end
 
@@ -60,7 +54,7 @@ function M.cut_node()
   for _, node in ipairs(nodes) do
     -- cutting the root node will not work
     if not lib.is_node_root(node) then
-      add_or_remove_or_replace_in_queue(node, cut_action)
+      add_or_remove_or_replace_in_queue(node, "cut")
     end
   end
 
@@ -70,11 +64,10 @@ end
 ---@async
 ---@param dest_node YaTreeNode
 ---@param node YaTreeNode
----@param action clipboard_action
 ---@return boolean success, string? destination_path
-local function paste_node(dest_node, node, action)
+local function paste_node(dest_node, node)
   if not fs.exists(node.path) then
-    utils.warn(string.format("Item %q does not exist, cannot %s!", node.path, action))
+    utils.warn(string.format("Item %q does not exist, cannot %s!", node.path, node.clipboard_status))
     return false
   end
 
@@ -89,34 +82,33 @@ local function paste_node(dest_node, node, action)
     elseif response == "Rename" then
       local name = ui.input({ prompt = "New name: ", default = node.name })
       if not name then
-        utils.notify(string.format("No new name given, not pasting file %q to %q.", node.name, destination))
+        utils.notify(string.format("No new name given, not pasting item %q to %q.", node.name, destination))
         return false
       else
         destination = utils.join_path(dest_node.path, name)
         log.debug("new destination=%q", destination)
       end
     else
-      utils.notify(string.format("Skipping file %q.", node.path))
+      utils.notify(string.format("Skipping item %q.", node.path))
       return false
     end
   end
 
-  ---@type boolean
-  local ok
-  if action == copy_action then
+  local ok = false
+  if node.clipboard_status == "copy" then
     if node:is_directory() then
       ok = fs.copy_dir(node.path, destination, replace)
     elseif node:is_file() then
       ok = fs.copy_file(node.path, destination, replace)
     end
-  else
+  elseif node.clipboard_status == "cut" then
     ok = fs.rename(node.path, destination)
   end
 
   if ok then
-    utils.notify(string.format("%s %q to %q.", copy_action == "copy" and "Copied" or "Moved", node.path, destination))
+    utils.notify(string.format("%s %q to %q.", node.clipboard_status == "copy" and "Copied" or "Moved", node.path, destination))
   else
-    utils.warn(string.format("Failed to %s %q to %q!", copy_action == "copy" and "copy" or "move", node.path, destination))
+    utils.warn(string.format("Failed to %s %q to %q!", node.clipboard_status == "copy" and "copy" or "move", node.path, destination))
   end
 
   return ok, destination
@@ -124,7 +116,7 @@ end
 
 local function clear_clipboard()
   for _, item in ipairs(M.queue) do
-    item.node:set_clipboard_status(nil)
+    item:clear_clipboard_status()
   end
   M.queue = {}
 end
@@ -144,7 +136,7 @@ function M.paste_nodes(node)
       ---@type string
       local first_file
       for _, item in ipairs(M.queue) do
-        local ok, result = paste_node(node, item.node, item.action)
+        local ok, result = paste_node(node, item)
         scheduler()
         if ok and not first_file then
           first_file = result

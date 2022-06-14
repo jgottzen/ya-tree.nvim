@@ -1,4 +1,3 @@
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
@@ -7,7 +6,7 @@ local fn = vim.fn
 ---@class Input
 ---@field private prompt string
 ---@field private default string
----@field private completion boolean
+---@field private completion string
 ---@field private winid number
 ---@field private bufnr number
 ---@field private title_winid? number
@@ -101,6 +100,9 @@ function Input:new(opts, callbacks)
       if callbacks.on_close then
         callbacks.on_close()
       end
+
+      -- fix the cursor being moved one character to the left after leaving the input
+      pcall(api.nvim_win_set_cursor, 0, { this.orig_row, this.orig_col + 1 })
     end,
   }
 
@@ -115,9 +117,13 @@ function Input:new(opts, callbacks)
   return this
 end
 
+---@type string?
 local current_completion
 
 -- selene: allow(global_usage)
+---@param start integer
+---@param base string
+---@return integer column
 _G._ya_tree_input_complete = function(start, base)
   if start == 1 then
     return 0
@@ -229,9 +235,6 @@ function Input:close()
     api.nvim_win_close(self.winid, true)
   end
   self.winid = nil
-
-  -- fix the cursor being moved one character to the left after leaving the input
-  api.nvim_win_set_cursor(0, { self.orig_row, self.orig_col + 1 })
 end
 
 ---@param mode string

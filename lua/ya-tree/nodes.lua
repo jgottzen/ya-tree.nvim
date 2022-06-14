@@ -29,11 +29,11 @@ local M = {}
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
 
----@param n1 YaTreeNode
----@param n2 YaTreeNode
+---@param self YaTreeNode
+---@param other YaTreeNode
 ---@return boolean
-Node.__eq = function(n1, n2)
-  return n1.path and n1.path == n2.path or false
+Node.__eq = function(self, other)
+  return self.path == other.path
 end
 
 ---@param self YaTreeNode
@@ -242,6 +242,10 @@ end
 ---@param status? clipboard_action
 function Node:set_clipboard_status(status)
   self.clipboard_status = status
+end
+
+function Node:clear_clipboard_status()
+  self.clipboard_status = nil
 end
 
 ---@alias not_display_reason "filter"|"git"

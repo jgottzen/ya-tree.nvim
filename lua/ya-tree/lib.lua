@@ -185,7 +185,7 @@ function M.open_tree(opts)
 
     scheduler()
     tree.current_node = node or (ui.is_open() and ui.get_current_node() or nil)
-    ui.open(tree.root, tree.current_node, { focus = opts.focus })
+    ui.open(tree.root, tree.current_node, { focus = opts.focus, focus_edit_window = not opts.focus })
 
     if issue_tcd then
       log.debug("issueing tcd autocmd to %q", tree.cwd)
@@ -263,10 +263,12 @@ function M.close_all_nodes()
 end
 
 ---@param tree YaTree
----@param current_node YaTreeNode
+---@param current_node? YaTreeNode
 local function close_search(tree, current_node)
   -- save the current node in the search tree
-  tree.search.current_node = current_node
+  if current_node then
+    tree.search.current_node = current_node
+  end
   tree.root = tree.tree.root
   tree.current_node = tree.tree.current_node
   ui.close_search(tree.root, tree.current_node)
@@ -509,6 +511,7 @@ do
       if code == 0 then
         ---@type string[]
         local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+        log.debug("%q found %s matches for %q in %q", cmd, #lines, term, node.path)
         utils.notify(string.format("%q found %s matches for %q in %q", cmd, #lines, term, node.path))
         display_search_result(node, term, lines, focus_node)
       else
@@ -594,10 +597,12 @@ function M.goto_node_in_tree(node)
   end)()
 end
 
+---@param node? YaTreeNode
 function M.close_search(node)
   close_search(Tree.get_tree(), node)
 end
 
+---@param node YaTreeNode
 function M.show_last_search(node)
   local tree = Tree.get_tree()
   if tree.search.root then
@@ -672,11 +677,6 @@ function M.toggle_buffers(node)
       ui.open_buffers(tree.root, tree.current_node)
     end)()
   end
-end
-
----@param bufnr number
-local function on_win_leave(bufnr)
-  ui.on_win_leave(bufnr)
 end
 
 ---@param closed_winid number
@@ -863,8 +863,9 @@ local function on_buf_write_post(file, bufnr)
       Tree.for_each_tree(function(tree)
         ---@type YaTreeNode?
         local node
+        -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git status
         if tree.tree.root:is_ancestor_of(file) then
-          log.debug("changed file %q is in tree %q and tab %s", file, tree.root.path, tree.tabpage)
+          log.debug("changed file %q is in tree %q and tab %s", file, tree.tree.root.path, tree.tabpage)
           node = tree.tree.root:get_child_if_loaded(file)
           if node then
             node:refresh()
@@ -1025,7 +1026,7 @@ local function setup_autocommands()
   api.nvim_create_autocmd("WinLeave", {
     group = group,
     callback = function(input)
-      on_win_leave(input.buf)
+      ui.on_win_leave(input.buf)
     end,
     desc = "Keeping track of which window to open buffers in",
   })
@@ -1151,7 +1152,7 @@ function M.setup()
     scheduler()
     if is_directory or config.auto_open.on_setup then
       local focus = config.auto_open.on_setup and config.auto_open.focus_tree
-      ui.open(tree.root, tree.current_node, { hijack_buffer = is_directory, focus = focus })
+      ui.open(tree.root, tree.current_node, { hijack_buffer = is_directory, focus = focus, focus_edit_window = not focus })
     end
 
     -- the autocmds must be set up last, this avoids triggering the BufNewFile event,

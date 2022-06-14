@@ -83,13 +83,13 @@ local function get_file_name(path)
   return splits[#splits]
 end
 
----@class FsDirectoryLinkNode : FsDirectoryNode
+---@class FsLinkNodeMixin
 ---@field public link boolean
 ---@field public link_to string
 
----@class FsFileLinkNode : FsFileNode
----@field public link boolean
----@field public link_to string
+---@class FsDirectoryLinkNode : FsDirectoryNode, FsLinkNodeMixin
+
+---@class FsFileLinkNode : FsFileNode, FsLinkNodeMixin
 ---@field public link_name string
 ---@field public link_extension string
 
