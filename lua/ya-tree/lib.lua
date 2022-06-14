@@ -595,11 +595,18 @@ function M.goto_node_in_tree(node)
     if ui.is_search_open() then
       close_search(tree, node)
     elseif ui.is_buffers_open() then
+      ---@cast node YaTreeBufferNode
       tree.buffers.current_node = node
       tree.root = tree.tree.root
       tree.current_node = tree.root:expand({ to = node.path })
       scheduler()
       ui.close_buffers(tree.root, tree.current_node)
+    elseif ui.is_git_status_open() then
+      ---@cast node YaTreeGitStatusNode
+      tree.git_status.current_node = node
+      tree.root = tree.tree.root
+      tree.current_node = tree.root:expand({ to = node.path })
+      ui.close_git_status(tree.root, tree.current_node)
     end
   end)()
 end
