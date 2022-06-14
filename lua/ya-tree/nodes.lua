@@ -121,17 +121,18 @@ function Node:_scandir()
     children[child.path] = child
   end
 
-  ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode
+  ---@param fs_node FsNode
   self.children = vim.tbl_map(function(fs_node)
     local child = children[fs_node.path]
     if child then
       log.trace("merging %q", fs_node.path)
       child:_merge_new_data(fs_node)
-      return child
     else
       log.trace("creating new %q", fs_node.path)
-      return Node:new(fs_node, self)
+      child = Node:new(fs_node, self)
+      child.clipboard_status = self.clipboard_status
     end
+    return child
   end, fs.scan_dir(self.path))
 
   self.empty = #self.children == 0
@@ -239,13 +240,19 @@ function Node:is_git_repository_root()
   return self.repo and self.repo.toplevel == self.path or false
 end
 
----@param status? clipboard_action
+---@param status clipboard_action
 function Node:set_clipboard_status(status)
   self.clipboard_status = status
+  if self:is_directory() then
+    for _, child in ipairs(self.children) do
+      ---@cast child YaTreeNode
+      child:set_clipboard_status(status)
+    end
+  end
 end
 
 function Node:clear_clipboard_status()
-  self.clipboard_status = nil
+  self:set_clipboard_status(nil)
 end
 
 ---@alias not_display_reason "filter"|"git"

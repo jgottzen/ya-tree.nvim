@@ -15,8 +15,6 @@ local M = {
   queue = {},
 }
 
--- TODO: correctly handle when a directory _and_ nodes in it are selected for cut/copy
-
 ---@alias clipboard_action "copy"|"cut"
 
 ---@param node YaTreeNode
@@ -30,6 +28,8 @@ local function add_or_remove_or_replace_in_queue(node, action)
       else
         node:set_clipboard_status(action)
       end
+      return
+    elseif item:is_ancestor_of(node.path) then
       return
     end
   end
