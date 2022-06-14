@@ -9,19 +9,19 @@ local M = {}
 ---@param switch_root? boolean
 ---@param focus? boolean
 function M.open(path, switch_root, focus)
-  require("ya-tree.lib").open_tree({ file = path, switch_root = switch_root, focus = focus })
+  require("ya-tree.lib").open_window({ file = path, switch_root = switch_root, focus = focus })
 end
 
 function M.close()
-  require("ya-tree.lib").close_tree()
+  require("ya-tree.lib").close_window()
 end
 
 function M.toggle()
-  require("ya-tree.lib").toggle_tree()
+  require("ya-tree.lib").toggle_window()
 end
 
 function M.focus()
-  require("ya-tree.lib").open_tree({ focus = true })
+  require("ya-tree.lib").open_window({ focus = true })
 end
 
 ---@param level LogLevel

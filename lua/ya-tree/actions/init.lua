@@ -32,7 +32,7 @@ local M = {}
 ---| "goto_node_in_tree"
 ---| "close_search"
 ---| "show_last_search"
----| "close_tree"
+---| "close_window"
 ---| "close_node"
 ---| "close_all_nodes"
 ---| "cd_to"
@@ -201,8 +201,8 @@ local actions = {
     modes = { "n" },
   },
 
-  close_tree = {
-    fn = lib.close_tree,
+  close_window = {
+    fn = lib.close_window,
     desc = "Close the tree window",
     views = { "tree", "search", "buffers", "git_status" },
     modes = { "n" },

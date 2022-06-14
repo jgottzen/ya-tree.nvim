@@ -360,7 +360,7 @@ local M = {
     ---@field desc? string Description of what the mapping does.
 
     mappings = {
-      ["q"] = "close_tree",
+      ["q"] = "close_window",
       ["<CR>"] = "open",
       ["o"] = "open",
       ["<2-LeftMouse>"] = "open",
