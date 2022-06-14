@@ -354,7 +354,7 @@ local M = {
     },
 
     ---@class YaTreeConfig.CustomMapping Key mapping for user functions configuration.
-    ---@field modes string[] The mode(s) for the keybinding.
+    ---@field modes YaTreeActionMode[] The mode(s) for the keybinding.
     ---@field views YaTreeCanvasDisplayMode[] The view modes the mapping is available for.
     ---@field fn fun(node: YaTreeNode) User function.
     ---@field desc? string Description of what the mapping does.

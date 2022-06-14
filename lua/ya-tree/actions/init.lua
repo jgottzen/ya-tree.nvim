@@ -53,277 +53,151 @@ local M = {}
 ---| "focus_next_git_item"
 ---| "open_help"
 
+---@alias YaTreeActionMode
+---| "n"
+---| "v"
+---| "V"
+
 ---@class YaTreeAction
 ---@field fn fun(node: YaTreeNode)
 ---@field desc string
 ---@field views YaTreeCanvasDisplayMode[]
----@field modes string[]
+---@field modes YaTreeActionMode[]
+
+---@param fn fun(node: YaTreeNode)
+---@param desc string
+---@param views YaTreeCanvasDisplayMode[]
+---@param modes YaTreeActionMode[]
+---@return YaTreeAction
+local function create_action(fn, desc, views, modes)
+  return {
+    fn = fn,
+    desc = desc,
+    views = views,
+    modes = modes,
+  }
+end
 
 ---@type table<YaTreeActionName, YaTreeAction>
 local actions = {
-  open = {
-    fn = files.open,
-    desc = "Open file or directory",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n", "v" },
-  },
-  vsplit = {
-    fn = files.vsplit,
-    desc = "Open file in a vertical split",
-    views = { "tree", "search", "git_status" },
-    modes = { "n" },
-  },
-  split = {
-    fn = files.split,
-    desc = "Open file in a split",
-    views = { "tree", "search", "git_status" },
-    modes = { "n" },
-  },
-  tabnew = {
-    fn = files.tabnew,
-    desc = "Open file in a new tabpage",
-    views = { "tree", "search", "git_status" },
-    modes = { "n" },
-  },
-  preview = {
-    fn = files.preview,
-    desc = "Open files (keep cursor in tree)",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  add = {
-    fn = files.add,
-    desc = "Add file or directory",
-    views = { "tree" },
-    modes = { "n" },
-  },
-  rename = {
-    fn = files.rename,
-    desc = "Rename file or directory",
-    views = { "tree" },
-    modes = { "n" },
-  },
-  delete = {
-    fn = files.delete,
-    desc = "Delete files and directories",
-    views = { "tree" },
-    modes = { "n", "v" },
-  },
-  trash = {
-    fn = files.trash,
-    desc = "Trash files and directories",
-    views = { "tree" },
-    modes = { "n", "v" },
-  },
-  system_open = {
-    fn = files.system_open,
-    desc = "Open the node with the default system application",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  goto_path_in_tree = {
-    fn = files.goto_path_in_tree,
-    desc = "Go to entered path in tree",
-    views = { "tree" },
-    modes = { "n" },
-  },
+  open = create_action(files.open, "Open file or directory", { "tree", "search", "buffers", "git_status" }, { "n", "v" }),
+  vsplit = create_action(files.vsplit, "Open file in a vertical split", { "tree", "search", "git_status" }, { "n" }),
+  split = create_action(files.split, "Open file in a split", { "tree", "search", "git_status" }, { "n" }),
+  tabnew = create_action(files.tabnew, "Open file in a new tabpage", { "tree", "search", "git_status" }, { "n" }),
+  preview = create_action(files.preview, "Open file (keep cursor in tree)", { "tree", "search", "git_status" }, { "n" }),
+  add = create_action(files.add, "Add file or directory", { "tree" }, { "n" }),
+  rename = create_action(files.rename, "Rename file or directory", { "tree" }, { "n" }),
+  delete = create_action(files.delete, "Delete files and directories", { "tree" }, { "n", "v" }),
+  trash = create_action(files.trash, "Trash files and directories", { "tree" }, { "n", "v" }),
+  system_open = create_action(
+    files.system_open,
+    "Open the node with the default system application",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  goto_path_in_tree = create_action(files.goto_path_in_tree, "Go to entered path in tree", { "tree" }, { "n" }),
 
-  copy_node = {
-    fn = clipboard.copy_node,
-    desc = "Select files and directories for copy",
-    views = { "tree" },
-    modes = { "n", "v" },
-  },
-  cut_node = {
-    fn = clipboard.cut_node,
-    desc = "Select files and directories for cut",
-    views = { "tree" },
-    modes = { "n", "v" },
-  },
-  paste_nodes = {
-    fn = clipboard.paste_nodes,
-    desc = "Paste files and directories",
-    views = { "tree" },
-    modes = { "n" },
-  },
-  clear_clipboard = {
-    fn = clipboard.clear_clipboard,
-    desc = "Clear selected files and directories",
-    views = { "tree" },
-    modes = { "n" },
-  },
-  copy_name_to_clipboard = {
-    fn = clipboard.copy_name_to_clipboard,
-    desc = "Copy node name to system clipboard",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  copy_root_relative_path_to_clipboard = {
-    fn = clipboard.copy_root_relative_path_to_clipboard,
-    desc = "Copy root-relative path to system clipboard",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  copy_absolute_path_to_clipboard = {
-    fn = clipboard.copy_absolute_path_to_clipboard,
-    desc = "Copy absolute path to system clipboard",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
+  copy_node = create_action(clipboard.copy_node, "Select files and directories for copy", { "tree" }, { "n", "v" }),
+  cut_node = create_action(clipboard.cut_node, "Select files and directories for cut", { "tree" }, { "n", "v" }),
+  paste_nodes = create_action(clipboard.paste_nodes, "Paste files and directories", { "tree" }, { "n" }),
+  clear_clipboard = create_action(clipboard.clear_clipboard, "Clear selected files and directories", { "tree" }, { "n" }),
+  copy_name_to_clipboard = create_action(
+    clipboard.copy_name_to_clipboard,
+    "Copy node name to system clipboard",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  copy_root_relative_path_to_clipboard = create_action(
+    clipboard.copy_root_relative_path_to_clipboard,
+    "Copy root-relative path to system clipboard",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  copy_absolute_path_to_clipboard = create_action(
+    clipboard.copy_absolute_path_to_clipboard,
+    "Copy absolute path to system clipboard",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
 
-  search_interactively = {
-    fn = search.search_interactively,
-    desc = "Search as you type",
-    views = { "tree", "search" },
-    modes = { "n" },
-  },
-  search_once = {
-    fn = search.search_once,
-    desc = "Search",
-    views = { "tree", "search" },
-    modes = { "n" },
-  },
-  goto_node_in_tree = {
-    fn = lib.goto_node_in_tree,
-    desc = "Close view and go to node in tree view",
-    views = { "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  close_search = {
-    fn = lib.close_search,
-    desc = "Close the search result",
-    views = { "search" },
-    modes = { "n" },
-  },
-  show_last_search = {
-    fn = lib.show_last_search,
-    desc = "Show last search result",
-    views = { "tree" },
-    modes = { "n" },
-  },
+  search_interactively = create_action(search.search_interactively, "Search as you type", { "tree", "search" }, { "n" }),
+  search_once = create_action(search.search_once, "Search", { "tree", "search" }, { "n" }),
+  goto_node_in_tree = create_action(
+    lib.goto_node_in_tree,
+    "Close view and go to node in tree view",
+    { "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  close_search = create_action(lib.close_search, "Close the search result", { "search" }, { "n" }),
+  show_last_search = create_action(lib.show_last_search, "Show last search result", { "tree" }, { "n" }),
 
-  close_window = {
-    fn = lib.close_window,
-    desc = "Close the tree window",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  close_node = {
-    fn = lib.close_node,
-    desc = "Close directory",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  close_all_nodes = {
-    fn = lib.close_all_nodes,
-    desc = "Close all directories",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  expand_all_nodes = {
-    fn = lib.expand_all_nodes,
-    desc = "Recursively expand all directories",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  cd_to = {
-    fn = lib.cd_to,
-    desc = "Set tree root to directory",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  cd_up = {
-    fn = lib.cd_up,
-    desc = "Set tree root one level up",
-    views = { "tree" },
-    modes = { "n" },
-  },
-  toggle_ignored = {
-    fn = lib.toggle_ignored,
-    desc = "Toggle git ignored files and directories",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  toggle_filter = {
-    fn = lib.toggle_filter,
-    desc = "Toggle filtered files and directories",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  refresh_tree = {
-    fn = lib.refresh_tree,
-    desc = "Refresh the tree",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  rescan_dir_for_git = {
-    fn = lib.rescan_dir_for_git,
-    desc = "Rescan directory for git repo",
-    views = { "tree" },
-    modes = { "n" },
-  },
+  close_window = create_action(lib.close_window, "Close the tree window", { "tree", "search", "buffers", "git_status" }, { "n" }),
+  close_node = create_action(lib.close_node, "Close directory", { "tree", "search", "buffers", "git_status" }, { "n" }),
+  close_all_nodes = create_action(lib.close_all_nodes, "Close all directories", { "tree", "search", "buffers", "git_status" }, { "n" }),
+  expand_all_nodes = create_action(
+    lib.expand_all_nodes,
+    "Recursively expand all directories",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  cd_to = create_action(lib.cd_to, "Set tree root to directory", { "tree", "search", "buffers", "git_status" }, { "n" }),
+  cd_up = create_action(lib.cd_up, "Set tree root one level up", { "tree" }, { "n" }),
+  toggle_ignored = create_action(
+    lib.toggle_ignored,
+    "Toggle git ignored files and directories",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  toggle_filter = create_action(
+    lib.toggle_filter,
+    "Toggle filtered files and directories",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  refresh_tree = create_action(lib.refresh_tree, "Refresh the tree", { "tree", "search", "buffers", "git_status" }, { "n" }),
+  rescan_dir_for_git = create_action(lib.rescan_dir_for_git, "Rescan directory for git repo", { "tree" }, { "n" }),
 
-  toggle_git_status = {
-    fn = lib.toggle_git_status,
-    desc = "Open or close the current git status view",
-    views = { "tree", "git_status" },
-    modes = { "n" },
-  },
-  toggle_buffers = {
-    fn = lib.toggle_buffers,
-    desc = "Open or close the current buffers view",
-    views = { "tree", "buffers" },
-    modes = { "n" },
-  },
+  toggle_git_status = create_action(lib.toggle_git_status, "Open or close the current git status view", { "tree", "git_status" }, { "n" }),
+  toggle_buffers = create_action(lib.toggle_buffers, "Open or close the current buffers view", { "tree", "buffers" }, { "n" }),
 
-  focus_parent = {
-    fn = ui.focus_parent,
-    desc = "Go to parent directory",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  focus_prev_sibling = {
-    fn = ui.focus_prev_sibling,
-    desc = "Go to previous sibling node",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  focus_next_sibling = {
-    fn = ui.focus_next_sibling,
-    desc = "Go to next sibling node",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  focus_first_sibling = {
-    fn = ui.focus_first_sibling,
-    desc = "Go to first sibling node",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  focus_last_sibling = {
-    fn = ui.focus_last_sibling,
-    desc = "Go to last sibling node",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  focus_prev_git_item = {
-    fn = ui.focus_prev_git_item,
-    desc = "Go to previous git item",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  focus_next_git_item = {
-    fn = ui.focus_next_git_item,
-    desc = "Go to next git item",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
-  open_help = {
-    fn = ui.open_help,
-    desc = "Open keybindings help",
-    views = { "tree", "search", "buffers", "git_status" },
-    modes = { "n" },
-  },
+  focus_parent = create_action(ui.focus_parent, "Go to parent directory", { "tree", "search", "buffers", "git_status" }, { "n" }),
+  focus_prev_sibling = create_action(
+    ui.focus_prev_sibling,
+    "Go to previous sibling node",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_next_sibling = create_action(
+    ui.focus_next_sibling,
+    "Go to next sibling node",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_first_sibling = create_action(
+    ui.focus_first_sibling,
+    "Go to first sibling node",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_last_sibling = create_action(
+    ui.focus_last_sibling,
+    "Go to last sibling node",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_prev_git_item = create_action(
+    ui.focus_prev_git_item,
+    "Go to previous git item",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_next_git_item = create_action(
+    ui.focus_next_git_item,
+    "Go to next git item",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  open_help = create_action(ui.open_help, "Open keybindings help", { "tree", "search", "buffers", "git_status" }, { "n" }),
 }
 
 ---@param mapping YaTreeActionMapping
@@ -376,7 +250,7 @@ end
 
 ---@class YaTreeActionMapping
 ---@field views table<YaTreeCanvasDisplayMode, boolean>
----@field mode string
+---@field mode YaTreeActionMode
 ---@field key string
 ---@field desc string
 ---@field action? YaTreeActionName
