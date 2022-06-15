@@ -67,7 +67,6 @@ function M.open()
   local ns = api.nvim_create_namespace("YaTreeKeyMaps")
   ---@type integer
   local bufnr = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_option(bufnr, "filetype", "YaTreeKeyMaps")
 
   local mapping_col_start = max_key_width + 3 + max_mapping_width
   api.nvim_buf_set_lines(bufnr, 0, -1, true, lines)
@@ -97,9 +96,6 @@ function M.open()
     api.nvim_buf_set_keymap(bufnr, "n", key, "<cmd>bdelete<CR>", opts)
   end
 
-  api.nvim_buf_set_option(bufnr, "modifiable", false)
-  api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
-
   local width = vim.o.columns
   -- have to take into account if the statusline is shown, and the two border line - top and bottom
   local height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0) - 2
@@ -113,6 +109,11 @@ function M.open()
     style = "minimal",
     border = "rounded",
   })
+
+  -- set the filetype last so that autocommands that change the border can set it correctly
+  api.nvim_buf_set_option(bufnr, "filetype", "YaTreeKeyMaps")
+  api.nvim_buf_set_option(bufnr, "modifiable", false)
+  api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
 end
 
 return M
