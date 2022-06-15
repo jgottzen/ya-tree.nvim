@@ -172,10 +172,19 @@ function Canvas:_create_buffer(hijack_buffer)
   require("ya-tree.actions").apply_mappings(self.bufnr)
 end
 
+---@param winid number
+---@param bufnr number
+local function win_set_buf_noautocmd(winid, bufnr)
+  local eventignore = vim.o.eventignore
+  vim.o.eventignore = "all"
+  api.nvim_win_set_buf(winid, bufnr)
+  vim.o.eventignore = eventignore
+end
+
 function Canvas:restore()
   if self.winid and self.bufnr then
     log.debug("restoring canvas buffer to buffer %s", self.bufnr)
-    api.nvim_win_set_buf(self.winid, self.bufnr)
+    win_set_buf_noautocmd(self.winid, self.bufnr)
   end
 end
 
@@ -192,7 +201,7 @@ end
 
 ---@private
 function Canvas:_set_window_options()
-  api.nvim_win_set_buf(self.winid, self.bufnr)
+  win_set_buf_noautocmd(self.winid, self.bufnr)
 
   win_options.number = config.view.number
   win_options.relativenumber = config.view.relativenumber
