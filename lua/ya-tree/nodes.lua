@@ -552,9 +552,10 @@ function Node:create_search_tree_from_paths(paths)
         node.scanned = true
         node.expanded = true
       end
-      local child = root:get_child_if_loaded(node.path)
-      if child and child.repo then
-        node.repo = child.repo
+      if repo and not repo:is_yadm() then
+        node.repo = repo
+      else
+        node.repo = git.get_repo_for_path(node.path)
       end
       return node
     end)
