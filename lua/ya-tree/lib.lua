@@ -37,7 +37,7 @@ end
 --- Resolves the `path` in the speicfied `tree`.
 ---@param tree YaTree
 ---@param path string
----@return string|nil path #the fully resolved path, or `nil`
+---@return string? path #the fully resolved path, or `nil`
 local function resolve_path_in_tree(tree, path)
   if not vim.startswith(path, utils.os_root()) then
     -- a relative path is relative to the current cwd, not the tree's root node
@@ -208,7 +208,7 @@ end
 
 function M.redraw()
   local tree = Tree.get_tree()
-  if tree then
+  if tree and ui.is_open() then
     log.debug("redrawing tree")
     ui.update(tree.root)
   end
@@ -1057,6 +1057,7 @@ local function setup_netrw()
 end
 
 local function setup_autocommands()
+  ---@type integer
   local group = api.nvim_create_augroup("YaTree", { clear = true })
 
   api.nvim_create_autocmd("WinLeave", {
@@ -1121,7 +1122,7 @@ local function setup_autocommands()
     callback = function(input)
       on_buf_enter(input.file, input.buf)
     end,
-    desc = "Current file highlighting in tree, directory buffers handling",
+    desc = "Current file highlighting in tree, move buffers from tree window, directory buffers handling",
   })
   api.nvim_create_autocmd("BufDelete", {
     group = group,
@@ -1130,6 +1131,7 @@ local function setup_autocommands()
       on_buf_delete(input.match, input.buf)
     end,
     desc = "Buffers view",
+    desc = "Updating buffers view",
   })
   if config.auto_reload_on_write then
     api.nvim_create_autocmd("BufWritePost", {

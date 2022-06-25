@@ -8,7 +8,6 @@ local os_sep = Path.path.sep
 local M = {}
 
 M.os_sep = os_sep
----@type fun(base?: string):string
 M.os_root = Path.path.root
 M.is_windows = fn.has("win32") == 1 or fn.has("win32unix") == 1
 M.is_macos = fn.has("mac") == 1 or fn.has("macunix") == 1

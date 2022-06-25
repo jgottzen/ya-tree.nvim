@@ -15,7 +15,7 @@ local M = {
   queue = {},
 }
 
----@alias clipboard_action "copy"|"cut"
+---@alias clipboard_action "copy" | "cut"
 
 ---@param node YaTreeNode
 ---@param action clipboard_action

@@ -17,7 +17,7 @@ end
 -- file, directory, link, fifo, socket, char, block and unknown
 -- see: https://github.com/luvit/luv/blob/d2e235503f6cb5c86121cd70cdb5d17e368bab03/src/fs.c#L107=
 
----@alias file_type "directory"|"file"
+---@alias file_type "directory" | "file"
 
 ---@class FsNode
 ---@field public name string

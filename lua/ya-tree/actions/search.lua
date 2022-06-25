@@ -12,6 +12,7 @@ function M.search_interactively(node)
   if node:is_file() and node.parent then
     node = node.parent
   end
+  ---@type uv_timer_t
   local timer = uv.new_timer()
 
   ---@param ms number

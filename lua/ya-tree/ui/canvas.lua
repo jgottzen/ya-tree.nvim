@@ -50,10 +50,10 @@ local win_options = {
 
 local tab_var_barbar_set_name = "_YaTreeBarbar"
 
----@alias YaTreeCanvasDisplayMode "tree"|"search"|"buffers"|"git_status"
+---@alias YaTreeCanvasViewMode "tree" | "search" | "buffers" | "git_status"
 
 ---@class YaTreeCanvas
----@field public display_mode YaTreeCanvasDisplayMode
+---@field public view_mode YaTreeCanvasViewMode
 ---@field private winid number
 ---@field private edit_winid number
 ---@field private bufnr number
@@ -73,7 +73,7 @@ Canvas.__tostring = function(self)
     self.winid,
     self.bufnr,
     self.edit_winid,
-    self.display_mode,
+    self.view_mode,
     self.nodes and #self.nodes or 0,
     self.nodes and tostring(self.nodes[1]) or "nil"
   )
@@ -83,7 +83,7 @@ end
 function Canvas:new()
   ---@type YaTreeCanvas
   local this = setmetatable({}, self)
-  this.display_mode = "tree"
+  this.view_mode = "tree"
   this.width = config.view.width
   this.nodes = {}
   this.node_path_to_index_lookup = {}
@@ -408,7 +408,7 @@ local function line_part(pos, padding, text, highlight)
 end
 
 ---@param node YaTreeNode
----@param mode YaTreeCanvasDisplayMode
+---@param mode YaTreeCanvasViewMode
 ---@return string text, highlight_group[] highlights
 local function render_node(node, mode)
   ---@type string[]
@@ -419,7 +419,7 @@ local function render_node(node, mode)
   local renderers = node:is_directory() and directory_renderers or file_renderers
   local pos = 0
   ---@type RenderingContext
-  local context = { display_mode = mode, config = config }
+  local context = { view_mode = mode, config = config }
   for _, renderer in ipairs(renderers) do
     if vim.tbl_contains(renderer.config.view_mode, mode) then
       local results = renderer.fn(node, context, renderer.config)
@@ -444,7 +444,7 @@ end
 ---@param root YaTreeNode
 ---@return string[] lines, highlight_group[][] highlights
 function Canvas:_render_tree(root)
-  log.debug("creating %q canvas tree with root node %s", self.display_mode, root.path)
+  log.debug("creating %q canvas tree with root node %s", self.view_mode, root.path)
   self.nodes, self.node_path_to_index_lookup = {}, {}
   ---@type string[]
   local lines = {}
@@ -462,7 +462,7 @@ function Canvas:_render_tree(root)
       node.last_child = last_child
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr], highlights[linenr] = render_node(node, self.display_mode)
+      lines[linenr], highlights[linenr] = render_node(node, self.view_mode)
 
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
@@ -580,9 +580,9 @@ function Canvas:_move_cursor_to_name()
 
   ---@type string
   local line = api.nvim_get_current_line()
-  local pos = (line:find(node.name, 1, true) or 0) - 1
-  if pos > 0 and pos ~= col then
-    api.nvim_win_set_cursor(self.winid, { row, pos })
+  local column = (line:find(node.name, 1, true) or 0) - 1
+  if column > 0 and column ~= col then
+    api.nvim_win_set_cursor(self.winid, { row, column })
   end
 end
 
@@ -595,9 +595,9 @@ local function set_cursor_position(winid, row, col)
     ---@type number
     local win_height = api.nvim_win_get_height(winid)
     if win_height > row then
-      vim.cmd("normal! zb")
+      pcall(vim.cmd, "normal! zb")
     elseif row < (win_height / 2) then
-      vim.cmd("normal! zz")
+      pcall(vim.cmd, "normal! zz")
     end
   end
 end
@@ -614,19 +614,19 @@ function Canvas:focus_node(node)
     log.debug("node %s is at index %s", node.path, row)
     if row then
       ---@type number
-      local col
+      local column
       -- don't move the cursor on the first line
       if config.hijack_cursor and row > 2 then
         ---@type string
         local line = api.nvim_buf_get_lines(self.bufnr, row - 1, row, false)[1]
         if line then
-          col = (line:find(node.name, 1, true) or 0) - 1
+          column = (line:find(node.name, 1, true) or 0) - 1
         end
       end
-      if not col then
-        col = api.nvim_win_get_cursor(self.winid)[2]
+      if not column or column == -1 then
+        column = api.nvim_win_get_cursor(self.winid)[2]
       end
-      set_cursor_position(self.winid, row, col)
+      set_cursor_position(self.winid, row, column)
     end
   end
 end
@@ -801,10 +801,9 @@ do
 
       local fn = renderers[name]
       if type(fn) == "function" then
-        ---@type fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
         renderer.fn = fn
         ---@type YaTreeRendererConfig
-        renderer.config = config.renderers[name]
+        renderer.config = vim.deepcopy(config.renderers[name])
         return renderer
       else
         fn = config.renderers[name]
@@ -839,7 +838,6 @@ do
       if renderer then
         for k, v in pairs(directory_renderer) do
           if type(k) == "string" then
-            ---@cast k string
             log.debug("overriding directory renderer %q config value for %q with %s", renderer.name, k, v)
             renderer.config[k] = v
           end
@@ -854,7 +852,6 @@ do
       if renderer then
         for k, v in pairs(file_renderer) do
           if type(k) == "string" then
-            ---@cast k string
             log.debug("overriding file renderer %q config value for %q with %s", renderer.name, k, v)
             renderer.config[k] = v
           end

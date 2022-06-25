@@ -82,6 +82,7 @@ function M.get_or_create_tree(opts)
     local root = opts.root_path or cwd
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
     local root_node = Nodes.root(root, nil, require("ya-tree.config").config.git.enable)
+    ---@type YaTree
     tree = setmetatable({
       tabpage = tabpage,
       cwd = cwd,
@@ -212,6 +213,9 @@ function M.delete_tree(tabpage)
     for repo, watcher_id in pairs(tree.git_watchers) do
       repo:remove_git_watcher(watcher_id)
       tree.git_watchers[repo] = nil
+      if not repo:has_git_watcher() then
+        git.remove_repo(repo)
+      end
     end
     M._trees[tab] = nil
   end

@@ -41,11 +41,11 @@ end
 
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
----@param opts? {hijack_buffer?: boolean, focus?: boolean, focus_edit_window?: boolean, display_mode?: YaTreeCanvasDisplayMode}
+---@param opts? {hijack_buffer?: boolean, focus?: boolean, focus_edit_window?: boolean, view_mode?: YaTreeCanvasViewMode}
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
 ---  - {opts.focus_edit_window?} `boolean`
----  - {opts.display_mode?} `YaTreeCanvasDisplayMode`
+---  - {opts.view_mode?} `YaTreeCanvasViewMode`
 function M.open(root, node, opts)
   opts = opts or {}
   local tabpage = tostring(api.nvim_get_current_tabpage())
@@ -54,14 +54,14 @@ function M.open(root, node, opts)
     canvas = Canvas:new()
     M._canvases[tabpage] = canvas
   end
-  local display_mode_change = opts.display_mode and canvas.display_mode ~= opts.display_mode or false
-  if display_mode_change then
-    canvas.display_mode = opts.display_mode
+  local view_mode_change = opts.view_mode and canvas.view_mode ~= opts.view_mode or false
+  if view_mode_change then
+    canvas.view_mode = opts.view_mode
   end
 
   if not canvas:is_open() then
     canvas:open(root, opts)
-  elseif display_mode_change or (node and not canvas:is_node_visible(node)) then
+  elseif view_mode_change or (node and not canvas:is_node_visible(node)) then
     -- redraw the tree if the diplay mode changed or a specific node is to be focused, and it's currently not rendered
     canvas:render(root)
   end
@@ -177,10 +177,10 @@ function M.get_size()
   return get_canvas():get_size()
 end
 
----@return YaTreeCanvasDisplayMode mode
-function M.get_current_view_mode()
+---@return YaTreeCanvasViewMode? view_mode
+function M.get_view_mode()
   local canvas = get_canvas()
-  return canvas and canvas.display_mode
+  return canvas and canvas.view_mode
 end
 
 function M.open_help()
@@ -189,15 +189,15 @@ end
 
 ---@return boolean
 function M.is_search_open()
-  return M.get_current_view_mode() == "search"
+  return M.get_view_mode() == "search"
 end
 
----@param mode YaTreeCanvasDisplayMode
+---@param mode YaTreeCanvasViewMode
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
-local function change_display_mode(mode, root, node)
+local function change_view_mode(mode, root, node)
   local canvas = get_canvas()
-  canvas.display_mode = mode
+  canvas.view_mode = mode
   canvas:render(root)
   if node then
     canvas:focus_node(node)
@@ -207,47 +207,47 @@ end
 ---@param root YaTreeSearchNode
 ---@param node? YaTreeNode
 function M.open_search(root, node)
-  change_display_mode("search", root, node)
+  change_view_mode("search", root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_search(root, node)
-  change_display_mode("tree", root, node)
+  change_view_mode("tree", root, node)
 end
 
 ---@return boolean
 function M.is_git_status_open()
-  return M.get_current_view_mode() == "git_status"
+  return M.get_view_mode() == "git_status"
 end
 
 ---@param root YaTreeGitStatusNode
 ---@param node? YaTreeGitStatusNode
 function M.open_git_status(root, node)
-  change_display_mode("git_status", root, node)
+  change_view_mode("git_status", root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_git_status(root, node)
-  change_display_mode("tree", root, node)
+  change_view_mode("tree", root, node)
 end
 
 ---@return boolean
 function M.is_buffers_open()
-  return M.get_current_view_mode() == "buffers"
+  return M.get_view_mode() == "buffers"
 end
 
 ---@param root YaTreeBufferNode
 ---@param node? YaTreeBufferNode
 function M.open_buffers(root, node)
-  change_display_mode("buffers", root, node)
+  change_view_mode("buffers", root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_buffers(root, node)
-  change_display_mode("tree", root, node)
+  change_view_mode("tree", root, node)
 end
 
 ---@param bufnr number
@@ -302,12 +302,12 @@ function M.open_file(file, cmd)
   vim.cmd(cmd .. " " .. vim.fn.fnameescape(file))
 end
 
----@type fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
+---@type async fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
 M.input = wrap(function(opts, on_confirm)
   vim.ui.input(opts, on_confirm)
 end, 2)
 
----@type fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
+---@type async fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
 M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)

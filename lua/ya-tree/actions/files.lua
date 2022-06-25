@@ -13,7 +13,7 @@ local api = vim.api
 
 local M = {}
 
----@alias cmd_mode "edit"|"vsplit"|"split"|"tabnew"
+---@alias cmd_mode "edit" | "vsplit" | "split" | "tabnew"
 
 function M.open()
   local nodes = ui.get_selected_nodes()
@@ -53,7 +53,7 @@ function M.preview(node)
     if not already_loaded then
       local bufnr = api.nvim_get_current_buf()
       vim.bo.bufhidden = "delete"
-      local group = api.nvim_create_augroup("RemoveBufHidden", { clear = true })
+      local group = api.nvim_create_augroup("YaTreeRemoveBufHidden", { clear = true })
       api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
         group = group,
         buffer = bufnr,
@@ -242,7 +242,8 @@ function M.system_open(node)
     return
   end
 
-  local args = vim.deepcopy(config.system_open.args)
+  ---@type string[]
+  local args = vim.deepcopy(config.system_open.args or {})
   table.insert(args, node.link_to or node.path)
   job.run({ cmd = config.system_open.cmd, args = args, detached = true, wrap_callback = true }, function(code, _, stderr)
     if code ~= 0 then

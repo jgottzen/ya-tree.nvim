@@ -7,9 +7,10 @@ local log = require("ya-tree.log")
 
 local M = {}
 
----@alias YaTreeNodeType "FileSystem"|"Buffer"|"GitStatus"
+---@alias YaTreeNodeType "FileSystem" | "Buffer" | "GitStatus"
 
 ---@class YaTreeNode : FsNode
+---@field private __node_type YaTreeNodeType
 ---@field public parent? YaTreeNode
 ---@field private type file_type
 ---@field public children? YaTreeNode[]
@@ -39,7 +40,7 @@ end
 ---@param self YaTreeNode
 ---@return string
 Node.__tostring = function(self)
-  return self.path
+  return string.format("(%s, %s)", self.__node_type, self.path)
 end
 
 ---Creates a new node.
@@ -49,7 +50,6 @@ end
 function Node:new(fs_node, parent)
   ---@type YaTreeNode
   local this = setmetatable(fs_node, self)
-
   this.parent = parent
   if this:is_directory() then
     this.children = {}
@@ -106,7 +106,7 @@ function Node:_merge_new_data(fs_node)
     if type(self[k]) ~= "function" then
       self[k] = v
     else
-      log.error("fs_node.%s is a function, this should not happen!", k)
+      log.error("self.%s is a function, this should not happen!", k)
     end
   end
 end
@@ -146,6 +146,7 @@ local function set_git_repo_on_node_and_children(repo, node)
   node.repo = repo
   if node.children then
     for _, child in ipairs(node.children) do
+      ---@cast child YaTreeNode
       if not child.repo then
         set_git_repo_on_node_and_children(repo, child)
       end
@@ -217,7 +218,7 @@ end
 
 ---@return boolean
 function Node:is_empty()
-  return self.empty or false
+  return self.empty == true
 end
 
 ---@return boolean
@@ -255,7 +256,7 @@ function Node:clear_clipboard_status()
   self:set_clipboard_status(nil)
 end
 
----@alias not_display_reason "filter"|"git"
+---@alias not_display_reason "filter" | "git"
 
 ---@param config YaTreeConfig
 ---@return boolean displayable, not_display_reason? reason
@@ -313,6 +314,7 @@ function Node:iterate_children(opts)
   end
   if opts.from then
     for i, child in ipairs(self.children) do
+      ---@cast child YaTreeNode
       if child == opts.from then
         start = i
         break
@@ -352,6 +354,7 @@ function Node:collapse(opts)
 
     if opts.recursive then
       for _, child in ipairs(self.children) do
+        ---@cast child YaTreeNode
         child:collapse({ recursive = opts.recursive })
       end
     end
@@ -386,7 +389,10 @@ function Node:expand(opts)
           log.debug("child node %q is parent of %q", child.path, opts.to)
           return child:expand(opts)
         elseif child.path == opts.to then
-          return child:is_directory() and child:expand(opts) or child
+          if child:is_directory() then
+            child:expand(opts)
+          end
+          return child
         end
       end
     else
@@ -395,13 +401,14 @@ function Node:expand(opts)
   elseif opts.all and self:is_directory() then
     for _, child in ipairs(self.children) do
       ---@cast child YaTreeNode
-      child:expand(opts)
+      if child:is_directory() then
+        child:expand(opts)
+      end
     end
   end
 end
 
 ---Returns the child node specified by `path` if it has been loaded.
---
 ---@param path string
 ---@return YaTreeNode|nil
 function Node:get_child_if_loaded(path)
@@ -413,11 +420,12 @@ function Node:get_child_if_loaded(path)
   end
 
   if self:is_ancestor_of(path) then
-    for _, node in ipairs(self.children) do
-      if node.path == path then
-        return node
-      elseif node:is_ancestor_of(path) then
-        return node:get_child_if_loaded(path)
+    for _, child in ipairs(self.children) do
+      ---@cast child YaTreeNode
+      if child.path == path then
+        return child
+      elseif child:is_ancestor_of(path) then
+        return child:get_child_if_loaded(path)
       end
     end
   end
@@ -447,7 +455,7 @@ end
 ---@async
 ---@param opts? { recurse?: boolean, refresh_git?: boolean }
 ---  - {opts.recurse?} `boolean` whether to perform a recursive refresh, default: `false`.
----  - {opts.refresh_git?} `boolean` whether to refrsh the git status, default: `false`.
+---  - {opts.refresh_git?} `boolean` whether to refresh the git status, default: `false`.
 function Node:refresh(opts)
   opts = opts or {}
   local recurse = opts.recurse or false
@@ -562,11 +570,10 @@ function Node:create_search_tree_from_paths(paths)
 end
 
 ---@class YaTreeBufferNode : YaTreeNode
----@field private super YaTreeNode
 ---@field public parent? YaTreeBufferNode
 ---@field public bufnr? number
 ---@field public children? YaTreeBufferNode[]
-local BufferNode = { super = Node, __node_type = "Buffer" }
+local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
 BufferNode.__tostring = Node.__tostring
 BufferNode.__eq = Node.__eq
@@ -574,7 +581,7 @@ setmetatable(BufferNode, { __index = Node })
 
 ---Creates a new buffer node.
 ---@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
----@param bufnr number the buffer number.
+---@param bufnr? number the buffer number.
 ---@param parent? YaTreeBufferNode the parent node.
 ---@return YaTreeBufferNode node
 function BufferNode:new(fs_node, bufnr, parent)
@@ -646,20 +653,20 @@ end
 ---@param file string
 local function remove_node(root, file)
   local node = root:get_child_if_loaded(file)
-  if node then
-    while node and node.parent and node ~= root do
-      if node.parent and node.parent.children then
-        for index, child in ipairs(node.parent.children) do
-          if child == node then
-            table.remove(node.parent.children, index)
-            break
-          end
-        end
-        if #node.parent.children == 0 then
-          node = node.parent
-        else
+  ---@cast node YaTreeBufferNode|YaTreeGitStatusNode
+  while node and node.parent and node ~= root do
+    if node.parent and node.parent.children then
+      for index, child in ipairs(node.parent.children) do
+        ---@cast child YaTreeBufferNode|YaTreeGitStatusNode
+        if child == node then
+          table.remove(node.parent.children, index)
           break
         end
+      end
+      if #node.parent.children == 0 then
+        node = node.parent
+      else
+        break
       end
     end
   end
@@ -708,10 +715,9 @@ function M.create_buffer_tree_from_paths(tree_root_path)
 end
 
 ---@class YaTreeGitStatusNode : YaTreeNode
----@field private super YaTreeNode
 ---@field public parent? YaTreeGitStatusNode
 ---@field public children? YaTreeGitStatusNode[]
-local GitStatusNode = { super = Node, __node_type = "GitStatus" }
+local GitStatusNode = { __node_type = "GitStatus" }
 GitStatusNode.__index = GitStatusNode
 GitStatusNode.__tostring = Node.__tostring
 GitStatusNode.__eq = Node.__eq
@@ -812,6 +818,7 @@ function Node:walk(fn)
 
   if self:is_directory() then
     for _, child in ipairs(self.children) do
+      ---@cast child YaTreeNode
       if child:walk(fn) then
         return
       end

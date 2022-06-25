@@ -53,20 +53,17 @@ local M = {}
 ---| "focus_next_git_item"
 ---| "open_help"
 
----@alias YaTreeActionMode
----| "n"
----| "v"
----| "V"
+---@alias YaTreeActionMode "n" | "v" | "V"
 
 ---@class YaTreeAction
 ---@field fn fun(node: YaTreeNode)
 ---@field desc string
----@field views YaTreeCanvasDisplayMode[]
+---@field views YaTreeCanvasViewMode[]
 ---@field modes YaTreeActionMode[]
 
 ---@param fn fun(node: YaTreeNode)
 ---@param desc string
----@param views YaTreeCanvasDisplayMode[]
+---@param views YaTreeCanvasViewMode[]
 ---@param modes YaTreeActionMode[]
 ---@return YaTreeAction
 local function create_action(fn, desc, views, modes)
@@ -223,7 +220,7 @@ local function create_keymap_function(mapping)
   end
 
   return function()
-    if mapping.views[ui.get_current_view_mode()] then
+    if mapping.views[ui.get_view_mode()] then
       fn(ui.get_current_node())
     end
   end
@@ -241,12 +238,12 @@ function M.apply_mappings(bufnr)
   end
 end
 
----@param views_array YaTreeCanvasDisplayMode[]
----@return table<YaTreeCanvasDisplayMode, boolean>
-local function create_views_map(views_array)
-  ---@type table<YaTreeCanvasDisplayMode, boolean>
+---@param views_list YaTreeCanvasViewMode[]
+---@return table<YaTreeCanvasViewMode, boolean>
+local function create_views_map(views_list)
+  ---@type table<YaTreeCanvasViewMode, boolean>
   local views = {}
-  for _, view in ipairs(views_array) do
+  for _, view in ipairs(views_list) do
     views[view] = true
   end
 
@@ -254,7 +251,7 @@ local function create_views_map(views_array)
 end
 
 ---@class YaTreeActionMapping
----@field views table<YaTreeCanvasDisplayMode, boolean>
+---@field views table<YaTreeCanvasViewMode, boolean>
 ---@field mode YaTreeActionMode
 ---@field key string
 ---@field desc string
@@ -289,6 +286,7 @@ local function validate_and_create_mappings(mappings)
         end
       end
     elseif type(mapping) == "table" then
+      ---@cast mapping YaTreeConfig.CustomMapping
       local fn = mapping.fn
       if type(fn) == "function" then
         for _, mode in ipairs(mapping.modes) do
@@ -300,7 +298,7 @@ local function validate_and_create_mappings(mappings)
             fn = fn,
           }
         end
-      elseif fn then
+      else
         utils.warn(string.format("Key %s is mapped to 'fn' %s, which is not a function, mapping ignored!", vim.inspect(key), fn))
       end
     end

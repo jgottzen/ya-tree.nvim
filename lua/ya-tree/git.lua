@@ -1,6 +1,6 @@
+local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async.async").void
 local wrap = require("plenary.async.async").wrap
-local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
@@ -72,8 +72,9 @@ local function get_repo_info(path, cmd)
 end
 
 ---@class uv_fs_poll_t
----@field start fun(self: uv_fs_poll_t, path: string, interval: number, callback: fun(err: string))
----@field stop fun(self: uv_fs_poll_t)
+---@field start fun(self: uv_fs_poll_t, path: string, interval: number, callback: fun(err: string)):0|nil
+---@field stop fun(self: uv_fs_poll_t):0|nil
+---@field close fun(self: uv_fs_poll_t)
 
 ---@class GitRepo
 ---@field public toplevel string
@@ -105,15 +106,8 @@ end
 ---@param self GitRepo
 ---@param other GitRepo
 ---@return boolean
-Repo.__eq = function (self, other)
+Repo.__eq = function(self, other)
   return self._git_dir == other._git_dir
-end
-
----@async
----@param path string
----@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
-function M.create_repo(path)
-  return Repo:new(path)
 end
 
 ---@async
@@ -138,6 +132,7 @@ function Repo:new(path)
       toplevel, git_dir, branch = get_repo_info(path, "yadm")
       is_yadm = toplevel ~= nil
     end
+    scheduler()
   end
 
   if not toplevel then
@@ -193,10 +188,6 @@ end
 ---@param null_terminated? boolean
 ---@return string[]
 function Repo:command(args, null_terminated)
-  if not self._git_dir then
-    return {}
-  end
-
   -- always run in the the toplevel directory, so all paths are relative the root,
   -- this way we can just concatenate the paths returned by git with the toplevel
   local result, e = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
@@ -214,7 +205,7 @@ do
 
   get_next_watcher_id = function()
     watcher_id = watcher_id + 1
-    return watcher_id
+    return tostring(watcher_id)
   end
 end
 
@@ -222,9 +213,9 @@ end
 ---@return string watcher_id
 function Repo:add_git_watcher(fn)
   if not self._git_dir_watcher then
-    ---@async
-    ---@param err? string
-    local function fs_poll_callback(err)
+    ---@param err string
+    ---@type fun(err?: string)
+    local fs_poll_callback = void(function(err)
       log.debug("fs_poll for %s", tostring(self))
       if err then
         log.error("git dir watcher for %q encountered an error: %s", self._git_dir, err)
@@ -240,19 +231,24 @@ function Repo:add_git_watcher(fn)
 
       local fs_changes = self:refresh_status({ ignored = true })
       for watcher_id, watcher in pairs(self._git_watchers) do
+        ---@cast watcher_id string
         pcall(watcher, self, watcher_id, fs_changes)
         scheduler()
       end
-    end
+    end)
 
     self._git_dir_watcher = uv.new_fs_poll()
     log.debug("setting up git dir watcher for repo with internval %s", tostring(self), config.git.watch_git_dir_interval)
 
-    local result = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, void(fs_poll_callback))
+    local result = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, fs_poll_callback)
     if result == 0 then
       log.debug("successfully started fs_poll for directory %s", self._git_dir)
     else
+      pcall(self._git_dir_watcher.stop, self._git_dir_watcher)
+      pcall(self._git_dir_watcher.close, self._git_dir_watcher)
+      self._git_dir_watcher = nil
       log.error("failed to start fs_poll for directory %s, error: %s", self._git_dir, result)
+      return
     end
   end
 
@@ -275,9 +271,15 @@ function Repo:remove_git_watcher(watcher_id)
 
   if vim.tbl_count(self._git_watchers) == 0 then
     self._git_dir_watcher:stop()
+    self._git_dir_watcher:close()
     self._git_dir_watcher = nil
     log.debug("the last watcher was removed, stopping fs_poll")
   end
+end
+
+---@return boolean
+function Repo:has_git_watcher()
+  return self._git_dir_watcher ~= nil
 end
 
 ---@async
@@ -375,6 +377,7 @@ function Repo:refresh_status_for_file(file)
     end
   end
 
+  scheduler()
   return old_status ~= self._git_status[file]
 end
 
@@ -428,6 +431,7 @@ function Repo:refresh_status(opts)
     i = i + 1
   end
 
+  scheduler()
   return fs_changes
 end
 
@@ -617,6 +621,24 @@ function Repo:is_ignored(path, _type)
     end
   end
   return false
+end
+
+---@async
+---@param path string
+---@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
+function M.create_repo(path)
+  return Repo:new(path)
+end
+
+---@param repo GitRepo
+function M.remove_repo(repo)
+  if repo._git_dir_watcher ~= nil then
+    repo._git_dir_watcher:stop()
+    repo._git_dir_watcher:close()
+    repo._git_dir_watcher = nil
+    repo._git_watchers = nil
+  end
+  M.repos[repo.toplevel] = nil
 end
 
 ---@param path string
