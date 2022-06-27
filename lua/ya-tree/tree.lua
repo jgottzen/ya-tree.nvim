@@ -138,27 +138,29 @@ function M.update_tree_root_node(tree, new_root)
   if type(new_root) == "string" then
     log.debug("new root is string %q", new_root)
 
-    if tree.root.path ~= new_root then
+    tree.refreshing = true
+    if tree.tree.root.path ~= new_root then
       ---@type YaTreeNode
       local root
-      if tree.root:is_ancestor_of(new_root) then
+      if tree.tree.root:is_ancestor_of(new_root) then
         log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(tree), new_root)
         -- the new root is located 'below' the current root,
         -- if it's already loaded in the tree, use that node as the root, else expand to it
-        local node = tree.root:get_child_if_loaded(new_root)
+        local node = tree.tree.root:get_child_if_loaded(new_root)
         if node then
           root = node
           root:expand({ force_scan = true })
         else
-          root = tree.root:expand({ force_scan = true, to = new_root })
+          root = tree.tree.root:expand({ force_scan = true, to = new_root })
         end
-      elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
+      elseif tree.tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
         log.debug("current tree %s is a child of new root %q, creating parents up to it", tostring(tree), new_root)
         -- the new root is located 'above' the current root,
         -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
-        root = tree.root
+        root = tree.tree.root
         while root.parent do
           root = root.parent
+          root:refresh()
           if root.path == new_root then
             break
           end
@@ -184,17 +186,18 @@ function M.update_tree_root_node(tree, new_root)
     end
   else
     ---@cast new_root YaTreeNode
-    if tree.root.path ~= new_root.path then
+    if tree.tree.root.path ~= new_root.path then
       log.debug("new root is node %q", tostring(new_root))
       tree.root = new_root
       tree.root:expand({ force_scan = true })
-      tree.tree.root = tree.root
+      tree.tree.root = new_root
       tree.tree.current_node = tree.current_node
     else
       log.debug("the new root %q is the same as the current root %s, skipping", tostring(new_root), tostring(tree.root))
     end
   end
 
+  tree.refreshing = false
   return tree
 end
 
