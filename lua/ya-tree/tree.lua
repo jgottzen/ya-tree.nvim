@@ -1,6 +1,7 @@
 local Path = require("plenary.path")
 
 local Nodes = require("ya-tree.nodes")
+local git = require("ya-tree.git")
 local log = require("ya-tree.log")
 
 local api = vim.api
