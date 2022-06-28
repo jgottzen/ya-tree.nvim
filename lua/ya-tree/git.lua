@@ -391,6 +391,7 @@ function Repo:refresh_status(opts)
   log.debug("git status for %q, arguments %q", self.toplevel, table.concat(args, " "))
   local results = self:command(args, true)
 
+  local old_status = self._git_status
   self.unmerged = 0
   self.staged = 0
   self.unstaged = 0
@@ -430,6 +431,10 @@ function Repo:refresh_status(opts)
 
     i = i + 1
   end
+
+  -- _parse_porcelainv2_change_row and _parse_porcelainv2_rename_row doens't detect all changes
+  -- that signify a fs change, comparing the number of entries gives it a decent chance
+  fs_changes = fs_changes or vim.tbl_count(old_status) ~= vim.tbl_count(self._git_status)
 
   scheduler()
   return fs_changes
