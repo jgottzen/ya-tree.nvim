@@ -1,3 +1,5 @@
+local void = require("plenary.async.async").void
+
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
@@ -9,19 +11,27 @@ local M = {}
 ---@param switch_root? boolean
 ---@param focus? boolean
 function M.open(path, switch_root, focus)
-  require("ya-tree.lib").open_window({ file = path, switch_root = switch_root, focus = focus })
+  void(function()
+    require("ya-tree.lib").open_window({ file = path, switch_root = switch_root, focus = focus })
+  end)()
 end
 
 function M.close()
-  require("ya-tree.lib").close_window()
+  void(function()
+    require("ya-tree.lib").close_window()
+  end)()
 end
 
 function M.toggle()
-  require("ya-tree.lib").toggle_window()
+  void(function()
+    require("ya-tree.lib").toggle_window()
+  end)()
 end
 
 function M.focus()
-  require("ya-tree.lib").open_window({ focus = true })
+  void(function()
+    require("ya-tree.lib").open_window({ focus = true })
+  end)()
 end
 
 ---@param level LogLevel

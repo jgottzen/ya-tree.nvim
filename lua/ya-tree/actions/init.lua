@@ -1,3 +1,5 @@
+local void = require("plenary.async.async").void
+
 local lib = require("ya-tree.lib")
 local ui = require("ya-tree.ui")
 local clipboard = require("ya-tree.actions.clipboard")
@@ -19,7 +21,6 @@ local M = {}
 ---| "delete"
 ---| "trash"
 ---| "system_open"
----| "goto_path_in_tree"
 ---| "copy_node"
 ---| "cut_node"
 ---| "paste_nodes"
@@ -29,6 +30,7 @@ local M = {}
 ---| "copy_absolute_path_to_clipboard"
 ---| "search_interactively"
 ---| "search_once"
+---| "search_for_path_in_tree"
 ---| "goto_node_in_tree"
 ---| "close_search"
 ---| "show_last_search"
@@ -56,12 +58,12 @@ local M = {}
 ---@alias YaTreeActionMode "n" | "v" | "V"
 
 ---@class YaTreeAction
----@field fn fun(node: YaTreeNode)
+---@field fn async fun(node: YaTreeNode)
 ---@field desc string
 ---@field views YaTreeCanvasViewMode[]
 ---@field modes YaTreeActionMode[]
 
----@param fn fun(node: YaTreeNode)
+---@param fn async fun(node: YaTreeNode)
 ---@param desc string
 ---@param views YaTreeCanvasViewMode[]
 ---@param modes YaTreeActionMode[]
@@ -92,12 +94,6 @@ local actions = {
     { "tree", "search", "buffers", "git_status" },
     { "n" }
   ),
-  goto_path_in_tree = create_action(
-    files.goto_path_in_tree,
-    "Go to entered path in tree",
-    { "tree", "search", "buffers", "git_status" },
-    { "n" }
-  ),
 
   copy_node = create_action(clipboard.copy_node, "Select files and directories for copy", { "tree" }, { "n", "v" }),
   cut_node = create_action(clipboard.cut_node, "Select files and directories for cut", { "tree" }, { "n", "v" }),
@@ -124,10 +120,10 @@ local actions = {
 
   search_interactively = create_action(search.search_interactively, "Search as you type", { "tree", "search" }, { "n" }),
   search_once = create_action(search.search_once, "Search", { "tree", "search" }, { "n" }),
-  goto_node_in_tree = create_action(
-    lib.goto_node_in_tree,
-    "Close view and go to node in tree view",
-    { "search", "buffers", "git_status" },
+  search_for_path_in_tree = create_action(
+    search.search_for_path_in_tree,
+    "Go to entered path in tree",
+    { "tree", "search", "buffers", "git_status" },
     { "n" }
   ),
   close_search = create_action(lib.close_search, "Close the search result", { "search" }, { "n" }),
@@ -140,6 +136,12 @@ local actions = {
     lib.expand_all_nodes,
     "Recursively expand all directories",
     { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  goto_node_in_tree = create_action(
+    lib.goto_node_in_tree,
+    "Close view and go to node in tree view",
+    { "search", "buffers", "git_status" },
     { "n" }
   ),
   cd_to = create_action(lib.cd_to, "Set tree root to directory", { "tree", "search", "buffers", "git_status" }, { "n" }),
@@ -210,10 +212,10 @@ local function create_keymap_function(mapping)
   if mapping.action then
     local action = actions[mapping.action]
     if action and action.fn then
-      fn = action.fn
+      fn = void(action.fn)
     end
   elseif mapping.fn then
-    fn = mapping.fn
+    fn = void(mapping.fn)
   else
     log.error("cannot create keymap function for mappings %s", mapping)
     return nil
@@ -256,7 +258,7 @@ end
 ---@field key string
 ---@field desc string
 ---@field action? YaTreeActionName
----@field fn? fun(node: YaTreeNode)
+---@field fn? async fun(node: YaTreeNode)
 
 ---@param mappings table<string, YaTreeActionName|YaTreeConfig.CustomMapping>
 ---@return YaTreeActionMapping[]

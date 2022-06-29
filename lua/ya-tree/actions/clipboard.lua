@@ -1,4 +1,3 @@
-local async = require("plenary.async")
 local scheduler = require("plenary.async.util").scheduler
 
 local lib = require("ya-tree.lib")
@@ -37,6 +36,7 @@ local function add_or_remove_or_replace_in_queue(node, action)
   node:set_clipboard_status(action)
 end
 
+---@async
 function M.copy_node()
   local nodes = ui.get_selected_nodes()
   for _, node in ipairs(nodes) do
@@ -49,6 +49,7 @@ function M.copy_node()
   lib.redraw()
 end
 
+---@async
 function M.cut_node()
   local nodes = ui.get_selected_nodes()
   for _, node in ipairs(nodes) do
@@ -121,6 +122,7 @@ local function clear_clipboard()
   M.queue = {}
 end
 
+---@async
 ---@param node YaTreeNode
 function M.paste_nodes(node)
   -- paste can only be done into directories
@@ -131,25 +133,25 @@ function M.paste_nodes(node)
     end
   end
 
-  async.void(function()
-    if #M.queue > 0 then
-      ---@type string
-      local first_file
-      for _, item in ipairs(M.queue) do
-        local ok, result = paste_node(node, item)
-        scheduler()
-        if ok and not first_file then
-          first_file = result
-        end
+  if #M.queue > 0 then
+    ---@type string
+    local first_file
+    for _, item in ipairs(M.queue) do
+      local ok, result = paste_node(node, item)
+      if ok and not first_file then
+        first_file = result
       end
-      clear_clipboard()
-      lib.refresh_tree(first_file)
-    else
-      utils.notify("Nothing in clipboard")
     end
-  end)()
+    -- let the event loop catch up if there was a very large amount of files pasted
+    scheduler()
+    clear_clipboard()
+    lib.refresh_tree(first_file)
+  else
+    utils.notify("Nothing in clipboard")
+  end
 end
 
+---@async
 function M.clear_clipboard()
   clear_clipboard()
   lib.redraw()
@@ -163,20 +165,23 @@ local function copy_to_system_clipboard(content)
   utils.notify(string.format("Copied %s to system clipboad", content))
 end
 
+---@async
 ---@param node YaTreeNode
 function M.copy_name_to_clipboard(node)
   copy_to_system_clipboard(node.name)
 end
 
+---@async
 ---@param node YaTreeNode
 function M.copy_root_relative_path_to_clipboard(node)
-  local relative = utils.relative_path_for(node.path, lib.get_root_node_path())
+  local relative = utils.relative_path_for(node.path, lib.get_root_path())
   if node:is_directory() then
     relative = relative .. utils.os_sep
   end
   copy_to_system_clipboard(relative)
 end
 
+---@async
 ---@param node YaTreeNode
 function M.copy_absolute_path_to_clipboard(node)
   copy_to_system_clipboard(node.path)

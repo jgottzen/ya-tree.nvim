@@ -1,3 +1,4 @@
+local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local Nodes = require("ya-tree.nodes")
@@ -12,7 +13,7 @@ local uv = vim.loop
 ---@field public cwd string the workding directory of the tabpage.
 ---@field public refreshing boolean if the tree is currently refreshing.
 ---@field public git_watchers table<GitRepo, string> the registered git watchers.
----@field public root YaTreeNode|YaTreeSearchNode|YaTreeBufferNode|YaTreeGitStatusNode the root of the current tree.
+---@field public root YaTreeNode|YaTreeSearchRootNode|YaTreeBufferNode|YaTreeGitStatusNode the root of the current tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 ---@field public tree YaTreeRoot the current tree.
 ---@field public search YaSearchTreeRoot the current search tree.
@@ -24,8 +25,8 @@ local uv = vim.loop
 ---@field public current_node? YaTreeNode the currently selected node.
 
 ---@class YaSearchTreeRoot
----@field public root? YaTreeSearchNode the root of the search tree.
----@field public current_node? YaTreeNode the currently selected node.
+---@field public root? YaTreeSearchRootNode the root of the search tree.
+---@field public current_node? YaTreeSearchNode the currently selected node.
 
 ---@class YaBufferTreeRoot
 ---@field public root? YaTreeBufferNode
@@ -47,31 +48,31 @@ local function tree_tostring(tree)
   return string.format("(tabpage=%s, cwd=%q, root=%q)", tree.tabpage, tree.cwd, tree.root.path)
 end
 
+---@async
 ---@param tabpage? number
 ---@return YaTree tree
 function M.get_tree(tabpage)
+  scheduler()
   ---@type number
   tabpage = tabpage or api.nvim_get_current_tabpage()
   return M._trees[tostring(tabpage)]
 end
 
 ---@async
----@param opts? {tabpage?: number, root_path?: string}
----  - {opts.tabpage?} `number`
----  - {opts.root_path?} `string`
+---@param root_path? string
 ---@return YaTree tree
-function M.get_or_create_tree(opts)
-  opts = opts or {}
+function M.get_or_create_tree(root_path)
+  scheduler()
   ---@type number
-  local tabpage = opts.tabpage or api.nvim_get_current_tabpage()
+  local tabpage = api.nvim_get_current_tabpage()
   local tree = M._trees[tostring(tabpage)]
 
-  if tree and (opts.root_path and opts.root_path ~= tree.root.path) then
+  if tree and (root_path and root_path ~= tree.root.path) then
     log.debug(
       "tree %s for tabpage %s exists, but with a different cwd than requested %q, deleting tree",
       tostring(tree),
       tabpage,
-      opts.root_path
+      root_path
     )
     M.delete_tree(tabpage)
     tree = nil
@@ -80,7 +81,7 @@ function M.get_or_create_tree(opts)
   if not tree then
     ---@type string
     local cwd = uv.cwd()
-    local root = opts.root_path or cwd
+    local root = root_path or cwd
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
     local root_node = Nodes.root(root, nil, require("ya-tree.config").config.git.enable)
     ---@type YaTree
@@ -176,7 +177,7 @@ function M.update_tree_root_node(tree, new_root)
 
       if not root then
         log.debug("creating new root for %q", new_root)
-        tree = M.get_or_create_tree({ root_path = new_root })
+        tree = M.get_or_create_tree(new_root)
       else
         tree.root = root
         tree.tree.root = root
@@ -202,7 +203,7 @@ function M.update_tree_root_node(tree, new_root)
   return tree
 end
 
----@param cb fun(tree: YaTree): nil
+---@param cb fun(tree: YaTree)
 function M.for_each_tree(cb)
   for _, tree in pairs(M._trees) do
     cb(tree)

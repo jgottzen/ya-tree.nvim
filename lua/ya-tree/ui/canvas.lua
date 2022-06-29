@@ -10,7 +10,7 @@ local ns = api.nvim_create_namespace("YaTreeHighlights")
 local barbar_exists = false
 
 ---@class BarBarState
----@field set_offset fun(width: number, text?: string): nil
+---@field set_offset fun(width: number, text?: string)
 local barbar_state = {}
 
 ---@type {name: string, value: string|boolean}[]
@@ -145,7 +145,7 @@ end
 ---@private
 ---@return boolean is_loaded
 function Canvas:_is_buffer_loaded()
-  return self.bufnr and api.nvim_buf_is_valid(self.bufnr) and api.nvim_buf_is_loaded(self.bufnr) or false
+  return self.bufnr and api.nvim_buf_is_loaded(self.bufnr) or false
 end
 
 ---@private
@@ -382,9 +382,9 @@ function Canvas:delete()
 end
 
 ---@type YaTreeViewRenderer[]
-local directory_renderers = {}
+local all_directory_renderers = {}
 ---@type YaTreeViewRenderer[]
-local file_renderers = {}
+local all_file_renderers = {}
 
 ---@class highlight_group
 ---@field name string
@@ -409,8 +409,10 @@ end
 
 ---@param node YaTreeNode
 ---@param mode YaTreeCanvasViewMode
+---@param directory_renderers YaTreeViewRenderer[]
+---@param file_renderers YaTreeViewRenderer[]
 ---@return string text, highlight_group[] highlights
-local function render_node(node, mode)
+local function render_node(node, mode, directory_renderers, file_renderers)
   ---@type string[]
   local content = {}
   ---@type highlight_group[]
@@ -421,17 +423,15 @@ local function render_node(node, mode)
   ---@type RenderingContext
   local context = { view_mode = mode, config = config }
   for _, renderer in ipairs(renderers) do
-    if vim.tbl_contains(renderer.config.view_mode, mode) then
-      local results = renderer.fn(node, context, renderer.config)
-      if results then
-        results = results[1] and results or { results }
-        for _, result in ipairs(results) do
-          if result.text then
-            if not result.highlight then
-              log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
-            end
-            pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
+    local results = renderer.fn(node, context, renderer.config)
+    if results then
+      results = results[1] and results or { results }
+      for _, result in ipairs(results) do
+        if result.text then
+          if not result.highlight then
+            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
           end
+          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
         end
       end
     end
@@ -452,6 +452,21 @@ function Canvas:_render_tree(root)
   local highlights = {}
   local linenr = 0
 
+  ---@type YaTreeViewRenderer[]
+  local directory_renderers = {}
+  for _, renderer in ipairs(all_directory_renderers) do
+    if vim.tbl_contains(renderer.config.view_modes, self.view_mode) then
+      directory_renderers[#directory_renderers + 1] = renderer
+    end
+  end
+  ---@type YaTreeViewRenderer[]
+  local file_renderers = {}
+  for _, renderer in ipairs(all_file_renderers) do
+    if vim.tbl_contains(renderer.config.view_modes, self.view_mode) then
+      file_renderers[#file_renderers + 1] = renderer
+    end
+  end
+
   ---@param node YaTreeNode
   ---@param depth number
   ---@param last_child boolean
@@ -462,7 +477,7 @@ function Canvas:_render_tree(root)
       node.last_child = last_child
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr], highlights[linenr] = render_node(node, self.view_mode)
+      lines[linenr], highlights[linenr] = render_node(node, self.view_mode, directory_renderers, file_renderers)
 
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
@@ -829,9 +844,9 @@ do
 
     -- reset the renderer arrays, since the setup can be called repeatedly
     ---@type YaTreeViewRenderer[]
-    directory_renderers = {}
+    all_directory_renderers = {}
     ---@type YaTreeViewRenderer[]
-    file_renderers = {}
+    all_file_renderers = {}
 
     for _, directory_renderer in ipairs(config.view.renderers.directory) do
       local renderer = create_renderer(directory_renderer)
@@ -842,10 +857,10 @@ do
             renderer.config[k] = v
           end
         end
-        directory_renderers[#directory_renderers + 1] = renderer
+        all_directory_renderers[#all_directory_renderers + 1] = renderer
       end
     end
-    log.trace("directory renderers=%s", directory_renderers)
+    log.trace("directory renderers=%s", all_directory_renderers)
 
     for _, file_renderer in ipairs(config.view.renderers.file) do
       local renderer = create_renderer(file_renderer)
@@ -856,7 +871,7 @@ do
             renderer.config[k] = v
           end
         end
-        file_renderers[#file_renderers + 1] = renderer
+        all_file_renderers[#all_file_renderers + 1] = renderer
 
         if renderer.name == "name" then
           ---@type YaTreeConfig.Renderers.Name
@@ -865,7 +880,7 @@ do
         end
       end
     end
-    log.trace("file renderers=%s", file_renderers)
+    log.trace("file renderers=%s", all_file_renderers)
 
     barbar_exists, barbar_state = pcall(require, "bufferline.state")
     barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"

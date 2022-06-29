@@ -1,4 +1,4 @@
-local async = require("plenary.async")
+local void = require("plenary.async.async").void
 local scheduler = require("plenary.async.util").scheduler
 
 local lib = require("ya-tree.lib")
@@ -15,6 +15,7 @@ local M = {}
 
 ---@alias cmd_mode "edit" | "vsplit" | "split" | "tabnew"
 
+---@async
 function M.open()
   local nodes = ui.get_selected_nodes()
   if #nodes == 1 and nodes[1]:is_directory() then
@@ -28,6 +29,7 @@ function M.open()
   end
 end
 
+---@async
 ---@param node YaTreeNode
 function M.vsplit(node)
   if node:is_file() then
@@ -35,6 +37,7 @@ function M.vsplit(node)
   end
 end
 
+---@async
 ---@param node YaTreeNode
 function M.split(node)
   if node:is_file() then
@@ -42,6 +45,7 @@ function M.split(node)
   end
 end
 
+---@async
 ---@param node YaTreeNode
 function M.preview(node)
   if node:is_file() then
@@ -64,10 +68,14 @@ function M.preview(node)
       })
     end
 
+    -- a scheduler call is required here for the event loop to to update the ui state
+    -- otherwise the focus will happen before the buffer is opened, and the buffer will keep the focus
+    scheduler()
     ui.focus()
   end
 end
 
+---@async
 ---@param node YaTreeNode
 function M.tabnew(node)
   if node:is_file() then
@@ -75,6 +83,7 @@ function M.tabnew(node)
   end
 end
 
+---@async
 ---@param node YaTreeNode
 function M.add(node)
   if node:is_file() then
@@ -84,7 +93,7 @@ function M.add(node)
   local title = "New file (an ending " .. utils.os_sep .. " will create a directory):"
   local input = Input:new({ prompt = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4 }, {
     ---@param path string
-    on_submit = function(path)
+    on_submit = void(function(path)
       if not path then
         return
       elseif fs.exists(path) then
@@ -97,18 +106,18 @@ function M.add(node)
         path = path:sub(1, -2)
       end
 
-      local ok = is_directory and fs.create_dir(path) or fs.create_file(path)
-      if ok then
+      if is_directory and fs.create_dir(path) or fs.create_file(path) then
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
         lib.refresh_tree(path)
       else
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
       end
-    end,
+    end),
   })
   input:open()
 end
 
+---@async
 ---@param node YaTreeNode
 function M.rename(node)
   -- prohibit renaming the root node
@@ -116,21 +125,20 @@ function M.rename(node)
     return
   end
 
-  vim.ui.input({ prompt = "New name:", default = node.path, completion = "file" }, function(path)
-    if not path then
-      return
-    elseif fs.exists(path) then
-      utils.warn(string.format("%q already exists!", path))
-      return
-    end
+  local path = ui.input({ prompt = "New name:", default = node.path, completion = "file" })
+  if not path then
+    return
+  elseif fs.exists(path) then
+    utils.warn(string.format("%q already exists!", path))
+    return
+  end
 
-    if fs.rename(node.path, path) then
-      utils.notify(string.format("Renamed %q to %q.", node.path, path))
-      lib.refresh_tree(path)
-    else
-      utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
-    end
-  end)
+  if fs.rename(node.path, path) then
+    utils.notify(string.format("Renamed %q to %q.", node.path, path))
+    lib.refresh_tree(path)
+  else
+    utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
+  end
 end
 
 ---@return YaTreeNode[]? nodes, string common_parent
@@ -173,24 +181,25 @@ local function delete_node(node)
   end
 end
 
+---@async
 function M.delete()
   local nodes, common_parent = get_nodes_to_delete()
   if not nodes then
     return
   end
 
-  async.void(function()
-    local refresh = false
-    for _, node in ipairs(nodes) do
-      refresh = delete_node(node) or refresh
-      scheduler()
-    end
-    if refresh then
-      lib.refresh_tree(common_parent)
-    end
-  end)()
+  local refresh = false
+  for _, node in ipairs(nodes) do
+    refresh = delete_node(node) or refresh
+  end
+  -- let the event loop catch up if there were a very large amount of files deleted
+  scheduler()
+  if refresh then
+    lib.refresh_tree(common_parent)
+  end
 end
 
+---@async
 function M.trash()
   local config = require("ya-tree.config").config
   if not config.trash.enable then
@@ -202,38 +211,36 @@ function M.trash()
     return
   end
 
-  async.void(function()
-    ---@type string[]
-    local files = {}
-    if config.trash.require_confirm then
-      for _, node in ipairs(nodes) do
-        local response = ui.select({ "Yes", "No" }, { prompt = "Trash " .. node.path .. "?" })
-        if response == "Yes" then
-          files[#files + 1] = node.path
-        end
-        scheduler()
+  ---@type string[]
+  local files = {}
+  if config.trash.require_confirm then
+    for _, node in ipairs(nodes) do
+      local response = ui.select({ "Yes", "No" }, { prompt = "Trash " .. node.path .. "?" })
+      if response == "Yes" then
+        files[#files + 1] = node.path
       end
-    else
-      ---@param n YaTreeNode
-      files = vim.tbl_map(function(n)
-        return n.path
-      end, nodes)
     end
+  else
+    ---@param n YaTreeNode
+    files = vim.tbl_map(function(n)
+      return n.path
+    end, nodes)
+  end
 
-    if #files > 0 then
-      log.debug("trashing files %s", files)
-      job.run({ cmd = "trash", args = files, wrap_callback = true }, function(code, _, stderr)
-        if code == 0 then
-          lib.refresh_tree(common_parent)
-        else
-          log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
-          utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
-        end
-      end)
-    end
-  end)()
+  if #files > 0 then
+    log.debug("trashing files %s", files)
+    job.run({ cmd = "trash", args = files, async_callback = true }, function(code, _, stderr)
+      if code == 0 then
+        lib.refresh_tree(common_parent)
+      else
+        log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
+        utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
+      end
+    end)
+  end
 end
 
+---@async
 ---@param node YaTreeNode
 function M.system_open(node)
   local config = require("ya-tree.config").config
@@ -245,23 +252,12 @@ function M.system_open(node)
   ---@type string[]
   local args = vim.deepcopy(config.system_open.args or {})
   table.insert(args, node.link_to or node.path)
-  job.run({ cmd = config.system_open.cmd, args = args, detached = true, wrap_callback = true }, function(code, _, stderr)
+  job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, stderr)
     if code ~= 0 then
       log.error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)
       utils.warn(string.format("%q returned error code %q and message:\n\n%s", config.system_open.cmd, code, stderr))
     end
   end)
-end
-
-function M.goto_path_in_tree()
-  local input = Input:new({ prompt = "Path:", completion = "file_in_path" }, {
-    on_submit = function(path)
-      if path then
-        lib.goto_path_in_tree(path)
-      end
-    end,
-  })
-  input:open()
 end
 
 return M

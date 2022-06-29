@@ -110,7 +110,7 @@ function M.get_current_buffers()
   ---@type table<string, number>
   local buffers = {}
   for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    if api.nvim_buf_is_valid(bufnr) and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+    if api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
       ---@type string
       local path = api.nvim_buf_get_name(bufnr)
       if path ~= "" then
@@ -140,6 +140,92 @@ function M.get_path_from_directory_buffer()
     return true, bufname
   else
     return false
+  end
+end
+
+do
+  ---@type boolean
+  local fd_has_max_results
+  ---@type boolean
+  local fdfind_has_max_results
+  do
+    ---@param cmd string
+    ---@return boolean
+    local function has_max_results(cmd)
+      local test = fn.system(cmd .. " this_is_only_a_test_search --max-depth=1 --max-results=1")
+      return not test:match("^error:")
+    end
+
+    fd_has_max_results = fn.executable("fd") == 1 and has_max_results("fd")
+    fdfind_has_max_results = fn.executable("fdfind") == 1 and has_max_results("fdfind")
+  end
+
+  ---@param term string
+  ---@param path string
+  ---@param glob boolean
+  ---@return string? cmd, string[] arguments
+  function M.build_search_arguments(term, path, glob)
+    local config = require("ya-tree.config").config
+    local cmd = config.search.cmd
+
+    ---@type string[]
+    local args
+    if type(config.search.args) == "function" then
+      args = config.search.args(cmd, term, path, config)
+    else
+      if cmd == "fd" or cmd == "fdfind" then
+        args = { "--color=never", "-tf", "-td", "-tl" }
+        if not config.filters.enable or not config.filters.dotfiles then
+          table.insert(args, "--hidden")
+        end
+        if config.filters.enable then
+          for name, _ in pairs(config.filters.custom) do
+            table.insert(args, "--exclude")
+            table.insert(args, name)
+          end
+        end
+        if config.git.show_ignored then
+          table.insert(args, "--no-ignore")
+        end
+        if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
+          table.insert(args, "--max-results=" .. config.search.max_results)
+        end
+        if glob then
+          table.insert(args, "--glob")
+        else
+          table.insert(args, "--full-path")
+        end
+        table.insert(args, term)
+        table.insert(args, path)
+      elseif cmd == "find" then
+        args = { path, "-type", "f,d,l" }
+        if config.filters.enable and config.filters.dotfiles then
+          table.insert(args, "-not")
+          table.insert(args, "-path")
+          table.insert(args, "*/.*")
+        end
+        if glob then
+          table.insert(args, "-iname")
+          table.insert(args, term)
+        else
+          table.insert(args, "-ipath")
+          table.insert(args, "*" .. term .. "*")
+        end
+      elseif cmd == "where" then
+        args = { "/r", path, term }
+      else
+        -- no search command available
+        return
+      end
+
+      if type(config.search.args) == "table" then
+        for _, arg in ipairs(config.search.args) do
+          table.insert(args, arg)
+        end
+      end
+    end
+
+    return cmd, args
   end
 end
 

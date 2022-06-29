@@ -355,8 +355,8 @@ local M = {
 
     ---@class YaTreeConfig.CustomMapping Key mapping for user functions configuration.
     ---@field modes YaTreeActionMode[] The mode(s) for the keybinding.
-    ---@field fn fun(node: YaTreeNode) User function.
     ---@field views YaTreeCanvasViewMode[] The view modes the mapping is available for.
+    ---@field fn async fun(node: YaTreeNode) User function.
     ---@field desc? string Description of what the mapping does.
 
     mappings = {
@@ -387,8 +387,8 @@ local M = {
       ["R"] = "refresh_tree",
       ["/"] = "search_interactively",
       ["f"] = "search_once",
+      ["S"] = "search_for_path_in_tree",
       ["gn"] = "goto_node_in_tree",
-      ["S"] = "goto_path_in_tree",
       ["<C-x>"] = "close_search",
       ["F"] = "show_last_search",
       ["<C-r>"] = "rescan_dir_for_git",

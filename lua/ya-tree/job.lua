@@ -1,15 +1,17 @@
+local void = require("plenary.async.async").void
+
 local log = require("ya-tree.log")
 
 local uv = vim.loop
 
 local M = {}
 
----@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean, wrap_callback?: boolean}
+---@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean, async_callback?: boolean}
 ---  - {opts.cmd} `string`
 ---  - {opts.args} `string[]`
 ---  - {opts.cwd?} `string`
 ---  - {opts.detached?} `boolean`
----  - {opts.wrap_callback?} `boolean`
+---  - {opts.async_callback?} `boolean`
 ---@param on_complete fun(code: number, stdout?: string, stderr?: string)
 ---@return number? pid
 function M.run(opts, on_complete)
@@ -25,7 +27,7 @@ function M.run(opts, on_complete)
     ---@type number
     pid = nil,
   }
-  local cb = opts.wrap_callback and vim.schedule_wrap(on_complete) or on_complete
+  local cb = opts.async_callback and void(on_complete) or on_complete
 
   state.handle, state.pid = uv.spawn(opts.cmd, {
     args = opts.args,

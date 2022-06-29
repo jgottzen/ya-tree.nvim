@@ -183,6 +183,14 @@ function M.get_view_mode()
   return canvas and canvas.view_mode
 end
 
+---@param view_mode YaTreeCanvasViewMode
+function M.set_view_mode(view_mode)
+  local canvas = get_canvas()
+  if canvas then
+    canvas.view_mode = view_mode
+  end
+end
+
 function M.open_help()
   help.open()
 end
@@ -204,7 +212,7 @@ local function change_view_mode(mode, root, node)
   end
 end
 
----@param root YaTreeSearchNode
+---@param root YaTreeSearchRootNode
 ---@param node? YaTreeNode
 function M.open_search(root, node)
   change_view_mode("search", root, node)
@@ -250,25 +258,6 @@ function M.close_buffers(root, node)
   change_view_mode("tree", root, node)
 end
 
----@param bufnr number
----@return boolean
-local function is_buffer_yatree(bufnr)
-  local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
-  return ok and filetype == "YaTree" or false
-end
-
----@param bufnr number
-function M.on_win_leave(bufnr)
-  if M.is_window_floating() or is_buffer_yatree(bufnr) then
-    return
-  end
-
-  local canvas = get_canvas()
-  if canvas and not canvas:is_current_window_canvas() then
-    canvas:set_edit_winid(api.nvim_get_current_win())
-  end
-end
-
 function M.restore()
   get_canvas():restore()
 end
@@ -312,7 +301,36 @@ M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)
 
+---@param bufnr number
+---@return boolean
+local function is_buffer_yatree(bufnr)
+  local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
+  return ok and filetype == "YaTree" or false
+end
+
+---@param bufnr number
+local function on_win_leave(bufnr)
+  if M.is_window_floating() or is_buffer_yatree(bufnr) then
+    return
+  end
+
+  local canvas = get_canvas()
+  if canvas and not canvas:is_current_window_canvas() then
+    canvas:set_edit_winid(api.nvim_get_current_win())
+  end
+end
+
 function M.setup()
+  ---@type integer
+  local group = api.nvim_create_augroup("YaTreeUi", { clear = true })
+  api.nvim_create_autocmd("WinLeave", {
+    group = group,
+    callback = function(input)
+      on_win_leave(input.buf)
+    end,
+    desc = "Keeping track of which window to open buffers in",
+  })
+
   M.setup_highlights()
   Canvas.setup()
 end
