@@ -1,3 +1,5 @@
+local Path = require("plenary.path")
+
 local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
@@ -75,6 +77,10 @@ function logger.new(opts)
   local config = vim.tbl_deep_extend("force", default, opts or {})
 
   local log_file = fmt("%s/%s.log", fn.stdpath("cache"), config.name)
+  local dir = Path:new(log_file):parent()
+  if not dir:exists() then
+    dir:mkdir({ parents = true })
+  end
   ---@type YaTreeLogger
   local self = {
     config = config,
