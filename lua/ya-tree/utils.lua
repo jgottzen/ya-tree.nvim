@@ -36,13 +36,6 @@ function M.is_directory(path)
   return stat and stat.type == "directory" or false
 end
 
----@param path string
----@return boolean
-function M.is_readable_file(path)
-  local stat = uv.fs_stat(path)
-  return stat and stat.type == "file" and uv.fs_access(path, "R") or false
-end
-
 ---@param paths string[]
 ---@return string|nil path
 function M.find_common_ancestor(paths)

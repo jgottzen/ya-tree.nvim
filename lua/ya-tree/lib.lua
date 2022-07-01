@@ -140,23 +140,30 @@ function M.open_window(opts)
   local tree
   if opts.switch_root and opts.path then
     issue_tcd = config.cwd.update_from_tree
+    local path = Path:new(opts.path)
     ---@type string
-    local cwd = Path:new(opts.path):absolute()
-    if not utils.is_directory(cwd) then
-      cwd = Path:new(cwd):parent().filename
+    local cwd = path:absolute()
+    if not path:is_dir() then
+      path = path:parent()
+      cwd = path.filename
     end
-    log.debug("switching tree cwd to %q", cwd)
-    tree = Tree.get_tree()
-    if tree then
-      tree = Tree.update_tree_root_node(tree, cwd)
-      tree.cwd = cwd
+    if path:exists() then
+      log.debug("switching tree cwd to %q", cwd)
+      tree = Tree.get_tree()
+      if tree then
+        tree = Tree.update_tree_root_node(tree, cwd)
+        tree.cwd = cwd
+      else
+        tree = Tree.get_or_create_tree(cwd)
+      end
+      scheduler()
+      -- when switching root and creating a new tree, force the view mode to 'tree',
+      -- otherwise visual inconsistencies can arise
+      ui.set_view_mode("tree")
     else
-      tree = Tree.get_or_create_tree(cwd)
+      utils.warn(string.format("Path %q doesn't exist.\nUsing %q as tree root", opts.path, uv.cwd()))
+      tree = Tree.get_or_create_tree()
     end
-    scheduler()
-    -- when switching root and creating a new tree, force the view mode to 'tree',
-    -- otherwise visual inconsistencies can arise
-    ui.set_view_mode("tree")
   else
     tree = Tree.get_or_create_tree()
   end
@@ -179,6 +186,7 @@ function M.open_window(opts)
         log.debug("navigating to %q", path)
       else
         log.error("cannot expand to file %q in tree %s", path, tostring(tree))
+        utils.warn(string.format("Path %q is not a file or directory", opts.path))
       end
     else
       log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.path, uv.cwd(), tree.root.path)

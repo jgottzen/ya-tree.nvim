@@ -1,9 +1,9 @@
 local void = require("plenary.async.async").void
 
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
+local fn = vim.fn
 
 local M = {}
 
@@ -61,7 +61,7 @@ local function complete_open(arg_lead, cmdline)
   local i = #splits
   if i == 2 then
     if vim.startswith(arg_lead, "path=") then
-      return vim.fn.getcompletion(arg_lead:sub(6), "file")
+      return fn.getcompletion(arg_lead:sub(6), "file")
     elseif vim.startswith(arg_lead, "focus=") then
       return { "true", "false" }
     else
@@ -127,7 +127,7 @@ function M.setup(opts)
     local file = input.args
     if file == "" then
       file = api.nvim_buf_get_name(0)
-      file = utils.is_readable_file(file) and file or nil
+      file = fn.filereadable(file) == 1 and file or nil
     end
     M.open(file, input.bang, true)
   end, { bang = true, nargs = "?", complete = "file", desc = "Focuses on the current file, or the supplied file name" })
