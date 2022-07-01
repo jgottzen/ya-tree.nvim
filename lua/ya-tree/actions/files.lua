@@ -141,24 +141,25 @@ function M.rename(node)
   end
 end
 
----@return YaTreeNode[]|nil nodes, string? common_parent
+---@return YaTreeNode[] nodes, string common_parent
 local function get_nodes_to_delete()
   local nodes = ui.get_selected_nodes()
+  local root_path = lib.get_root_path()
 
   ---@type string[]
   local parents = {}
-  for _, node in ipairs(nodes) do
+  for index, node in ipairs(nodes) do
     -- prohibit deleting the root node
-    if lib.is_node_root(node) then
-      utils.warn(string.format("Path %q is the root of the tree, aborting!", node.path))
-      return nil
-    end
-
-    if node.parent then
-      parents[#parents + 1] = node.parent.path
+    if node.path == root_path then
+      utils.warn(string.format("Path %q is the root of the tree, skipping it.", node.path))
+      table.remove(nodes, index)
+    else
+      if node.parent then
+        parents[#parents + 1] = node.parent.path
+      end
     end
   end
-  local common_parent = utils.find_common_ancestor(parents) or nodes[1].path
+  local common_parent = utils.find_common_ancestor(parents) or (#nodes > 0 and nodes[1].path or root_path)
 
   return nodes, common_parent
 end
@@ -184,7 +185,7 @@ end
 ---@async
 function M.delete()
   local nodes, common_parent = get_nodes_to_delete()
-  if not nodes or not common_parent then
+  if #nodes == 0 then
     return
   end
 
@@ -207,7 +208,7 @@ function M.trash()
   end
 
   local nodes, common_parent = get_nodes_to_delete()
-  if not nodes or not common_parent then
+  if #nodes == 0 then
     return
   end
 
