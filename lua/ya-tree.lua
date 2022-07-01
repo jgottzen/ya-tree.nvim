@@ -12,7 +12,7 @@ local M = {}
 ---@param focus? boolean
 function M.open(path, switch_root, focus)
   void(function()
-    require("ya-tree.lib").open_window({ file = path, switch_root = switch_root, focus = focus })
+    require("ya-tree.lib").open_window({ path = path, switch_root = switch_root, focus = focus })
   end)()
 end
 
