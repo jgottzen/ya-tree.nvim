@@ -35,7 +35,7 @@ do
   ---@param node YaTreeNode
   ---@param _ RenderingContext
   ---@param renderer YaTreeConfig.Renderers.Indentation
-  ---@return RenderResult? result
+  ---@return RenderResult|nil result
   function M.indentation(node, _, renderer)
     if node.depth == 0 then
       return
@@ -68,13 +68,12 @@ end
 ---@param node YaTreeNode
 ---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Icon
----@return RenderResult? result
+---@return RenderResult|nil result
 function M.icon(node, _, renderer)
   if node.depth == 0 then
     return
   end
 
-  ---@type string
   local icon, highlight
   if node:is_directory() then
     local custom_icon = renderer.directory.custom[node.name]
@@ -127,7 +126,7 @@ function M.icon(node, _, renderer)
   }
 end
 
----@param node YaTreeNode|YaTreeSearchNode
+---@param node YaTreeNode|YaTreeSearchRootNode
 ---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Name
 ---@return RenderResult[] results
@@ -144,7 +143,6 @@ function M.name(node, context, renderer)
       highlight = hl.ROOT_NAME,
     }
 
-    ---@type RenderResult[]
     local results
     if context.view_mode == "search" and node.search_term then
       results = {
@@ -194,7 +192,6 @@ function M.name(node, context, renderer)
     return results
   end
 
-  ---@type string
   local highlight
   if renderer.use_git_status_colors then
     local git_status = node:get_git_status()
@@ -238,7 +235,7 @@ end
 ---@param node YaTreeNode
 ---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Repository
----@return RenderResult[]? results
+---@return RenderResult[]|nil results
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() or (node.depth == 0 and node.repo) then
     local repo = node.repo
@@ -255,7 +252,6 @@ function M.repository(node, _, renderer)
       end
     end
 
-    ---@type RenderResult[]
     local results = { {
       padding = renderer.padding,
       text = icon .. " ",
@@ -321,7 +317,7 @@ end
 ---@param node YaTreeNode
 ---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.SymlinkTarget
----@return RenderResult? result
+---@return RenderResult|nil result
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
     return {
@@ -335,17 +331,16 @@ end
 ---@param node YaTreeNode
 ---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.GitStatus
----@return RenderResult[]? results
+---@return RenderResult[]|nil results
 function M.git_status(node, context, renderer)
   if context.config.git.enable then
     local git_status = node:get_git_status()
     if git_status then
-      ---@type RenderResult[]
-      local result = {}
+      local results = {}
       local icons_and_hl = M.helpers.get_git_icons_and_highlights(git_status)
       if icons_and_hl then
         for _, v in ipairs(icons_and_hl) do
-          result[#result + 1] = {
+          results[#results + 1] = {
             padding = renderer.padding,
             text = v.icon,
             highlight = v.highlight,
@@ -353,7 +348,7 @@ function M.git_status(node, context, renderer)
         end
       end
 
-      return result
+      return results
     end
   end
 end
@@ -361,7 +356,7 @@ end
 ---@param node YaTreeNode
 ---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Diagnostics
----@return RenderResult? result
+---@return RenderResult|nil result
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
     local severity = node:get_diagnostics_severity()
@@ -378,14 +373,13 @@ function M.diagnostics(node, context, renderer)
   end
 end
 
----@param node YaTreeNode
+---@param node YaTreeNode|YaTreeBufferNode
 ---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.BufferNumber
----@return RenderResult? result
+---@return RenderResult|nil result
 function M.buffer_number(node, _, renderer)
   local bufnr = -1
   if node:node_type() == "Buffer" then
-    ---@cast node YaTreeBufferNode
     bufnr = node.bufnr or -1
   elseif fn.bufloaded(node.path) > 0 then
     bufnr = fn.bufnr(node.path)
@@ -403,7 +397,7 @@ end
 ---@param node YaTreeNode
 ---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Clipboard
----@return RenderResult? result
+---@return RenderResult|nil result
 function M.clipboard(node, _, renderer)
   if node.clipboard_status then
     return {
@@ -551,7 +545,6 @@ do
         }
       else
         diagnostic_icon_and_hl[k] = {
-          ---@type string
           icon = v[2]:sub(1, 1),
           highlight = "LspDiagnosticsDefault" .. v[2],
         }

@@ -34,9 +34,9 @@ end
 
 ---@param node YaTreeNode
 ---@return boolean
-function M.is_node_visible(node)
+function M.is_node_rendered(node)
   local canvas = get_canvas()
-  return canvas and canvas:is_node_visible(node) or false
+  return canvas and canvas:is_node_rendered(node) or false
 end
 
 ---@param root YaTreeNode
@@ -56,12 +56,12 @@ function M.open(root, node, opts)
   end
   local view_mode_change = opts.view_mode and canvas.view_mode ~= opts.view_mode or false
   if view_mode_change then
-    canvas.view_mode = opts.view_mode
+    canvas.view_mode = opts.view_mode --[[@as YaTreeCanvasViewMode]]
   end
 
   if not canvas:is_open() then
     canvas:open(root, opts)
-  elseif view_mode_change or (node and not canvas:is_node_visible(node)) then
+  elseif view_mode_change or (node and not canvas:is_node_rendered(node)) then
     -- redraw the tree if the diplay mode changed or a specific node is to be focused, and it's currently not rendered
     canvas:render(root)
   end
@@ -108,7 +108,7 @@ function M.update(root, node, opts)
   end
 end
 
----@return YaTreeNode? current_node
+---@return YaTreeNode|nil current_node
 function M.get_current_node()
   return get_canvas():get_current_node()
 end
@@ -161,7 +161,6 @@ end
 ---@param winid? number
 ---@return boolean is_floating
 function M.is_window_floating(winid)
-  ---@type table
   local win_config = api.nvim_win_get_config(winid or 0)
   return win_config.relative > "" or win_config.external
 end
@@ -177,7 +176,7 @@ function M.get_size()
   return get_canvas():get_size()
 end
 
----@return YaTreeCanvasViewMode? view_mode
+---@return YaTreeCanvasViewMode|nil view_mode
 function M.get_view_mode()
   local canvas = get_canvas()
   return canvas and canvas.view_mode
@@ -213,7 +212,7 @@ local function change_view_mode(mode, root, node)
 end
 
 ---@param root YaTreeSearchRootNode
----@param node? YaTreeNode
+---@param node? YaTreeSearchNode
 function M.open_search(root, node)
   change_view_mode("search", root, node)
 end
@@ -305,7 +304,7 @@ end, 3)
 ---@return boolean
 local function is_buffer_yatree(bufnr)
   local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
-  return ok and filetype == "YaTree" or false
+  return ok and filetype == "YaTree"
 end
 
 ---@param bufnr number
@@ -321,7 +320,7 @@ local function on_win_leave(bufnr)
 end
 
 function M.setup()
-  ---@type integer
+  ---@type number
   local group = api.nvim_create_augroup("YaTreeUi", { clear = true })
   api.nvim_create_autocmd("WinLeave", {
     group = group,

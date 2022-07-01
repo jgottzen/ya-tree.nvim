@@ -74,10 +74,11 @@ local function complete_open(arg_lead, cmdline)
       return { "path=./" }
     end
   end
+  return {}
 end
 
 ---@param fargs string[]
----@return string? path, boolean focus
+---@return string|nil path, boolean focus
 local function parse_open_command_input(fargs)
   ---@type string|nil
   local path = nil

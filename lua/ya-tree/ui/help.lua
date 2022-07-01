@@ -8,15 +8,13 @@ function M.open()
   local mappings = require("ya-tree.actions").mappings
 
   ---@param mapping YaTreeActionMapping
-  ---@type YaTreeActionMapping[]
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
-  end, mappings)
+  end, mappings) --[[@as YaTreeActionMapping[] ]]
   ---@param mapping YaTreeActionMapping
-  ---@type YaTreeActionMapping[]
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
-  end, mappings)
+  end, mappings) --[[@as YaTreeActionMapping[] ]]
   table.sort(insert, function(a, b)
     return a.key < b.key
   end)
@@ -41,12 +39,12 @@ function M.open()
   local header = string.format(format_string, "Key", "Mapping", "View")
   ---@type string[]
   local lines = { " KEY MAPPINGS", header, "", " Normal Mode:" }
-  ---@type integer
+  ---@type number
   local max_line_width = api.nvim_strwidth(header)
 
   local insert_start_linenr = #lines + 1
   for _, mapping in ipairs(insert) do
-    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(vim.tbl_keys(mapping.views), ", "))
+    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(mapping.views, ", "))
     lines[#lines + 1] = line
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
   end
@@ -57,7 +55,7 @@ function M.open()
 
   local visual_start_linenr = #lines + 1
   for _, mapping in ipairs(visual) do
-    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(vim.tbl_keys(mapping.views), ", "))
+    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(mapping.views, ", "))
     lines[#lines + 1] = line
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
   end
@@ -65,7 +63,7 @@ function M.open()
 
   ---@type integer
   local ns = api.nvim_create_namespace("YaTreeKeyMaps")
-  ---@type integer
+  ---@type number
   local bufnr = api.nvim_create_buf(false, true)
 
   local mapping_col_start = max_key_width + 3 + max_mapping_width

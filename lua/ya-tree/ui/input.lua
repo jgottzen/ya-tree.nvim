@@ -7,8 +7,8 @@ local fn = vim.fn
 ---@field private prompt string
 ---@field private default string
 ---@field private completion string
----@field private winid number
----@field private bufnr number
+---@field private winid? number
+---@field private bufnr? number
 ---@field private title_winid? number
 ---@field private win_config table<string, any>
 ---@field private callbacks table<string, function>
@@ -66,7 +66,6 @@ local win_options = {
 ---  - {callbacks.on_change?} `function(text: string): void`
 ---@return Input input
 function Input:new(opts, callbacks)
-  ---@type Input
   local this = setmetatable({
     prompt = opts.prompt or "",
     default = opts.default or "",
@@ -121,9 +120,9 @@ end
 local current_completion
 
 -- selene: allow(global_usage)
----@param start integer
+---@param start number
 ---@param base string
----@return integer column
+---@return number|string[]
 _G._ya_tree_input_complete = function(start, base)
   if start == 1 then
     return 0
@@ -182,7 +181,7 @@ function Input:open()
 
   vim.cmd("startinsert!")
   if self.completion and fn.pumvisible() == 1 then
-    local escape_key = api.nvim_replace_termcodes("<C-e>", true, false, true)
+    local escape_key = api.nvim_replace_termcodes("<C-e>", true, false, true) --[[@as string]]
     api.nvim_feedkeys(escape_key, "n", true)
   end
 end

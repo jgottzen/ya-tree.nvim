@@ -1,8 +1,8 @@
+local uv = require("plenary.async").uv
 local Path = require("plenary.path")
 
 local utils = require("ya-tree.utils")
 
-local uv = require("plenary.async").uv
 local loop = vim.loop
 
 local M = {}
@@ -97,9 +97,9 @@ end
 ---@field public link boolean
 ---@field public link_to string
 
----@class FsDirectoryLinkNode : FsDirectoryNode, FsLinkNodeMixin
+---@class FsDirectoryLinkNode : FsDirectoryNode, FsLinkNodeMixin, FsNode
 
----@class FsFileLinkNode : FsFileNode, FsLinkNodeMixin
+---@class FsFileLinkNode : FsFileNode, FsLinkNodeMixin, FsNode
 ---@field public link_name string
 ---@field public link_extension string
 
@@ -118,9 +118,8 @@ local function link_node(dir, name)
 
   local _, stat = uv.fs_stat(path)
   local p = Path:new(link_to)
-  link_to = p:make_relative()
+  link_to = p:make_relative() --[[@as string]]
 
-  ---@type FsDirectoryLinkNode|FsFileLinkNode|nil
   local node
   if stat and stat.type == "directory" then
     node = directory_node(dir, name)
@@ -136,6 +135,7 @@ local function link_node(dir, name)
     return nil
   end
 
+  ---@cast node FsDirectoryLinkNode|FsFileLinkNode
   node.link = true
   node.link_to = link_to
   return node
@@ -155,7 +155,7 @@ end
 
 ---@async
 ---@param path string
----@return FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode|nil node
+---@return FsNode|nil node
 function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   local _, stat = uv.fs_lstat(path)
@@ -163,7 +163,7 @@ function M.node_for(path)
   if not _type then
     -- this is most likely caused by a symbolic link pointing to a non-existing file and not really a problem,
     -- or nothing we can do anything about, so just ignore it
-    return
+    return nil
   end
 
   ---@type string
@@ -175,6 +175,8 @@ function M.node_for(path)
     return file_node(parent_path, name)
   elseif _type == "link" then
     return link_node(parent_path, name)
+  else
+    return nil
   end
 end
 
@@ -193,7 +195,7 @@ function M.scan_dir(dir)
       if name == nil then
         break
       end
-      ---@type FsNode
+      ---@type FsNode?
       local node
       if _type == "directory" then
         node = directory_node(dir, name)
@@ -214,7 +216,7 @@ end
 
 ---@async
 ---@param path string
----@return boolean #whether the path exists.
+---@return boolean whether the path exists.
 function M.exists(path)
   local _, stat = uv.fs_stat(path)
   return stat ~= nil
@@ -225,7 +227,7 @@ end
 ---@param source string source path.
 ---@param destination string destination path.
 ---@param replace boolean whether to replace existing files.
----@return boolean success #success or not
+---@return boolean success success or not
 function M.copy_dir(source, destination, replace)
   local source_path = Path:new(source)
   local destination_path = Path:new(destination)
@@ -271,7 +273,7 @@ end
 ---@param source string source path.
 ---@param destination string destination path.
 ---@param replace boolean whether to replace an existing file.
----@return boolean success #success or not.
+---@return boolean success success or not.
 function M.copy_file(source, destination, replace)
   local _, success = uv.fs_copyfile(Path:new(source):absolute(), Path:new(destination):absolute(), { excl = not replace })
   return success == true
@@ -281,7 +283,7 @@ end
 ---@async
 ---@param old string old name.
 ---@param new string new name.
----@return boolean success #success or not.
+---@return boolean success success or not.
 function M.rename(old, new)
   local _, success = uv.fs_rename(Path:new(old):absolute(), Path:new(new):absolute())
   return success == true
@@ -290,7 +292,7 @@ end
 ---Create a directory.
 ---@async
 ---@param path string the directory to create
----@return boolean success #success or not.
+---@return boolean success success or not.
 function M.create_dir(path)
   local p = Path:new(path)
 
@@ -327,7 +329,7 @@ end
 ---Create a new file.
 ---@async
 ---@param file string path.
----@return boolean sucess #success or not.
+---@return boolean sucess success or not.
 function M.create_file(file)
   local path = Path:new(file)
 
@@ -347,7 +349,7 @@ end
 ---Recusively remove a directory.
 ---@async
 ---@param path string the path to remove.
----@return boolean success #success or not.
+---@return boolean success success or not.
 function M.remove_dir(path)
   local _, fd = uv.fs_scandir(path)
   if not fd then
@@ -378,7 +380,7 @@ end
 ---Remove a file.
 ---@async
 ---@param path string the path to remove.
----@return boolean success #success or not.
+---@return boolean success success or not.
 function M.remove_file(path)
   local _, success = uv.fs_unlink(path)
   return success == true

@@ -13,7 +13,7 @@ local M = {}
 function M.search_interactively(node)
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
   end
   ---@type uv_timer_t
   local timer = uv.new_timer()
@@ -81,7 +81,7 @@ end
 function M.search_once(node)
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
   end
 
   local term = ui.input({ prompt = "Search:" })

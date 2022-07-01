@@ -54,14 +54,14 @@ local tab_var_barbar_set_name = "_YaTreeBarbar"
 
 ---@class YaTreeCanvas
 ---@field public view_mode YaTreeCanvasViewMode
----@field private winid number
----@field private edit_winid number
----@field private bufnr number
----@field private window_augroup number
+---@field private winid? number
+---@field private edit_winid? number
+---@field private bufnr? number
+---@field private window_augroup? number
 ---@field private previous_row number
 ---@field private width number
 ---@field private nodes YaTreeNode[]
----@field private node_path_to_index_lookup table<string, number>
+---@field private node_path_to_index_lookup table<string, integer>
 local Canvas = {}
 Canvas.__index = Canvas
 
@@ -81,7 +81,6 @@ end
 
 ---@return YaTreeCanvas canvas
 function Canvas:new()
-  ---@type YaTreeCanvas
   local this = setmetatable({}, self)
   this.view_mode = "tree"
   this.width = config.view.width
@@ -92,14 +91,10 @@ end
 
 ---@return number height, number width
 function Canvas:get_size()
-  ---@type number
-  local height = api.nvim_win_get_height(self.winid)
-  ---@type number
-  local width = api.nvim_win_get_width(self.winid)
-  return height, width
+  return api.nvim_win_get_height(self.winid), api.nvim_win_get_width(self.winid)
 end
 
----@return number? winid
+---@return number|nil winid
 function Canvas:get_edit_winid()
   if self.edit_winid and not api.nvim_win_is_valid(self.edit_winid) then
     self.edit_winid = nil
@@ -388,8 +383,8 @@ local all_file_renderers = {}
 
 ---@class highlight_group
 ---@field name string
----@field from number
----@field to number
+---@field from integer
+---@field to integer
 
 ---@param pos number
 ---@param padding string
@@ -468,7 +463,7 @@ function Canvas:_render_tree(root)
   end
 
   ---@param node YaTreeNode
-  ---@param depth number
+  ---@param depth integer
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
     if node:is_displayable(config) or depth == 0 then
@@ -482,7 +477,6 @@ function Canvas:_render_tree(root)
       if node:is_directory() and node.expanded then
         local nr_of_children = #node.children
         for i, child in ipairs(node.children) do
-          ---@cast child YaTreeNode
           append_node(child, depth + 1, i == nr_of_children)
         end
       end
@@ -519,15 +513,15 @@ end
 
 ---@param node YaTreeNode
 ---@return boolean visible
-function Canvas:is_node_visible(node)
+function Canvas:is_node_rendered(node)
   return self.node_path_to_index_lookup[node.path] ~= nil
 end
 
 ---@private
----@return YaTreeNode? node, number row, number column
+---@return YaTreeNode|nil node, number row, number column
 function Canvas:_get_current_node_and_position()
   if not self.winid then
-    return nil
+    return nil, 1, 0
   end
 
   ---@type number
@@ -536,15 +530,14 @@ function Canvas:_get_current_node_and_position()
   return node, row, column
 end
 
----@return YaTreeNode? node
+---@return YaTreeNode|nil node
 function Canvas:get_current_node()
   local node = self:_get_current_node_and_position()
   return node
 end
 
 do
-  ---@type string
-  local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true)
+  local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true) --[[@as string]]
 
   ---@return YaTreeNode[] nodes
   function Canvas:get_selected_nodes()
@@ -622,7 +615,7 @@ function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
   while not node:is_displayable(config) and node.parent do
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
   end
   if node then
     local row = self.node_path_to_index_lookup[node.path]
@@ -777,13 +770,13 @@ do
   end
 
   ---@param tabpage number
-  ---@return boolean was_set, number? width
+  ---@return boolean was_set, number width
   local function get_tabbar_offset(tabpage)
     local ok, value = pcall(api.nvim_tabpage_get_var, tabpage, tab_var_barbar_set_name)
     if ok then
       return ok, value
     else
-      return false
+      return false, 0
     end
   end
 
@@ -807,7 +800,7 @@ do
   local renderers = require("ya-tree.ui.renderers")
 
   ---@param view_renderer YaTreeConfig.View.Renderers.DirectoryRenderer|YaTreeConfig.View.Renderers.FileRenderer
-  ---@return YaTreeViewRenderer?
+  ---@return YaTreeViewRenderer|nil renderer
   local function create_renderer(view_renderer)
     local name = view_renderer[1]
     if type(name) == "string" then
@@ -817,7 +810,6 @@ do
       local fn = renderers[name]
       if type(fn) == "function" then
         renderer.fn = fn
-        ---@type YaTreeRendererConfig
         renderer.config = vim.deepcopy(config.renderers[name])
         return renderer
       else
@@ -874,8 +866,7 @@ do
         all_file_renderers[#all_file_renderers + 1] = renderer
 
         if renderer.name == "name" then
-          ---@type YaTreeConfig.Renderers.Name
-          local renderer_config = renderer.config
+          local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Name]]
           highlight_open_file = renderer_config.highlight_open_file
         end
       end

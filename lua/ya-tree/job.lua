@@ -13,7 +13,7 @@ local M = {}
 ---  - {opts.detached?} `boolean`
 ---  - {opts.async_callback?} `boolean`
 ---@param on_complete fun(code: number, stdout?: string, stderr?: string)
----@return number? pid
+---@return number|nil pid
 function M.run(opts, on_complete)
   local state = {
     stdout = uv.new_pipe(false),

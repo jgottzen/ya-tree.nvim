@@ -44,7 +44,7 @@ function M.is_readable_file(path)
 end
 
 ---@param paths string[]
----@return string? path
+---@return string|nil path
 function M.find_common_ancestor(paths)
   if #paths == 0 then
     return nil
@@ -121,17 +121,17 @@ function M.get_current_buffers()
   return buffers
 end
 
----@return boolean is_directory, string? path
+---@return boolean is_directory, string path
 function M.get_path_from_directory_buffer()
   ---@type number
   local bufnr = api.nvim_get_current_buf()
   ---@type string
   local bufname = api.nvim_buf_get_name(bufnr)
   if not M.is_directory(bufname) then
-    return false
+    return false, ""
   end
   if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then
-    return false
+    return false, ""
   end
 
   ---@type string[]
@@ -139,7 +139,7 @@ function M.get_path_from_directory_buffer()
   if #lines == 0 or (#lines == 1 and lines[1] == "") then
     return true, bufname
   else
-    return false
+    return false, ""
   end
 end
 
@@ -163,14 +163,14 @@ do
   ---@param term string
   ---@param path string
   ---@param glob boolean
-  ---@return string? cmd, string[] arguments
+  ---@return string|nil cmd, string[] arguments
   function M.build_search_arguments(term, path, glob)
     local config = require("ya-tree.config").config
     local cmd = config.search.cmd
 
     ---@type string[]
     local args
-    if type(config.search.args) == "function" then
+    if type(config.search.args) == "function" and cmd then
       args = config.search.args(cmd, term, path, config)
     else
       if cmd == "fd" or cmd == "fdfind" then
@@ -179,7 +179,7 @@ do
           table.insert(args, "--hidden")
         end
         if config.filters.enable then
-          for name, _ in pairs(config.filters.custom) do
+          for _, name in ipairs(config.filters.custom) do
             table.insert(args, "--exclude")
             table.insert(args, name)
           end
@@ -215,7 +215,7 @@ do
         args = { "/r", path, term }
       else
         -- no search command available
-        return
+        return nil, {}
       end
 
       if type(config.search.args) == "table" then

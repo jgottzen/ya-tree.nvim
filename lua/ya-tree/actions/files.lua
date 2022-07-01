@@ -87,7 +87,7 @@ end
 ---@param node YaTreeNode
 function M.add(node)
   if node:is_file() then
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
   end
 
   local title = "New file (an ending " .. utils.os_sep .. " will create a directory):"
@@ -141,7 +141,7 @@ function M.rename(node)
   end
 end
 
----@return YaTreeNode[]? nodes, string common_parent
+---@return YaTreeNode[]|nil nodes, string? common_parent
 local function get_nodes_to_delete()
   local nodes = ui.get_selected_nodes()
 
@@ -151,7 +151,7 @@ local function get_nodes_to_delete()
     -- prohibit deleting the root node
     if lib.is_node_root(node) then
       utils.warn(string.format("Path %q is the root of the tree, aborting!", node.path))
-      return
+      return nil
     end
 
     if node.parent then
@@ -184,7 +184,7 @@ end
 ---@async
 function M.delete()
   local nodes, common_parent = get_nodes_to_delete()
-  if not nodes then
+  if not nodes or not common_parent then
     return
   end
 
@@ -207,7 +207,7 @@ function M.trash()
   end
 
   local nodes, common_parent = get_nodes_to_delete()
-  if not nodes then
+  if not nodes or not common_parent then
     return
   end
 
@@ -224,7 +224,7 @@ function M.trash()
     ---@param n YaTreeNode
     files = vim.tbl_map(function(n)
       return n.path
-    end, nodes)
+    end, nodes) --[[@as string[] ]]
   end
 
   if #files > 0 then

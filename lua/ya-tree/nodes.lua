@@ -28,7 +28,7 @@ local M = {}
 ---@field public clipboard_status clipboard_action|nil
 ---@field private scanned? boolean
 ---@field public expanded? boolean
----@field public depth number
+---@field public depth integer
 ---@field public last_child boolean
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
@@ -47,12 +47,14 @@ Node.__tostring = function(self)
 end
 
 ---Creates a new node.
----@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
----@param parent? YaTreeNode the parent node.
----@return YaTreeNode node
-function Node:new(fs_node, parent)
-  ---@type YaTreeNode
+---@generic T : YaTreeNode
+---@param fs_node FsNode filesystem data.
+---@param parent? T the parent node.
+---@return T node
+local function create_node(self, fs_node, parent)
   local this = setmetatable(fs_node, self)
+  ---@cast this YaTreeNode
+  ---@cast parent YaTreeNode?
   this.parent = parent
   if this:is_directory() then
     this.children = {}
@@ -68,6 +70,14 @@ function Node:new(fs_node, parent)
   return this
 end
 
+---Creates a new node.
+---@param fs_node FsNode filesystem data.
+---@param parent? YaTreeNode the parent node.
+---@return YaTreeNode node
+function Node:new(fs_node, parent)
+  return create_node(self, fs_node, parent)
+end
+
 ---Creates a new node tree root.
 ---@async
 ---@param path string the path
@@ -75,7 +85,8 @@ end
 ---@param check_for_git_repo? boolean whether to check for a git repo in `path`
 ---@return YaTreeNode root
 function M.root(path, old_root, check_for_git_repo)
-  local root = Node:new(fs.node_for(path))
+  local fs_node = fs.node_for(path) --[[@as FsNode]]
+  local root = Node:new(fs_node)
 
   if check_for_git_repo then
     local repo = git.create_repo(root.path)
@@ -110,7 +121,6 @@ function Node:walk(fn)
 
   if self:is_directory() then
     for _, child in ipairs(self.children) do
-      ---@cast child YaTreeNode
       if child:walk(fn) then
         return
       end
@@ -147,7 +157,7 @@ function Node:get_debug_info(output_to_log)
 end
 
 ---@private
----@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
+---@param fs_node FsNode filesystem data.
 function Node:_merge_new_data(fs_node)
   for k, v in pairs(fs_node) do
     if type(self[k]) ~= "function" then
@@ -195,7 +205,6 @@ local function set_git_repo_on_node_and_children(repo, node)
   node.repo = repo
   if node.children then
     for _, child in ipairs(node.children) do
-      ---@cast child YaTreeNode
       if not child.repo then
         set_git_repo_on_node_and_children(repo, child)
       end
@@ -223,7 +232,7 @@ function Node:check_for_git_repo()
         -- walk the tree upwards until we hit the topmost node
         local node = self
         while node.parent and #toplevel <= #node.parent.path do
-          node = node.parent
+          node = node.parent --[[@as YaTreeNode]]
         end
         set_git_repo_on_node_and_children(repo, node)
       else
@@ -295,7 +304,6 @@ function Node:set_clipboard_status(status)
   self.clipboard_status = status
   if self:is_directory() then
     for _, child in ipairs(self.children) do
-      ---@cast child YaTreeNode
       child:set_clipboard_status(status)
     end
   end
@@ -313,7 +321,7 @@ function Node:is_displayable(config)
   if config.filters.enable then
     if config.filters.dotfiles and self:is_dotfile() then
       return false, "filter"
-    elseif config.filters.custom[self.name] then
+    elseif vim.tbl_contains(config.filters.custom, self.name) then
       return false, "filter"
     end
   end
@@ -363,7 +371,6 @@ function Node:iterate_children(opts)
   end
   if opts.from then
     for i, child in ipairs(self.children) do
-      ---@cast child YaTreeNode
       if child == opts.from then
         start = i
         break
@@ -403,7 +410,6 @@ function Node:collapse(opts)
 
     if opts.recursive then
       for _, child in ipairs(self.children) do
-        ---@cast child YaTreeNode
         child:collapse({ recursive = opts.recursive })
       end
     end
@@ -417,7 +423,7 @@ end
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.all?} `boolean` recursively expands all directory.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return YaTreeNode|nil node #if {opts.to} is specified, and found.
+---@return YaTreeNode|nil node if {opts.to} is specified, and found.
 function Node:expand(opts)
   log.debug("expanding %q", self.path)
   opts = opts or {}
@@ -434,7 +440,6 @@ function Node:expand(opts)
       return self
     elseif self:is_directory() and self:is_ancestor_of(opts.to) then
       for _, child in ipairs(self.children) do
-        ---@cast child YaTreeNode
         if child:is_ancestor_of(opts.to) then
           log.debug("child node %q is parent of %q", child.path, opts.to)
           return child:expand(opts)
@@ -450,7 +455,6 @@ function Node:expand(opts)
     end
   elseif opts.all and self:is_directory() then
     for _, child in ipairs(self.children) do
-      ---@cast child YaTreeNode
       if child:is_directory() then
         child:expand(opts)
       end
@@ -471,7 +475,6 @@ function Node:get_child_if_loaded(path)
 
   if self:is_ancestor_of(path) then
     for _, child in ipairs(self.children) do
-      ---@cast child YaTreeNode
       if child.path == path then
         return child
       elseif child:is_ancestor_of(path) then
@@ -497,7 +500,6 @@ do
 
       if recurse then
         for _, child in ipairs(node.children) do
-          ---@cast child YaTreeNode
           if child:is_directory() then
             refresh_directory_node(child, true, refresh_git, refreshed_git_repos)
           end
@@ -535,7 +537,7 @@ end
 ---@generic T : YaTreeNode
 ---@param root T
 ---@param paths string[]
----@param node_creator fun(fs_node: FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode, parent: T): T
+---@param node_creator fun(fs_node: FsNode, parent: T): T
 ---@return T first_leaf_node
 local function create_tree_from_paths(root, paths, node_creator)
   ---@type table<string, YaTreeNode>
@@ -606,12 +608,11 @@ setmetatable(SearchNode, { __index = Node })
 ---@field private _search_options { cmd: string, args: string[] }
 
 ---Creates a new search node.
----@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
+---@param fs_node FsNode filesystem data.
 ---@param parent? YaTreeSearchNode the parent node.
 ---@return YaTreeSearchNode node
 function SearchNode:new(fs_node, parent)
-  ---@type YaTreeSearchNode
-  local this = Node.new(self, fs_node, parent)
+  local this = create_node(self, fs_node, parent)
   if this:is_directory() then
     this.scanned = true
     this.expanded = true
@@ -648,8 +649,8 @@ do
   ---@param term? string
   ---@param cmd? string
   ---@param args? string[]
-  ---@return YaTreeSearchNode? first_leaf_node
-  ---@return integer|string matches_or_error
+  ---@return YaTreeSearchNode|nil first_leaf_node
+  ---@return number|string matches_or_error
   function SearchNode:search(term, cmd, args)
     if self.parent then
       return self.parent:search(term, cmd, args)
@@ -697,11 +698,13 @@ end
 ---@param cmd string
 ---@param args string[]
 ---@return YaTreeSearchRootNode root
----@return YaTreeSearchNode? first_leaf_node
----@return integer|string matches_or_error
+---@return YaTreeSearchNode|nil first_leaf_node
+---@return number|string matches_or_error
 function M.create_search_tree(root_path, term, cmd, args)
-  local root = SearchNode:new(fs.node_for(root_path))
+  local fs_node = fs.node_for(root_path) --[[@as FsNode]]
+  local root = SearchNode:new(fs_node)
   root.repo = git.get_repo_for_path(root_path)
+  ---@cast root YaTreeSearchRootNode
   return root, root:search(term, cmd, args)
 end
 
@@ -716,13 +719,12 @@ BufferNode.__eq = Node.__eq
 setmetatable(BufferNode, { __index = Node })
 
 ---Creates a new buffer node.
----@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
+---@param fs_node FsNode filesystem data.
 ---@param bufnr? number the buffer number.
 ---@param parent? YaTreeBufferNode the parent node.
 ---@return YaTreeBufferNode node
 function BufferNode:new(fs_node, bufnr, parent)
-  ---@type YaTreeBufferNode
-  local this = Node.new(self, fs_node, parent)
+  local this = create_node(self, fs_node, parent)
   this.bufnr = bufnr
   if this:is_directory() then
     this.scanned = true
@@ -773,6 +775,7 @@ function BufferNode:refresh(opts)
   if root_path ~= self.path then
     log.debug("setting new root path to %q", root_path)
     local fs_node = fs.node_for(root_path)
+    ---@cast fs_node -?
     self:_merge_new_data(fs_node)
     self.expanded = true
     self.scanned = true
@@ -798,12 +801,12 @@ end
 ---@generic T : YaTreeBufferNode|YaTreeGitStatusNode
 ---@param root T
 ---@param file string
----@param node_creator fun(fs_node: FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode, parent: T): T
----@return T node
+---@param node_creator fun(fs_node: FsNode, parent: T): T
+---@return T|nil node
 local function add_node(root, file, node_creator)
   if not fs.exists(file) then
     log.error("no file node found for %q", file)
-    return
+    return nil
   end
 
   ---@cast root YaTreeBufferNode|YaTreeGitStatusNode
@@ -815,7 +818,6 @@ local function add_node(root, file, node_creator)
     local name = splits[i]
     local found = false
     for _, child in ipairs(node.children) do
-      ---@cast child YaTreeBufferNode|YaTreeGitStatusNode
       if child.name == name then
         found = true
         node = child
@@ -823,11 +825,17 @@ local function add_node(root, file, node_creator)
       end
     end
     if not found then
-      local child = node_creator(fs.node_for(node.path .. utils.os_sep .. name), node)
-      log.debug("adding child %q to parent %q", child.path, node.path)
-      node.children[#node.children + 1] = child
-      table.sort(node.children, fs.fs_node_comparator)
-      node = child
+      local fs_node = fs.node_for(node.path .. utils.os_sep .. name)
+      if fs_node then
+        local child = node_creator(fs_node, node)
+        log.debug("adding child %q to parent %q", child.path, node.path)
+        node.children[#node.children + 1] = child
+        table.sort(node.children, fs.fs_node_comparator)
+        node = child
+      else
+        log.error("cannot create fs node for %q", node.path .. utils.os_sep .. name)
+        return nil
+      end
     end
   end
   scheduler()
@@ -837,7 +845,7 @@ end
 ---@async
 ---@param file string
 ---@param bufnr number
----@return YaTreeBufferNode node
+---@return YaTreeBufferNode|nil node
 function BufferNode:add_buffer(file, bufnr)
   if self.parent then
     return self.parent:add_buffer(file, bufnr)
@@ -890,7 +898,8 @@ end
 ---@param root_path string
 ---@return YaTreeBufferNode root, YaTreeBufferNode first_leaf_node
 function M.create_buffers_tree(root_path)
-  local root = BufferNode:new(fs.node_for(root_path))
+  local fs_node = fs.node_for(root_path) --[[@as FsNode]]
+  local root = BufferNode:new(fs_node)
   root.repo = git.get_repo_for_path(root_path)
   return root, root:refresh()
 end
@@ -905,12 +914,11 @@ GitStatusNode.__eq = Node.__eq
 setmetatable(GitStatusNode, { __index = Node })
 
 ---Creates a new git status node.
----@param fs_node FsDirectoryNode|FsFileNode|FsDirectoryLinkNode|FsFileLinkNode filesystem data.
+---@param fs_node FsNode filesystem data.
 ---@param parent? YaTreeGitStatusNode the parent node.
 ---@return YaTreeGitStatusNode node
 function GitStatusNode:new(fs_node, parent)
-  ---@type YaTreeGitStatusNode
-  local this = Node.new(self, fs_node, parent)
+  local this = create_node(self, fs_node, parent)
   if this:is_directory() then
     this.scanned = true
     this.expanded = true
@@ -980,7 +988,7 @@ end
 
 ---@async
 ---@param file string
----@return YaTreeGitStatusNode node
+---@return YaTreeGitStatusNode|nil node
 function GitStatusNode:add_file(file)
   if self.parent then
     return self.parent:add_file(file)
@@ -1006,7 +1014,8 @@ end
 ---@param repo GitRepo
 ---@return YaTreeGitStatusNode root, YaTreeGitStatusNode first_leaft_node
 function M.create_git_status_tree(root_path, repo)
-  local root = GitStatusNode:new(fs.node_for(root_path))
+  local fs_node = fs.node_for(root_path) --[[@as FsNode]]
+  local root = GitStatusNode:new(fs_node)
   root.repo = repo
   return root, root:refresh()
 end

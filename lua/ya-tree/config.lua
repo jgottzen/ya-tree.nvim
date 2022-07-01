@@ -418,21 +418,9 @@ M.config = vim.deepcopy(M.default)
 ---@return YaTreeConfig config
 function M.setup(opts)
   opts = opts or {}
-  M.config = vim.tbl_deep_extend("force", M.default, opts)
+  M.config = vim.tbl_deep_extend("force", M.default, opts) --[[@as YaTreeConfig]]
 
   local utils = require("ya-tree.utils")
-
-  -- convert the list of custom filters to a table for quicker lookups
-
-  M.config.filters.custom = {}
-  local custom_filters = opts.filters and opts.filters.custom or {}
-  if not vim.tbl_islist(custom_filters) then
-    utils.warn("'filters.custom' must be an array, ignoring the configuration!")
-  else
-    for _, name in ipairs(custom_filters) do
-      M.config.filters.custom[name] = true
-    end
-  end
 
   if not M.config.system_open.cmd then
     if utils.is_linux then

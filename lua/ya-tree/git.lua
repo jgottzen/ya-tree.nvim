@@ -36,13 +36,14 @@ end, 4)
 ---@param path string
 ---@return string path
 local function windowize_path(path)
-  return path:gsub("/", "\\")
+  local str = path:gsub("/", "\\")
+  return str
 end
 
 ---@async
 ---@param path string
 ---@param cmd? string
----@return string? toplevel, string git_dir, string branch
+---@return string|nil toplevel, string git_dir, string branch
 local function get_repo_info(path, cmd)
   local args = {
     "-C",
@@ -57,7 +58,7 @@ local function get_repo_info(path, cmd)
   local result = command(args, false, cmd)
   scheduler()
   if #result == 0 then
-    return nil
+    return nil, "", ""
   end
   local toplevel = result[1]
   local git_root = result[2]
@@ -112,7 +113,7 @@ end
 
 ---@async
 ---@param path string
----@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
+---@return GitRepo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
@@ -122,7 +123,7 @@ function Repo:new(path)
   end
 
   if not config.git.enable then
-    return
+    return nil
   end
 
   local toplevel, git_dir, branch = get_repo_info(path)
@@ -146,7 +147,6 @@ function Repo:new(path)
     return cached
   end
 
-  ---@type GitRepo
   local this = setmetatable({
     toplevel = toplevel,
     branch = branch,
@@ -248,7 +248,6 @@ function Repo:add_git_watcher(fn)
       pcall(self._git_dir_watcher.close, self._git_dir_watcher)
       self._git_dir_watcher = nil
       log.error("failed to start fs_poll for directory %s, error: %s", self._git_dir, result)
-      return
     end
   end
 
@@ -602,7 +601,7 @@ function Repo:_parse_porcelainv2_ignored_row(line)
 end
 
 ---@param path string
----@return string? status
+---@return string|nil status
 function Repo:status_of(path)
   return self._git_status[path] or self._propagated_git_status[path]
 end
@@ -630,7 +629,7 @@ end
 
 ---@async
 ---@param path string
----@return GitRepo? repo #a `Repo` object or `nil` if the path is not in a git repo.
+---@return GitRepo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function M.create_repo(path)
   return Repo:new(path)
 end
@@ -641,13 +640,13 @@ function M.remove_repo(repo)
     repo._git_dir_watcher:stop()
     repo._git_dir_watcher:close()
     repo._git_dir_watcher = nil
-    repo._git_watchers = nil
+    repo._git_watchers = {}
   end
   M.repos[repo.toplevel] = nil
 end
 
 ---@param path string
----@return GitRepo? repo
+---@return GitRepo|nil repo
 function M.get_repo_for_path(path)
   ---@type table<string, GitRepo>
   local yadm_repos = {}

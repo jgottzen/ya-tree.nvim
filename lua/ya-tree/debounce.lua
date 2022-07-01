@@ -1,7 +1,7 @@
 local M = {}
 
 ---@class uv_timer_t
----@field start fun(self: uv_timer_t, timout: integer, repeat: integer, callback: fun(...: any)): 0|nil
+---@field start fun(self: uv_timer_t, timout: number, repeat: number, callback: fun(...: any)): 0|nil
 ---@field stop fun(self: uv_timer_t): 0|nil
 ---@field close fun(self: uv_timer_t)
 ---@field is_active fun(self: uv_timer_t): boolean?

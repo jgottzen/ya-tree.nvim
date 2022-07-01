@@ -39,7 +39,7 @@ end
 --- Resolves the `path` in the speicfied `tree`.
 ---@param tree YaTree
 ---@param path string
----@return string? path #the fully resolved path, or `nil`
+---@return string|nil path the fully resolved path, or `nil`
 local function resolve_path_in_tree(tree, path)
   if not vim.startswith(path, utils.os_root()) then
     -- a relative path is relative to the current cwd, not the tree's root node
@@ -62,7 +62,7 @@ end
 ---@param tree YaTree
 local function create_buffers_tree(tree)
   tree.buffers.root, tree.buffers.current_node = Nodes.create_buffers_tree(tree.tree.root.path)
-  tree.root = tree.buffers.root
+  tree.root = tree.buffers.root --[[@as YaTreeBufferNode]]
   tree.current_node = tree.buffers.current_node
 end
 
@@ -72,7 +72,7 @@ end
 ---@param root_path string
 local function create_git_status_tree(tree, repo, root_path)
   tree.git_status.root, tree.git_status.current_node = Nodes.create_git_status_tree(root_path, repo)
-  tree.root = tree.git_status.root
+  tree.root = tree.git_status.root --[[@as YaTreeGitStatusNode]]
   tree.current_node = tree.git_status.current_node
 end
 
@@ -115,8 +115,8 @@ function M.on_git_change(repo, watcher_id, fs_changes)
 end
 
 ---@async
----@param opts? {file?: string, switch_root?: boolean, focus?: boolean}
----  - {opts.file?} `string`
+---@param opts? {path?: string, switch_root?: boolean, focus?: boolean}
+---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
 function M.open_window(opts)
@@ -138,10 +138,10 @@ function M.open_window(opts)
 
   ---@type YaTree
   local tree
-  if opts.switch_root and opts.file then
+  if opts.switch_root and opts.path then
     issue_tcd = config.cwd.update_from_tree
     ---@type string
-    local cwd = Path:new(opts.file):absolute()
+    local cwd = Path:new(opts.path):absolute()
     if not utils.is_directory(cwd) then
       cwd = Path:new(cwd):parent().filename
     end
@@ -161,12 +161,12 @@ function M.open_window(opts)
     tree = Tree.get_or_create_tree()
   end
 
-  ---@type YaTreeNode
+  ---@type YaTreeNode?
   local node
-  if opts.file then
-    local file = resolve_path_in_tree(tree, opts.file)
-    if file then
-      node = tree.root:expand({ to = file })
+  if opts.path then
+    local path = resolve_path_in_tree(tree, opts.path)
+    if path then
+      node = tree.root:expand({ to = path })
       if node then
         local displayable, reason = node:is_displayable(config)
         if not displayable and reason then
@@ -176,12 +176,12 @@ function M.open_window(opts)
             config.git.show_ignored = true
           end
         end
-        log.debug("navigating to %q", file)
+        log.debug("navigating to %q", path)
       else
-        log.error("cannot expand to file %q in tree %s", file, tostring(tree))
+        log.error("cannot expand to file %q in tree %s", path, tostring(tree))
       end
     else
-      log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.file, uv.cwd(), tree.root.path)
+      log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.path, uv.cwd(), tree.root.path)
     end
   else
     if config.follow_focused_file then
@@ -326,13 +326,11 @@ function M.cd_to(node)
     return
   end
 
-  -- save current position
-  tree.current_node = node
   if not node:is_directory() then
     if not node.parent or node.parent == tree.root then
       return
     end
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
   end
   log.debug("cd to %q", node.path)
 
@@ -400,7 +398,7 @@ function M.rescan_dir_for_git(node)
   log.debug("checking if %s is in a git repository", node.path)
 
   if not node:is_directory() then
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
   end
   if node:check_for_git_repo() then
     Tree.attach_git_watcher(tree, node.repo)
@@ -437,7 +435,7 @@ function M.search(node, term, focus_node)
 
   ---@type YaTreeSearchNode?
   local result_node
-  ---@type integer|string
+  ---@type number|string
   local matches_or_error
   if not tree.search.root or tree.search.root.path ~= node.path then
     tree.search.root, result_node, matches_or_error = Nodes.create_search_tree(node.path, term, cmd, args)
@@ -446,11 +444,11 @@ function M.search(node, term, focus_node)
   end
   if result_node then
     tree.search.current_node = result_node
-    tree.root = tree.search.root
+    tree.root = tree.search.root --[[@as YaTreeSearchRootNode]]
     tree.current_node = tree.search.current_node
 
     utils.notify(string.format("%q found %s matches for %q in %q", cmd, matches_or_error, term, node.path))
-    ui.open_search(tree.root, focus_node and tree.current_node or nil)
+    ui.open_search(tree.search.root, focus_node and tree.search.current_node or nil)
   else
     utils.warn(string.format("%q failed with message:\n\n%s", cmd, matches_or_error))
   end
@@ -480,19 +478,19 @@ function M.refresh_tree(node_or_path)
   local node
   if ui.is_buffers_open() then
     tree.buffers.root:refresh()
-    node = ui.get_current_node()
+    node = ui.get_current_node() --[[@as YaTreeNode]]
   elseif ui.is_git_status_open() then
     tree.git_status.root:refresh()
-    node = ui.get_current_node()
+    node = ui.get_current_node() --[[@as YaTreeNode]]
   elseif ui.is_search_open() then
     tree.search.root:refresh()
-    node = ui.get_current_node()
+    node = ui.get_current_node() --[[@as YaTreeNode]]
   else
     tree.tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
     if type(node_or_path) == "table" then
       node = node_or_path
     elseif type(node_or_path) == "string" then
-      node = tree.tree.root:expand({ to = node_or_path })
+      node = tree.tree.root:expand({ to = node_or_path }) --[[@as YaTreeNode]]
     else
       log.error("the node_or_path parameter is of an unsupported type %q", type(node_or_path))
     end
@@ -503,7 +501,7 @@ function M.refresh_tree(node_or_path)
 end
 
 ---@param tree YaTree
----@param current_node? YaTreeNode
+---@param current_node? YaTreeSearchNode
 local function close_search(tree, current_node)
   -- save the current node in the search tree
   if current_node then
@@ -520,6 +518,7 @@ function M.goto_node_in_tree(node)
   local tree = Tree.get_tree()
   if ui.is_search_open() then
     tree.tree.current_node = tree.tree.root:expand({ to = node.path })
+    ---@cast node YaTreeSearchNode
     close_search(tree, node)
   elseif ui.is_buffers_open() then
     ---@cast node YaTreeBufferNode
@@ -537,7 +536,7 @@ function M.goto_node_in_tree(node)
 end
 
 ---@async
----@param node? YaTreeNode
+---@param node? YaTreeSearchNode
 function M.close_search(node)
   close_search(Tree.get_tree(), node)
 end
@@ -548,7 +547,7 @@ function M.show_last_search(node)
   local tree = Tree.get_tree()
   if tree.search.root then
     tree.tree.current_node = node
-    tree.root = tree.search.root
+    tree.root = tree.search.root --[[@as YaTreeSearchNode]]
     tree.current_node = tree.search.current_node
     ui.open_search(tree.search.root, tree.search.current_node)
   end
@@ -584,6 +583,7 @@ end
 function M.toggle_git_status(node)
   local tree = Tree.get_tree()
   if ui.is_git_status_open() then
+    ---@cast node YaTreeGitStatusNode
     tree.git_status.current_node = node
     tree.root = tree.tree.root
     tree.current_node = tree.tree.current_node
@@ -598,10 +598,10 @@ function M.toggle_git_status(node)
         local path = node.repo:is_yadm() and tree.root.path or node.repo.toplevel
         create_git_status_tree(tree, node.repo, path)
       else
-        tree.root = tree.git_status.root
+        tree.root = tree.git_status.root --[[@as YaTreeGitStatusNode]]
         tree.current_node = tree.git_status.current_node
       end
-      ui.open_git_status(tree.root, tree.current_node)
+      ui.open_git_status(tree.git_status.root, tree.git_status.current_node)
     end
   end
 end
@@ -611,6 +611,7 @@ end
 function M.toggle_buffers(node)
   local tree = Tree.get_tree()
   if ui.is_buffers_open() then
+    ---@cast node YaTreeBufferNode
     tree.buffers.current_node = node
     tree.root = tree.tree.root
     tree.current_node = tree.tree.current_node
@@ -620,10 +621,10 @@ function M.toggle_buffers(node)
     if not tree.buffers.root then
       create_buffers_tree(tree)
     else
-      tree.root = tree.buffers.root
+      tree.root = tree.buffers.root --[[@as YaTreeBufferNode]]
       tree.current_node = tree.buffers.current_node
     end
-    ui.open_buffers(tree.root, tree.current_node)
+    ui.open_buffers(tree.buffers.root, tree.buffers.current_node)
   end
 end
 
@@ -688,8 +689,7 @@ local function on_buf_add_and_file_post(file, bufnr)
     -- to fail, by deferring the call for a short time, we should be able to find the file
     vim.defer_fn(
       void(function()
-        ---@type YaTreeBufferNode?
-        local node = tree.buffers.root:get_child_if_loaded(file)
+        local node = tree.buffers.root:get_child_if_loaded(file) --[[@as YaTreeBufferNode]]
         if not node then
           if tree.buffers.root:is_ancestor_of(file) then
             log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
@@ -744,7 +744,7 @@ local function on_buf_enter(file, bufnr)
       pcall(vim.cmd, "call bufferline#update()")
     end
 
-    local opts = { file = file, focus = true }
+    local opts = { path = file, focus = true }
     if not tree then
       log.debug("no tree for current tab")
       ---@type string
@@ -842,10 +842,10 @@ local function on_buf_write_post(file, bufnr)
           ---@cast repo GitRepo
           git_status_changed = repo:refresh_status_for_file(file)
         end
-        ---@cast git_node YaTreeGitStatusNode?
         if not git_node and git_status_changed then
           tree.git_status.root:add_file(file)
         elseif git_node and git_status_changed then
+          ---@cast git_node YaTreeGitStatusNode
           if not git_node:get_git_status() then
             tree.git_status.root:remove_file(file)
           end
@@ -856,7 +856,7 @@ local function on_buf_write_post(file, bufnr)
       end
 
       -- only update the ui if something has changed, and the tree is for the current tabpage
-      if tree.tabpage == tabpage and ui.is_open() and ((node and ui.is_node_visible(node)) or git_status_changed) then
+      if tree.tabpage == tabpage and ui.is_open() and ((node and ui.is_node_rendered(node)) or git_status_changed) then
         ui.update(tree.root)
       end
     end)
@@ -973,14 +973,15 @@ local function setup_netrw()
 end
 
 local function setup_autocommands()
-  ---@type integer
+  ---@type number
   local group = api.nvim_create_augroup("YaTree", { clear = true })
 
   if config.auto_close then
     api.nvim_create_autocmd("WinClosed", {
       group = group,
       callback = void(function(input)
-        on_win_closed(tonumber(input.match))
+        local bufnr = tonumber(input.match) --[[@as number]]
+        on_win_closed(bufnr)
       end),
       desc = "Close Neovim when the tree is the last window",
     })
@@ -1012,7 +1013,8 @@ local function setup_autocommands()
   api.nvim_create_autocmd("TabClosed", {
     group = group,
     callback = void(function(input)
-      on_tab_closed(tonumber(input.match))
+      local bufnr = tonumber(input.match) --[[@as number]]
+      on_tab_closed(bufnr)
     end),
     desc = "Remove tab-specific tree",
   })

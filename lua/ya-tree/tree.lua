@@ -65,7 +65,7 @@ function M.get_or_create_tree(root_path)
   scheduler()
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
-  local tree = M._trees[tostring(tabpage)]
+  local tree = M._trees[tostring(tabpage)] --[[@as YaTree?]]
 
   if tree and (root_path and root_path ~= tree.root.path) then
     log.debug(
@@ -142,7 +142,7 @@ function M.update_tree_root_node(tree, new_root)
 
     tree.refreshing = true
     if tree.tree.root.path ~= new_root then
-      ---@type YaTreeNode
+      ---@type YaTreeNode?
       local root
       if tree.tree.root:is_ancestor_of(new_root) then
         log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(tree), new_root)
@@ -161,7 +161,7 @@ function M.update_tree_root_node(tree, new_root)
         -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
         root = tree.tree.root
         while root.parent do
-          root = root.parent
+          root = root.parent --[[@as YaTreeNode]]
           root:refresh()
           if root.path == new_root then
             break

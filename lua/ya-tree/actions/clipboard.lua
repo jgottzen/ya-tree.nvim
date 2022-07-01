@@ -65,11 +65,11 @@ end
 ---@async
 ---@param dest_node YaTreeNode
 ---@param node YaTreeNode
----@return boolean success, string? destination_path
+---@return string|nil destination_path
 local function paste_node(dest_node, node)
   if not fs.exists(node.path) then
     utils.warn(string.format("Item %q does not exist, cannot %s!", node.path, node.clipboard_status))
-    return false
+    return
   end
 
   local destination = utils.join_path(dest_node.path, node.name)
@@ -84,14 +84,14 @@ local function paste_node(dest_node, node)
       local name = ui.input({ prompt = "New name: ", default = node.name })
       if not name then
         utils.notify(string.format("No new name given, not pasting item %q to %q.", node.name, destination))
-        return false
+        return
       else
         destination = utils.join_path(dest_node.path, name)
         log.debug("new destination=%q", destination)
       end
     else
       utils.notify(string.format("Skipping item %q.", node.path))
-      return false
+      return
     end
   end
 
@@ -112,7 +112,7 @@ local function paste_node(dest_node, node)
     utils.warn(string.format("Failed to %s %q to %q!", node.clipboard_status == "copy" and "copy" or "move", node.path, destination))
   end
 
-  return ok, destination
+  return destination
 end
 
 local function clear_clipboard()
@@ -127,7 +127,7 @@ end
 function M.paste_nodes(node)
   -- paste can only be done into directories
   if not node:is_directory() then
-    node = node.parent
+    node = node.parent --[[@as YaTreeNode]]
     if not node then
       return
     end
@@ -137,9 +137,9 @@ function M.paste_nodes(node)
     ---@type string
     local first_file
     for _, item in ipairs(M.queue) do
-      local ok, result = paste_node(node, item)
-      if ok and not first_file then
-        first_file = result
+      local destination_path = paste_node(node, item)
+      if destination_path and not first_file then
+        first_file = destination_path
       end
     end
     -- let the event loop catch up if there was a very large amount of files pasted

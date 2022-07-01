@@ -13,35 +13,30 @@ local logger = {}
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
----@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.trace(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
----@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.debug(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
----@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.info(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
----@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.warn(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
 ---@vararg any
 ---@overload fun(...)
----@diagnostic disable-next-line: unused-local, unused-vararg
 function logger.error(msg, ...) end
 
 ---@alias LogLevel "trace" | "debug" | "info" | "warn" | "error"
@@ -73,8 +68,7 @@ local tbl_insert = table.insert
 ---@param opts? YaTreeLoggerConfig
 ---@return YaTreeLogger
 function logger.new(opts)
-  ---@type YaTreeLoggerConfig
-  local config = vim.tbl_deep_extend("force", default, opts or {})
+  local config = vim.tbl_deep_extend("force", default, opts or {}) --[[@as YaTreeLoggerConfig]]
 
   local log_file = fmt("%s/%s.log", fn.stdpath("cache"), config.name)
   local dir = Path:new(log_file):parent()
@@ -190,7 +184,6 @@ function logger.new(opts)
 
   for i, v in ipairs(config.levels) do
     local name = v.level
-    ---@cast name string
     self[name] = function(arg, ...)
       return log(i, name:upper(), v.highlight, arg, ...)
     end

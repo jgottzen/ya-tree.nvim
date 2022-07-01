@@ -205,7 +205,7 @@ local actions = {
 }
 
 ---@param mapping YaTreeActionMapping
----@return function? handler
+---@return function|nil handler
 local function create_keymap_function(mapping)
   ---@type fun(node: YaTreeNode)
   local fn
@@ -213,6 +213,9 @@ local function create_keymap_function(mapping)
     local action = actions[mapping.action]
     if action and action.fn then
       fn = void(action.fn)
+    else
+      log.error("action %q has no mapping", mapping.action)
+      return nil
     end
   elseif mapping.fn then
     fn = void(mapping.fn)
@@ -222,7 +225,7 @@ local function create_keymap_function(mapping)
   end
 
   return function()
-    if mapping.views[ui.get_view_mode()] then
+    if vim.tbl_contains(mapping.views, ui.get_view_mode()) then
       fn(ui.get_current_node())
     end
   end
@@ -240,20 +243,8 @@ function M.apply_mappings(bufnr)
   end
 end
 
----@param views_list YaTreeCanvasViewMode[]
----@return table<YaTreeCanvasViewMode, boolean>
-local function create_views_map(views_list)
-  ---@type table<YaTreeCanvasViewMode, boolean>
-  local views = {}
-  for _, view in ipairs(views_list) do
-    views[view] = true
-  end
-
-  return views
-end
-
 ---@class YaTreeActionMapping
----@field views table<YaTreeCanvasViewMode, boolean>
+---@field views YaTreeCanvasViewMode[]
 ---@field mode YaTreeActionMode
 ---@field key string
 ---@field desc string
@@ -279,7 +270,7 @@ local function validate_and_create_mappings(mappings)
         local action = actions[name]
         for _, mode in ipairs(action.modes) do
           action_mappings[#action_mappings + 1] = {
-            views = create_views_map(action.views),
+            views = action.views,
             mode = mode,
             key = key,
             desc = action.desc,
@@ -293,7 +284,7 @@ local function validate_and_create_mappings(mappings)
       if type(fn) == "function" then
         for _, mode in ipairs(mapping.modes) do
           action_mappings[#action_mappings + 1] = {
-            views = create_views_map(mapping.views),
+            views = mapping.views,
             mode = mode,
             key = key,
             desc = mapping.desc or "User '<function>'",
