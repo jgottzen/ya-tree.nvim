@@ -10,6 +10,7 @@ local log = require("ya-tree.log")
 
 local os_sep = Path.path.sep
 
+local api = vim.api
 local uv = vim.loop
 
 local M = {
@@ -667,8 +668,29 @@ function M.get_repo_for_path(path)
   end
 end
 
+local function on_vim_leave_pre()
+  for _, repo in pairs(M.repos) do
+    if repo._git_dir_watcher then
+      repo._git_dir_watcher:stop()
+      repo._git_dir_watcher:close()
+      repo._git_dir_watcher = nil
+    end
+  end
+end
+
 function M.setup()
   config = require("ya-tree.config").config
+
+  ---@type number
+  local group = api.nvim_create_augroup("YaTreeGit", { clear = true })
+  api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    pattern = "*",
+    callback = function()
+      on_vim_leave_pre()
+    end,
+    desc = "Clean up any .git directory pollers",
+  })
 end
 
 return M
