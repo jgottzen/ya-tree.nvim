@@ -663,13 +663,6 @@ local function on_win_closed(closed_winid)
 end
 
 ---@async
-local function on_color_scheme()
-  scheduler()
-  ui.setup_highlights()
-  M.redraw()
-end
-
----@async
 local function on_tab_new_entered()
   M.open_window({ focus = config.auto_open.focus_tree })
 end
@@ -994,13 +987,6 @@ local function setup_autocommands()
       desc = "Close Neovim when the tree is the last window",
     })
   end
-  api.nvim_create_autocmd("ColorScheme", {
-    group = group,
-    callback = void(function()
-      on_color_scheme()
-    end),
-    desc = "Updating highlights",
-  })
 
   if config.auto_open.on_new_tab then
     api.nvim_create_autocmd("TabNewEntered", {

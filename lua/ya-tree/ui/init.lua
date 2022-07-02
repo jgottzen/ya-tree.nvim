@@ -329,13 +329,16 @@ function M.setup()
     end,
     desc = "Keeping track of which window to open buffers in",
   })
+  api.nvim_create_autocmd("ColorScheme", {
+    group = group,
+    callback = function()
+      hl.setup()
+    end,
+    desc = "Updating highlights",
+  })
 
-  M.setup_highlights()
-  Canvas.setup()
-end
-
-function M.setup_highlights()
   hl.setup()
+  Canvas.setup()
 end
 
 ---@return boolean enabled
