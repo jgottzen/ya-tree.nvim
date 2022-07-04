@@ -58,6 +58,21 @@ function M.get_tree(tabpage)
   return M._trees[tostring(tabpage)]
 end
 
+---@param tabindex number
+---@return number? tabpage
+function M.tabindex_to_tabpage(tabindex)
+  ---@type number[]
+  local tabs = {}
+  for tab, _ in pairs(M._trees) do
+    tabs[#tabs + 1] = tonumber(tab)
+  end
+  table.sort(tabs, function(a, b)
+    return a < b
+  end)
+  log.debug(tabs)
+  return tabs[tabindex]
+end
+
 ---@async
 ---@param root_path? string
 ---@return YaTree tree

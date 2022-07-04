@@ -55,11 +55,14 @@ local function on_tab_enter()
 end
 
 ---@async
----@param tabpage number
-local function on_tab_closed(tabpage)
-  Tree.delete_tree(tabpage)
-  scheduler()
-  ui.delete_ui(tabpage)
+---@param tabindex number
+local function on_tab_closed(tabindex)
+  local tabpage = Tree.tabindex_to_tabpage(tabindex)
+  if tabpage then
+    Tree.delete_tree(tabpage)
+    scheduler()
+    ui.delete_ui(tabpage)
+  end
 end
 
 ---@async
@@ -382,8 +385,8 @@ function M.setup()
   api.nvim_create_autocmd("TabClosed", {
     group = group,
     callback = void(function(input)
-      local bufnr = tonumber(input.match) --[[@as number]]
-      on_tab_closed(bufnr)
+      local tabindex = tonumber(input.match) --[[@as number]]
+      on_tab_closed(tabindex)
     end),
     desc = "Remove tab-specific tree",
   })
