@@ -185,10 +185,14 @@ do
         end
         if glob then
           table.insert(args, "--glob")
+          if term ~= "*" and not term:find("*") then
+            term = "*" .. term .. "*"
+          end
+          table.insert(args, term)
         else
           table.insert(args, "--full-path")
+          table.insert(args, term)
         end
-        table.insert(args, term)
         table.insert(args, path)
       elseif cmd == "find" then
         args = { path, "-type", "f,d,l" }
@@ -196,6 +200,9 @@ do
           table.insert(args, "-not")
           table.insert(args, "-path")
           table.insert(args, "*/.*")
+        end
+        if term ~= "*" and not term:find("*") then
+          term = "*" .. term .. "*"
         end
         if glob then
           table.insert(args, "-iname")
@@ -205,6 +212,9 @@ do
           table.insert(args, "*" .. term .. "*")
         end
       elseif cmd == "where" then
+        if term ~= "*" and not term:find("*") then
+          term = "*" .. term .. "*"
+        end
         args = { "/r", path, term }
       else
         -- no search command available

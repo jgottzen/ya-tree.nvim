@@ -744,11 +744,7 @@ function M.search(node, term, focus_node)
     tree.tree.current_node = ui.get_current_node()
   end
 
-  local search_term = term
-  if term ~= "*" and not term:find("*") then
-    search_term = "*" .. term .. "*"
-  end
-  local cmd, args = utils.build_search_arguments(search_term, node.path, true)
+  local cmd, args = utils.build_search_arguments(term, node.path, true)
   if not cmd then
     utils.warn("No suitable search command found!")
     return
@@ -883,7 +879,7 @@ function M.search_for_node_in_tree(path)
     return
   end
 
-  job.run({ cmd = cmd, args = args, cwd = tree.root.path, async_callback = true }, function(code, stdout)
+  job.run({ cmd = cmd, args = args, cwd = tree.root.path, async_callback = true }, function(code, stdout, stderr)
     if code == 0 then
       ---@type string[]
       local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
@@ -895,6 +891,8 @@ function M.search_for_node_in_tree(path)
       else
         utils.notify(string.format("%q cannot be found in the tree", path))
       end
+    else
+      log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
     end
   end)
 end
