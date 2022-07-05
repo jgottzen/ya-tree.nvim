@@ -3,7 +3,7 @@ local void = require("plenary.async.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
-local Tree = require("ya-tree.tree")
+local git = require("ya-tree.git")
 local Nodes = require("ya-tree.nodes")
 local job = require("ya-tree.job")
 local ui = require("ya-tree.ui")
@@ -19,7 +19,354 @@ local uv = vim.loop
 -- filesystem and repository scanning again.
 local setting_up = false
 
-local M = {}
+local M = {
+  ---@private
+  ---@type table<string, YaTree>
+  _trees = {},
+  ---@private
+  ---@type table<GitRepo, number[]>
+  _repo_tabpages = {},
+  ---@private
+  ---@type table<GitRepo, string>
+  _repo_listeners = {},
+}
+
+---@class YaTree
+---@field public tabpage number the current tabpage.
+---@field public cwd string the workding directory of the tabpage.
+---@field public refreshing boolean if the tree is currently refreshing.
+---@field public root YaTreeNode|YaTreeSearchRootNode|YaTreeBufferNode|YaTreeGitStatusNode the root of the current tree.
+---@field public current_node? YaTreeNode the currently selected node.
+---@field public tree YaTreeRoot the current tree.
+---@field public search YaSearchTreeRoot the current search tree.
+---@field public buffers YaBufferTreeRoot the buffers tree info.
+---@field public git_status YaGitStatusTreeRoot the git status info.
+
+---@class YaTreeRoot
+---@field public root YaTreeNode the root fo the tree.
+---@field public current_node? YaTreeNode the currently selected node.
+
+---@class YaSearchTreeRoot
+---@field public root? YaTreeSearchRootNode the root of the search tree.
+---@field public current_node? YaTreeSearchNode the currently selected node.
+
+---@class YaBufferTreeRoot
+---@field public root? YaTreeBufferNode
+---@field public current_node? YaTreeBufferNode
+
+---@class YaGitStatusTreeRoot
+---@field public root? YaTreeGitStatusNode
+---@field public current_node? YaTreeGitStatusNode
+
+local Tree = {}
+
+local add_git_change_listener
+do
+  ---@async
+  ---@param repo GitRepo
+  ---@param listener_id string
+  ---@param fs_changes boolean
+  local function on_git_change(repo, listener_id, fs_changes)
+    if vim.v.exiting ~= vim.NIL or M._repo_listeners[repo] ~= listener_id then
+      return
+    end
+    log.debug("git repo %s changed", tostring(repo))
+
+    scheduler()
+    ---@type number
+    local tabpage = api.nvim_get_current_tabpage()
+    local tabpages = M._repo_tabpages[repo]
+    if tabpages then
+      for _, tab in ipairs(tabpages) do
+        local tree = Tree.get_tree(tab)
+        if tree then
+          if fs_changes then
+            log.debug("git listener called with fs_changes=true, refreshing tree")
+            if tree.git_status.root then
+              tree.git_status.root:refresh({ refresh_git = false })
+            end
+            local node = tree.tree.root:get_child_if_loaded(repo.toplevel)
+            if node then
+              log.debug("repo %s is loaded in node %q", tostring(repo), node.path)
+              node:refresh({ recurse = true })
+            elseif tree.tree.root.path:find(repo.toplevel, 1, true) ~= nil then
+              log.debug("tree root %q is a subdirectory of repo %s", tree.tree.root.path, tostring(repo))
+              tree.tree.root:refresh({ recurse = true })
+            end
+          end
+          scheduler()
+          if tabpage == tree.tabpage and ui.is_open() then
+            tree.current_node = ui.get_current_node()
+            ui.update(tree.root, tree.current_node)
+          end
+        end
+      end
+    end
+  end
+
+  ---@param tabpage number
+  ---@param repo GitRepo
+  add_git_change_listener = function(tabpage, repo)
+    if config.git.enable and config.git.watch_git_dir then
+      local tabpages = M._repo_tabpages[repo]
+      if not tabpages then
+        if M._repo_tabpages[repo] ~= nil then
+          log.error("repo %s already has a listener_id %q registered", tostring(repo), M._repo_listeners[repo])
+        end
+        local listener_id = repo:add_git_change_listener(on_git_change)
+        if listener_id then
+          M._repo_tabpages[repo] = { tabpage }
+          M._repo_listeners[repo] = listener_id
+          log.debug("attached git listener for tree %s to git repo %s with id %s", tabpage, tostring(repo), listener_id)
+        else
+          log.error("failed to add git change listener for tree %s to git repo %s", tabpage, tostring(repo))
+        end
+      else
+        tabpages[#tabpages + 1] = tabpage
+        log.debug("added repo %s to tree %s", tostring(repo), tabpage)
+      end
+    end
+  end
+end
+
+do
+  ---@param tree YaTree
+  ---@return string
+  local function tree_tostring(tree)
+    return string.format("(tabpage=%s, cwd=%q, root=%q)", tree.tabpage, tree.cwd, tree.root.path)
+  end
+
+  ---@private
+  ---@async
+  ---@param tabpage? number
+  ---@return YaTree tree
+  function Tree.get_tree(tabpage)
+    scheduler()
+    ---@type number
+    tabpage = tabpage or api.nvim_get_current_tabpage()
+    return M._trees[tostring(tabpage)]
+  end
+
+  ---@async
+  ---@param root_path string
+  ---@return YaTree tree
+  local function create_tree(root_path)
+    scheduler()
+    ---@type number
+    local tabpage = api.nvim_get_current_tabpage()
+    ---@type string
+    local cwd = uv.cwd()
+    local root = root_path
+    log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
+    local root_node = Nodes.root(root)
+    ---@type YaTree
+    local tree = setmetatable({
+      tabpage = tabpage,
+      cwd = cwd,
+      refreshing = false,
+      root = root_node,
+      current_node = nil,
+      tree = {
+        root = root_node,
+        current_node = nil,
+      },
+      search = {
+        root = nil,
+        current_node = nil,
+      },
+      buffers = {
+        root = nil,
+        current_node = nil,
+      },
+      git_status = {
+        root = nil,
+        current_node = nil,
+      },
+    }, { __tostring = tree_tostring })
+    M._trees[tostring(tabpage)] = tree
+
+    return tree
+  end
+
+  ---@async
+  ---@param root_path? string
+  ---@return YaTree tree
+  function Tree.get_or_create_tree(root_path)
+    root_path = root_path or uv.cwd()
+    log.debug("getting or creating tree for %q", root_path)
+    local tree = Tree.get_tree()
+    if tree then
+      if tree.tree.root.path == root_path then
+        return tree
+      else
+        log.debug("current tree %s doesn't have the requested root %q", tostring(tree), root_path)
+        M.delete_tree(tree.tabpage)
+      end
+    end
+
+    tree = create_tree(root_path)
+    if config.git.enable then
+      local repo = git.create_repo(root_path)
+      if repo then
+        tree.tree.root:set_git_repo(repo)
+        repo:refresh_status({ ignored = true })
+        add_git_change_listener(tree.tabpage, repo)
+      end
+    end
+    return tree
+  end
+
+  ---@async
+  ---@param tree YaTree
+  ---@param new_root string
+  ---@return YaTree|nil tree returns `nil` if the current tree cannot walk up or down to reach the specified directory.
+  local function update_tree_root_node(tree, new_root)
+    tree.refreshing = true
+    if tree.tree.root.path ~= new_root then
+      ---@type YaTreeNode?
+      local root
+      if tree.tree.root:is_ancestor_of(new_root) then
+        log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(tree), new_root)
+        -- the new root is located 'below' the current root,
+        -- if it's already loaded in the tree, use that node as the root, else expand to it
+        local node = tree.tree.root:get_child_if_loaded(new_root)
+        if node then
+          root = node
+          root:expand({ force_scan = true })
+        else
+          root = tree.tree.root:expand({ force_scan = true, to = new_root })
+        end
+      elseif tree.tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
+        log.debug("current tree %s is a child of new root %q, creating parents up to it", tostring(tree), new_root)
+        -- the new root is located 'above' the current root,
+        -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
+        root = tree.tree.root
+        while root.parent do
+          root = root.parent --[[@as YaTreeNode]]
+          root:refresh()
+          if root.path == new_root then
+            break
+          end
+        end
+
+        while root.path ~= new_root do
+          root = Nodes.root(Path:new(root.path):parent().filename, root)
+        end
+      else
+        log.debug("current tree %s is not a child or ancestor of %q", tostring(tree), new_root)
+      end
+
+      if not root then
+        log.debug("cannot walk the tree to find a node for %q, returning nil", new_root)
+        return nil
+      else
+        tree.root = root
+        tree.tree.root = root
+        tree.tree.current_node = tree.current_node
+      end
+    else
+      log.debug("the new root %q is the same as the current root %s, skipping", new_root, tostring(tree.root))
+    end
+
+    tree.refreshing = false
+    return tree
+  end
+
+  ---@async
+  ---@param tree YaTree
+  ---@param new_root string|YaTreeNode
+  ---@return YaTree tree
+  function Tree.update_tree_root_node(tree, new_root)
+    if type(new_root) == "table" then
+      ---@cast new_root YaTreeNode
+      if tree.tree.root.path ~= new_root.path then
+        log.debug("new root is node %q", tostring(new_root))
+        tree.refreshing = true
+        tree.root = new_root
+        tree.root:expand({ force_scan = true })
+        tree.tree.root = new_root
+        tree.tree.current_node = tree.current_node
+        tree.refreshing = false
+      else
+        log.debug("the new root %q is the same as the current root %s, skipping", tostring(new_root), tostring(tree.root))
+      end
+      return tree
+    elseif type(new_root) == "string" then
+      ---@cast new_root string
+      log.debug("new root is string %q", new_root)
+      local new_tree = update_tree_root_node(tree, new_root)
+      if not new_tree then
+        log.debug("root %q could not be found walking the old tree %q, creating a new tree", new_root, tree.tree.root.path)
+        new_tree = Tree.get_or_create_tree(new_root)
+      end
+      return new_tree
+    else
+      log.error("new_root is of a type %q, which is not supported, returning old tree", type(new_root))
+      return tree
+    end
+  end
+end
+
+M._get_tree = Tree.get_tree
+
+---@private
+---@param cb fun(tree: YaTree)
+function M._for_each_tree(cb)
+  for _, tree in pairs(M._trees) do
+    cb(tree)
+  end
+end
+
+---@param tabpage number
+function M.delete_tree(tabpage)
+  log.debug("deleting tree for tabpage %s...", tabpage)
+
+  local tree = M._trees[tostring(tabpage)]
+  if tree then
+    log.debug("deleting tree for tabpage %s", tabpage)
+    M._trees[tostring(tabpage)] = nil
+  end
+
+  for repo, tabpages in pairs(M._repo_tabpages) do
+    for index, tab in ipairs(tabpages) do
+      if tab == tabpage then
+        log.debug("removing tab %s from repo %s list of tabpages", tab, tostring(repo))
+        table.remove(tabpages, index)
+        break
+      end
+    end
+    if #tabpages == 0 then
+      log.debug("no tree contains repo %s, removing it", tostring(repo))
+      local listener_id = M._repo_listeners[repo]
+      if not listener_id then
+        log.error("no listener_id registered for repo %s", tostring(repo))
+      else
+        repo:remove_git_change_listener(listener_id)
+      end
+      if not repo:has_git_listeners() then
+        git.remove_repo(repo)
+      end
+      M._repo_tabpages[repo] = nil
+      M._repo_listeners[repo] = nil
+    end
+  end
+
+  ui.delete_ui(tabpage)
+end
+
+---@param tabindex number
+---@return number? tabpage
+function M.tabindex_to_tabpage(tabindex)
+  ---@type number[]
+  local tabpages = {}
+  for tab, _ in pairs(M._trees) do
+    tabpages[#tabpages + 1] = tonumber(tab)
+  end
+  table.sort(tabpages, function(a, b)
+    return a < b
+  end)
+  return tabpages[tabindex]
+end
 
 ---@async
 ---@param node YaTreeNode
@@ -75,44 +422,6 @@ local function create_git_status_tree(tree, repo, root_path)
 end
 
 ---@async
----@param repo GitRepo
----@param watcher_id number
----@param fs_changes boolean
-function M.on_git_change(repo, watcher_id, fs_changes)
-  if vim.v.exiting ~= vim.NIL then
-    return
-  end
-  log.debug("git repo %s changed", tostring(repo))
-
-  scheduler()
-  ---@type number
-  local tabpage = api.nvim_get_current_tabpage()
-  Tree.for_each_tree(function(tree)
-    if tree.git_watchers[repo] == watcher_id then
-      if fs_changes then
-        log.debug("git watcher called with fs_changes=true, refreshing tree")
-        if tree.git_status.root then
-          tree.git_status.root:refresh({ refresh_git = false })
-        end
-        local node = tree.tree.root:get_child_if_loaded(repo.toplevel)
-        if node then
-          log.debug("repo %s is loaded in node %q", tostring(repo), node.path)
-          node:refresh({ recurse = true })
-        elseif tree.tree.root.path:find(repo.toplevel, 1, true) ~= nil then
-          log.debug("tree root %q is a subdirectory of repo %s", tree.tree.root.path, tostring(repo))
-          tree.tree.root:refresh({ recurse = true })
-        end
-      end
-      scheduler()
-      if tabpage == tree.tabpage and ui.is_open() then
-        tree.current_node = ui.get_current_node()
-        ui.update(tree.root, tree.current_node)
-      end
-    end
-  end)
-end
-
----@async
 ---@param opts? {path?: string, switch_root?: boolean, focus?: boolean}
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
@@ -150,6 +459,7 @@ function M.open_window(opts)
       tree = Tree.get_tree()
       if tree then
         tree = Tree.update_tree_root_node(tree, cwd)
+        -- updating the root node doesn't change the cwd, so set it
         tree.cwd = cwd
       else
         tree = Tree.get_or_create_tree(cwd)
@@ -406,11 +716,16 @@ function M.rescan_dir_for_git(node)
   if not node:is_directory() then
     node = node.parent --[[@as YaTreeNode]]
   end
-  if node:check_for_git_repo() then
-    Tree.attach_git_watcher(tree, node.repo)
-    ui.update(tree.root, node)
-  else
-    utils.notify(string.format("No Git repository found in %q.", node.path))
+  if not node.repo or node.repo:is_yadm() then
+    local repo = git.create_repo(node.path)
+    if repo then
+      node:set_git_repo(repo)
+      repo:refresh_status({ ignored = true })
+      add_git_change_listener(tree.tabpage, repo)
+      ui.update(tree.root, node)
+    else
+      utils.notify(string.format("No Git repository found in %q.", node.path))
+    end
   end
   tree.refreshing = false
 end

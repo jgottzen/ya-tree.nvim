@@ -5,7 +5,6 @@ local Path = require("plenary.path")
 local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
-local Tree = require("ya-tree.tree")
 local Nodes = require("ya-tree.nodes")
 local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
@@ -57,11 +56,9 @@ end
 ---@async
 ---@param tabindex number
 local function on_tab_closed(tabindex)
-  local tabpage = Tree.tabindex_to_tabpage(tabindex)
+  local tabpage = lib.tabindex_to_tabpage(tabindex)
   if tabpage then
-    Tree.delete_tree(tabpage)
-    scheduler()
-    ui.delete_ui(tabpage)
+    lib.delete_tree(tabpage)
   end
 end
 
@@ -69,7 +66,7 @@ end
 ---@param file string
 ---@param bufnr number
 local function on_buf_add_and_file_post(file, bufnr)
-  local tree = Tree.get_tree()
+  local tree = lib._get_tree()
   if tree and tree.buffers.root and file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     -- BufFilePost is fired before the file is available on the file system, causing the node creation
     -- to fail, by deferring the call for a short time, we should be able to find the file
@@ -108,7 +105,7 @@ local function on_buf_enter(file, bufnr)
   if file == "" or api.nvim_buf_get_option(bufnr, "buftype") ~= "" then
     return
   end
-  local tree = Tree.get_tree()
+  local tree = lib._get_tree()
 
   if config.replace_netrw and utils.is_directory(file) then
     -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
@@ -175,7 +172,7 @@ end
 ---@param file string
 ---@param bufnr number
 local function on_buf_delete(file, bufnr)
-  local tree = Tree.get_tree()
+  local tree = lib._get_tree()
   if tree and tree.buffers.root and file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     log.debug("removing buffer %q from buffer tree", file)
     tree.buffers.root:remove_buffer(file)
@@ -195,7 +192,7 @@ local function on_buf_write_post(file, bufnr)
   if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     ---@type number
     local tabpage = api.nvim_get_current_tabpage()
-    Tree.for_each_tree(function(tree)
+    lib._for_each_tree(function(tree)
       ---@type YaTreeNode?
       local node
       -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git status
@@ -262,7 +259,7 @@ local function on_dir_changed(scope, new_cwd, window_change)
   log.debug("scope=%s, window_change=%s, cwd=%s", scope, window_change, new_cwd)
 
   if scope == "tabpage" then
-    local tree = Tree.get_tree()
+    local tree = lib._get_tree()
     -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
     -- the tree.cwd is always bound to the tab cwd, and the root path of the
     -- tree doens't have to be checked
@@ -274,7 +271,7 @@ local function on_dir_changed(scope, new_cwd, window_change)
     tree.cwd = new_cwd
     lib.change_root_node_for_tree(tree, new_cwd)
   elseif scope == "global" then
-    Tree.for_each_tree(function(tree)
+    lib._for_each_tree(function(tree)
       -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
       -- the tree.cwd is always bound to the tab cwd, and the root path of the
       -- tree doens't have to be checked
@@ -319,7 +316,7 @@ local function on_diagnostics_changed()
   end
 
   local previous_diagnostics = Nodes.set_diagnostics(diagnostics)
-  local tree = Tree.get_tree()
+  local tree = lib._get_tree()
   if tree and ui.is_open() then
     ---@type number
     local diagnostics_count = vim.tbl_count(diagnostics)

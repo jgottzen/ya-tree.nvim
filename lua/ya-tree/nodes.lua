@@ -82,20 +82,10 @@ end
 ---@async
 ---@param path string the path
 ---@param old_root? YaTreeNode the previous root
----@param check_for_git_repo? boolean whether to check for a git repo in `path`
 ---@return YaTreeNode root
-function M.root(path, old_root, check_for_git_repo)
+function M.root(path, old_root)
   local fs_node = fs.node_for(path) --[[@as FsNode]]
   local root = Node:new(fs_node)
-
-  if check_for_git_repo then
-    local repo = git.create_repo(root.path)
-    if repo then
-      log.debug("node %q is in a git repo with toplevel %q", root.path, repo.toplevel)
-      root.repo = repo
-      root.repo:refresh_status({ ignored = true })
-    end
-  end
 
   -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree
   if old_root and Path:new(old_root.path):parent().filename == root.path then
@@ -201,7 +191,6 @@ end
 ---@param repo GitRepo
 ---@param node YaTreeNode
 local function set_git_repo_on_node_and_children(repo, node)
-  log.debug("setting repo on node %s", node.path)
   node.repo = repo
   if node.children then
     for _, child in ipairs(node.children) do
@@ -212,39 +201,29 @@ local function set_git_repo_on_node_and_children(repo, node)
   end
 end
 
----@async
----@return boolean is_git_repo whether a git repo was detected, returns `false` if a repo *already* exists
-function Node:check_for_git_repo()
-  if self.repo and not self.repo:is_yadm() then
-    return false
-  end
-
-  local repo = git.create_repo(self.path)
-  if repo then
-    repo:refresh_status({ ignored = true })
-    local toplevel = repo.toplevel
-    if toplevel == self.path then
-      -- this node is the git toplevel directory, set the property on self
-      set_git_repo_on_node_and_children(repo, self)
-    else
-      if #toplevel < #self.path then
-        -- this node is below the git toplevel directory,
-        -- walk the tree upwards until we hit the topmost node
-        local node = self
-        while node.parent and #toplevel <= #node.parent.path do
-          node = node.parent --[[@as YaTreeNode]]
-        end
-        set_git_repo_on_node_and_children(repo, node)
-      else
-        log.error("git repo with toplevel %s is somehow below this node %s, this should not be possible", toplevel, self.path)
-        log.error("self=%s", self)
-        log.error("repo=%s", repo)
-      end
-    end
-    return true
+---@param repo GitRepo
+function Node:set_git_repo(repo)
+  local toplevel = repo.toplevel
+  if toplevel == self.path then
+    log.debug("node %q is the toplevel of repo %s, setting repo on node and all child nodes", self.path, tostring(repo))
+    -- this node is the git toplevel directory, set the property on self
+    set_git_repo_on_node_and_children(repo, self)
   else
-    log.debug("path %s is not in a git repository", self.path)
-    return false
+    log.debug("node %q is not the toplevel of repo %s, walking up the tree", self.path, tostring(repo))
+    if #toplevel < #self.path then
+      -- this node is below the git toplevel directory,
+      -- walk the tree upwards until we hit the topmost node
+      local node = self
+      while node.parent and #toplevel <= #node.parent.path do
+        node = node.parent --[[@as YaTreeNode]]
+      end
+      log.debug("node %q is the top of the tree, setting repo on node and all child nodes", node.path, tostring(repo))
+      set_git_repo_on_node_and_children(repo, node)
+    else
+      log.error("git repo with toplevel %s is somehow below this node %s, this should not be possible", toplevel, self.path)
+      log.error("self=%s", self)
+      log.error("repo=%s", repo)
+    end
   end
 end
 
@@ -584,7 +563,7 @@ local function create_tree_from_paths(root, paths, node_creator)
   local first_leaf_node = root
   while first_leaf_node and first_leaf_node:is_directory() do
     if first_leaf_node.children and first_leaf_node.children[1] then
-      first_leaf_node = first_leaf_node.children and first_leaf_node.children[1]
+      first_leaf_node = first_leaf_node.children[1]
     else
       break
     end

@@ -74,8 +74,8 @@ local function get_repo_info(path, cmd)
 end
 
 ---@class uv_fs_poll_t
----@field start fun(self: uv_fs_poll_t, path: string, interval: number, callback: fun(err: string)):0|nil
----@field stop fun(self: uv_fs_poll_t):0|nil
+---@field start fun(self: uv_fs_poll_t, path: string, interval: number, callback: fun(err: string)):0|nil, string?
+---@field stop fun(self: uv_fs_poll_t):0|nil, string?
 ---@field close fun(self: uv_fs_poll_t)
 
 ---@class GitRepo
@@ -95,7 +95,7 @@ end
 ---@field private _propagated_git_status table<string, string>
 ---@field private _ignored string[]
 ---@field private _git_dir_watcher? uv_fs_poll_t
----@field private _git_watchers table<string, fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)>
+---@field private _git_listeners table<string, fun(repo: GitRepo, listener_id: string, fs_changes: boolean)>
 local Repo = {}
 Repo.__index = Repo
 
@@ -163,7 +163,7 @@ function Repo:new(path)
     _git_status = {},
     _propagated_git_status = {},
     _ignored = {},
-    _git_watchers = {},
+    _git_listeners = {},
   }, self)
 
   this:_read_remote_url()
@@ -200,19 +200,23 @@ function Repo:command(args, null_terminated)
   return result
 end
 
-local get_next_watcher_id
+local get_next_listner_id
 do
-  local watcher_id = 0
+  local listener_id = 0
 
-  get_next_watcher_id = function()
-    watcher_id = watcher_id + 1
-    return tostring(watcher_id)
+  get_next_listner_id = function()
+    listener_id = listener_id + 1
+    return tostring(listener_id)
   end
 end
 
----@param fn async fun(repo: GitRepo, watcher_id: number, fs_changes: boolean)
----@return string watcher_id
-function Repo:add_git_watcher(fn)
+---@param fn async fun(repo: GitRepo, listener_id: string, fs_changes: boolean)
+---@return string|nil listener_id
+function Repo:add_git_change_listener(fn)
+  local listener_id = get_next_listner_id()
+  self._git_listeners[listener_id] = fn
+  log.debug("add git change listener %s with id %s", fn, listener_id)
+
   if not self._git_dir_watcher then
     ---@param err string
     ---@type fun(err?: string)
@@ -223,62 +227,66 @@ function Repo:add_git_watcher(fn)
         return
       end
 
-      if vim.tbl_count(self._git_watchers) == 0 then
-        log.error("the fs_poll callback was called without any registered watchers")
+      if vim.tbl_count(self._git_listeners) == 0 then
+        log.error("the fs_poll callback was called without any registered listeners, stopping and removing the listener")
         self._git_dir_watcher:stop()
         self._git_dir_watcher = nil
         return
       end
 
       local fs_changes = self:refresh_status({ ignored = true })
-      for watcher_id, watcher in pairs(self._git_watchers) do
-        ---@cast watcher_id string
-        pcall(watcher, self, watcher_id, fs_changes)
+      for id, listener in pairs(self._git_listeners) do
+        pcall(listener, self, id, fs_changes)
         scheduler()
       end
     end)
 
-    self._git_dir_watcher = uv.new_fs_poll()
-    log.debug("setting up git dir watcher for repo with internval %s", tostring(self), config.git.watch_git_dir_interval)
+    local result, message = uv.new_fs_poll()
+    if result ~= nil then
+      self._git_dir_watcher = result
+    else
+      self._git_listeners[listener_id] = nil
+      log.error("failed to create fs_poll for directory %s, error: %s", self._git_dir, message)
+      return
+    end
 
-    local result = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, fs_poll_callback)
+    log.debug("setting up git dir watcher for repo with internval %s", tostring(self), config.git.watch_git_dir_interval)
+    result, message = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, fs_poll_callback)
     if result == 0 then
       log.debug("successfully started fs_poll for directory %s", self._git_dir)
     else
       pcall(self._git_dir_watcher.stop, self._git_dir_watcher)
       pcall(self._git_dir_watcher.close, self._git_dir_watcher)
       self._git_dir_watcher = nil
-      log.error("failed to start fs_poll for directory %s, error: %s", self._git_dir, result)
+      self._git_listeners[listener_id] = nil
+      log.error("failed to start fs_poll for directory %s, error: %s", self._git_dir, message)
+      return
     end
   end
 
-  local watcher_id = get_next_watcher_id()
-  self._git_watchers[watcher_id] = fn
-  log.debug("add git watcher %s with id %s", fn, watcher_id)
-
-  return watcher_id
+  return listener_id
 end
 
----@param watcher_id string
-function Repo:remove_git_watcher(watcher_id)
-  if not self._git_watchers[watcher_id] then
-    log.error("no watcher with id %s for repo %s", watcher_id, tostring(self))
+---@param listener_id string
+function Repo:remove_git_change_listener(listener_id)
+  if not self._git_listeners[listener_id] then
+    log.error("no listener with id %s for repo %s", listener_id, tostring(self))
     return
   end
 
-  self._git_watchers[watcher_id] = nil
-  log.debug("removed watcher with id %s for repo %s", watcher_id, tostring(self))
+  self._git_listeners[listener_id] = nil
+  log.debug("removed listener with id %s for repo %s", listener_id, tostring(self))
 
-  if vim.tbl_count(self._git_watchers) == 0 then
+  if vim.tbl_count(self._git_listeners) == 0 and self._git_dir_watcher ~= nil then
     self._git_dir_watcher:stop()
     self._git_dir_watcher:close()
     self._git_dir_watcher = nil
-    log.debug("the last watcher was removed, stopping fs_poll")
+    log.debug("the last listener was removed, stopping fs_poll for repo %s", tostring(self))
   end
 end
 
 ---@return boolean
-function Repo:has_git_watcher()
+function Repo:has_git_listeners()
   return self._git_dir_watcher ~= nil
 end
 
@@ -641,9 +649,10 @@ function M.remove_repo(repo)
     repo._git_dir_watcher:stop()
     repo._git_dir_watcher:close()
     repo._git_dir_watcher = nil
-    repo._git_watchers = {}
+    repo._git_listeners = {}
   end
   M.repos[repo.toplevel] = nil
+  log.debug("removed repo %s from cache", tostring(repo))
 end
 
 ---@param path string

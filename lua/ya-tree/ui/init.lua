@@ -3,6 +3,7 @@ local wrap = require("plenary.async").wrap
 local Canvas = require("ya-tree.ui.canvas")
 local help = require("ya-tree.ui.help")
 local hl = require("ya-tree.ui.highlights")
+local log = require("ya-tree.log")
 
 local api = vim.api
 
@@ -16,6 +17,7 @@ local M = {
 function M.delete_ui(tabpage)
   local tab = tostring(tabpage)
   if M._canvases[tab] then
+    log.debug("deleting ui for tabpage %s", tabpage)
     M._canvases[tab]:delete()
     M._canvases[tab] = nil
   end
