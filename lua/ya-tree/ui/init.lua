@@ -150,14 +150,20 @@ function M.focus_last_sibling(node)
   get_canvas():focus_last_sibling(node)
 end
 
----@param node YaTreeNode
-function M.focus_prev_git_item(node)
-  get_canvas():focus_prev_git_item(node)
+function M.focus_prev_git_item()
+  get_canvas():focus_prev_git_item()
 end
 
----@param node YaTreeNode
-function M.focus_next_git_item(node)
-  get_canvas():focus_next_git_item(node)
+function M.focus_next_git_item()
+  get_canvas():focus_next_git_item()
+end
+
+function M.focus_prev_diagnostic_item()
+  get_canvas():focus_prev_diagnostic_item()
+end
+
+function M.focus_next_diagnostic_item()
+  get_canvas():focus_next_diagnostic_item()
 end
 
 ---@param winid? number

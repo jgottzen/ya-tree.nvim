@@ -50,6 +50,9 @@ local win_options = {
 
 local tab_var_barbar_set_name = "_YaTreeBarbar"
 
+local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
+local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
+
 ---@alias YaTreeCanvasViewMode "tree" | "search" | "buffers" | "git_status"
 
 ---@class YaTreeCanvas
@@ -729,12 +732,7 @@ function Canvas:focus_last_sibling(node)
   end
 end
 
----@param node YaTreeNode
-function Canvas:focus_prev_git_item(node)
-  if not node then
-    return
-  end
-
+function Canvas:focus_prev_git_item()
   ---@type number
   local current_row, column = unpack(api.nvim_win_get_cursor(self.winid))
   for row = current_row - 1, 1, -1 do
@@ -745,18 +743,45 @@ function Canvas:focus_prev_git_item(node)
   end
 end
 
----@param node YaTreeNode
-function Canvas:focus_next_git_item(node)
-  if not node then
-    return
-  end
-
+function Canvas:focus_next_git_item()
   ---@type number
   local current_row, column = unpack(api.nvim_win_get_cursor(self.winid))
   for row = current_row + 1, #self.nodes do
     if self.nodes[row]:get_git_status() then
       set_cursor_position(self.winid, row, column)
       return
+    end
+  end
+end
+
+function Canvas:focus_prev_diagnostic_item()
+  ---@type number
+  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid))
+  for row = current_row - 1, 1, -1 do
+    local node = self.nodes[row]
+    local severity = node:get_diagnostics_severity()
+    if severity then
+      local target_severity = node:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
+      if severity <= target_severity then
+        set_cursor_position(self.winid, row, column)
+        return
+      end
+    end
+  end
+end
+
+function Canvas:focus_next_diagnostic_item()
+  ---@type number
+  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid))
+  for row = current_row + 1, #self.nodes do
+    local node = self.nodes[row]
+    local severity = node:get_diagnostics_severity()
+    if severity then
+      local target_severity = node:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
+      if severity <= target_severity then
+        set_cursor_position(self.winid, row, column)
+        return
+      end
     end
   end
 end
@@ -850,6 +875,11 @@ do
           end
         end
         all_directory_renderers[#all_directory_renderers + 1] = renderer
+
+        if renderer.name == "diagnostics" then
+          local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Diagnostics]]
+          directory_min_diagnstic_severrity = renderer_config.min_severity or config.renderers.diagnostics.min_severity
+        end
       end
     end
     log.trace("directory renderers=%s", all_directory_renderers)
@@ -868,6 +898,9 @@ do
         if renderer.name == "name" then
           local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Name]]
           highlight_open_file = renderer_config.highlight_open_file
+        elseif renderer.name == "diagnostics" then
+          local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Diagnostics]]
+          file_min_diagnostic_severity = renderer_config.min_severity or config.renderers.diagnostics.min_severity
         end
       end
     end

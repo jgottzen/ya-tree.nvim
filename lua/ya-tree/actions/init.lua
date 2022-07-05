@@ -53,6 +53,8 @@ local M = {}
 ---| "focus_last_sibling"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
+---| "focus_prev_diagnostic_item"
+---| "focus_next_diagnostic_item"
 ---| "open_help"
 
 ---@alias YaTreeActionMode "n" | "v" | "V"
@@ -198,6 +200,18 @@ local actions = {
   focus_next_git_item = create_action(
     ui.focus_next_git_item,
     "Go to next git item",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_prev_diagnostic_item = create_action(
+    ui.focus_prev_diagnostic_item,
+    "Go to the previous diagnostic item",
+    { "tree", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  focus_next_diagnostic_item = create_action(
+    ui.focus_next_diagnostic_item,
+    "Go to the next diagnostic item",
     { "tree", "search", "buffers", "git_status" },
     { "n" }
   ),
