@@ -158,6 +158,18 @@ function Node:_merge_new_data(fs_node)
   end
 end
 
+---@private
+---@param a YaTreeNode
+---@param b YaTreeNode
+---@return boolean
+function Node._node_comparator(a, b)
+  if a.type == b.type then
+    return a.path < b.path
+  else
+    return a.type < b.type
+  end
+end
+
 ---@async
 ---@private
 function Node:_scandir()
@@ -182,6 +194,7 @@ function Node:_scandir()
     end
     return child
   end, fs.scan_dir(self.path))
+  table.sort(self.children, self._node_comparator)
   self.empty = #self.children == 0
   self.scanned = true
 
@@ -529,7 +542,7 @@ local function create_tree_from_paths(root, paths, node_creator)
   local function add_node(fs_node, parent)
     local node = node_creator(fs_node, parent)
     parent.children[#parent.children + 1] = node
-    table.sort(parent.children, fs.fs_node_comparator)
+    table.sort(parent.children, root._node_comparator)
     node_map[node.path] = node
   end
 
@@ -809,7 +822,7 @@ local function add_node(root, file, node_creator)
         local child = node_creator(fs_node, node)
         log.debug("adding child %q to parent %q", child.path, node.path)
         node.children[#node.children + 1] = child
-        table.sort(node.children, fs.fs_node_comparator)
+        table.sort(node.children, root._node_comparator)
         node = child
       else
         log.error("cannot create fs node for %q", node.path .. utils.os_sep .. name)

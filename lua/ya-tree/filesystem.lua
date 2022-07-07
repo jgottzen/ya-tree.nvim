@@ -141,18 +141,6 @@ local function link_node(dir, name)
   return node
 end
 
----`FsNode` comparator
----@param a FsNode
----@param b FsNode
----@return boolean
-function M.fs_node_comparator(a, b)
-  if a.type == b.type then
-    return a.path < b.path
-  else
-    return a.type < b.type
-  end
-end
-
 ---@async
 ---@param path string
 ---@return FsNode|nil node
@@ -208,7 +196,6 @@ function M.scan_dir(dir)
         nodes[#nodes + 1] = node
       end
     end
-    table.sort(nodes, M.fs_node_comparator)
   end
 
   return nodes
