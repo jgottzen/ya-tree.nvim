@@ -309,15 +309,12 @@ M.select = wrap(function(items, opts, on_choice)
 end, 3)
 
 ---@param bufnr number
----@return boolean
-local function is_buffer_yatree(bufnr)
-  local ok, filetype = pcall(api.nvim_buf_get_option, bufnr, "filetype")
-  return ok and filetype == "YaTree"
-end
-
----@param bufnr number
 local function on_win_leave(bufnr)
-  if M.is_window_floating() or is_buffer_yatree(bufnr) then
+  if M.is_window_floating() then
+    return
+  end
+  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  if not ok or buftype ~= "" then
     return
   end
 
