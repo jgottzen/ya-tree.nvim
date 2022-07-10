@@ -18,8 +18,27 @@ local M = {}
 ---@async
 function M.open()
   local nodes = ui.get_selected_nodes()
-  if #nodes == 1 and nodes[1]:is_directory() then
-    lib.toggle_directory(nodes[1])
+  if #nodes == 1 then
+    local node = nodes[1]
+    if node:is_container() then
+      lib.toggle_node(node)
+    elseif node:is_file() then
+      ui.open_file(node.path, "edit")
+    elseif node:node_type() == "Buffer" then
+      ---@cast node YaTreeBufferNode
+      if node:is_terminal() then
+        for _, win in ipairs(api.nvim_list_wins()) do
+          if api.nvim_win_get_buf(win) == node.bufnr then
+            api.nvim_set_current_win(win)
+            return
+          end
+        end
+        local id = node:get_toggleterm_id()
+        if id then
+          pcall(vim.cmd, id .. "ToggleTerm")
+        end
+      end
+    end
   else
     for _, node in ipairs(nodes) do
       if node:is_file() then

@@ -24,6 +24,7 @@ local M = {
   SYMBOLIC_LINK = "YaTreeSymbolicLink",
 
   BUFFER_NUMBER = "YaTreeBufferNumber",
+  BUFFER_HIDDEN = "YaTreeBufferHidden",
 
   CLIPBOARD_STATUS = "YaTreeClipboardStatus",
 
@@ -68,6 +69,7 @@ local hl_links = {
   [M.SYMBOLIC_FILE_NAME] = M.FILE_NAME,
   [M.EXECUTABLE_FILE_NAME] = M.FILE_NAME,
   [M.BUFFER_NUMBER] = "SpecialChar",
+  [M.BUFFER_HIDDEN] = "WarningMsg",
   [M.CLIPBOARD_STATUS] = "Comment",
   [M.TEXT] = "Comment",
   [M.SEARCH_TERM] = "SpecialChar",

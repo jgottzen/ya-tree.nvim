@@ -476,7 +476,6 @@ function M.open_window(opts)
     tree = Tree.get_or_create_tree()
   end
 
-  ---@type YaTreeNode?
   local node
   if opts.path then
     local path = resolve_path_in_tree(tree, opts.path)
@@ -556,9 +555,9 @@ end
 
 ---@async
 ---@param node YaTreeNode
-function M.toggle_directory(node)
+function M.toggle_node(node)
   local tree = Tree.get_tree()
-  if not node:is_directory() or tree.root == node then
+  if not node:is_container() or tree.root == node then
     return
   end
 
@@ -580,7 +579,7 @@ function M.close_node(node)
     return
   end
 
-  if node:is_directory() and node.expanded then
+  if node:is_container() and node.expanded then
     node:collapse()
   else
     local parent = node.parent
@@ -791,23 +790,23 @@ function M.refresh_tree(node_or_path)
   log.debug("refreshing current tree")
 
   scheduler()
-  ---@type YaTreeNode
+  ---@type YaTreeNode?
   local node
   if ui.is_buffers_open() then
     tree.buffers.root:refresh()
-    node = ui.get_current_node() --[[@as YaTreeNode]]
+    node = ui.get_current_node()
   elseif ui.is_git_status_open() then
     tree.git_status.root:refresh()
-    node = ui.get_current_node() --[[@as YaTreeNode]]
+    node = ui.get_current_node()
   elseif ui.is_search_open() then
     tree.search.root:refresh()
-    node = ui.get_current_node() --[[@as YaTreeNode]]
+    node = ui.get_current_node()
   else
     tree.tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
     if type(node_or_path) == "table" then
       node = node_or_path
     elseif type(node_or_path) == "string" then
-      node = tree.tree.root:expand({ to = node_or_path }) --[[@as YaTreeNode]]
+      node = tree.tree.root:expand({ to = node_or_path })
     else
       log.error("the node_or_path parameter is of an unsupported type %q", type(node_or_path))
     end
@@ -839,10 +838,12 @@ function M.goto_node_in_tree(node)
     close_search(tree, node)
   elseif ui.is_buffers_open() then
     ---@cast node YaTreeBufferNode
-    tree.buffers.current_node = node
-    tree.root = tree.tree.root
-    tree.current_node = tree.root:expand({ to = node.path })
-    ui.close_buffers(tree.root, tree.current_node)
+    if node:is_directory() or node:is_file() then
+      tree.buffers.current_node = node
+      tree.root = tree.tree.root
+      tree.current_node = tree.root:expand({ to = node.path })
+      ui.close_buffers(tree.root, tree.current_node)
+    end
   elseif ui.is_git_status_open() then
     ---@cast node YaTreeGitStatusNode
     tree.git_status.current_node = node

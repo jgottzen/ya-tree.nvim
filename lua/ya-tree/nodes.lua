@@ -8,6 +8,8 @@ local git = require("ya-tree.git")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
+local fn = vim.fn
+
 local M = {}
 
 ---@alias YaTreeNodeType "FileSystem" | "Search" | "Buffer" | "GitStatus"
@@ -48,15 +50,15 @@ end
 
 ---Creates a new node.
 ---@generic T : YaTreeNode
+---@param self T
 ---@param fs_node FsNode filesystem data.
 ---@param parent? T the parent node.
 ---@return T node
 local function create_node(self, fs_node, parent)
-  local this = setmetatable(fs_node, self)
-  ---@cast this YaTreeNode
+  local this = setmetatable(fs_node, self) --[[@as YaTreeNode]]
   ---@cast parent YaTreeNode?
   this.parent = parent
-  if this:is_directory() then
+  if this:is_container() then
     this.children = {}
   end
 
@@ -103,15 +105,15 @@ function M.root(path, old_root)
   return root
 end
 
----@param fn fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
-function Node:walk(fn)
-  if fn(self) then
+---@param visitor fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
+function Node:walk(visitor)
+  if visitor(self) then
     return
   end
 
-  if self:is_directory() then
+  if self:is_container() then
     for _, child in ipairs(self.children) do
-      if child:walk(fn) then
+      if child:walk(visitor) then
         return
       end
     end
@@ -132,7 +134,6 @@ function Node:get_debug_info(output_to_log)
           children[#children + 1] = tostring(child)
         end
         t[k] = children
-        -- elseif k == "buffers" then
       else
         t[k] = v
       end
@@ -245,6 +246,11 @@ function Node:node_type()
   return self.__node_type
 end
 
+---@return boolean is_container
+function Node:is_container()
+  return self.type == "directory"
+end
+
 ---@return boolean
 function Node:is_directory()
   return self.type == "directory"
@@ -276,6 +282,28 @@ function Node:is_dotfile()
   return self.name:sub(1, 1) == "."
 end
 
+---@alias not_display_reason "filter" | "git"
+
+---@param config YaTreeConfig
+---@return boolean displayable, not_display_reason? reason
+function Node:is_displayable(config)
+  if config.filters.enable then
+    if config.filters.dotfiles and self:is_dotfile() then
+      return false, "filter"
+    elseif vim.tbl_contains(config.filters.custom, self.name) then
+      return false, "filter"
+    end
+  end
+
+  if not config.git.show_ignored then
+    if self:is_git_ignored() then
+      return false, "git"
+    end
+  end
+
+  return true
+end
+
 ---@return boolean
 function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self.type) or false
@@ -305,28 +333,6 @@ function Node:clear_clipboard_status()
   self:set_clipboard_status(nil)
 end
 
----@alias not_display_reason "filter" | "git"
-
----@param config YaTreeConfig
----@return boolean displayable, not_display_reason? reason
-function Node:is_displayable(config)
-  if config.filters.enable then
-    if config.filters.dotfiles and self:is_dotfile() then
-      return false, "filter"
-    elseif vim.tbl_contains(config.filters.custom, self.name) then
-      return false, "filter"
-    end
-  end
-
-  if not config.git.show_ignored then
-    if self:is_git_ignored() then
-      return false, "git"
-    end
-  end
-
-  return true
-end
-
 do
   ---@type table<string, number>
   local diagnostics = {}
@@ -347,11 +353,14 @@ end
 
 ---Returns an iterator function for this `node`s children.
 --
----@param opts? { reverse?: boolean, from?: YaTreeNode }
+---@generic T : YaTreeNode
+---@param self T
+---@param opts? { reverse?: boolean, from?: T }
 ---  - {opts.reverse?} `boolean`
----  - {opts.from?} `YatreeNode`
----@return fun():YaTreeNode iterator
-function Node:iterate_children(opts)
+---  - {opts.from?} `T`
+---@return fun():T iterator
+function Node.iterate_children(self, opts)
+  ---@cast self YaTreeNode
   if not self.children or #self.children == 0 then
     return function() end
   end
@@ -395,7 +404,7 @@ end
 ---  - {opts.recursive?} `boolean`
 function Node:collapse(opts)
   opts = opts or {}
-  if self:is_directory() then
+  if self:is_container() then
     if not opts.children_only then
       self.expanded = false
     end
@@ -411,15 +420,18 @@ end
 ---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
 --
 ---@async
+---@generic T : YaTreeNode
+---@param self T
 ---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.all?} `boolean` recursively expands all directory.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return YaTreeNode|nil node if {opts.to} is specified, and found.
-function Node:expand(opts)
+---@return T|nil node if {opts.to} is specified, and found.
+function Node.expand(self, opts)
+  ---@cast self YaTreeNode
   log.debug("expanding %q", self.path)
   opts = opts or {}
-  if self:is_directory() then
+  if self:is_container() then
     if not self.scanned or opts.force_scan then
       self:_scandir()
     end
@@ -430,13 +442,13 @@ function Node:expand(opts)
     if self.path == opts.to then
       log.debug("self %q is equal to path %q", self.path, opts.to)
       return self
-    elseif self:is_directory() and self:is_ancestor_of(opts.to) then
+    elseif self:is_container() and self:is_ancestor_of(opts.to) then
       for _, child in ipairs(self.children) do
         if child:is_ancestor_of(opts.to) then
           log.debug("child node %q is parent of %q", child.path, opts.to)
           return child:expand(opts)
         elseif child.path == opts.to then
-          if child:is_directory() then
+          if child:is_container() then
             child:expand(opts)
           end
           return child
@@ -445,9 +457,9 @@ function Node:expand(opts)
     else
       log.debug("node %q is not a parent of path %q", self.path, opts.to)
     end
-  elseif opts.all and self:is_directory() then
+  elseif opts.all and self:is_container() then
     for _, child in ipairs(self.children) do
-      if child:is_directory() then
+      if child:is_container() then
         child:expand(opts)
       end
     end
@@ -455,9 +467,12 @@ function Node:expand(opts)
 end
 
 ---Returns the child node specified by `path` if it has been loaded.
+---@generic T : YaTreeNode
+---@param self T
 ---@param path string
----@return YaTreeNode|nil
-function Node:get_child_if_loaded(path)
+---@return T|nil
+function Node.get_child_if_loaded(self, path)
+  ---@cast self YaTreeNode
   if self.path == path then
     return self
   end
@@ -529,52 +544,48 @@ end
 ---@generic T : YaTreeNode
 ---@param root T
 ---@param paths string[]
----@param node_creator fun(fs_node: FsNode, parent: T): T
+---@param node_creator fun(path: string, parent: T): T|nil
 ---@return T first_leaf_node
 local function create_tree_from_paths(root, paths, node_creator)
-  ---@type table<string, YaTreeNode>
-  local node_map = {}
   ---@cast root YaTreeNode
-  node_map[root.path] = root
+  ---@type table<string, YaTreeNode>
+  local node_map = { [root.path] = root }
 
-  ---@param fs_node FsNode
+  ---@param path string
   ---@param parent YaTreeNode
-  local function add_node(fs_node, parent)
-    local node = node_creator(fs_node, parent)
-    parent.children[#parent.children + 1] = node
-    table.sort(parent.children, root._node_comparator)
-    node_map[node.path] = node
+  local function add_node(path, parent)
+    local node = node_creator(path, parent)
+    if node then
+      parent.children[#parent.children + 1] = node
+      table.sort(parent.children, root._node_comparator)
+      node_map[node.path] = node
+    end
   end
 
   local min_path_size = #root.path
   for _, path in ipairs(paths) do
-    local parents
-    ---@type string[]
-    parents = Path:new(path):parents()
-    for i = #parents, 1, -1 do
-      local parent_path = parents[i]
-      -- skip paths above the node we are searching from
-      if #parent_path > min_path_size then
-        local parent = node_map[parent_path]
-        if not parent then
-          local grand_parent = node_map[parents[i + 1]]
-          local fs_node = fs.node_for(parent_path)
-          if fs_node then
-            add_node(fs_node, grand_parent)
+    if fs.exists(path) then
+      ---@type string[]
+      local parents = Path:new(path):parents()
+      for i = #parents, 1, -1 do
+        local parent_path = parents[i]
+        -- skip paths 'above' the root node
+        if #parent_path > min_path_size then
+          local parent = node_map[parent_path]
+          if not parent then
+            local grand_parent = node_map[parents[i + 1]]
+            add_node(parent_path, grand_parent)
           end
         end
       end
-    end
 
-    local parent = node_map[parents[1]]
-    local fs_node = fs.node_for(path)
-    if fs_node then
-      add_node(fs_node, parent)
+      local parent = node_map[parents[1]]
+      add_node(path, parent)
     end
   end
 
   local first_leaf_node = root
-  while first_leaf_node and first_leaf_node:is_directory() do
+  while first_leaf_node and first_leaf_node:is_container() do
     if first_leaf_node.children and first_leaf_node.children[1] then
       first_leaf_node = first_leaf_node.children[1]
     else
@@ -658,12 +669,15 @@ do
     self.children = {}
     local paths, err = search(self.path, self._search_options.cmd, self._search_options.args)
     if paths then
-      local first_leaf_node = create_tree_from_paths(self, paths, function(fs_node, parent)
-        local node = SearchNode:new(fs_node, parent)
-        if not parent.repo or parent.repo:is_yadm() then
-          node.repo = git.get_repo_for_path(node.path)
+      local first_leaf_node = create_tree_from_paths(self, paths, function(path, parent)
+        local fs_node = fs.node_for(path)
+        if fs_node then
+          local node = SearchNode:new(fs_node, parent)
+          if not parent.repo or parent.repo:is_yadm() then
+            node.repo = git.get_repo_for_path(node.path)
+          end
+          return node
         end
-        return node
       end)
       return first_leaf_node, #paths
     else
@@ -700,9 +714,14 @@ function M.create_search_tree(root_path, term, cmd, args)
   return root, root:search(term, cmd, args)
 end
 
+---@alias buffer_type file_type | "terminal" | "container"
+
 ---@class YaTreeBufferNode : YaTreeNode
 ---@field public parent? YaTreeBufferNode
+---@field private type buffer_type
+---@field public bufname? string
 ---@field public bufnr? number
+---@field public hidden? boolean
 ---@field public children? YaTreeBufferNode[]
 local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
@@ -712,27 +731,89 @@ setmetatable(BufferNode, { __index = Node })
 
 ---Creates a new buffer node.
 ---@param fs_node FsNode filesystem data.
+---@param bufname? string the vim buffer name.
 ---@param bufnr? number the buffer number.
+---@param hidden? boolean if the buffer is listed.
 ---@param parent? YaTreeBufferNode the parent node.
 ---@return YaTreeBufferNode node
-function BufferNode:new(fs_node, bufnr, parent)
+function BufferNode:new(fs_node, bufname, bufnr, hidden, parent)
   local this = create_node(self, fs_node, parent)
+  this.bufname = bufname
   this.bufnr = bufnr
-  if this:is_directory() then
+  this.hidden = hidden
+  if this:is_container() then
     this.scanned = true
     this.expanded = true
   end
   return this
 end
 
+---@return boolean is_container
+function BufferNode:is_container()
+  return self.type == "container" or self.type == "directory"
+end
+
+---@param _ YaTreeConfig
+---@return true
+function BufferNode:is_displayable(_)
+  return true
+end
+
+---@return boolean is_terminal
+function BufferNode:is_terminal()
+  return self.type == "terminal"
+end
+
+---@return number? id
+function BufferNode:get_toggleterm_id()
+  if self.type == "terminal" then
+    return self.bufname:match("#toggleterm#(%d+)$")
+  end
+end
+
 ---@private
 function BufferNode:_scandir() end
+
+---@param container YaTreeBufferNode
+---@return boolean is_container
+local function is_terminals_container(container)
+  return container and container.type == "container" and container.extension == "terminal" or false
+end
+
+---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+--
+---@async
+---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
+---  - {opts.force_scan?} `boolean` rescan directories.
+---  - {opts.all?} `boolean` recursively expands all directory.
+---  - {opts.to?} `string` recursively expand to the specified path and return it.
+---@return YaTreeBufferNode|nil node if {opts.to} is specified, and found.
+function BufferNode:expand(opts)
+  opts = opts or {}
+  if opts.to and vim.startswith(opts.to, "term://") then
+    if self.parent then
+      return self.parent:expand(opts)
+    else
+      if self.children then
+        local container = self.children[#self.children]
+        if is_terminals_container(container) then
+          for _, child in ipairs(container.children) do
+            if child.bufname == opts.to then
+              return child
+            end
+          end
+        end
+      end
+    end
+  else
+    return Node.expand(self, opts)
+  end
+end
 
 ---@param tree_root_path string
 ---@param paths string[]
 ---@return string root_path
 local function get_buffers_root_path(tree_root_path, paths)
-  ---@type string
   local root_path
   local size = #paths
   if size == 0 then
@@ -748,6 +829,39 @@ local function get_buffers_root_path(tree_root_path, paths)
   return root_path
 end
 
+---@param root YaTreeBufferNode
+---@return YaTreeBufferNode container
+local function create_terminal_buffers_container(root)
+  local container = BufferNode:new({
+    name = "Terminals",
+    type = "container",
+    path = "Terminals",
+    extension = "terminal",
+  }, nil, nil, nil, root)
+  container.children = {}
+  root.children[#root.children + 1] = container
+  return container
+end
+
+---@param container YaTreeBufferNode
+---@param terminal TerminalBufferData
+---@return YaTreeBufferNode node
+local function add_terminal_buffer_to_container(container, terminal)
+  local name = terminal.name:match("term://(.*)//.*")
+  local path = fn.fnamemodify(name, ":p")
+  local bufinfo = fn.getbufinfo(terminal.bufnr)
+  local hidden = bufinfo[1] and bufinfo[1].hidden == 1 or false
+  local node = BufferNode:new({
+    name = name,
+    type = "terminal",
+    path = path,
+    extension = "terminal",
+  }, terminal.name, terminal.bufnr, hidden, container)
+  container.children[#container.children + 1] = node
+  log.debug("adding terminal buffer %s (%q)", node.bufnr, node.bufname)
+  return node
+end
+
 ---@async
 ---@param opts? { root_path?: string }
 --- -- {opts.root_path?} `string`
@@ -760,7 +874,7 @@ function BufferNode:refresh(opts)
 
   opts = opts or {}
   scheduler()
-  local buffers = utils.get_current_buffers()
+  local buffers, terminals = utils.get_current_buffers()
   ---@type string[]
   local paths = vim.tbl_keys(buffers)
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
@@ -775,18 +889,30 @@ function BufferNode:refresh(opts)
   end
 
   self.children = {}
-  return create_tree_from_paths(self, paths, function(fs_node, parent)
-    local node = BufferNode:new(fs_node, buffers[fs_node.path], parent)
-    if not parent.repo or parent.repo:is_yadm() then
-      node.repo = git.get_repo_for_path(node.path)
+  local first_leaf_node = create_tree_from_paths(self, paths, function(path, parent)
+    local fs_node = fs.node_for(path)
+    if fs_node then
+      local is_buffer_node = buffers[fs_node.path] ~= nil
+      local node = BufferNode:new(fs_node, is_buffer_node and path or nil, buffers[fs_node.path], false, parent)
+      if not parent.repo or parent.repo:is_yadm() then
+        node.repo = git.get_repo_for_path(node.path)
+      end
+      return node
     end
-    return node
   end)
-end
 
----@return true
-function BufferNode:is_displayable()
-  return true
+  if #terminals > 0 then
+    scheduler()
+    local container = create_terminal_buffers_container(self)
+    for _, terminal in ipairs(terminals) do
+      add_terminal_buffer_to_container(container, terminal)
+    end
+    if first_leaf_node == self then
+      first_leaf_node = container.children[1]
+    end
+  end
+
+  return first_leaf_node
 end
 
 ---@async
@@ -795,7 +921,7 @@ end
 ---@param file string
 ---@param node_creator fun(fs_node: FsNode, parent: T): T
 ---@return T|nil node
-local function add_node(root, file, node_creator)
+local function add_fs_node(root, file, node_creator)
   if not fs.exists(file) then
     log.error("no file node found for %q", file)
     return nil
@@ -842,25 +968,35 @@ function BufferNode:add_buffer(file, bufnr)
   if self.parent then
     return self.parent:add_buffer(file, bufnr)
   else
-    return add_node(self, file, function(fs_node, parent)
-      local node = BufferNode:new(fs_node, fs_node.path == file and bufnr or nil, parent)
-      if not parent.repo or parent.repo:is_yadm() then
-        node.repo = git.get_repo_for_path(node.path)
+    if vim.startswith(file, "term://") then
+      local container = self.children[#self.children]
+      if not is_terminals_container(container) then
+        container = create_terminal_buffers_container(self)
       end
-      return node
-    end)
+      return add_terminal_buffer_to_container(container, { name = file, bufnr = bufnr })
+    else
+      return add_fs_node(self, file, function(fs_node, parent)
+        local is_buffer_node = fs_node.path == file
+        local node = BufferNode:new(fs_node, is_buffer_node and file or nil, is_buffer_node and bufnr or nil, false, parent)
+        if not parent.repo or parent.repo:is_yadm() then
+          node.repo = git.get_repo_for_path(node.path)
+        end
+        if is_buffer_node then
+          log.debug("adding buffer %s (%q)", node.bufnr, node.bufname)
+        end
+        return node
+      end)
+    end
   end
 end
 
 ---@param root YaTreeBufferNode|YaTreeGitStatusNode
 ---@param file string
-local function remove_node(root, file)
+local function remove_fs_node(root, file)
   local node = root:get_child_if_loaded(file)
-  ---@cast node YaTreeBufferNode|YaTreeGitStatusNode
   while node and node.parent and node ~= root do
     if node.parent and node.parent.children then
       for index, child in ipairs(node.parent.children) do
-        ---@cast child YaTreeBufferNode|YaTreeGitStatusNode
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
           table.remove(node.parent.children, index)
@@ -877,11 +1013,49 @@ local function remove_node(root, file)
 end
 
 ---@param file string
-function BufferNode:remove_buffer(file)
+---@param bufnr number
+---@param hidden boolean
+function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   if self.parent then
-    self.parent:remove_buffer(file)
+    self.parent:set_terminal_hidden(file, bufnr, hidden)
   else
-    remove_node(self, file)
+    local container = self.children[#self.children]
+    if is_terminals_container(container) then
+      for _, child in ipairs(container.children) do
+        if child.bufname == file and child.bufnr == bufnr then
+          child.hidden = hidden
+          log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
+          break
+        end
+      end
+    end
+  end
+end
+
+---@param file string
+---@param bufnr number
+function BufferNode:remove_buffer(file, bufnr)
+  if self.parent then
+    self.parent:remove_buffer(file, bufnr)
+  else
+    if vim.startswith(file, "term://") then
+      local container = self.children[#self.children]
+      if is_terminals_container(container) then
+        for index, child in ipairs(container.children) do
+          if child.bufname == file and child.bufnr == bufnr then
+            table.remove(container.children, index)
+            log.debug("removed terminal buffer %s (%q)", child.bufnr, child.bufname)
+            break
+          end
+        end
+        if #container.children == 0 then
+          table.remove(self.children, #self.children)
+          log.debug("no more terminal buffers present, removed container item")
+        end
+      end
+    else
+      remove_fs_node(self, file)
+    end
   end
 end
 
@@ -918,6 +1092,31 @@ function GitStatusNode:new(fs_node, parent)
   return this
 end
 
+---@param node YaTreeGitStatusNode
+---@return boolean displayable
+local function is_any_child_displayable(node)
+  for _, child in ipairs(node.children) do
+    if child:is_directory() and is_any_child_displayable(child) then
+      return true
+    elseif not child:is_git_ignored() then
+      return true
+    end
+  end
+  return false
+end
+
+---@param config YaTreeConfig
+---@return boolean displayable, not_display_reason? reason
+function GitStatusNode:is_displayable(config)
+  if not config.git.show_ignored then
+    if self:is_git_ignored() or (self:is_directory() and not is_any_child_displayable(self)) then
+      return false, "git"
+    end
+  end
+
+  return true
+end
+
 ---@private
 function GitStatusNode:_scandir() end
 
@@ -947,35 +1146,12 @@ function GitStatusNode:refresh(opts)
   end
 
   self.children = {}
-  return create_tree_from_paths(self, paths, function(fs_node, parent)
-    return GitStatusNode:new(fs_node, parent)
+  return create_tree_from_paths(self, paths, function(path, parent)
+    local fs_node = fs.node_for(path)
+    if fs_node then
+      return GitStatusNode:new(fs_node, parent)
+    end
   end)
-end
-
----@param node YaTreeGitStatusNode
----@return boolean displayable
-local function is_any_child_displayable(node)
-  for _, child in ipairs(node.children) do
-    ---@cast child YaTreeGitStatusNode
-    if child:is_directory() and is_any_child_displayable(child) then
-      return true
-    elseif not child:is_git_ignored() then
-      return true
-    end
-  end
-  return false
-end
-
----@param config YaTreeConfig
----@return boolean displayable, not_display_reason? reason
-function GitStatusNode:is_displayable(config)
-  if not config.git.show_ignored then
-    if self:is_git_ignored() or (self:is_directory() and not is_any_child_displayable(self)) then
-      return false, "git"
-    end
-  end
-
-  return true
 end
 
 ---@async
@@ -985,7 +1161,7 @@ function GitStatusNode:add_file(file)
   if self.parent then
     return self.parent:add_file(file)
   else
-    return add_node(self, file, function(fs_node, parent)
+    return add_fs_node(self, file, function(fs_node, parent)
       return GitStatusNode:new(fs_node, parent)
     end)
   end
@@ -996,7 +1172,7 @@ function GitStatusNode:remove_file(file)
   if self.parent then
     self.parent:remove_file(file)
   else
-    remove_node(self, file)
+    remove_fs_node(self, file)
   end
 end
 

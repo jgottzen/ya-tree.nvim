@@ -1,4 +1,3 @@
----@type boolean
 local icons_availble
 ---@type fun(filename: string, extension: string, opts?: {default?: boolean}): string, string
 local get_icon
@@ -75,22 +74,27 @@ function M.icon(node, _, renderer)
   end
 
   local icon, highlight
-  if node:is_directory() then
-    local custom_icon = renderer.directory.custom[node.name]
-    if custom_icon then
-      icon = custom_icon
-      highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
+  if node:is_container() then
+    if node:node_type() == "Buffer" and node.extension == "terminal" then
+      icon = get_icon(node.name, node.extension)
+      highlight = hl.DIRECTORY_ICON
     else
-      if node:is_link() then
-        icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
-        highlight = hl.SYMBOLIC_DIRECTORY_ICON
+      local custom_icon = renderer.directory.custom[node.name]
+      if custom_icon then
+        icon = custom_icon
+        highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
       else
-        if node.expanded then
-          icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
+        if node:is_link() then
+          icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
+          highlight = hl.SYMBOLIC_DIRECTORY_ICON
         else
-          icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
+          if node.expanded then
+            icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
+          else
+            icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
+          end
+          highlight = hl.DIRECTORY_ICON
         end
-        highlight = hl.DIRECTORY_ICON
       end
     end
   else
@@ -126,7 +130,7 @@ function M.icon(node, _, renderer)
   }
 end
 
----@param node YaTreeNode|YaTreeSearchRootNode
+---@param node YaTreeNode|YaTreeSearchRootNode|YaTreeBufferNode
 ---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Name
 ---@return RenderResult[] results
@@ -207,10 +211,16 @@ function M.name(node, context, renderer)
   if not highlight then
     if node:is_link() then
       highlight = hl.SYMBOLIC_LINK
-    elseif node:is_directory() then
+    elseif node:is_container() then
       highlight = hl.DIRECTORY_NAME
     elseif node:is_file() then
       highlight = hl.FILE_NAME
+    elseif node:node_type() == "Buffer" and node:is_terminal() then
+      if node.hidden then
+        highlight = hl.GIT_IGNORED
+      else
+        highlight = hl.FILE_NAME
+      end
     end
 
     if context.config.git.show_ignored then
@@ -375,22 +385,36 @@ end
 
 ---@param node YaTreeNode|YaTreeBufferNode
 ---@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.BufferNumber
----@return RenderResult|nil result
-function M.buffer_number(node, _, renderer)
+---@param renderer YaTreeConfig.Renderers.BufferInfo
+---@return RenderResult[]|nil results
+function M.buffer_info(node, _, renderer)
   local bufnr = -1
+  local hidden = false
   if node:node_type() == "Buffer" then
     bufnr = node.bufnr or -1
+    hidden = node.hidden or false
   elseif fn.bufloaded(node.path) > 0 then
     bufnr = fn.bufnr(node.path)
   end
 
+  local results = {}
   if bufnr > 0 then
-    return {
+    results[#results + 1] = {
       padding = renderer.padding,
       text = "#" .. bufnr,
       highlight = hl.BUFFER_NUMBER,
     }
+  end
+  if hidden then
+    results[#results + 1] = {
+      padding = renderer.padding,
+      text = renderer.hidden_icon,
+      highlight = hl.BUFFER_HIDDEN,
+    }
+  end
+
+  if #results > 0 then
+    return results
   end
 end
 

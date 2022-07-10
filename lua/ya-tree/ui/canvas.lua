@@ -110,6 +110,7 @@ function Canvas:set_edit_winid(winid)
   if not winid then
     log.error("setting edit_winid to nil!")
   end
+  log.debug("setting edit_winid to %s", winid)
   self.edit_winid = winid
   if self.edit_winid and self.edit_winid == self.winid then
     log.error("setting edit_winid to %s, the same as winid", self.edit_winid)
@@ -380,7 +381,7 @@ function Canvas:delete()
 end
 
 ---@type YaTreeViewRenderer[]
-local all_directory_renderers = {}
+local all_container_renderers = {}
 ---@type YaTreeViewRenderer[]
 local all_file_renderers = {}
 
@@ -407,16 +408,16 @@ end
 
 ---@param node YaTreeNode
 ---@param mode YaTreeCanvasViewMode
----@param directory_renderers YaTreeViewRenderer[]
+---@param container_renderers YaTreeViewRenderer[]
 ---@param file_renderers YaTreeViewRenderer[]
 ---@return string text, highlight_group[] highlights
-local function render_node(node, mode, directory_renderers, file_renderers)
+local function render_node(node, mode, container_renderers, file_renderers)
   ---@type string[]
   local content = {}
   ---@type highlight_group[]
   local highlights = {}
 
-  local renderers = node:is_directory() and directory_renderers or file_renderers
+  local renderers = node:is_container() and container_renderers or file_renderers
   local pos = 0
   ---@type RenderingContext
   local context = { view_mode = mode, config = config }
@@ -451,10 +452,10 @@ function Canvas:_render_tree(root)
   local linenr = 0
 
   ---@type YaTreeViewRenderer[]
-  local directory_renderers = {}
-  for _, renderer in ipairs(all_directory_renderers) do
+  local container_renderers = {}
+  for _, renderer in ipairs(all_container_renderers) do
     if vim.tbl_contains(renderer.config.view_modes, self.view_mode) then
-      directory_renderers[#directory_renderers + 1] = renderer
+      container_renderers[#container_renderers + 1] = renderer
     end
   end
   ---@type YaTreeViewRenderer[]
@@ -475,9 +476,9 @@ function Canvas:_render_tree(root)
       node.last_child = last_child
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr], highlights[linenr] = render_node(node, self.view_mode, directory_renderers, file_renderers)
+      lines[linenr], highlights[linenr] = render_node(node, self.view_mode, container_renderers, file_renderers)
 
-      if node:is_directory() and node.expanded then
+      if node:is_container() and node.expanded then
         local nr_of_children = #node.children
         for i, child in ipairs(node.children) do
           append_node(child, depth + 1, i == nr_of_children)
@@ -618,7 +619,7 @@ function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
   while not node:is_displayable(config) and node.parent do
-    node = node.parent --[[@as YaTreeNode]]
+    node = node.parent
   end
   if node then
     local row = self.node_path_to_index_lookup[node.path]
@@ -861,7 +862,7 @@ do
 
     -- reset the renderer arrays, since the setup can be called repeatedly
     ---@type YaTreeViewRenderer[]
-    all_directory_renderers = {}
+    all_container_renderers = {}
     ---@type YaTreeViewRenderer[]
     all_file_renderers = {}
 
@@ -874,7 +875,7 @@ do
             renderer.config[k] = v
           end
         end
-        all_directory_renderers[#all_directory_renderers + 1] = renderer
+        all_container_renderers[#all_container_renderers + 1] = renderer
 
         if renderer.name == "diagnostics" then
           local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Diagnostics]]
@@ -882,7 +883,7 @@ do
         end
       end
     end
-    log.trace("directory renderers=%s", all_directory_renderers)
+    log.trace("directory renderers=%s", all_container_renderers)
 
     for _, file_renderer in ipairs(config.view.renderers.file) do
       local renderer = create_renderer(file_renderer)

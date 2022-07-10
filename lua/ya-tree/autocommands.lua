@@ -65,32 +65,46 @@ end
 ---@async
 ---@param file string
 ---@param bufnr number
-local function on_buf_add_and_file_post(file, bufnr)
+local function on_buf_add_and_file_post_and_term_open(file, bufnr)
   local tree = lib._get_tree()
-  if tree and tree.buffers.root and file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
+  if not tree or not tree.buffers.root or file == "" then
+    return
+  end
+  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  if buftype == "" or buftype == "terminal" then
     -- BufFilePost is fired before the file is available on the file system, causing the node creation
     -- to fail, by deferring the call for a short time, we should be able to find the file
     vim.defer_fn(
       void(function()
-        local node = tree.buffers.root:get_child_if_loaded(file) --[[@as YaTreeBufferNode]]
-        if not node then
-          if tree.buffers.root:is_ancestor_of(file) then
-            log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
-            tree.buffers.root:add_buffer(file, bufnr)
-          else
-            log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, tree.buffers.root.path)
-            tree.buffers.root:refresh()
-          end
-        elseif node.bufnr ~= bufnr then
-          log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
-          node.bufnr = bufnr
+        local node
+        if buftype == "terminal" then
+          node = tree.buffers.root:add_buffer(file, bufnr)
         else
-          return
+          node = tree.buffers.root:get_child_if_loaded(file)
+          if not node then
+            if tree.buffers.root:is_ancestor_of(file) then
+              log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
+              node = tree.buffers.root:add_buffer(file, bufnr)
+            else
+              log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, tree.buffers.root.path)
+              tree.buffers.root:refresh()
+            end
+          elseif node.bufnr ~= bufnr then
+            log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
+            node.bufnr = bufnr
+          else
+            return
+          end
         end
 
         scheduler()
         if ui.is_open() and ui.is_buffers_open() then
-          ui.update(tree.root, ui.get_current_node(), { focus_node = true })
+          if config.follow_focused_file and not node then
+            node = tree.root:expand({ to = file })
+          else
+            node = ui.get_current_node()
+          end
+          ui.update(tree.root, node, { focus_node = true })
         end
       end),
       100
@@ -102,7 +116,8 @@ end
 ---@param file string
 ---@param bufnr number
 local function on_buf_enter(file, bufnr)
-  if file == "" or api.nvim_buf_get_option(bufnr, "buftype") ~= "" then
+  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  if file == "" or not buftype == "" or not buftype == "terminal" then
     return
   end
   local tree = lib._get_tree()
@@ -150,7 +165,7 @@ local function on_buf_enter(file, bufnr)
     -- only update the ui iff highlighting of open files is enabled and
     -- the necessary config options are set
     local update_ui = ui.is_highlight_open_file_enabled()
-    if ui.is_current_window_ui() and config.move_buffers_from_tree_window then
+    if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
       log.debug("moving buffer %s to edit window", bufnr)
       ui.move_buffer_to_edit_window(bufnr)
     end
@@ -171,11 +186,47 @@ end
 ---@async
 ---@param file string
 ---@param bufnr number
-local function on_buf_delete(file, bufnr)
+local function on_buf_hidden(file, bufnr)
   local tree = lib._get_tree()
-  if tree and tree.buffers.root and file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
+  if not tree or not tree.buffers.root or file == "" then
+    return
+  end
+  -- due to async, this function might be called after TermClose, when the buffer no longer exists,
+  -- so calling nvim_buf_get_option results in an error.
+  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  if ok and buftype == "terminal" then
+    tree.buffers.root:set_terminal_hidden(file, bufnr, true)
+    ui.update(tree.root)
+  end
+end
+
+---@async
+---@param file string
+---@param bufnr number
+local function on_buf_win_enter(file, bufnr)
+  local tree = lib._get_tree()
+  if not tree or not tree.buffers.root or file == "" then
+    return
+  end
+  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  if buftype == "terminal" then
+    tree.buffers.root:set_terminal_hidden(file, bufnr, false)
+    ui.update(tree.root)
+  end
+end
+
+---@async
+---@param file string
+---@param bufnr number
+local function on_buf_delete_and_term_close(file, bufnr)
+  local tree = lib._get_tree()
+  if not tree or not tree.buffers.root or file == "" then
+    return
+  end
+  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  if buftype == "" or buftype == "terminal" then
     log.debug("removing buffer %q from buffer tree", file)
-    tree.buffers.root:remove_buffer(file)
+    tree.buffers.root:remove_buffer(file, bufnr)
     if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.tree.root.path then
       tree.buffers.root:refresh({ root_path = tree.tree.root.path })
     end
@@ -388,11 +439,11 @@ function M.setup()
     desc = "Remove tab-specific tree",
   })
 
-  api.nvim_create_autocmd({ "BufAdd", "BufFilePost" }, {
+  api.nvim_create_autocmd({ "BufAdd", "BufFilePost", "TermOpen" }, {
     group = group,
     pattern = "*",
     callback = void(function(input)
-      on_buf_add_and_file_post(input.file, input.buf)
+      on_buf_add_and_file_post_and_term_open(input.file, input.buf)
     end),
     desc = "Updating buffers view",
   })
@@ -404,11 +455,27 @@ function M.setup()
     end),
     desc = "Current file highlighting in tree, move buffers from tree window, directory buffers handling",
   })
-  api.nvim_create_autocmd("BufDelete", {
+  api.nvim_create_autocmd("BufHidden", {
     group = group,
     pattern = "*",
     callback = void(function(input)
-      on_buf_delete(input.match, input.buf)
+      on_buf_hidden(input.file, input.buf)
+    end),
+    desc = "Update buffers view",
+  })
+  api.nvim_create_autocmd("BufWinEnter", {
+    group = group,
+    pattern = "*",
+    callback = void(function(input)
+      on_buf_win_enter(input.file, input.buf)
+    end),
+    desc = "Update buffers view",
+  })
+  api.nvim_create_autocmd({ "BufDelete", "TermClose" }, {
+    group = group,
+    pattern = "*",
+    callback = void(function(input)
+      on_buf_delete_and_term_close(input.match, input.buf)
     end),
     desc = "Updating buffers view",
   })
