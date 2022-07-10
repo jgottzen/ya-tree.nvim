@@ -56,9 +56,9 @@ end
 ---@async
 ---@param tabindex number
 local function on_tab_closed(tabindex)
-  local tabpage = lib.tabindex_to_tabpage(tabindex)
+  local tabpage = lib._tabindex_to_tabpage(tabindex)
   if tabpage then
-    lib.delete_tree(tabpage)
+    lib._delete_tree(tabpage)
   end
 end
 
@@ -320,7 +320,7 @@ local function on_dir_changed(scope, new_cwd, window_change)
 
     tree.current_node = ui.is_open() and ui.get_current_node() or tree.current_node
     tree.cwd = new_cwd
-    lib.change_root_node_for_tree(tree, new_cwd)
+    lib._change_root_node_for_tree(tree, new_cwd)
   elseif scope == "global" then
     lib._for_each_tree(function(tree)
       -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
@@ -328,7 +328,7 @@ local function on_dir_changed(scope, new_cwd, window_change)
       -- tree doens't have to be checked
       if new_cwd ~= tree.cwd then
         tree.cwd = new_cwd
-        lib.change_root_node_for_tree(tree, new_cwd)
+        lib._change_root_node_for_tree(tree, new_cwd)
       end
     end)
   end

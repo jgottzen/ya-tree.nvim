@@ -200,7 +200,7 @@ do
         return tree
       else
         log.debug("current tree %s doesn't have the requested root %q", tostring(tree), root_path)
-        M.delete_tree(tree.tabpage)
+        M._delete_tree(tree.tabpage)
       end
     end
 
@@ -317,8 +317,9 @@ function M._for_each_tree(cb)
   end
 end
 
+---@private
 ---@param tabpage number
-function M.delete_tree(tabpage)
+function M._delete_tree(tabpage)
   log.debug("deleting tree for tabpage %s...", tabpage)
 
   local tree = M._trees[tostring(tabpage)]
@@ -354,9 +355,10 @@ function M.delete_tree(tabpage)
   ui.delete_ui(tabpage)
 end
 
+---@private
 ---@param tabindex number
 ---@return number? tabpage
-function M.tabindex_to_tabpage(tabindex)
+function M._tabindex_to_tabpage(tabindex)
   ---@type number[]
   local tabpages = {}
   for tab, _ in pairs(M._trees) do
@@ -609,10 +611,11 @@ function M.expand_all_nodes(node)
   ui.update(tree.root, node)
 end
 
+---@private
 ---@async
 ---@param tree YaTree
 ---@param new_root string|YaTreeNode
-function M.change_root_node_for_tree(tree, new_root)
+function M._change_root_node_for_tree(tree, new_root)
   log.debug("changing root node to %q", tostring(new_root))
 
   scheduler()
@@ -653,7 +656,7 @@ function M.cd_to(node)
   if config.cwd.update_from_tree and node.path ~= tree.cwd then
     vim.cmd("tcd " .. fn.fnameescape(node.path))
   elseif node.path ~= tree.root.path then
-    M.change_root_node_for_tree(tree, node)
+    M._change_root_node_for_tree(tree, node)
   end
 end
 
@@ -673,7 +676,7 @@ function M.cd_up(node)
   if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
     vim.cmd("tcd " .. fn.fnameescape(new_cwd))
   else
-    M.change_root_node_for_tree(tree, tree.root.parent or new_cwd)
+    M._change_root_node_for_tree(tree, tree.root.parent or new_cwd)
   end
 end
 
