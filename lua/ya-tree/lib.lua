@@ -137,11 +137,9 @@ do
   end
 
   ---@private
-  ---@async
   ---@param tabpage? number
   ---@return YaTree tree
   function Tree.get_tree(tabpage)
-    scheduler()
     ---@type number
     tabpage = tabpage or api.nvim_get_current_tabpage()
     return M._trees[tostring(tabpage)]
@@ -370,14 +368,12 @@ function M._tabindex_to_tabpage(tabindex)
   return tabpages[tabindex]
 end
 
----@async
 ---@param node YaTreeNode
 ---@return boolean is_node_root
 function M.is_node_root(node)
   return Tree.get_tree().root.path == node.path
 end
 
----@async
 ---@return string root_path
 function M.get_root_path()
   return Tree.get_tree().root.path
@@ -444,6 +440,8 @@ function M.open_window(opts)
   -- we need to update the tree with the new cwd and root _before_ issuing the `tcd` command, since
   -- control passes to the handler. Issuing it after will be a no-op since since the tree cwd is already set.
   local issue_tcd = false
+
+  scheduler()
 
   ---@type YaTree
   local tree
@@ -550,7 +548,6 @@ function M.redraw()
   local tree = Tree.get_tree()
   if tree and ui.is_open() then
     log.debug("redrawing tree")
-    scheduler()
     ui.update(tree.root)
   end
 end
