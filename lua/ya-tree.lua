@@ -137,7 +137,7 @@ function M.setup(opts)
   api.nvim_create_user_command("YaTreeOpen", function(input)
     local path, focus, view = parse_open_command_input(input.fargs)
     M.open(path, input.bang, focus, view)
-  end, { bang = true, nargs = "*", complete = complete_open, desc = "Opens the tree view for the current `cwd`, or the supplied path" })
+  end, { bang = true, nargs = "*", complete = complete_open, desc = "Open the tree view" })
   api.nvim_create_user_command("YaTreeClose", function()
     M.close()
   end, { desc = "Closes the tree view" })
@@ -155,7 +155,7 @@ function M.setup(opts)
       file = fn.filereadable(file) == 1 and file or nil
     end
     M.open(file, input.bang, true)
-  end, { bang = true, nargs = "?", complete = "file", desc = "Focuses on the current file, or the supplied file name" })
+  end, { bang = true, nargs = "?", complete = "file", desc = "Focus on the current file, or the supplied file name" })
 end
 
 return M

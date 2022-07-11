@@ -563,7 +563,6 @@ function M.open_window(opts)
   end
 end
 
----@async
 function M.close_window()
   ui.close()
 end
@@ -577,7 +576,6 @@ function M.toggle_window()
   end
 end
 
----@async
 function M.redraw()
   local tree = Tree.get_tree()
   if tree and ui.is_open() then
@@ -603,7 +601,6 @@ function M.toggle_node(node)
   ui.update(tree.root)
 end
 
----@async
 ---@param node YaTreeNode
 function M.close_node(node)
   local tree = Tree.get_tree()
@@ -626,7 +623,6 @@ function M.close_node(node)
   ui.update(tree.root, tree.current_node)
 end
 
----@async
 function M.close_all_nodes()
   local tree = Tree.get_tree()
   tree.root:collapse({ recursive = true, children_only = true })
@@ -711,7 +707,6 @@ function M.cd_up(node)
   end
 end
 
----@async
 ---@param node YaTreeNode
 function M.toggle_ignored(node)
   config.git.show_ignored = not config.git.show_ignored
@@ -721,7 +716,6 @@ function M.toggle_ignored(node)
   ui.update(tree.root, tree.current_node)
 end
 
----@async
 ---@param node YaTreeNode
 function M.toggle_filter(node)
   config.filters.enable = not config.filters.enable
@@ -802,7 +796,6 @@ function M.search(node, term, focus_node)
   end
 end
 
----@async
 function M.focus_first_search_result()
   local tree = Tree.get_tree()
   if tree.search.current_node then
@@ -864,8 +857,8 @@ end
 function M.goto_node_in_tree(node)
   local tree = Tree.get_tree()
   if ui.is_search_open() then
-    tree.files.current_node = tree.files.root:expand({ to = node.path })
     ---@cast node YaTreeSearchNode
+    tree.files.current_node = tree.files.root:expand({ to = node.path })
     close_search(tree, node)
   elseif ui.is_buffers_open() then
     ---@cast node YaTreeBufferNode
@@ -884,13 +877,11 @@ function M.goto_node_in_tree(node)
   end
 end
 
----@async
 ---@param node? YaTreeSearchNode
 function M.close_search(node)
   close_search(Tree.get_tree(), node)
 end
 
----@async
 ---@param node YaTreeNode
 function M.show_last_search(node)
   local tree = Tree.get_tree()
@@ -902,7 +893,6 @@ function M.show_last_search(node)
   end
 end
 
----@async
 ---@param path string
 function M.search_for_node_in_tree(path)
   local tree = Tree.get_tree()
