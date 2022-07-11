@@ -8,7 +8,6 @@ local os_sep = Path.path.sep
 local M = {}
 
 M.os_sep = os_sep
-M.os_root = Path.path.root
 M.is_windows = fn.has("win32") == 1 or fn.has("win32unix") == 1
 M.is_macos = fn.has("mac") == 1 or fn.has("macunix") == 1
 M.is_linux = fn.has("unix") == 1
@@ -34,6 +33,15 @@ end
 function M.is_directory(path)
   local stat = uv.fs_stat(path)
   return stat and stat.type == "directory" or false
+end
+
+---@param path string
+---@return boolean is_absolute
+function M.is_absolute_path(path)
+  if M.os_sep == "\\" then
+    return string.match(path, "^[%a]:\\.*$") ~= nil
+  end
+  return string.sub(path, 1, 1) == M.os_sep
 end
 
 ---@param paths string[]
@@ -74,17 +82,27 @@ function M.find_common_ancestor(paths)
 
   local path = table.concat(common_ancestor, os_sep)
   if #path == 0 then
-    return M.os_root()
+    return nil
   else
     return path
   end
+end
+
+
+---@param path string
+---@return boolean is_root
+function M.is_root(path)
+  if M.os_sep == "\\" then
+    return string.match(path, "^[A-Z]:\\?$")
+  end
+  return path == "/"
 end
 
 ---@param first string
 ---@param second string
 ---@return string path
 function M.join_path(first, second)
-  if first == M.os_root() then
+  if M.is_root(first) then
     return string.format("%s%s", first, second)
   else
     return string.format("%s%s%s", first, os_sep, second)

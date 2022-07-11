@@ -191,6 +191,9 @@ do
   ---@return YaTree tree
   function Tree.get_or_create_tree(root_path)
     root_path = root_path or uv.cwd()
+    if not utils.is_directory(root_path) then
+      root_path = Path:new(root_path):parent():absolute() --[[@as string]]
+    end
     log.debug("getting or creating tree for %q", root_path)
     local tree = Tree.get_tree()
     if tree then
@@ -274,7 +277,18 @@ do
   ---@param new_root string|YaTreeNode
   ---@return YaTree tree
   function Tree.update_tree_root_node(tree, new_root)
-    if type(new_root) == "table" then
+    if type(new_root) == "string" then
+      log.debug("new root is string %q", new_root)
+      if not utils.is_directory(new_root) then
+        new_root = Path:new(new_root):parent():absolute() --[[@as string]]
+      end
+      local new_tree = update_tree_root_node(tree, new_root)
+      if not new_tree then
+        log.debug("root %q could not be found walking the old tree %q, creating a new tree", new_root, tree.tree.root.path)
+        new_tree = Tree.get_or_create_tree(new_root)
+      end
+      return new_tree
+    elseif type(new_root) == "table" then
       ---@cast new_root YaTreeNode
       if tree.tree.root.path ~= new_root.path then
         log.debug("new root is node %q", tostring(new_root))
@@ -288,15 +302,6 @@ do
         log.debug("the new root %q is the same as the current root %s, skipping", tostring(new_root), tostring(tree.root))
       end
       return tree
-    elseif type(new_root) == "string" then
-      ---@cast new_root string
-      log.debug("new root is string %q", new_root)
-      local new_tree = update_tree_root_node(tree, new_root)
-      if not new_tree then
-        log.debug("root %q could not be found walking the old tree %q, creating a new tree", new_root, tree.tree.root.path)
-        new_tree = Tree.get_or_create_tree(new_root)
-      end
-      return new_tree
     else
       log.error("new_root is of a type %q, which is not supported, returning old tree", type(new_root))
       return tree
@@ -317,8 +322,6 @@ end
 ---@private
 ---@param tabpage number
 function M._delete_tree(tabpage)
-  log.debug("deleting tree for tabpage %s...", tabpage)
-
   local tree = M._trees[tostring(tabpage)]
   if tree then
     log.debug("deleting tree for tabpage %s", tabpage)
@@ -376,14 +379,14 @@ function M.get_root_path()
   return Tree.get_tree().root.path
 end
 
---- Resolves the `path` in the speicfied `tree`.
+--- Resolves the `path` in the `tree`.
 ---@param tree YaTree
 ---@param path string
 ---@return string|nil path the fully resolved path, or `nil`
 local function resolve_path_in_tree(tree, path)
-  if not vim.startswith(path, utils.os_root()) then
+  if not utils.is_absolute_path(path) then
     -- a relative path is relative to the current cwd, not the tree's root node
-    path = Path:new({ uv.cwd(), path }):absolute()
+    path = Path:new({ uv.cwd(), path }):absolute() --[[@as string]]
     log.debug("expanded cwd relative path to %s", path)
   end
 
@@ -402,7 +405,7 @@ end
 ---@param tree YaTree
 local function create_buffers_tree(tree)
   tree.buffers.root, tree.buffers.current_node = Nodes.create_buffers_tree(tree.tree.root.path)
-  tree.root = tree.buffers.root --[[@as YaTreeBufferNode]]
+  tree.root = tree.buffers.root
   tree.current_node = tree.buffers.current_node
 end
 
@@ -412,15 +415,16 @@ end
 ---@param root_path string
 local function create_git_status_tree(tree, repo, root_path)
   tree.git_status.root, tree.git_status.current_node = Nodes.create_git_status_tree(root_path, repo)
-  tree.root = tree.git_status.root --[[@as YaTreeGitStatusNode]]
+  tree.root = tree.git_status.root
   tree.current_node = tree.git_status.current_node
 end
 
 ---@async
----@param opts? {path?: string, switch_root?: boolean, focus?: boolean}
+---@param opts? {path?: string, switch_root?: boolean, focus?: boolean, view_mode?: YaTreeCanvasViewMode}
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
+---  - {opts.view_mode?} `YaTreeCanvasViewMode`
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")
@@ -443,21 +447,22 @@ function M.open_window(opts)
   if opts.switch_root and opts.path then
     issue_tcd = config.cwd.update_from_tree
     local path = Path:new(opts.path)
-    ---@type string
-    local cwd = path:absolute()
+    local cwd = path:absolute() --[[@as string]]
     if not path:is_dir() then
       path = path:parent()
-      cwd = path.filename
+      cwd = path:absolute() --[[@as string]]
     end
     if path:exists() then
       log.debug("switching tree cwd to %q", cwd)
       tree = Tree.get_tree()
       if tree then
         tree = Tree.update_tree_root_node(tree, cwd)
-        -- updating the root node doesn't change the cwd, so set it
-        tree.cwd = cwd
       else
         tree = Tree.get_or_create_tree(cwd)
+      end
+      if config.cwd.update_from_tree then
+        -- updating the root node doesn't change the cwd, so set it
+        tree.cwd = cwd
       end
       scheduler()
       -- when switching root and creating a new tree, force the view mode to 'tree',
@@ -471,27 +476,58 @@ function M.open_window(opts)
     tree = Tree.get_or_create_tree()
   end
 
-  local node
+  ---@type string|nil
+  local path
   if opts.path then
-    local path = resolve_path_in_tree(tree, opts.path)
-    if path then
-      node = tree.root:expand({ to = path })
-      if node then
-        local displayable, reason = node:is_displayable(config)
-        if not displayable and reason then
-          if reason == "filter" then
-            config.filters.enable = false
-          elseif reason == "git" then
-            config.git.show_ignored = true
-          end
-        end
-        log.debug("navigating to %q", path)
+    path = resolve_path_in_tree(tree, opts.path)
+    if not path then
+      log.info("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.path, uv.cwd(), tree.root.path)
+    end
+  end
+
+  if opts.view_mode == "tree" then
+    tree.root = tree.tree.root
+  elseif opts.view_mode == "buffers" then
+    if not tree.buffers.root then
+      create_buffers_tree(tree)
+    else
+      tree.root = tree.buffers.root
+    end
+  elseif opts.view_mode == "git_status" then
+    if not tree.git_status.root then
+      local repo = path and git.create_repo(path) or tree.tree.root.repo
+      if repo then
+        local root_path = repo:is_yadm() and tree.tree.root.path or repo.toplevel
+        create_git_status_tree(tree, repo, root_path)
       else
-        log.error("cannot expand to file %q in tree %s", path, tostring(tree))
-        utils.warn(string.format("Path %q is not a file or directory", opts.path))
+        utils.warn(string.format("Could not find a Git repository in path %q", tree.tree.root.path))
       end
     else
-      log.debug("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.path, uv.cwd(), tree.root.path)
+      tree.root = tree.git_status.root
+    end
+  end
+
+  local node
+  if path then
+    node = tree.root:expand({ to = path })
+    if node then
+      local displayable, reason = node:is_displayable(config)
+      if not displayable and reason then
+        if reason == "filter" then
+          config.filters.enable = false
+        elseif reason == "git" then
+          config.git.show_ignored = true
+        end
+      end
+      log.debug("navigating to %q", path)
+    else
+      if opts.view_mode and opts.view_mode == "tree" then
+        log.error("cannot expand to file %q in tree %s", path, tostring(tree))
+        utils.warn(string.format("Path %q is not a file or directory", opts.path))
+      else
+        log.debug("cannot expand to node %q in view %q", path, opts.view_mode)
+        utils.notify(string.format("Path %q is not available in the current view", path))
+      end
     end
   else
     if config.follow_focused_file then
@@ -509,13 +545,13 @@ function M.open_window(opts)
 
   scheduler()
   tree.current_node = node or (ui.is_open() and ui.get_current_node() or nil)
-  if ui.is_open() then
+  if ui.is_open() and not opts.view_mode then
     if opts.focus then
       ui.focus()
     end
     ui.update(tree.root, tree.current_node)
   else
-    ui.open(tree.root, tree.current_node, { focus = opts.focus, focus_edit_window = not opts.focus })
+    ui.open(tree.root, tree.current_node, { focus = opts.focus, focus_edit_window = not opts.focus, view_mode = opts.view_mode })
   end
 
   if issue_tcd then
@@ -656,7 +692,7 @@ end
 ---@param node YaTreeNode
 function M.cd_up(node)
   local tree = Tree.get_tree()
-  if tree.root.path == utils.os_root() then
+  if utils.is_root(tree.root.path) then
     return
   end
   local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
@@ -906,11 +942,11 @@ function M.toggle_git_status(node)
     end
     if node.repo then
       tree.tree.current_node = node
-      if not tree.git_status.root or tree.git_status.root.repo ~= node.repo then
+      if not tree.git_status.root or tree.git_status.root.repo ~= node.repo or tree.git_status.root.path ~= tree.tree.root.path then
         local path = node.repo:is_yadm() and tree.root.path or node.repo.toplevel
         create_git_status_tree(tree, node.repo, path)
       else
-        tree.root = tree.git_status.root --[[@as YaTreeGitStatusNode]]
+        tree.root = tree.git_status.root
         tree.current_node = tree.git_status.current_node
       end
       ui.open_git_status(tree.git_status.root, tree.git_status.current_node)

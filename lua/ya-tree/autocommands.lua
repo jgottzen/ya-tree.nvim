@@ -304,7 +304,10 @@ local function on_dir_changed(scope, new_cwd, window_change)
     -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
     -- the tree.cwd is always bound to the tab cwd, and the root path of the
     -- tree doens't have to be checked
-    if not tree or new_cwd == tree.cwd then
+    if not tree then
+      return
+    elseif new_cwd == tree.cwd then
+      log.debug("the tabpage's new cwd %q is the same as the current tree's %s", new_cwd, tostring(tree))
       return
     end
 

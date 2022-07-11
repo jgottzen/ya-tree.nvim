@@ -127,6 +127,10 @@ function Repo:new(path)
     return nil
   end
 
+  if not utils.is_directory(path) then
+    path = Path:new(path):parent().filename --[[@as string]]
+  end
+
   local toplevel, git_dir, branch = get_repo_info(path)
   local is_yadm = false
   if not toplevel and config.git.yadm.enable then
@@ -324,14 +328,14 @@ local function create_status_arguments(opts)
     "-z",
   }
   if opts.header then
-    table.insert(args, "-b") --branch
-    table.insert(args, "--show-stash")
+    args[#args + 1] = "-b" --branch
+    args[#args + 1] = "--show-stash"
   end
   -- only include ignored if requested
   if opts.ignored then
-    table.insert(args, "--ignored=matching")
+    args[#args + 1] = "--ignored=matching"
   else
-    table.insert(args, "--ignored=no")
+    args[#args + 1] = "--ignored=no"
   end
 
   return args
@@ -341,9 +345,13 @@ end
 ---@param file string
 ---@return boolean changed
 function Repo:refresh_status_for_file(file)
+  if utils.is_directory(file) then
+    log.error("only individual files are supported by this method!")
+    return true
+  end
   local args = create_status_arguments({ header = false, ignored = false })
-  log.debug("git status for file %q, arguments %q", file, table.concat(args, " "))
-  table.insert(args, file)
+  args[#args + 1] = file
+  log.debug("git status for file %q", file)
   local results = self:command(args, true)
 
   local old_status = self._git_status[file]
@@ -396,7 +404,7 @@ end
 function Repo:refresh_status(opts)
   opts = opts or {}
   local args = create_status_arguments({ header = true, ignored = opts.ignored })
-  log.debug("git status for %q, arguments %q", self.toplevel, table.concat(args, " "))
+  log.debug("git status for %q", self.toplevel)
   local results = self:command(args, true)
 
   local old_status = self._git_status

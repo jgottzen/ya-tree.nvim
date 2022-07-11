@@ -65,9 +65,9 @@ function M.run(opts, on_complete)
 
     cb(code, stdout, stderr)
   end)
-  log.trace("spawned process %q with arguments=%q, pid %s", opts.cmd, opts.args, state.pid)
 
   if state.handle then
+    log.debug("spawned %q with arguments=%q, pid %s", opts.cmd, table.concat(opts.args, " "), state.pid)
     ---@param data string
     state.stdout:read_start(function(_, data)
       state.stdout_data[#state.stdout_data + 1] = data
