@@ -68,7 +68,6 @@ end
 ---@param node YaTreeNode
 function M.preview(node)
   if node:is_file() then
-    ---@type boolean
     local already_loaded = vim.fn.bufloaded(node.path) > 0
     ui.open_file(node.path, "edit")
 

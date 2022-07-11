@@ -544,7 +544,7 @@ end
 ---@generic T : YaTreeNode
 ---@param root T
 ---@param paths string[]
----@param node_creator fun(path: string, parent: T): T|nil
+---@param node_creator async fun(path: string, parent: T): T|nil
 ---@return T first_leaf_node
 local function create_tree_from_paths(root, paths, node_creator)
   ---@cast root YaTreeNode
@@ -686,6 +686,7 @@ do
   end
 end
 
+---@async
 function SearchNode:refresh()
   if self.parent then
     self.parent:refresh()
@@ -708,9 +709,8 @@ end
 ---@return number|string matches_or_error
 function M.create_search_tree(root_path, term, cmd, args)
   local fs_node = fs.node_for(root_path) --[[@as FsNode]]
-  local root = SearchNode:new(fs_node)
+  local root = SearchNode:new(fs_node) --[[@as YaTreeSearchRootNode]]
   root.repo = git.get_repo_for_path(root_path)
-  ---@cast root YaTreeSearchRootNode
   return root, root:search(term, cmd, args)
 end
 
@@ -1073,6 +1073,7 @@ end
 ---@class YaTreeGitStatusNode : YaTreeNode
 ---@field public parent? YaTreeGitStatusNode
 ---@field public children? YaTreeGitStatusNode[]
+---@field public repo GitRepo
 local GitStatusNode = { __node_type = "GitStatus" }
 GitStatusNode.__index = GitStatusNode
 GitStatusNode.__tostring = Node.__tostring

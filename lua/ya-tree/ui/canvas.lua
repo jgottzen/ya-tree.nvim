@@ -625,7 +625,6 @@ function Canvas:focus_node(node)
     local row = self.node_path_to_index_lookup[node.path]
     log.debug("node %s is at index %s", node.path, row)
     if row then
-      ---@type number
       local column
       -- don't move the cursor on the first line
       if config.hijack_cursor and row > 2 then

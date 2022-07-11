@@ -467,7 +467,6 @@ do
   ---@param config YaTreeConfig
   function M.setup(config)
     local icons = config.renderers.git_status.icons
-    ---@type table<string, IconAndHighlight[]>
     git_icons_and_hl = {}
 
     git_icons_and_hl["M."] = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
@@ -537,7 +536,6 @@ do
     git_icons_and_hl.dirty = { { icon = icons.modified, highlight = hl.GIT_DIRTY } }
     git_icons_and_hl.staged = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
 
-    ---@type table<string, string>
     git_staus_to_hl = {}
     for k, v in pairs(git_icons_and_hl) do
       ---@cast k string
@@ -548,7 +546,6 @@ do
       end
     end
 
-    ---@type table<number, IconAndHighlight>
     diagnostic_icon_and_hl = {}
 
     local map = {

@@ -134,7 +134,6 @@ function M.paste_nodes(node)
   end
 
   if #M.queue > 0 then
-    ---@type string
     local first_file
     for _, item in ipairs(M.queue) do
       local destination_path = paste_node(node, item)

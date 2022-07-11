@@ -240,7 +240,6 @@ local function on_buf_write_post(file, bufnr)
     local tabpage = api.nvim_get_current_tabpage()
     void(function()
       lib._for_each_tree(function(tree)
-        ---@type YaTreeNode?
         local node
         -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git status
         if tree.tree.root:is_ancestor_of(file) then
@@ -252,7 +251,6 @@ local function on_buf_write_post(file, bufnr)
         end
 
         local git_status_changed = false
-        ---@type GitRepo?
         local repo
         if config.git.enable then
           if node then
@@ -269,7 +267,6 @@ local function on_buf_write_post(file, bufnr)
           local git_node = tree.git_status.root:get_child_if_loaded(file)
           if not repo then
             repo = tree.git_status.root.repo
-            ---@cast repo GitRepo
             git_status_changed = repo:refresh_status_for_file(file)
           end
           if not git_node and git_status_changed then
@@ -279,13 +276,10 @@ local function on_buf_write_post(file, bufnr)
               tree.git_status.root:remove_file(file)
             end
           end
-          if ui.is_git_status_open() then
-            node = git_node
-          end
         end
 
         -- only update the ui if something has changed, and the tree is for the current tabpage
-        if tree.tabpage == tabpage and ui.is_open() and ((node and ui.is_node_rendered(node)) or git_status_changed) then
+        if tree.tabpage == tabpage and ui.is_open() and (git_status_changed or (node and ui.is_node_rendered(node))) then
           ui.update(tree.root)
         end
       end)

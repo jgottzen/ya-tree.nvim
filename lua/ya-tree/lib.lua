@@ -221,7 +221,6 @@ do
   local function update_tree_root_node(tree, new_root)
     tree.refreshing = true
     if tree.tree.root.path ~= new_root then
-      ---@type YaTreeNode?
       local root
       if tree.tree.root:is_ancestor_of(new_root) then
         log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(tree), new_root)
@@ -362,9 +361,7 @@ function M._tabindex_to_tabpage(tabindex)
   for tab, _ in pairs(M._trees) do
     tabpages[#tabpages + 1] = tonumber(tab)
   end
-  table.sort(tabpages, function(a, b)
-    return a < b
-  end)
+  table.sort(tabpages)
   return tabpages[tabindex]
 end
 
@@ -442,8 +439,6 @@ function M.open_window(opts)
   local issue_tcd = false
 
   scheduler()
-
-  ---@type YaTree
   local tree
   if opts.switch_root and opts.path then
     issue_tcd = config.cwd.update_from_tree
@@ -749,9 +744,7 @@ function M.search(node, term, focus_node)
     return
   end
 
-  ---@type YaTreeSearchNode?
   local result_node
-  ---@type number|string
   local matches_or_error
   if not tree.search.root or tree.search.root.path ~= node.path then
     tree.search.root, result_node, matches_or_error = Nodes.create_search_tree(node.path, term, cmd, args)
@@ -760,7 +753,7 @@ function M.search(node, term, focus_node)
   end
   if result_node then
     tree.search.current_node = result_node
-    tree.root = tree.search.root --[[@as YaTreeSearchRootNode]]
+    tree.root = tree.search.root
     tree.current_node = tree.search.current_node
 
     utils.notify(string.format("%q found %s matches for %q in %q", cmd, matches_or_error, term, node.path))
@@ -790,7 +783,6 @@ function M.refresh_tree(node_or_path)
   log.debug("refreshing current tree")
 
   scheduler()
-  ---@type YaTreeNode?
   local node
   if ui.is_buffers_open() then
     tree.buffers.root:refresh()

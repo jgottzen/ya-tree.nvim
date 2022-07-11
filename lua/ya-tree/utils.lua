@@ -150,9 +150,7 @@ function M.get_path_from_directory_buffer()
 end
 
 do
-  ---@type boolean
   local fd_has_max_results
-  ---@type boolean
   local fdfind_has_max_results
   do
     ---@param cmd string
@@ -174,7 +172,6 @@ do
     local config = require("ya-tree.config").config
     local cmd = config.search.cmd
 
-    ---@type string[]
     local args
     if type(config.search.args) == "function" and cmd then
       args = config.search.args(cmd, term, path, config)
