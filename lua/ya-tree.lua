@@ -113,9 +113,6 @@ local function parse_open_command_input(fargs)
       focus = arg:sub(7) == "true"
     elseif vim.startswith(arg, "view=") then
       view = arg:sub(6)
-      if view == "files" then
-        view = "tree"
-      end
     end
   end
 

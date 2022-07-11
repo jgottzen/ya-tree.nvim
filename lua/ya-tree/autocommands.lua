@@ -150,7 +150,7 @@ local function on_buf_enter(file, bufnr)
         log.debug("requested directory is not a subpath of the current cwd %q, opening tree with root of the requested path", cwd)
         opts.switch_root = true
       end
-    elseif not tree.tree.root:is_ancestor_of(file) and tree.tree.root.path ~= file then
+    elseif not tree.files.root:is_ancestor_of(file) and tree.files.root.path ~= file then
       log.debug("the current tree is not a parent for directory %s", file)
       opts.switch_root = true
     else
@@ -222,8 +222,8 @@ local function on_buf_delete_and_term_close(file, bufnr)
     void(function()
       log.debug("removing buffer %q from buffer tree", file)
       tree.buffers.root:remove_buffer(file, bufnr)
-      if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.tree.root.path then
-        tree.buffers.root:refresh({ root_path = tree.tree.root.path })
+      if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.files.root.path then
+        tree.buffers.root:refresh({ root_path = tree.files.root.path })
       end
       if ui.is_open() and ui.is_buffers_open() then
         ui.update(tree.root, ui.get_current_node())
@@ -242,9 +242,9 @@ local function on_buf_write_post(file, bufnr)
       lib._for_each_tree(function(tree)
         local node
         -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git status
-        if tree.tree.root:is_ancestor_of(file) then
-          log.debug("changed file %q is in tree %q and tab %s", file, tree.tree.root.path, tree.tabpage)
-          node = tree.tree.root:get_child_if_loaded(file)
+        if tree.files.root:is_ancestor_of(file) then
+          log.debug("changed file %q is in tree %q and tab %s", file, tree.files.root.path, tree.tabpage)
+          node = tree.files.root:get_child_if_loaded(file)
           if node then
             node:refresh()
           end

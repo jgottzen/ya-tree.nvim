@@ -228,7 +228,7 @@ end
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_search(root, node)
-  change_view_mode("tree", root, node)
+  change_view_mode("files", root, node)
 end
 
 ---@return boolean
@@ -245,7 +245,7 @@ end
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_git_status(root, node)
-  change_view_mode("tree", root, node)
+  change_view_mode("files", root, node)
 end
 
 ---@return boolean
@@ -262,7 +262,7 @@ end
 ---@param root YaTreeNode
 ---@param node YaTreeNode
 function M.close_buffers(root, node)
-  change_view_mode("tree", root, node)
+  change_view_mode("files", root, node)
 end
 
 function M.restore()

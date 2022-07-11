@@ -53,7 +53,7 @@ local tab_var_barbar_set_name = "_YaTreeBarbar"
 local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
 local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
 
----@alias YaTreeCanvasViewMode "tree" | "search" | "buffers" | "git_status"
+---@alias YaTreeCanvasViewMode "files" | "search" | "buffers" | "git_status"
 
 ---@class YaTreeCanvas
 ---@field public view_mode YaTreeCanvasViewMode
@@ -85,7 +85,7 @@ end
 ---@return YaTreeCanvas canvas
 function Canvas:new()
   local this = setmetatable({}, self)
-  this.view_mode = "tree"
+  this.view_mode = "files"
   this.width = config.view.width
   this.nodes = {}
   this.node_path_to_index_lookup = {}
