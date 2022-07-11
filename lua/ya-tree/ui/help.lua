@@ -4,6 +4,19 @@ local api = vim.api
 
 local M = {}
 
+--Sort by description, with user functions first.
+---@param a YaTreeActionMapping
+---@param b YaTreeActionMapping
+---@return boolean
+local function mapping_sorter(a, b)
+  if a.fn and not b.fn then
+    return true
+  elseif b.fn then
+    return false
+  end
+  return a.desc < b.desc
+end
+
 function M.open()
   local mappings = require("ya-tree.actions").mappings
 
@@ -15,12 +28,8 @@ function M.open()
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
   end, mappings) --[[@as YaTreeActionMapping[] ]]
-  table.sort(insert, function(a, b)
-    return a.key < b.key
-  end)
-  table.sort(visual, function(a, b)
-    return a.key < b.key
-  end)
+  table.sort(insert, mapping_sorter)
+  table.sort(visual, mapping_sorter)
 
   local max_key_width = 0
   local max_mapping_width = 0
