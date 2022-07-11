@@ -729,10 +729,10 @@ end
 ---@param term string
 ---@param focus_node boolean should only be `true` *iff* the search is final and _not_ incremental.
 function M.search(node, term, focus_node)
+  scheduler()
   local tree = Tree.get_tree()
 
   -- store the current tree only once, before the search is done
-  scheduler()
   if not ui.is_search_open() then
     tree.tree.root = tree.root
     tree.tree.current_node = ui.get_current_node()
