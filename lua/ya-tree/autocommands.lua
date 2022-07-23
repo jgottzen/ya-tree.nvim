@@ -57,6 +57,7 @@ local function on_tab_closed(tabindex)
   local tabpage = lib._tabindex_to_tabpage(tabindex)
   if tabpage then
     lib._delete_tree(tabpage)
+    ui.delete_ui(tabpage)
   end
 end
 

@@ -147,11 +147,14 @@ do
 
   ---@async
   ---@param root_path string
+  ---@param tabpage? number
   ---@return YaTree tree
-  local function create_tree(root_path)
-    scheduler()
-    ---@type number
-    local tabpage = api.nvim_get_current_tabpage()
+  local function create_tree(root_path, tabpage)
+    if not tabpage then
+      scheduler()
+      ---@type number
+      tabpage = api.nvim_get_current_tabpage()
+    end
     ---@type string
     local cwd = uv.cwd()
     local root = root_path
@@ -188,16 +191,18 @@ do
 
   ---@async
   ---@param root_path? string
+  ---@param tabpage? number
   ---@return YaTree tree
-  function Tree.get_or_create_tree(root_path)
+  function Tree.get_or_create_tree(root_path, tabpage)
     root_path = root_path or uv.cwd()
     if not utils.is_directory(root_path) then
       root_path = Path:new(root_path):parent():absolute() --[[@as string]]
     end
     log.debug("getting or creating tree for %q", root_path)
-    local tree = Tree.get_tree()
+    local tree = Tree.get_tree(tabpage)
     if tree then
       if tree.files.root.path == root_path then
+        log.debug("current tree %s root is the same as the requested root %s", tostring(tree), root_path)
         return tree
       else
         log.debug("current tree %s doesn't have the requested root %q", tostring(tree), root_path)
@@ -205,7 +210,7 @@ do
       end
     end
 
-    tree = create_tree(root_path)
+    tree = create_tree(root_path, tabpage)
     if config.git.enable then
       local repo = git.create_repo(root_path)
       if repo then
@@ -285,7 +290,7 @@ do
       local new_tree = update_tree_root_node(tree, new_root)
       if not new_tree then
         log.debug("root %q could not be found walking the old tree %q, creating a new tree", new_root, tree.files.root.path)
-        new_tree = Tree.get_or_create_tree(new_root)
+        new_tree = Tree.get_or_create_tree(new_root, tree.tabpage)
       end
       return new_tree
     elseif type(new_root) == "table" then
@@ -351,8 +356,6 @@ function M._delete_tree(tabpage)
       M._repo_listeners[repo] = nil
     end
   end
-
-  ui.delete_ui(tabpage)
 end
 
 ---@private
@@ -643,7 +646,7 @@ end
 ---@param tree YaTree
 ---@param new_root string|YaTreeNode
 function M._change_root_node_for_tree(tree, new_root)
-  log.debug("changing root node to %q", tostring(new_root))
+  log.debug("changing root node to %q for tree %s", tostring(new_root), tostring(tree))
 
   scheduler()
   ---@type number
