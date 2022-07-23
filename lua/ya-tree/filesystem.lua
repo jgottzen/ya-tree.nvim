@@ -9,6 +9,14 @@ local M = {}
 
 ---@async
 ---@param path string
+---@return boolean is_directory
+function M.is_directory(path)
+  local _, stat = uv.fs_stat(path)
+  return stat and stat.type == "directory" or false
+end
+
+---@async
+---@param path string
 ---@return boolean empty
 local function is_empty(path)
   local _, handle = uv.fs_scandir(path)

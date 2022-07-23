@@ -4,6 +4,7 @@ local wrap = require("plenary.async.async").wrap
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
+local fs = require("ya-tree.filesystem")
 local job = require("ya-tree.job")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
@@ -127,7 +128,7 @@ function Repo:new(path)
     return nil
   end
 
-  if not utils.is_directory(path) then
+  if not fs.is_directory(path) then
     path = Path:new(path):parent().filename --[[@as string]]
   end
 
@@ -345,7 +346,7 @@ end
 ---@param file string
 ---@return boolean changed
 function Repo:refresh_status_for_file(file)
-  if utils.is_directory(file) then
+  if fs.is_directory(file) then
     log.error("only individual files are supported by this method!")
     return true
   end

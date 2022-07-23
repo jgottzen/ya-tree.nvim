@@ -3,6 +3,7 @@ local void = require("plenary.async.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
+local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local Nodes = require("ya-tree.nodes")
 local job = require("ya-tree.job")
@@ -195,10 +196,11 @@ do
   ---@return YaTree tree
   function Tree.get_or_create_tree(root_path, tabpage)
     root_path = root_path or uv.cwd()
-    if not utils.is_directory(root_path) then
+    if not fs.is_directory(root_path) then
       root_path = Path:new(root_path):parent():absolute() --[[@as string]]
     end
     log.debug("getting or creating tree for %q", root_path)
+    scheduler()
     local tree = Tree.get_tree(tabpage)
     if tree then
       if tree.files.root.path == root_path then
@@ -284,7 +286,7 @@ do
   function Tree.update_tree_root_node(tree, new_root)
     if type(new_root) == "string" then
       log.debug("new root is string %q", new_root)
-      if not utils.is_directory(new_root) then
+      if not fs.is_directory(new_root) then
         new_root = Path:new(new_root):parent():absolute() --[[@as string]]
       end
       local new_tree = update_tree_root_node(tree, new_root)

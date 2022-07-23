@@ -29,13 +29,6 @@ do
 end
 
 ---@param path string
----@return boolean is_directory
-function M.is_directory(path)
-  local stat = uv.fs_stat(path)
-  return stat and stat.type == "directory" or false
-end
-
----@param path string
 ---@return boolean is_absolute
 function M.is_absolute_path(path)
   if M.os_sep == "\\" then
@@ -87,7 +80,6 @@ function M.find_common_ancestor(paths)
     return path
   end
 end
-
 
 ---@param path string
 ---@return boolean is_root
@@ -145,13 +137,20 @@ function M.get_current_buffers()
   return buffers, terminals
 end
 
+---@param path string
+---@return boolean is_directory
+local function is_directory(path)
+  local stat = uv.fs_stat(path)
+  return stat and stat.type == "directory" or false
+end
+
 ---@return boolean is_directory, string path
 function M.get_path_from_directory_buffer()
   ---@type number
   local bufnr = api.nvim_get_current_buf()
   ---@type string
   local bufname = api.nvim_buf_get_name(bufnr)
-  if not M.is_directory(bufname) then
+  if not is_directory(bufname) then
     return false, ""
   end
   if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then

@@ -4,6 +4,7 @@ local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
+local fs = require("ya-tree.filesystem")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
 local Nodes = require("ya-tree.nodes")
 local git = require("ya-tree.git")
@@ -120,7 +121,7 @@ local function on_buf_enter(file, bufnr)
   end
   local tree = lib._get_tree()
 
-  if config.replace_netrw and utils.is_directory(file) then
+  if config.replace_netrw and fs.is_directory(file) then
     -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
     if file:sub(-1) == utils.os_sep then
       file = file:sub(1, -2)
@@ -159,24 +160,27 @@ local function on_buf_enter(file, bufnr)
     end
 
     M.open_window(opts)
-  elseif tree and ui.is_open() then
-    -- only update the ui iff highlighting of open files is enabled and
-    -- the necessary config options are set
-    local update_ui = ui.is_highlight_open_file_enabled()
-    if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
-      log.debug("moving buffer %s to edit window", bufnr)
-      ui.move_buffer_to_edit_window(bufnr)
-    end
-    if config.follow_focused_file then
-      log.debug("focusing on node %q", file)
-      tree.current_node = tree.root:expand({ to = file })
-      ui.update(tree.root, tree.current_node, { focus_node = true })
-      -- avoid updating twice
-      update_ui = false
-    end
+  elseif tree then
+    scheduler()
+    if ui.is_open() then
+      -- only update the ui iff highlighting of open files is enabled and
+      -- the necessary config options are set
+      local update_ui = ui.is_highlight_open_file_enabled()
+      if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
+        log.debug("moving buffer %s to edit window", bufnr)
+        ui.move_buffer_to_edit_window(bufnr)
+      end
+      if config.follow_focused_file then
+        log.debug("focusing on node %q", file)
+        tree.current_node = tree.root:expand({ to = file })
+        ui.update(tree.root, tree.current_node, { focus_node = true })
+        -- avoid updating twice
+        update_ui = false
+      end
 
-    if update_ui then
-      ui.update(tree.root)
+      if update_ui then
+        ui.update(tree.root)
+      end
     end
   end
 end
