@@ -75,7 +75,7 @@ local function paste_node(dest_node, node)
   local destination = utils.join_path(dest_node.path, node.name)
   local replace = false
   if fs.exists(destination) then
-    local response = ui.select({ "Yes", "Rename", "No" }, { prompt = destination .. " already exists" })
+    local response = ui.select({ "Yes", "Rename", "No" }, { kind = "confirmation", prompt = destination .. " already exists" })
 
     if response == "Yes" then
       utils.notify(string.format("Will replace %q.", destination))

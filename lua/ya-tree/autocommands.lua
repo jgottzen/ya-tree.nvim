@@ -1,5 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async.async").void
+local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config

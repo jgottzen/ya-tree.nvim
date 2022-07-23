@@ -1,5 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
-local wrap = require("plenary.async.async").wrap
+local wrap = require("plenary.async").wrap
 local Path = require("plenary.path")
 
 local fs = require("ya-tree.filesystem")
@@ -1097,10 +1097,12 @@ end
 ---@return boolean displayable
 local function is_any_child_displayable(node)
   for _, child in ipairs(node.children) do
-    if child:is_directory() and is_any_child_displayable(child) then
-      return true
-    elseif not child:is_git_ignored() then
-      return true
+    if not child:is_git_ignored() then
+      if child:is_directory() and is_any_child_displayable(child) then
+        return true
+      elseif child:is_file() then
+        return true
+      end
     end
   end
   return false

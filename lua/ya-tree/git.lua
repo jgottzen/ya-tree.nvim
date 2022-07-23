@@ -1,6 +1,6 @@
 local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async.async").void
-local wrap = require("plenary.async.async").wrap
+local void = require("plenary.async").void
+local wrap = require("plenary.async").wrap
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
@@ -96,7 +96,7 @@ end
 ---@field private _propagated_git_status table<string, string>
 ---@field private _ignored string[]
 ---@field private _git_dir_watcher? uv_fs_poll_t
----@field private _git_listeners table<string, fun(repo: GitRepo, listener_id: string, fs_changes: boolean)>
+---@field private _git_listeners table<string, async fun(repo: GitRepo, listener_id: string, fs_changes: boolean)>
 local Repo = {}
 Repo.__index = Repo
 

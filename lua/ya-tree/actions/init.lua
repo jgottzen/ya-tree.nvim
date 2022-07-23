@@ -1,4 +1,4 @@
-local void = require("plenary.async.async").void
+local void = require("plenary.async").void
 
 local lib = require("ya-tree.lib")
 local ui = require("ya-tree.ui")

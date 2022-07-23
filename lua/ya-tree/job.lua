@@ -1,4 +1,4 @@
-local void = require("plenary.async.async").void
+local void = require("plenary.async").void
 
 local log = require("ya-tree.log")
 

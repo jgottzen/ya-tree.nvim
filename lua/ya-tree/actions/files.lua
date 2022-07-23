@@ -1,4 +1,4 @@
-local void = require("plenary.async.async").void
+local void = require("plenary.async").void
 local scheduler = require("plenary.async.util").scheduler
 
 local lib = require("ya-tree.lib")
@@ -186,7 +186,7 @@ end
 ---@param node YaTreeNode
 ---@return boolean
 local function delete_node(node)
-  local response = ui.select({ "Yes", "No" }, { prompt = "Delete " .. node.path .. "?" })
+  local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Delete " .. node.path .. "?" })
   if response == "Yes" then
     local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
     if ok then
@@ -234,7 +234,7 @@ function M.trash()
   local files = {}
   if config.trash.require_confirm then
     for _, node in ipairs(nodes) do
-      local response = ui.select({ "Yes", "No" }, { prompt = "Trash " .. node.path .. "?" })
+      local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Trash " .. node.path .. "?" })
       if response == "Yes" then
         files[#files + 1] = node.path
       end

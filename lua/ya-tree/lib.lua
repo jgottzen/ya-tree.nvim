@@ -1,5 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async.async").void
+local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
@@ -16,7 +16,7 @@ local fn = vim.fn
 local uv = vim.loop
 
 -- Flag for signaling when the library is setting up, which might take time if in a large directory and/or
--- repository. A call to M.open(), while setting up, will create another, duplicate, tree and doing the
+-- repository. A call to M.open_window(), while setting up, will create another, duplicate, tree and doing the
 -- filesystem and repository scanning again.
 local setting_up = false
 
@@ -111,7 +111,7 @@ do
     if config.git.enable and config.git.watch_git_dir then
       local tabpages = M._repo_tabpages[repo]
       if not tabpages then
-        if M._repo_tabpages[repo] ~= nil then
+        if M._repo_listeners[repo] ~= nil then
           log.error("repo %s already has a listener_id %q registered", tostring(repo), M._repo_listeners[repo])
         end
         local listener_id = repo:add_git_change_listener(on_git_change)

@@ -618,7 +618,7 @@ end
 function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
-  while not node:is_displayable(config) and node.parent do
+  while node and not node:is_displayable(config) and node.parent do
     node = node.parent
   end
   if node then
