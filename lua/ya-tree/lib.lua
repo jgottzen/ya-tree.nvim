@@ -505,7 +505,7 @@ function M.open_window(opts)
     else
       tree.root = tree.git_status.root
     end
-  else
+  elseif opts.view_mode ~= nil then
     log.error("view mode %q is not supported when opening the window", opts.view_mode)
     opts.view_mode = nil
   end
