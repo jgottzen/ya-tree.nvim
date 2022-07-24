@@ -147,7 +147,7 @@ local actions = {
     { "n" }
   ),
   cd_to = create_action(lib.cd_to, "Set tree root to directory", { "files", "search", "buffers", "git_status" }, { "n" }),
-  cd_up = create_action(lib.cd_up, "Set tree root one level up", { "files" }, { "n" }),
+  cd_up = create_action(lib.cd_up, "Set tree root one level up", { "files", "git_status" }, { "n" }),
   toggle_ignored = create_action(
     lib.toggle_ignored,
     "Toggle git ignored files and directories",

@@ -682,13 +682,21 @@ function M.cd_to(node)
     end
     node = node.parent --[[@as YaTreeNode]]
   end
-  log.debug("cd to %q", node.path)
 
-  -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
-  if config.cwd.update_from_tree and node.path ~= tree.cwd then
-    vim.cmd("tcd " .. fn.fnameescape(node.path))
-  elseif node.path ~= tree.root.path then
-    M._change_root_node_for_tree(tree, node)
+  if node:node_type() == "GitStatus" and node.repo:is_yadm() then
+    log.debug("changing root node of yadm git status tree to %q", node.path)
+    tree.git_status.root = node --[[@as YaTreeGitStatusNode]]
+    tree.root = tree.git_status.root
+    ui.update(tree.root, node)
+  else
+    log.debug("cd to %q", node.path)
+
+    -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
+    if config.cwd.update_from_tree and node.path ~= tree.cwd then
+      vim.cmd("tcd " .. fn.fnameescape(node.path))
+    elseif node.path ~= tree.root.path then
+      M._change_root_node_for_tree(tree, node)
+    end
   end
 end
 
@@ -699,16 +707,30 @@ function M.cd_up(node)
   if utils.is_root(tree.root.path) then
     return
   end
-  local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
-  log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
-  -- save current position
-  tree.current_node = node
-  -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
-  if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
-    vim.cmd("tcd " .. fn.fnameescape(new_cwd))
+  if node:node_type() == "GitStatus" then
+    if node.repo:is_yadm() and node.repo.toplevel ~= tree.git_status.root.path then
+      if tree.git_status.root.parent then
+        tree.git_status.root = tree.git_status.root.parent
+        tree.root = tree.git_status.root
+      else
+        local new_root = Path:new(tree.git_status.root.path):parent().filename --[[@as string]]
+        create_git_status_tree(tree, node.repo, new_root)
+      end
+      ui.update(tree.root, node)
+    end
   else
-    M._change_root_node_for_tree(tree, tree.root.parent or new_cwd)
+    local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
+    log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
+
+    -- save current position
+    tree.current_node = node
+    -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
+    if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
+      vim.cmd("tcd " .. fn.fnameescape(new_cwd))
+    else
+      M._change_root_node_for_tree(tree, tree.root.parent or new_cwd)
+    end
   end
 end
 
