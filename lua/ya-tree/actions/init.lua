@@ -265,13 +265,13 @@ end
 ---@field action? YaTreeActionName
 ---@field fn? async fun(node: YaTreeNode)
 
----@param mappings table<string, YaTreeActionName|YaTreeConfig.CustomMapping>
+---@param mappings YaTreeConfig.Mappings
 ---@return YaTreeActionMapping[]
 local function validate_and_create_mappings(mappings)
   ---@type YaTreeActionMapping[]
   local action_mappings = {}
 
-  for key, mapping in pairs(mappings) do
+  for key, mapping in pairs(mappings.list) do
     if type(mapping) == "string" then
       ---@type YaTreeActionName
       local name = mapping

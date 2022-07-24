@@ -8,7 +8,6 @@ local M = {
   ---@field hijack_cursor boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field replace_netrw boolean Replace `netrw` windows, default: `true`.
-  ---@field mappings table<string, YaTreeActionName|YaTreeConfig.CustomMapping> Map of key mappings.
   default = {
     auto_close = false,
     auto_reload_on_write = true,
@@ -360,56 +359,62 @@ local M = {
     ---@field fn async fun(node: YaTreeNode) User function.
     ---@field desc? string Description of what the mapping does.
 
+    ---@class YaTreeConfig.Mappings Key mapping configuration.
+    ---@field disable_defaults boolean Whether to diasble all default mappigns, default `true`.
+    ---@field list table<string, YaTreeActionName|YaTreeConfig.CustomMapping> Map of key mappings.
     mappings = {
-      ["q"] = "close_window",
-      ["<CR>"] = "open",
-      ["o"] = "open",
-      ["<2-LeftMouse>"] = "open",
-      ["<C-v>"] = "vsplit",
-      ["<C-s>"] = "split",
-      ["t"] = "tabnew",
-      ["<Tab>"] = "preview",
-      ["<BS>"] = "close_node",
-      ["z"] = "close_all_nodes",
-      ["E"] = "expand_all_nodes",
-      ["<2-RightMouse>"] = "cd_to",
-      ["<C-]>"] = "cd_to",
-      ["."] = "cd_to",
-      ["-"] = "cd_up",
-      ["P"] = "focus_parent",
-      ["<"] = "focus_prev_sibling",
-      [">"] = "focus_next_sibling",
-      ["K"] = "focus_first_sibling",
-      ["J"] = "focus_last_sibling",
-      ["[c"] = "focus_prev_git_item",
-      ["]c"] = "focus_next_git_item",
-      ["[e"] = "focus_prev_diagnostic_item",
-      ["]e"] = "focus_next_diagnostic_item",
-      ["I"] = "toggle_ignored",
-      ["H"] = "toggle_filter",
-      ["R"] = "refresh_tree",
-      ["/"] = "search_interactively",
-      ["f"] = "search_once",
-      ["S"] = "search_for_path_in_tree",
-      ["gn"] = "goto_node_in_tree",
-      ["<C-x>"] = "close_search",
-      ["F"] = "show_last_search",
-      ["<C-r>"] = "rescan_dir_for_git",
-      ["a"] = "add",
-      ["r"] = "rename",
-      ["d"] = "delete",
-      ["D"] = "trash",
-      ["c"] = "copy_node",
-      ["x"] = "cut_node",
-      ["p"] = "paste_nodes",
-      ["<C-c>"] = "clear_clipboard",
-      ["y"] = "copy_name_to_clipboard",
-      ["Y"] = "copy_root_relative_path_to_clipboard",
-      ["gy"] = "copy_absolute_path_to_clipboard",
-      ["?"] = "open_help",
-      ["gx"] = "system_open",
-      ["b"] = "toggle_buffers",
-      ["<C-g>"] = "toggle_git_status",
+      disable_defaults = false,
+      list = {
+        ["q"] = "close_window",
+        ["<CR>"] = "open",
+        ["o"] = "open",
+        ["<2-LeftMouse>"] = "open",
+        ["<C-v>"] = "vsplit",
+        ["<C-s>"] = "split",
+        ["t"] = "tabnew",
+        ["<Tab>"] = "preview",
+        ["<BS>"] = "close_node",
+        ["z"] = "close_all_nodes",
+        ["E"] = "expand_all_nodes",
+        ["<2-RightMouse>"] = "cd_to",
+        ["<C-]>"] = "cd_to",
+        ["."] = "cd_to",
+        ["-"] = "cd_up",
+        ["P"] = "focus_parent",
+        ["<"] = "focus_prev_sibling",
+        [">"] = "focus_next_sibling",
+        ["K"] = "focus_first_sibling",
+        ["J"] = "focus_last_sibling",
+        ["[c"] = "focus_prev_git_item",
+        ["]c"] = "focus_next_git_item",
+        ["[e"] = "focus_prev_diagnostic_item",
+        ["]e"] = "focus_next_diagnostic_item",
+        ["I"] = "toggle_ignored",
+        ["H"] = "toggle_filter",
+        ["R"] = "refresh_tree",
+        ["/"] = "search_interactively",
+        ["f"] = "search_once",
+        ["S"] = "search_for_path_in_tree",
+        ["gn"] = "goto_node_in_tree",
+        ["<C-x>"] = "close_search",
+        ["F"] = "show_last_search",
+        ["<C-r>"] = "rescan_dir_for_git",
+        ["a"] = "add",
+        ["r"] = "rename",
+        ["d"] = "delete",
+        ["D"] = "trash",
+        ["c"] = "copy_node",
+        ["x"] = "cut_node",
+        ["p"] = "paste_nodes",
+        ["<C-c>"] = "clear_clipboard",
+        ["y"] = "copy_name_to_clipboard",
+        ["Y"] = "copy_root_relative_path_to_clipboard",
+        ["gy"] = "copy_absolute_path_to_clipboard",
+        ["?"] = "open_help",
+        ["gx"] = "system_open",
+        ["b"] = "toggle_buffers",
+        ["<C-g>"] = "toggle_git_status",
+      },
     },
   },
 }
@@ -424,6 +429,14 @@ function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.default, opts) --[[@as YaTreeConfig]]
 
   local utils = require("ya-tree.utils")
+
+  if opts.mappings and opts.mappings.disable_defaults then
+    if not opts.mappings.list then
+      utils.warn("Default mappings has been disabled, but there are not configured mappings in 'mappings.list.\nUsing default mappings!")
+    else
+      M.config.mappings.list = opts.mappings.list
+    end
+  end
 
   if not M.config.system_open.cmd then
     if utils.is_linux then
