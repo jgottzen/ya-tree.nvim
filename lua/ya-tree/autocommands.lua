@@ -121,7 +121,11 @@ local function on_buf_enter(file, bufnr)
   end
   local tree = lib._get_tree()
 
-  if config.replace_netrw and fs.is_directory(file) then
+  -- Must use a synchronous directory check here, otherwise a scheduler call is required before the call to ui.is_open,
+  -- the scheduler call will update the ui, and if the a buffer was opened in the tree window, and the config option to
+  -- move it to the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the
+  -- edit window. Not very visually pleasing.
+  if config.replace_netrw and utils.is_directory_sync(file) then
     -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
     if file:sub(-1) == utils.os_sep then
       file = file:sub(1, -2)
@@ -160,27 +164,24 @@ local function on_buf_enter(file, bufnr)
     end
 
     M.open_window(opts)
-  elseif tree then
-    scheduler()
-    if ui.is_open() then
-      -- only update the ui iff highlighting of open files is enabled and
-      -- the necessary config options are set
-      local update_ui = ui.is_highlight_open_file_enabled()
-      if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
-        log.debug("moving buffer %s to edit window", bufnr)
-        ui.move_buffer_to_edit_window(bufnr)
-      end
-      if config.follow_focused_file then
-        log.debug("focusing on node %q", file)
-        tree.current_node = tree.root:expand({ to = file })
-        ui.update(tree.root, tree.current_node, { focus_node = true })
-        -- avoid updating twice
-        update_ui = false
-      end
+  elseif tree and ui.is_open() then
+    -- only update the ui iff highlighting of open files is enabled and
+    -- the necessary config options are set
+    local update_ui = ui.is_highlight_open_file_enabled()
+    if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
+      log.debug("moving buffer %s to edit window", bufnr)
+      ui.move_buffer_to_edit_window(bufnr)
+    end
+    if config.follow_focused_file then
+      log.debug("focusing on node %q", file)
+      tree.current_node = tree.root:expand({ to = file })
+      ui.update(tree.root, tree.current_node, { focus_node = true })
+      -- avoid updating twice
+      update_ui = false
+    end
 
-      if update_ui then
-        ui.update(tree.root)
-      end
+    if update_ui then
+      ui.update(tree.root)
     end
   end
 end

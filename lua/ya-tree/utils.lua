@@ -90,6 +90,13 @@ function M.is_root(path)
   return path == "/"
 end
 
+---@param path string
+---@return boolean is_directory
+function M.is_directory_sync(path)
+  local stat = uv.fs_stat(path)
+  return stat and stat.type == "directory" or false
+end
+
 ---@param first string
 ---@param second string
 ---@return string path
@@ -137,20 +144,13 @@ function M.get_current_buffers()
   return buffers, terminals
 end
 
----@param path string
----@return boolean is_directory
-local function is_directory(path)
-  local stat = uv.fs_stat(path)
-  return stat and stat.type == "directory" or false
-end
-
 ---@return boolean is_directory, string path
 function M.get_path_from_directory_buffer()
   ---@type number
   local bufnr = api.nvim_get_current_buf()
   ---@type string
   local bufname = api.nvim_buf_get_name(bufnr)
-  if not is_directory(bufname) then
+  if not M.is_directory_sync(bufname) then
     return false, ""
   end
   if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then
