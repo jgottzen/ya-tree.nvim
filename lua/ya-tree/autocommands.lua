@@ -4,7 +4,6 @@ local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
 local lib = require("ya-tree.lib")
-local fs = require("ya-tree.filesystem")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
 local Nodes = require("ya-tree.nodes")
 local git = require("ya-tree.git")
@@ -278,7 +277,7 @@ local function on_buf_write_post(file, bufnr)
           if not git_node and git_status_changed then
             tree.git_status.root:add_file(file)
           elseif git_node and git_status_changed then
-            if not git_node:get_git_status() then
+            if not git_node:git_status() then
               tree.git_status.root:remove_file(file)
             end
           end

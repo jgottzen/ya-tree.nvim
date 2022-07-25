@@ -198,7 +198,7 @@ function M.name(node, context, renderer)
 
   local highlight
   if renderer.use_git_status_colors then
-    local git_status = node:get_git_status()
+    local git_status = node:git_status()
     if git_status then
       highlight = M.helpers.get_git_status_highlight(git_status)
     end
@@ -344,7 +344,7 @@ end
 ---@return RenderResult[]|nil results
 function M.git_status(node, context, renderer)
   if context.config.git.enable then
-    local git_status = node:get_git_status()
+    local git_status = node:git_status()
     if git_status then
       local results = {}
       local icons_and_hl = M.helpers.get_git_icons_and_highlights(git_status)
@@ -369,7 +369,7 @@ end
 ---@return RenderResult|nil result
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
-    local severity = node:get_diagnostics_severity()
+    local severity = node:diagnostics_severity()
     if severity and (renderer.min_severity == nil or severity <= renderer.min_severity) then
       local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
       if diagnostic then

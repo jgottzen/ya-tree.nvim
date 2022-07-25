@@ -50,12 +50,12 @@ end
 
 ---Creates a new node.
 ---@generic T : YaTreeNode
----@param self T
+---@param class T
 ---@param fs_node FsNode filesystem data.
 ---@param parent? T the parent node.
 ---@return T node
-local function create_node(self, fs_node, parent)
-  local this = setmetatable(fs_node, self) --[[@as YaTreeNode]]
+local function create_node(class, fs_node, parent)
+  local this = setmetatable(fs_node, class) --[[@as YaTreeNode]]
   ---@cast parent YaTreeNode?
   this.parent = parent
   if this:is_container() then
@@ -310,7 +310,7 @@ function Node:is_git_ignored()
 end
 
 ---@return string|nil
-function Node:get_git_status()
+function Node:git_status()
   return self.repo and self.repo:status_of(self.path)
 end
 
@@ -346,7 +346,7 @@ do
   end
 
   ---@return number|nil
-  function Node:get_diagnostics_severity()
+  function Node:diagnostics_severity()
     return diagnostics[self.path]
   end
 end
@@ -397,7 +397,7 @@ function Node.iterate_children(self, opts)
   end
 end
 
----Collapses the node, if it is a directory.
+---Collapses the node, if it is a container.
 --
 ---@param opts? {children_only?: boolean, recursive?: boolean}
 ---  - {opts.children_only?} `boolean`
@@ -417,7 +417,7 @@ function Node:collapse(opts)
   end
 end
 
----Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+---Expands the node, if it is a container. If the node hasn't been scanned before, will scan the directory.
 --
 ---@async
 ---@generic T : YaTreeNode
@@ -780,7 +780,7 @@ local function is_terminals_container(container)
   return container and container.type == "container" and container.extension == "terminal" or false
 end
 
----Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+---Expands the node, if it is a directory.
 --
 ---@async
 ---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
@@ -829,17 +829,16 @@ local function get_buffers_root_path(tree_root_path, paths)
   return root_path
 end
 
----@param root YaTreeBufferNode
+---@param parent YaTreeBufferNode
 ---@return YaTreeBufferNode container
-local function create_terminal_buffers_container(root)
+local function create_terminal_buffers_container(parent)
   local container = BufferNode:new({
     name = "Terminals",
     type = "container",
     path = "Terminals",
     extension = "terminal",
-  }, nil, nil, nil, root)
-  container.children = {}
-  root.children[#root.children + 1] = container
+  }, nil, nil, nil, parent)
+  parent.children[#parent.children + 1] = container
   return container
 end
 
@@ -902,7 +901,6 @@ function BufferNode:refresh(opts)
   end)
 
   if #terminals > 0 then
-    scheduler()
     local container = create_terminal_buffers_container(self)
     for _, terminal in ipairs(terminals) do
       add_terminal_buffer_to_container(container, terminal)
@@ -990,6 +988,26 @@ function BufferNode:add_buffer(file, bufnr)
   end
 end
 
+---@param file string
+---@param bufnr number
+---@param hidden boolean
+function BufferNode:set_terminal_hidden(file, bufnr, hidden)
+  if self.parent then
+    self.parent:set_terminal_hidden(file, bufnr, hidden)
+  else
+    local container = self.children[#self.children]
+    if is_terminals_container(container) then
+      for _, child in ipairs(container.children) do
+        if child.bufname == file and child.bufnr == bufnr then
+          child.hidden = hidden
+          log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
+          break
+        end
+      end
+    end
+  end
+end
+
 ---@param root YaTreeBufferNode|YaTreeGitStatusNode
 ---@param file string
 local function remove_fs_node(root, file)
@@ -1007,26 +1025,6 @@ local function remove_fs_node(root, file)
         node = node.parent
       else
         break
-      end
-    end
-  end
-end
-
----@param file string
----@param bufnr number
----@param hidden boolean
-function BufferNode:set_terminal_hidden(file, bufnr, hidden)
-  if self.parent then
-    self.parent:set_terminal_hidden(file, bufnr, hidden)
-  else
-    local container = self.children[#self.children]
-    if is_terminals_container(container) then
-      for _, child in ipairs(container.children) do
-        if child.bufname == file and child.bufnr == bufnr then
-          child.hidden = hidden
-          log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
-          break
-        end
       end
     end
   end
