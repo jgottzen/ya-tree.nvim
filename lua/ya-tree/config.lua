@@ -8,6 +8,18 @@ local M = {
   ---@field hijack_cursor boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field replace_netrw boolean Replace `netrw` windows, default: `true`.
+  ---@field log YaTreeConfig.Log Logging configuration.
+  ---@field auto_open YaTreeConfig.AutoOpen Auto-open configuration.
+  ---@field cwd YaTreeConfig.Cwd Cwd configuration.
+  ---@field search YaTreeConfig.Search Search configuration.
+  ---@field filters YaTreeConfig.Filters Filters configuration.
+  ---@field git YaTreeConfig.Git Git configuration.
+  ---@field diagnostics YaTreeConfig.Diagnostics Lsp diagnostics configuration.
+  ---@field system_open YaTreeConfig.SystemOpen Open file with system command configuration.
+  ---@field trash YaTreeConfig.Trash `trash-cli` configuration.
+  ---@field view YaTreeConfig.View Tree view configuration.
+  ---@field renderers YaTreeConfig.Renderers Renderer configurations.
+  ---@field mappings YaTreeConfig.Mappings Key mapping configuration.
   default = {
     auto_close = false,
     auto_reload_on_write = true,
@@ -18,7 +30,7 @@ local M = {
 
     replace_netrw = true,
 
-    ---@class YaTreeConfig.Log Logging configuration.
+    ---@class YaTreeConfig.Log
     ---@field level LogLevel The logging level used, default `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
     ---@field to_file boolean Whether to log the the log file, default: `false`.
@@ -28,7 +40,7 @@ local M = {
       to_file = false,
     },
 
-    ---@class YaTreeConfig.AutoOpen Auto-open configuration.
+    ---@class YaTreeConfig.AutoOpen
     ---@field on_setup boolean Automatically open the tree when running setup, default: `false`.
     ---@field on_new_tab boolean Automatically open the tree when opening a new tabpage, default: `false`.
     ---@field focus_tree boolean Wether to focus the tree when automatically opened, default: `false`.
@@ -38,7 +50,7 @@ local M = {
       focus_tree = false,
     },
 
-    ---@class YaTreeConfig.Cwd Cwd configuration.
+    ---@class YaTreeConfig.Cwd
     ---@field follow boolean Update the tree root directory on `DirChanged`, default: `false`.
     ---@field update_from_tree boolean Update the tab cwd when changing root directory in the tree, default: `false`.
     cwd = {
@@ -46,7 +58,7 @@ local M = {
       update_from_tree = false,
     },
 
-    ---@class YaTreeConfig.Search Tree search configuration.
+    ---@class YaTreeConfig.Search
     ---@field max_results number Max number of search results, only `fd` supports it, setting to 0 will disable it, default: `200`.
     ---@field cmd? string Override the search command to use, default: `nil`.
     ---@field args? string[]|fun(cmd: string, term: string, path:string, config: YaTreeConfig):string[] Override the search command arguments to use, default: `nil`.
@@ -56,7 +68,7 @@ local M = {
       args = nil,
     },
 
-    ---@class YaTreeConfig.Filters Tree filters configuration.
+    ---@class YaTreeConfig.Filters
     ---@field enable boolean If filters are enabled, toggleable, default: `true`.
     ---@field dotfiles boolean If dotfiles should be hidden, default: `true`.
     ---@field custom string[] Custom file/directory names to hide, default: `{}`.
@@ -66,25 +78,26 @@ local M = {
       custom = {},
     },
 
-    ---@class YaTreeConfig.Git Git configuration.
+    ---@class YaTreeConfig.Git
     ---@field enable boolean If git should be enabled, default: `true`.
     ---@field show_ignored boolean Whether to show git ignored files in the tree, toggleable, default: `true`.
     ---@field watch_git_dir boolean Whether to watch the repository `.git` directory for changes, using `fs_poll`, default: `true`.
     ---@field watch_git_dir_interval number Interval for polling, in milliseconds, default `1000`.
+    ---@field yadm YaTreeConfig.Git.Yadm `yadm` configuration.
     git = {
       enable = true,
       show_ignored = true,
       watch_git_dir = true,
       watch_git_dir_interval = 1000,
 
-      ---@class YaTreeConfig.Git.Yadm `yadm` configuration.
+      ---@class YaTreeConfig.Git.Yadm
       ---@field enable boolean Wether yadm is enabled, requires git to be enabled, default: `false`.
       yadm = {
         enable = false,
       },
     },
 
-    ---@class YaTreeConfig.Diagnostics Lsp diagnostics configuration.
+    ---@class YaTreeConfig.Diagnostics
     ---@field enable boolean Show lsp diagnostics in the tree, default: `true`.
     ---@field debounce_time number Debounce time in ms, for how often `DiagnosticChanged` are processed, default: `300`.
     ---@field propagate_to_parents boolean If the diagnostic status should be propagated to parents, default: `true`.
@@ -94,7 +107,7 @@ local M = {
       propagate_to_parents = true,
     },
 
-    ---@class YaTreeConfig.SystemOpen Open file with system command configuration.
+    ---@class YaTreeConfig.SystemOpen
     ---@field cmd? string The system open command, if unspecified the detected OS determines the default, Linux: `xdg-open`, OS X: `open`, Windows: `cmd`.
     ---@field args string[] Any arguments for the system open command, default: `{}` for Linux and OS X, `{"/c", "start"}` for Windows.
     system_open = {
@@ -102,7 +115,7 @@ local M = {
       args = {},
     },
 
-    ---@class YaTreeConfig.Trash `trash-cli` configuration.
+    ---@class YaTreeConfig.Trash
     ---@field enable boolean Wether to enable trashing in the tree (`trash-cli must be installed`), default: `true`.
     ---@field require_confirm boolean Confirm before trashing file(s), default: `false`.
     trash = {
@@ -110,13 +123,15 @@ local M = {
       require_confirm = false,
     },
 
-    ---@class YaTreeConfig.View Tree view configuration.
+    ---@class YaTreeConfig.View
     ---@field width number Widht of the tree panel, default: `40`.
     ---@field side "left"|"right" Where the tree panel is placed, default: `"left"`.
     ---@field number boolean Wether to show the number column, default: `false`.
     ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
     ---@field on_open? fun(config: YaTreeConfig) Callback function when the tree view is opened, default: `nil`.
     ---@field on_close? fun(config: YaTreeConfig) Callback function when the tree view is closed, default: `nil`.
+    ---@field barbar YaTreeConfig.View.Barbar `romgrk/barbar.nvim` integration configuration.
+    ---@field renderers YaTreeConfig.View.Renderers Which renderers to use in the tree view.
     view = {
       width = 40,
       side = "left",
@@ -125,7 +140,7 @@ local M = {
       on_open = nil,
       on_close = nil,
 
-      ---@class YaTreeConfig.View.Barbar `romgrk/barbar.nvim` integration configuration.
+      ---@class YaTreeConfig.View.Barbar
       ---@field enable boolean Integrate with `romgrk/barbar.nvim` and adjust the tabline, default: `false`.
       ---@field title? string Buffer line title, default: `nil`.
       barbar = {
@@ -138,7 +153,7 @@ local M = {
       ---@class YaTreeConfig.View.Renderers.FileRenderer : YaTreeRendererConfig
       ---@field [1] string
 
-      ---@class YaTreeConfig.View.Renderers Which renderers to use in the tree view.
+      ---@class YaTreeConfig.View.Renderers
       ---@field directory YaTreeConfig.View.Renderers.DirectoryRenderer[] Which renderers to use for directories, in order.
       ---@field file YaTreeConfig.View.Renderers.FileRenderer[] Which renderers to use for files, in order.
       renderers = {
@@ -169,9 +184,18 @@ local M = {
     ---@field padding string The padding to use to the left of the renderer.
     ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in.
 
-    ---@class YaTreeConfig.Renderers Renderer configuration.
+    ---@class YaTreeConfig.Renderers
+    ---@field indentation YaTreeConfig.Renderers.Indentation Indentation rendering configuration.
+    ---@field icon YaTreeConfig.Renderers.Icon Icon rendering configuration.
+    ---@field name YaTreeConfig.Renderers.Name File and directory name rendering configuration.
+    ---@field repository YaTreeConfig.Renderers.Repository Repository rendering configuration.
+    ---@field symlink_target YaTreeConfig.Renderers.SymlinkTarget Symbolic link rendering configuration.
+    ---@field git_status YaTreeConfig.Renderers.GitStatus Git status rendering configuration.
+    ---@field diagnostics YaTreeConfig.Renderers.Diagnostics Lsp diagnostics rendering configuration.
+    ---@field buffer_info YaTreeConfig.Renderers.BufferInfo Buffer info rendering configuration.
+    ---@field clipboard YaTreeConfig.Renderers.Clipboard Clipboard rendering configuration.
     renderers = {
-      ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig Indentation rendering configuration.
+      ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
       ---@field use_marker boolean Wether to show indent markers, default: `false`.
@@ -185,14 +209,16 @@ local M = {
         last_indent_marker = "└",
       },
 
-      ---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig Icon rendering configuration.
+      ---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
+      ---@field directory YaTreeConfig.Renderers.Icon.Directory Directory icon rendering configuration.
+      ---@field file YaTreeConfig.Renderers.Icon.File File icon rendering configuration.
       icon = {
         padding = "",
         view_modes = { "files", "search", "buffers", "git_status" },
 
-        ---@class YaTreeConfig.Renderers.Icon.Directory Directory icon rendering configuration.
+        ---@class YaTreeConfig.Renderers.Icon.Directory
         ---@field default string The icon for closed directories, default: `""`.
         ---@field expanded string The icon for opened directories, default: `""`.
         ---@field empty string The icon for closed empty directories, default: `""`.
@@ -210,7 +236,7 @@ local M = {
           custom = {},
         },
 
-        ---@class YaTreeConfig.Renderers.Icon.File File icon rendering configuration.
+        ---@class YaTreeConfig.Renderers.Icon.File
         ---@field default string The default icon for files, default: `""`.
         ---@field symlink string The icon for symbolic link files, default: `""`.
         file = {
@@ -219,7 +245,7 @@ local M = {
         },
       },
 
-      ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig File and directory name rendering configuration.
+      ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
       ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
@@ -235,16 +261,17 @@ local M = {
         highlight_open_file = false,
       },
 
-      ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig Repository rendering configuration.
+      ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
       ---@field show_status boolean Whether to show repository status on the repository toplevel directory, default: `true`.
+      ---@field icons YaTreeConfig.Renderers.Repository.Icons Repository icons, setting an icon to an empty string will disabled that particular status information.
       repository = {
         padding = " ",
         view_modes = { "files", "search", "buffers", "git_status" },
         show_status = true,
 
-        ---@class YaTreeConfig.Renderers.Repository.Icons Repository icons, setting an icon to an empty string will disabled that particular status information.
+        ---@class YaTreeConfig.Renderers.Repository.Icons
         ---@field behind string The icon for the behind count, default: `"⇣"`.
         ---@field ahead string The icon for the ahead count, default: `"⇡"`.
         ---@field stashed string The icon for the stashed count, default: `"*"`.
@@ -252,6 +279,7 @@ local M = {
         ---@field staged string The icon for the staged count, default: `"+"`.
         ---@field unstaged string The icon for the unstaged count, default: `"!"`.
         ---@field untracked string The icon for the untracked cound, default: `"?"`.
+        ---@field remote YaTreeConfig.Renderers.Repository.Icons.Remote Repository remote host icons.
         icons = {
           behind = "⇣",
           ahead = "⇡",
@@ -261,10 +289,8 @@ local M = {
           unstaged = "!",
           untracked = "?",
 
-          ---@class YaTreeConfig.Renderers.Repository.Icons.Remote Repository remote host icons.
+          ---@class YaTreeConfig.Renderers.Repository.Icons.Remote
           ---@field default string The default icon for marking the git toplevel directory, default: `""`.
-          ---@field github.com string The icon for github.com, default: `""`.
-          ---@field gitlab.com string The icon for gitlab.com, default: `""`.
           remote = {
             default = "",
             ["://github.com/"] = "",
@@ -273,7 +299,7 @@ local M = {
         },
       },
 
-      ---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig Symbolic link rendering configuration.
+      ---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
       ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
@@ -283,14 +309,15 @@ local M = {
         arrow_icon = "➛",
       },
 
-      ---@class YaTreeConfig.Renderers.GitStatus : YaTreeRendererConfig Git status rendering configuration.
+      ---@class YaTreeConfig.Renderers.GitStatus : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
+      ---@field icons YaTreeConfig.Renderers.GitStatus.Icons Git status icon configuration.
       git_status = {
         padding = " ",
         view_modes = { "files", "search", "buffers", "git_status" },
 
-        ---@class YaTreeConfig.Renderers.GitStatus.Icons Git status icon configuration.
+        ---@class YaTreeConfig.Renderers.GitStatus.Icons
         ---@field staged string The icon for staged changes, default: `""`.
         ---@field type_changed string The icon for a type-changed file, default: `""`.
         ---@field added string The icon for an added file, default: `"✚"`.
@@ -301,6 +328,7 @@ local M = {
         ---@field unmerged string The icon for unmerged changes, default: `""`.
         ---@field ignored string The icon for an ignored file, default: `""`.
         ---@field untracked string The icon for an untracked file, default: `, default: `""`.
+        ---@field merge YaTreeConfig.Renderers.GitStatus.Icons.Merge Git status icons for merge information.
         icons = {
           staged = "",
           type_changed = "",
@@ -313,7 +341,7 @@ local M = {
           ignored = "",
           untracked = "",
 
-          ---@class YaTreeConfig.Renderers.GitStatus.Icons.Merge Git status icons for merge information.
+          ---@class YaTreeConfig.Renderers.GitStatus.Icons.Merge
           ---@field us string The icon for added/deleted/modified by `us`, default: `"➜"`.
           ---@field them string The icon for added/deleted/modified by `them`, default: `""`.
           ---@field both string The icon for added/deleted/modified by `both`, default: `""`.
@@ -325,7 +353,7 @@ local M = {
         },
       },
 
-      ---@class YaTreeConfig.Renderers.Diagnostics : YaTreeRendererConfig Lsp diagnostics rendering configuration.
+      ---@class YaTreeConfig.Renderers.Diagnostics : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git_status" }`.
       ---@field min_severity number The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
@@ -335,7 +363,7 @@ local M = {
         min_severity = vim.diagnostic.severity.HINT,
       },
 
-      ---@class YaTreeConfig.Renderers.BufferInfo : YaTreeRendererConfig Buffer info rendering configuration.
+      ---@class YaTreeConfig.Renderers.BufferInfo : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "buffers" }`.
       buffer_info = {
@@ -344,7 +372,7 @@ local M = {
         hidden_icon = "",
       },
 
-      ---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig Clipboard rendering configuration.
+      ---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
       ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files" }`.
       clipboard = {
@@ -359,7 +387,7 @@ local M = {
     ---@field fn async fun(node: YaTreeNode) User function.
     ---@field desc? string Description of what the mapping does.
 
-    ---@class YaTreeConfig.Mappings Key mapping configuration.
+    ---@class YaTreeConfig.Mappings
     ---@field disable_defaults boolean Whether to diasble all default mappigns, default `true`.
     ---@field list table<string, YaTreeActionName|YaTreeConfig.CustomMapping> Map of key mappings.
     mappings = {
