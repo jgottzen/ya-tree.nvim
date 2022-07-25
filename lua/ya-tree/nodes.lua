@@ -630,7 +630,7 @@ do
   ---@param path string
   ---@param cmd string
   ---@param args string[]
-  ---@param callback fun(stdout?: string, stderr?: string)
+  ---@param callback fun(stdout?: string[], stderr?: string)
   ---@type async fun(path: string, cmd: string, args: string[]): string[]?,string
   local search = wrap(function(path, cmd, args, callback)
     log.debug("searching for %q in %q", cmd, path)
@@ -1179,13 +1179,12 @@ function GitStatusNode:remove_file(file)
   end
 end
 
----Creates a git status node tree, with `root_path` as the root node.
+---Creates a git status node tree, with the `repo` toplevel as the root node.
 ---@async
----@param root_path string
 ---@param repo GitRepo
 ---@return YaTreeGitStatusNode root, YaTreeGitStatusNode first_leaft_node
-function M.create_git_status_tree(root_path, repo)
-  local fs_node = fs.node_for(root_path) --[[@as FsNode]]
+function M.create_git_status_tree(repo)
+  local fs_node = fs.node_for(repo.toplevel) --[[@as FsNode]]
   local root = GitStatusNode:new(fs_node)
   root.repo = repo
   return root, root:refresh()
