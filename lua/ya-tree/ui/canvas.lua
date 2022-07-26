@@ -637,7 +637,11 @@ function Canvas:focus_node(node)
       if not column or column == -1 then
         column = api.nvim_win_get_cursor(self.winid)[2]
       end
-      set_cursor_position(self.winid, row, column)
+      -- avoids the cursor moving left when switching to the canvas window and then back,
+      -- happens with floating windows
+      api.nvim_win_call(self.winid, function()
+        set_cursor_position(0, row, column)
+      end)
     end
   end
 end

@@ -660,9 +660,9 @@ do
     end
 
     ---@cast self YaTreeSearchRootNode
-    self.term = term and term or self.term
+    self.search_term = term and term or self.search_term
     self._search_options = cmd and { cmd = cmd, args = args } or self._search_options
-    if not self.term or not self._search_options then
+    if not self.search_term or not self._search_options then
       return nil, "No search term or command supplied"
     end
 

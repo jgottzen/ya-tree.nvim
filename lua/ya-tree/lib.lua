@@ -772,8 +772,7 @@ end
 ---@async
 ---@param node YaTreeNode
 ---@param term string
----@param focus_node boolean should only be `true` *iff* the search is final and _not_ incremental.
-function M.search(node, term, focus_node)
+function M.search(node, term)
   scheduler()
   local tree = Tree.get_tree()
 
@@ -802,7 +801,7 @@ function M.search(node, term, focus_node)
     tree.current_node = tree.search.current_node
 
     utils.notify(string.format("%q found %s matches for %q in %q", cmd, matches_or_error, term, node.path))
-    ui.open_search(tree.search.root, focus_node and tree.search.current_node or nil)
+    ui.open_search(tree.search.root, tree.search.current_node)
   else
     utils.warn(string.format("%q failed with message:\n\n%s", cmd, matches_or_error))
   end

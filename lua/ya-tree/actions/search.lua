@@ -1,3 +1,4 @@
+local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 
 local lib = require("ya-tree.lib")
@@ -17,16 +18,14 @@ function M.search_interactively(node)
   end
   ---@type uv_timer_t
   local timer = uv.new_timer()
-  ---@type fun(node: YaTreeNode, term: string, focus_node: boolean)
+  ---@type fun(node: YaTreeNode, term: string)
   local search = void(lib.search)
 
   ---@param ms number
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()
-      -- focus_node has to be false, otherwise the cursor will jump in the input window when
-      -- focus switches to the tree window to move the cursor and then back to the input window
-      search(node, term, false)
+      search(node, term)
     end)
   end
 
@@ -41,6 +40,7 @@ function M.search_interactively(node)
         -- reset search
         term = text
         timer:stop()
+        scheduler()
         lib.close_search()
       else
         term = text
@@ -61,8 +61,10 @@ function M.search_interactively(node)
     on_submit = void(function(text)
       if text ~= term or timer:is_active() then
         timer:stop()
-        lib.search(node, text, true)
+        lib.search(node, text)
       else
+        -- let the ui catch up, so that the cursor doens't 'jump' one character left...
+        scheduler()
         lib.focus_first_search_result()
       end
       timer:close()
@@ -86,7 +88,7 @@ function M.search_once(node)
 
   local term = ui.input({ prompt = "Search:" })
   if term then
-    lib.search(node, term, true)
+    lib.search(node, term)
   end
 end
 
