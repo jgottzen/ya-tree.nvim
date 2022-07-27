@@ -213,14 +213,15 @@ end
 ---@param path string
 ---@return boolean whether the path exists.
 function M.exists(path)
-  local _, stat = uv.fs_stat(path)
+  -- must use fs_lstat since fs_stat fails on a orphaned links
+  local _, stat = uv.fs_lstat(path)
   return stat ~= nil
 end
 
 ---Recursively copy a directory.
 ---@async
----@param source string source path.
----@param destination string destination path.
+---@param source string|string[] source path.
+---@param destination string|string[] destination path.
 ---@param replace boolean whether to replace existing files.
 ---@return boolean success success or not
 function M.copy_dir(source, destination, replace)
@@ -265,8 +266,8 @@ end
 
 ---Copy a file.
 ---@async
----@param source string source path.
----@param destination string destination path.
+---@param source string|string[] source path.
+---@param destination string|string[] destination path.
 ---@param replace boolean whether to replace an existing file.
 ---@return boolean success success or not.
 function M.copy_file(source, destination, replace)
@@ -289,15 +290,14 @@ end
 ---@param path string the directory to create
 ---@return boolean success success or not.
 function M.create_dir(path)
-  local p = Path:new(path)
-
   local mode = 493 -- 755 in octal
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
-  local _, success = uv.fs_mkdir(p:absolute(), mode)
-  if not success and not p:exists() then
+  local abs_path = Path:new(path):absolute()
+  local _, success = uv.fs_mkdir(abs_path, mode)
+  if not success and not M.exists(abs_path) then
     ---@type string[]
-    local dirs = vim.split(p:absolute(), utils.os_sep)
+    local dirs = vim.split(abs_path, utils.os_sep)
     local acc = ""
     for _, dir in ipairs(dirs) do
       local current = utils.join_path(acc, dir)
