@@ -30,6 +30,8 @@ local M = {
 
     replace_netrw = true,
 
+    expand_all_nodes_max_depth = 5,
+
     ---@class YaTreeConfig.Log
     ---@field level LogLevel The logging level used, default `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.

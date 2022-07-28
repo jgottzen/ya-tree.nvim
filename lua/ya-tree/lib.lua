@@ -633,12 +633,28 @@ function M.close_all_nodes()
   ui.update(tree.root, tree.current_node)
 end
 
----@async
----@param node YaTreeNode
-function M.expand_all_nodes(node)
-  local tree = Tree.get_tree()
-  tree.root:expand({ all = true })
-  ui.update(tree.root, node)
+do
+  ---@async
+  ---@param node YaTreeNode
+  ---@param depth number
+  local function expand(node, depth)
+    node:expand()
+    if depth < config.expand_all_nodes_max_depth then
+      for _, child in ipairs(node.children) do
+        if child:is_container() and utils.is_node_displayable(child, config) then
+          expand(child, depth + 1)
+        end
+      end
+    end
+  end
+
+  ---@async
+  ---@param node YaTreeNode
+  function M.expand_all_nodes(node)
+    local tree = Tree.get_tree()
+    expand(tree.root, 1)
+    ui.update(tree.root, node)
+  end
 end
 
 ---@private

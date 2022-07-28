@@ -423,9 +423,8 @@ end
 ---@async
 ---@generic T : YaTreeNode
 ---@param self T
----@param opts? {force_scan?: boolean, all?: boolean, to?: string}
+---@param opts? {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
----  - {opts.all?} `boolean` recursively expands all directory.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return T|nil node if {opts.to} is specified, and found.
 function Node.expand(self, opts)
@@ -457,12 +456,6 @@ function Node.expand(self, opts)
       end
     else
       log.debug("node %q is not a parent of path %q", self.path, opts.to)
-    end
-  elseif opts.all and self:is_container() then
-    for _, child in ipairs(self.children) do
-      if child:is_container() then
-        child:expand(opts)
-      end
     end
   end
 end
@@ -780,7 +773,6 @@ end
 ---@async
 ---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
----  - {opts.all?} `boolean` recursively expands all directory.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return YaTreeBufferNode|nil node if {opts.to} is specified, and found.
 function BufferNode:expand(opts)
