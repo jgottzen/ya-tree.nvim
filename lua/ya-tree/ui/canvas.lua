@@ -470,7 +470,7 @@ function Canvas:_render_tree(root)
   ---@param depth integer
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
-    if node:is_displayable(config) or depth == 0 then
+    if utils.is_node_displayable(node, config) or depth == 0 then
       linenr = linenr + 1
       node.depth = depth
       node.last_child = last_child
@@ -618,7 +618,7 @@ end
 function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
-  while node and not node:is_displayable(config) and node.parent do
+  while node and not utils.is_node_displayable(node, config) and node.parent do
     node = node.parent
   end
   if node then
@@ -667,7 +667,7 @@ function Canvas:focus_prev_sibling(node)
   end
 
   for prev in node.parent:iterate_children({ reverse = true, from = node }) do
-    if node:is_displayable(config) then
+    if utils.is_node_displayable(node, config) then
       local row = self.node_path_to_index_lookup[prev.path]
       if row then
         ---@type number
@@ -686,7 +686,7 @@ function Canvas:focus_next_sibling(node)
   end
 
   for next in node.parent:iterate_children({ from = node }) do
-    if node:is_displayable(config) then
+    if utils.is_node_displayable(node, config) then
       local row = self.node_path_to_index_lookup[next.path]
       if row then
         ---@type number
@@ -705,7 +705,7 @@ function Canvas:focus_first_sibling(node)
   end
 
   for next in node.parent:iterate_children() do
-    if node:is_displayable(config) then
+    if utils.is_node_displayable(node, config) then
       local row = self.node_path_to_index_lookup[next.path]
       if row then
         ---@type number
@@ -724,7 +724,7 @@ function Canvas:focus_last_sibling(node)
   end
 
   for prev in node.parent:iterate_children({ reverse = true }) do
-    if node:is_displayable(config) then
+    if utils.is_node_displayable(node, config) then
       local row = self.node_path_to_index_lookup[prev.path]
       if row then
         ---@type number

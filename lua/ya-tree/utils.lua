@@ -115,6 +115,58 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
+---@param node YaTreeGitStatusNode
+---@return boolean displayable
+local function is_any_child_displayable(node)
+  for _, child in ipairs(node.children) do
+    if not child:is_git_ignored() then
+      if child:is_directory() and is_any_child_displayable(child) then
+        return true
+      elseif child:is_file() then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+---@alias not_display_reason "filter" | "git"
+
+---@param node YaTreeNode
+---@param config YaTreeConfig
+---@return boolean displayable
+---@return not_display_reason? reason
+function M.is_node_displayable(node, config)
+  if node:node_type() == "Buffer" then
+    return true
+  elseif node:node_type() == "GitStatus" then
+    ---@cast node YaTreeGitStatusNode
+    if not config.git.show_ignored then
+      if node:is_git_ignored() or (node:is_directory() and not is_any_child_displayable(node)) then
+        return false, "git"
+      end
+    end
+
+    return true
+  else
+    if config.filters.enable then
+      if config.filters.dotfiles and node:is_dotfile() then
+        return false, "filter"
+      elseif vim.tbl_contains(config.filters.custom, node.name) then
+        return false, "filter"
+      end
+    end
+
+    if not config.git.show_ignored then
+      if node:is_git_ignored() then
+        return false, "git"
+      end
+    end
+
+    return true
+  end
+end
+
 ---@class TerminalBufferData
 ---@field name string
 ---@field bufnr number

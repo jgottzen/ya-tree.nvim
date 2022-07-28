@@ -517,7 +517,7 @@ function M.open_window(opts)
   if path then
     node = tree.root:expand({ to = path })
     if node then
-      local displayable, reason = node:is_displayable(config)
+      local displayable, reason = utils.is_node_displayable(node, config)
       if not displayable and reason then
         if reason == "filter" then
           config.filters.enable = false

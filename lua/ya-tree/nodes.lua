@@ -305,28 +305,6 @@ function Node:is_dotfile()
   return self.name:sub(1, 1) == "."
 end
 
----@alias not_display_reason "filter" | "git"
-
----@param config YaTreeConfig
----@return boolean displayable, not_display_reason? reason
-function Node:is_displayable(config)
-  if config.filters.enable then
-    if config.filters.dotfiles and self:is_dotfile() then
-      return false, "filter"
-    elseif vim.tbl_contains(config.filters.custom, self.name) then
-      return false, "filter"
-    end
-  end
-
-  if not config.git.show_ignored then
-    if self:is_git_ignored() then
-      return false, "git"
-    end
-  end
-
-  return true
-end
-
 ---@return boolean
 function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self.type) or false
@@ -776,12 +754,6 @@ function BufferNode:is_container()
   return self.type == "container" or self.type == "directory"
 end
 
----@param _ YaTreeConfig
----@return true
-function BufferNode:is_displayable(_)
-  return true
-end
-
 ---@return boolean is_terminal
 function BufferNode:is_terminal()
   return self.type == "terminal"
@@ -1112,33 +1084,6 @@ function GitStatusNode:new(fs_node, parent)
     this.expanded = true
   end
   return this
-end
-
----@param node YaTreeGitStatusNode
----@return boolean displayable
-local function is_any_child_displayable(node)
-  for _, child in ipairs(node.children) do
-    if not child:is_git_ignored() then
-      if child:is_directory() and is_any_child_displayable(child) then
-        return true
-      elseif child:is_file() then
-        return true
-      end
-    end
-  end
-  return false
-end
-
----@param config YaTreeConfig
----@return boolean displayable, not_display_reason? reason
-function GitStatusNode:is_displayable(config)
-  if not config.git.show_ignored then
-    if self:is_git_ignored() or (self:is_directory() and not is_any_child_displayable(self)) then
-      return false, "git"
-    end
-  end
-
-  return true
 end
 
 ---@private
