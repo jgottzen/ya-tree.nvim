@@ -715,7 +715,7 @@ function SearchNode:refresh()
     self.parent:refresh()
   else
     ---@cast self YaTreeSearchRootNode
-    if self.term and self._search_options then
+    if self.search_term and self._search_options then
       self:search()
     end
   end
