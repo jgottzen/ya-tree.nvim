@@ -239,9 +239,17 @@ local M = {
         ---@class YaTreeConfig.Renderers.Icon.File
         ---@field default string The default icon for files, default: `""`.
         ---@field symlink string The icon for symbolic link files, default: `""`.
+        ---@field fifo string The icon for fifo files, default: `"|"`.
+        ---@field socket string The icon for socket files, default: `""`.
+        ---@field char string The icon for character device files, default: `""`.
+        ---@field block string The icon for block device files, default: `""`.
         file = {
           default = "",
           symlink = "",
+          fifo = "|",
+          socket = "",
+          char = "",
+          block = "",
         },
       },
 
@@ -348,7 +356,7 @@ local M = {
           merge = {
             us = "➜",
             them = "",
-            both = "",
+            both = "",
           },
         },
       },

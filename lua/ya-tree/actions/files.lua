@@ -270,7 +270,7 @@ function M.system_open(node)
 
   ---@type string[]
   local args = vim.deepcopy(config.system_open.args or {})
-  table.insert(args, node.link_to or node.path)
+  table.insert(args, node.absolute_link_to or node.path)
   job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, stderr)
     if code ~= 0 then
       log.error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)

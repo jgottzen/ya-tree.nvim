@@ -15,11 +15,20 @@ local M = {
 
   DEFAULT_FILE_ICON = "YaTreeDefaultFileIcon",
   SYMBOLIC_FILE_ICON = "YaTreeSymbolicFileIcon",
+  FIFO_FILE_ICON = "YaTreeFifoFileIcon",
+  SOCKET_FILE_ICON = "YaTreeSocketFileIcon",
+  CHAR_DEVICE_FILE_ICON = "YaTreeCharDeviceFileIcon",
+  BLOCK_DEVICE_FILE_ICON = "YaTreeBlockDeviceFileIcon",
 
   FILE_NAME = "YaTreeFileName",
   SYMBOLIC_FILE_NAME = "YaTreeSymbolicFileName",
+  FIFO_FILE_NAME = "YaTreeFifoFileName",
+  SOCKET_FILE_NAME = "YaTreeSocketFileName",
+  CHAR_DEVICE_FILE_NAME = "YaTreeCharDeviceFileName",
+  BLOCK_DEVICE_FILE_NAME = "YaTreeBlockDeviceFileName",
   EXECUTABLE_FILE_NAME = "YaTreeExecutableFileName",
   OPENED_FILE_NAME = "YaTreeOpenedFileName",
+  ERROR_FILE_NAME = "YaTreeErrorFileName",
 
   SYMBOLIC_LINK = "YaTreeSymbolicLink",
 
@@ -67,6 +76,10 @@ local hl_links = {
   [M.EMPTY_SYMBOLIC_DIRECTORY_NAME] = M.DIRECTORY_NAME,
   [M.FILE_NAME] = "Normal",
   [M.SYMBOLIC_FILE_NAME] = M.FILE_NAME,
+  [M.FIFO_FILE_NAME] = M.FIFO_FILE_ICON,
+  [M.SOCKET_FILE_NAME] = M.SOCKET_FILE_ICON,
+  [M.CHAR_DEVICE_FILE_NAME] = M.CHAR_DEVICE_FILE_ICON,
+  [M.BLOCK_DEVICE_FILE_NAME] = M.BLOCK_DEVICE_FILE_ICON,
   [M.EXECUTABLE_FILE_NAME] = M.FILE_NAME,
   [M.BUFFER_NUMBER] = "SpecialChar",
   [M.BUFFER_HIDDEN] = "WarningMsg",
@@ -131,7 +144,13 @@ local function get_groups()
 
     [M.INDENT_MARKER] = { fg = "#5a524c" },
 
+    [M.FIFO_FILE_ICON] = { fg = "#af0087" },
+    [M.SOCKET_FILE_ICON] = { fg = "#ff005f" },
+    [M.CHAR_DEVICE_FILE_ICON] = { fg = "#87d75f" },
+    [M.BLOCK_DEVICE_FILE_ICON] = { fg = "#5f87d7" },
+
     [M.OPENED_FILE_NAME] = { fg = get_foreground_color_from_hl({ "TSKeyword" }, "#d3869b") },
+    [M.ERROR_FILE_NAME] = { fg = "#080808", bg = "#ff0000" },
 
     [M.SYMBOLIC_LINK] = { fg = get_foreground_color_from_hl({ "TSInclude" }, "#7daea3"), italic = true },
 

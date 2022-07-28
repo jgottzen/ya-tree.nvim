@@ -27,7 +27,7 @@ end
 -- file, directory, link, fifo, socket, char, block and unknown
 -- see: https://github.com/luvit/luv/blob/d2e235503f6cb5c86121cd70cdb5d17e368bab03/src/fs.c#L107=
 
----@alias file_type "directory" | "file"
+---@alias file_type "directory" | "file" | "fifo" | "socket" | "char" | "block"
 
 ---@class FsNode
 ---@field public name string
@@ -101,9 +101,59 @@ local function get_file_name(path)
   return splits[#splits]
 end
 
+---@class FsFifoNode : FsFileNode, FsNode
+
+---@async
+---@param dir string the directory containing the fifo
+---@param name string name of the fifo
+---@return FsFifoNode node
+local function fifo_node(dir, name)
+  local node = file_node(dir, name)
+  node.type = "fifo"
+  return node --[[@as FsFifoNode]]
+end
+
+---@class FsSocketNode : FsFileNode, FsNode
+
+---@async
+---@param dir string the directory containing the socket
+---@param name string name of the socket
+---@return FsSocketNode node
+local function socket_node(dir, name)
+  local node = file_node(dir, name)
+  node.type = "socket"
+  return node --[[@as FsSocketNode]]
+end
+
+---@class FsCharNode : FsFileNode, FsNode
+
+---@async
+---@param dir string the directory containing the char device file
+---@param name string name of the char device file
+---@return FsCharNode node
+local function char_node(dir, name)
+  local node = file_node(dir, name)
+  node.type = "char"
+  return node --[[@as FsCharNode]]
+end
+
+---@class FsBlockNode : FsFileNode, FsNode
+
+---@async
+---@param dir string the directory containing the block device file
+---@param name string name of the block device file
+---@return FsBlockNode node
+local function block_node(dir, name)
+  local node = file_node(dir, name)
+  node.type = "block"
+  return node --[[@as FsBlockNode]]
+end
+
 ---@class FsLinkNodeMixin
 ---@field public link boolean
----@field public link_to string
+---@field public absolute_link_to string
+---@field public relative_link_to string
+---@field public link_orphan boolean
 
 ---@class FsDirectoryLinkNode : FsDirectoryNode, FsLinkNodeMixin, FsNode
 
@@ -117,35 +167,40 @@ end
 ---@return FsDirectoryLinkNode|FsFileLinkNode|nil node
 local function link_node(dir, name)
   local path = utils.join_path(dir, name)
-  ---@type string
-  local _, link_to = uv.fs_realpath(path)
-  if not link_to then
-    -- don't create nodes for links that have no target
-    return nil
-  end
-
+  ---@type userdata, string
+  local _, abs_link_to = uv.fs_readlink(path)
+  local rel_link_to = Path:new(abs_link_to):make_relative(dir) --[[@as string]]
   local _, stat = uv.fs_stat(path)
-  local p = Path:new(link_to)
-  link_to = p:make_relative() --[[@as string]]
-
   local node
-  if stat and stat.type == "directory" then
-    node = directory_node(dir, name)
-  elseif stat and stat.type == "file" then
-    local link_name = get_file_name(p.filename)
-    ---@type string
-    local link_extension = link_name:match(".?[^.]+%.(.*)") or ""
+  if stat then
+    local _type = stat.type --[[@as file_type]]
+    if _type == "directory" then
+      node = directory_node(dir, name)
+    elseif _type == "file" or _type == "fifo" or _type == "socket" or _type == "char" or _type == "block" then
+      local link_name = get_file_name(abs_link_to)
+      ---@type string
+      local link_extension = link_name:match(".?[^.]+%.(.*)") or ""
 
-    node = file_node(dir, name)
-    node.link_name = link_name
-    node.link_extension = link_extension
+      node = file_node(dir, name)
+      node.link_name = link_name
+      node.link_extension = link_extension
+      node.type = _type
+    else
+      -- "link" or "unknown"
+      return nil
+    end
+
+    node.link_orphan = false
   else
-    return nil
+    -- the link is orphaned
+    node = file_node(dir, name)
+    node.link_orphan = true
   end
 
   ---@cast node FsDirectoryLinkNode|FsFileLinkNode
   node.link = true
-  node.link_to = link_to
+  node.absolute_link_to = abs_link_to
+  node.relative_link_to = rel_link_to
   return node
 end
 
@@ -155,10 +210,8 @@ end
 function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   local _, stat = uv.fs_lstat(path)
-  local _type = stat and stat.type or nil
+  local _type = stat and stat.type or nil --[[@as file_type?]]
   if not _type then
-    -- this is most likely caused by a symbolic link pointing to a non-existing file and not really a problem,
-    -- or nothing we can do anything about, so just ignore it
     return nil
   end
 
@@ -171,6 +224,14 @@ function M.node_for(path)
     return file_node(parent_path, name)
   elseif _type == "link" then
     return link_node(parent_path, name)
+  elseif _type == "fifo" then
+    return fifo_node(parent_path, name)
+  elseif _type == "socket" then
+    return socket_node(parent_path, name)
+  elseif _type == "char" then
+    return char_node(parent_path, name)
+  elseif _type == "block" then
+    return block_node(parent_path, name)
   else
     return nil
   end
@@ -186,7 +247,7 @@ function M.scan_dir(dir)
   local _, fd = uv.fs_scandir(dir)
   if fd then
     while true do
-      ---@type string
+      ---@type string, file_type?
       local name, _type = loop.fs_scandir_next(fd)
       if name == nil then
         break
@@ -199,6 +260,14 @@ function M.scan_dir(dir)
         node = file_node(dir, name)
       elseif _type == "link" then
         node = link_node(dir, name)
+      elseif _type == "fifo" then
+        node = fifo_node(dir, name)
+      elseif _type == "socket" then
+        node = socket_node(dir, name)
+      elseif _type == "char" then
+        node = char_node(dir, name)
+      elseif _type == "block" then
+        node = block_node(dir, name)
       end
       if node then
         nodes[#nodes + 1] = node
@@ -352,6 +421,7 @@ function M.remove_dir(path)
   end
 
   while true do
+    ---@type string, file_type?
     local name, _type = loop.fs_scandir_next(fd)
     if not name then
       break

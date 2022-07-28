@@ -97,6 +97,18 @@ function M.icon(node, _, renderer)
         end
       end
     end
+  elseif node:is_fifo() then
+    icon = renderer.file.fifo
+    highlight = hl.FIFO_FILE_ICON
+  elseif node:is_socket() then
+    icon = renderer.file.socket
+    highlight = hl.SOCKET_FILE_ICON
+  elseif node:is_char_device() then
+    icon = renderer.file.char
+    highlight = hl.CHAR_DEVICE_FILE_ICON
+  elseif node:is_block_device() then
+    icon = renderer.file.block
+    highlight = hl.BLOCK_DEVICE_FILE_ICON
   else
     if icons_availble then
       if node:is_link() then
@@ -215,12 +227,16 @@ function M.name(node, context, renderer)
       highlight = hl.DIRECTORY_NAME
     elseif node:is_file() then
       highlight = hl.FILE_NAME
+    elseif node:is_fifo() then
+      highlight = hl.FIFO_FILE_NAME
+    elseif node:is_socket() then
+      highlight = hl.SOCKET_FILE_NAME
+    elseif node:is_char_device() then
+      highlight = hl.CHAR_DEVICE_FILE_NAME
+    elseif node:is_block_device() then
+      highlight = hl.BLOCK_DEVICE_FILE_NAME
     elseif node:node_type() == "Buffer" and node:is_terminal() then
-      if node.hidden then
-        highlight = hl.GIT_IGNORED
-      else
-        highlight = hl.FILE_NAME
-      end
+      highlight = node.hidden and hl.GIT_IGNORED or hl.FILE_NAME
     end
 
     if context.config.git.show_ignored then
@@ -332,8 +348,8 @@ function M.symlink_target(node, _, renderer)
   if node:is_link() then
     return {
       padding = renderer.padding,
-      text = renderer.arrow_icon .. " " .. node.link_to,
-      highlight = hl.SYMBOLIC_LINK,
+      text = renderer.arrow_icon .. " " .. node.relative_link_to,
+      highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK,
     }
   end
 end

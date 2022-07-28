@@ -23,7 +23,9 @@ local M = {}
 ---@field public extension? string
 ---@field public executable? boolean
 ---@field public link boolean
----@field public link_to? string
+---@field public absolute_link_to? string
+---@field public relative_link_to string
+---@field public link_orphan? boolean
 ---@field public link_name? string
 ---@field public link_extension? string
 ---@field public repo? GitRepo
@@ -164,11 +166,12 @@ end
 ---@param b YaTreeNode
 ---@return boolean
 function Node._node_comparator(a, b)
-  if a.type == b.type then
-    return a.path < b.path
-  else
-    return a.type < b.type
+  if a:is_container() and not b:is_container() then
+    return true
+  elseif b:is_container() then
+    return false
   end
+  return a.path < b.path
 end
 
 ---@async
@@ -264,6 +267,26 @@ end
 ---@return boolean
 function Node:is_link()
   return self.link == true
+end
+
+---@return boolean
+function Node:is_fifo()
+  return self.type == "fifo"
+end
+
+---@return boolean
+function Node:is_socket()
+  return self.type == "socket"
+end
+
+---@return boolean
+function Node:is_char_device()
+  return self.type == "char"
+end
+
+---@return boolean
+function Node:is_block_device()
+  return self.type == "block"
 end
 
 ---@param path string
