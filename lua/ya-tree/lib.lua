@@ -629,8 +629,15 @@ end
 function M.close_all_nodes()
   local tree = Tree.get_tree()
   tree.root:collapse({ recursive = true, children_only = true })
-  tree.current_node = tree.root
-  ui.update(tree.root, tree.current_node)
+  ui.update(tree.root, tree.root)
+end
+
+function M.close_all_child_nodes(node)
+  local tree = Tree.get_tree()
+  if node:is_directory() then
+    node:collapse({ recursive = true, children_only = true })
+    ui.update(tree.root, node)
+  end
 end
 
 do
@@ -654,6 +661,14 @@ do
     local tree = Tree.get_tree()
     expand(tree.root, 1)
     ui.update(tree.root, node)
+  end
+
+  function M.expand_all_child_nodes(node)
+    local tree = Tree.get_tree()
+    if node:is_directory() then
+      expand(node, 1)
+      ui.update(tree.root, node)
+    end
   end
 end
 

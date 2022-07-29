@@ -37,7 +37,9 @@ local M = {}
 ---| "close_window"
 ---| "close_node"
 ---| "close_all_nodes"
+---| "close_all_child_nodes"
 ---| "expand_all_nodes"
+---| "expand_all_child_nodes"
 ---| "cd_to"
 ---| "cd_up"
 ---| "toggle_ignored"
@@ -134,9 +136,21 @@ local actions = {
   close_window = create_action(lib.close_window, "Close the tree window", { "files", "search", "buffers", "git_status" }, { "n" }),
   close_node = create_action(lib.close_node, "Close directory", { "files", "search", "buffers", "git_status" }, { "n" }),
   close_all_nodes = create_action(lib.close_all_nodes, "Close all directories", { "files", "search", "buffers", "git_status" }, { "n" }),
+  close_all_child_nodes = create_action(
+    lib.close_all_child_nodes,
+    "Close all child directories",
+    { "files", "search", "buffers", "git_status" },
+    { "n" }
+  ),
   expand_all_nodes = create_action(
     lib.expand_all_nodes,
     "Recursively expand all directories",
+    { "files", "search", "buffers", "git_status" },
+    { "n" }
+  ),
+  expand_all_child_nodes = create_action(
+    lib.expand_all_child_nodes,
+    "Recursively expand all child directories",
     { "files", "search", "buffers", "git_status" },
     { "n" }
   ),
