@@ -936,6 +936,7 @@ function M.search_for_node_in_tree(path)
 
       if #lines > 0 then
         tree.current_node = tree.root:expand({ to = lines[1] })
+        scheduler()
         ui.update(tree.root, tree.current_node)
       else
         utils.notify(string.format("%q cannot be found in the tree", path))

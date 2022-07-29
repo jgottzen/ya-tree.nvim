@@ -126,6 +126,7 @@ function M.add(node)
 
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
+        scheduler()
         lib.refresh_tree(path)
       else
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
@@ -153,6 +154,7 @@ function M.rename(node)
 
   if fs.rename(node.path, path) then
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
+    scheduler()
     lib.refresh_tree(path)
   else
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
