@@ -245,7 +245,7 @@ function M.trash()
     ---@param n YaTreeNode
     files = vim.tbl_map(function(n)
       return n.path
-    end, nodes) --[[@as string[] ]]
+    end, nodes) --[=[@as string[]]=]
   end
 
   if #files > 0 then

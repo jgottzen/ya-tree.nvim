@@ -23,11 +23,11 @@ function M.open()
   ---@param mapping YaTreeActionMapping
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
-  end, mappings) --[[@as YaTreeActionMapping[] ]]
+  end, mappings) --[=[@as YaTreeActionMapping[]]=]
   ---@param mapping YaTreeActionMapping
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
-  end, mappings) --[[@as YaTreeActionMapping[] ]]
+  end, mappings) --[=[@as YaTreeActionMapping[]]=]
   table.sort(insert, mapping_sorter)
   table.sort(visual, mapping_sorter)
 

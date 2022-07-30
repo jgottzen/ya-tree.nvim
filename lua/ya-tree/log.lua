@@ -11,31 +11,31 @@ local logger = {}
 -- selene: allow(unused_variable)
 
 ---@param msg string
----@vararg any
+---@param ... any
 ---@overload fun(...)
 function logger.trace(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
----@vararg any
+---@param ... any
 ---@overload fun(...)
 function logger.debug(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
----@vararg any
+---@param ... any
 ---@overload fun(...)
 function logger.info(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
----@vararg any
+---@param ... any
 ---@overload fun(...)
 function logger.warn(msg, ...) end
 -- selene: allow(unused_variable)
 
 ---@param msg string
----@vararg any
+---@param ... any
 ---@overload fun(...)
 function logger.error(msg, ...) end
 
@@ -103,7 +103,7 @@ function logger.new(opts)
     end
   end
 
-  ---@vararg any
+  ---@param ... any
   ---@return any[]
   local function pack(...)
     local rest = {}
@@ -115,7 +115,7 @@ function logger.new(opts)
   end
 
   ---@param arg any
-  ---@vararg any
+  ---@param ... any
   ---@return string
   local function concat(arg, ...)
     local t = pack(...)
@@ -124,7 +124,7 @@ function logger.new(opts)
   end
 
   ---@param arg string
-  ---@vararg any
+  ---@param ... any
   ---@return string
   local function format(arg, ...)
     if type(arg) == "string" then
@@ -146,7 +146,7 @@ function logger.new(opts)
   ---@param name string
   ---@param highlight string
   ---@param arg any
-  ---@vararg any
+  ---@param ... any
   local function log(level, name, highlight, arg, ...)
     if level < levels[config.level] or not (self.config.to_console or self.config.to_file) then
       return

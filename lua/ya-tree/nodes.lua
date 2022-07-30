@@ -52,10 +52,10 @@ end
 
 ---Creates a new node.
 ---@generic T : YaTreeNode
----@param class T
+---@param class `T`
 ---@param fs_node FsNode filesystem data.
----@param parent? T the parent node.
----@return T node
+---@param parent? `T` the parent node.
+---@return `T` node
 local function create_node(class, fs_node, parent)
   local this = setmetatable(fs_node, class) --[[@as YaTreeNode]]
   ---@cast parent YaTreeNode?
@@ -355,11 +355,11 @@ end
 ---Returns an iterator function for this `node`s children.
 --
 ---@generic T : YaTreeNode
----@param self T
----@param opts? { reverse?: boolean, from?: T }
+---@param self `T`
+---@param opts? { reverse?: boolean, from?: `T` }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} `T`
----@return fun():T iterator
+---@return fun():`T` iterator
 function Node.iterate_children(self, opts)
   ---@cast self YaTreeNode
   if not self.children or #self.children == 0 then
@@ -422,11 +422,11 @@ end
 --
 ---@async
 ---@generic T : YaTreeNode
----@param self T
+---@param self `T`
 ---@param opts? {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return T|nil node if {opts.to} is specified, and found.
+---@return `T`|nil node if {opts.to} is specified, and found.
 function Node.expand(self, opts)
   ---@cast self YaTreeNode
   log.debug("expanding %q", self.path)
@@ -462,9 +462,9 @@ end
 
 ---Returns the child node specified by `path` if it has been loaded.
 ---@generic T : YaTreeNode
----@param self T
+---@param self `T`
 ---@param path string
----@return T|nil
+---@return `T`|nil
 function Node.get_child_if_loaded(self, path)
   ---@cast self YaTreeNode
   if self.path == path then
@@ -536,10 +536,10 @@ end
 
 ---@async
 ---@generic T : YaTreeNode
----@param root T
+---@param root `T`
 ---@param paths string[]
----@param node_creator async fun(path: string, parent: T): T|nil
----@return T first_leaf_node
+---@param node_creator async fun(path: string, parent: `T`): `T`|nil
+---@return `T` first_leaf_node
 local function create_tree_from_paths(root, paths, node_creator)
   ---@cast root YaTreeNode
   ---@type table<string, YaTreeNode>
@@ -902,10 +902,10 @@ end
 
 ---@async
 ---@generic T : YaTreeBufferNode|YaTreeGitStatusNode
----@param root T
+---@param root `T`
 ---@param file string
----@param node_creator fun(fs_node: FsNode, parent: T): T
----@return T|nil node
+---@param node_creator fun(fs_node: FsNode, parent: `T`): `T`
+---@return `T`|nil node
 local function add_fs_node(root, file, node_creator)
   if not fs.exists(file) then
     log.error("no file node found for %q", file)
