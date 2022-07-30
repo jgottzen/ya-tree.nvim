@@ -711,21 +711,13 @@ function M.cd_to(node)
     end
     node = node.parent --[[@as YaTreeNode]]
   end
+  log.debug("cd to %q", node.path)
 
-  if node:node_type() == "GitStatus" and node.repo:is_yadm() then
-    log.debug("changing root node of yadm git status tree to %q", node.path)
-    tree.git_status.root = node --[[@as YaTreeGitStatusNode]]
-    tree.root = tree.git_status.root
-    ui.update(tree.root, node)
-  else
-    log.debug("cd to %q", node.path)
-
-    -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
-    if config.cwd.update_from_tree and node.path ~= tree.cwd then
-      vim.cmd("tcd " .. fn.fnameescape(node.path))
-    elseif node.path ~= tree.root.path then
-      M._change_root_node_for_tree(tree, node)
-    end
+  -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
+  if config.cwd.update_from_tree and node.path ~= tree.cwd then
+    vim.cmd("tcd " .. fn.fnameescape(node.path))
+  elseif node.path ~= tree.root.path then
+    M._change_root_node_for_tree(tree, node)
   end
 end
 
