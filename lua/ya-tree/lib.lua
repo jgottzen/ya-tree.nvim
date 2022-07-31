@@ -440,7 +440,7 @@ function M.open_window(opts)
   end
 
   opts = opts or {}
-  log.debug("opening tree with %s", opts)
+  log.debug("opening window with %s", opts)
   -- If the switch_root flag is true and a file is given _and_ the appropriate config flag is set,
   -- we need to update the tree with the new cwd and root _before_ issuing the `tcd` command, since
   -- control passes to the handler. Issuing it after will be a no-op since since the tree cwd is already set.
@@ -600,8 +600,7 @@ function M.toggle_node(node)
   else
     node:expand()
   end
-
-  ui.update(tree.root)
+  ui.update(tree.root, node)
 end
 
 ---@param node YaTreeNode
@@ -621,17 +620,18 @@ function M.close_node(node)
       node = parent
     end
   end
-  tree.current_node = node
-
-  ui.update(tree.root, tree.current_node)
+  ui.update(tree.root, node)
 end
 
+---@async
 function M.close_all_nodes()
   local tree = Tree.get_tree()
   tree.root:collapse({ recursive = true, children_only = true })
   ui.update(tree.root, tree.root)
 end
 
+---@async
+---@param node YaTreeNode
 function M.close_all_child_nodes(node)
   local tree = Tree.get_tree()
   if node:is_directory() then
@@ -663,6 +663,8 @@ do
     ui.update(tree.root, node)
   end
 
+  ---@async
+  ---@param node YaTreeNode
   function M.expand_all_child_nodes(node)
     local tree = Tree.get_tree()
     if node:is_directory() then
@@ -683,7 +685,6 @@ function M._change_root_node_for_tree(tree, new_root)
   ---@type number
   local tabpage = api.nvim_get_current_tabpage()
   tree = Tree.update_tree_root_node(tree, new_root)
-
   if tree.tabpage == tabpage and ui.is_open() then
     if ui.is_search_open() then
       ui.close_search(tree.root, tree.current_node)
@@ -704,7 +705,6 @@ function M.cd_to(node)
   if node == tree.root then
     return
   end
-
   if not node:is_directory() then
     if not node.parent or node.parent == tree.root then
       return
@@ -747,8 +747,7 @@ function M.toggle_ignored(node)
   config.git.show_ignored = not config.git.show_ignored
   log.debug("toggling git ignored to %s", config.git.show_ignored)
   local tree = Tree.get_tree()
-  tree.current_node = node
-  ui.update(tree.root, tree.current_node)
+  ui.update(tree.root, node)
 end
 
 ---@param node YaTreeNode
@@ -756,8 +755,7 @@ function M.toggle_filter(node)
   config.filters.enable = not config.filters.enable
   log.debug("toggling filter to %s", config.filters.enable)
   local tree = Tree.get_tree()
-  tree.current_node = node
-  ui.update(tree.root, tree.current_node)
+  ui.update(tree.root, node)
 end
 
 ---@async

@@ -27,6 +27,7 @@ function M.run(opts, on_complete)
     ---@type number
     pid = nil,
   }
+  ---@type fun(code: number, stdout?: string, stderr?: string)
   local cb = opts.async_callback and void(on_complete) or on_complete
 
   state.handle, state.pid = uv.spawn(opts.cmd, {
@@ -64,6 +65,7 @@ function M.run(opts, on_complete)
     local stderr = #state.stderr_data > 0 and table.concat(state.stderr_data) or nil
 
     cb(code, stdout, stderr)
+    state = nil
   end)
 
   if state.handle then
@@ -83,6 +85,7 @@ function M.run(opts, on_complete)
     state.stderr:close()
     vim.schedule(function()
       cb(2, nil, tostring(state.pid))
+      state = nil
     end)
     return nil
   end
