@@ -233,6 +233,7 @@ function M.node_for(path)
   elseif _type == "block" then
     return block_node(parent_path, name)
   else
+    -- "unknown"
     return nil
   end
 end

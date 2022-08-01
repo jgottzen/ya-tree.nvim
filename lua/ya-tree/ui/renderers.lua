@@ -160,7 +160,7 @@ function M.name(node, context, renderer)
     }
 
     local results
-    if context.view_mode == "search" and node.search_term then
+    if context.view_mode == "search" then
       results = {
         {
           padding = "",
@@ -169,7 +169,7 @@ function M.name(node, context, renderer)
         },
         {
           padding = "",
-          text = node.search_term,
+          text = node.search_term or "",
           highlight = hl.SEARCH_TERM,
         },
         {
@@ -188,7 +188,7 @@ function M.name(node, context, renderer)
         },
         root,
       }
-    elseif context.view_mode == "git_status" and node.repo then
+    elseif context.view_mode == "git_status" then
       results = {
         {
           padding = "",
@@ -264,8 +264,7 @@ end
 ---@return RenderResult[]|nil results
 function M.repository(node, _, renderer)
   if node:is_git_repository_root() or (node.depth == 0 and node.repo) then
-    local repo = node.repo
-    ---@cast repo -?
+    local repo = node.repo --[[@as GitRepo]]
     local icon = renderer.icons.remote.default
     if repo.remote_url then
       for k, v in pairs(renderer.icons.remote) do

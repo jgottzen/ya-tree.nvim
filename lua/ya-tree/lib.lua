@@ -366,7 +366,7 @@ end
 function M._tabindex_to_tabpage(tabindex)
   ---@type number[]
   local tabpages = {}
-  for tab, _ in pairs(M._trees) do
+  for tab in pairs(M._trees) do
     tabpages[#tabpages + 1] = tonumber(tab)
   end
   table.sort(tabpages)
@@ -848,22 +848,20 @@ function M.refresh_tree(node_or_path)
 
   scheduler()
   local node
+  if type(node_or_path) == "table" then
+    node = node_or_path --[[@as YaTreeNode]]
+  end
   if ui.is_buffers_open() then
     tree.buffers.root:refresh()
-    node = ui.get_current_node()
   elseif ui.is_git_status_open() then
     tree.git_status.root:refresh()
-    node = ui.get_current_node()
   elseif ui.is_search_open() then
     tree.search.root:refresh()
-    node = ui.get_current_node()
   else
     tree.files.root:refresh({ recurse = true, refresh_git = config.git.enable })
-    if type(node_or_path) == "table" then
-      node = node_or_path
-    elseif type(node_or_path) == "string" then
+    if type(node_or_path) == "string" then
       node = tree.files.root:expand({ to = node_or_path })
-    else
+    elseif not node then
       log.error("the node_or_path parameter is of an unsupported type %q", type(node_or_path))
     end
   end
