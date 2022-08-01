@@ -166,9 +166,11 @@ end
 ---@param b YaTreeNode
 ---@return boolean
 function Node._node_comparator(a, b)
-  if a:is_container() and not b:is_container() then
+  local ac = a:is_container()
+  local bc = b:is_container()
+  if ac and not bc then
     return true
-  elseif b:is_container() then
+  elseif not ac and bc then
     return false
   end
   return a.path < b.path
