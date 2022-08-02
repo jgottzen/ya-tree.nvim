@@ -82,7 +82,7 @@ local function complete_open(arg_lead, cmdline)
   elseif vim.startswith(arg_lead, "focus=") then
     return { "true", "false" }
   elseif vim.startswith(arg_lead, "view=") then
-    return { "files", "buffers", "git_status" }
+    return { "files", "buffers", "git" }
   else
     local t = {}
     if not focus_completed then

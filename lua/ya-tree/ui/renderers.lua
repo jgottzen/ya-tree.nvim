@@ -188,11 +188,11 @@ function M.name(node, context, renderer)
         },
         root,
       }
-    elseif context.view_mode == "git_status" then
+    elseif context.view_mode == "git" then
       results = {
         {
           padding = "",
-          text = "Git Status: ",
+          text = "Git: ",
           highlight = hl.TEXT,
         },
         {

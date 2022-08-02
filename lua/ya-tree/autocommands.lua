@@ -96,7 +96,7 @@ local function on_buf_add_and_file_post_and_term_open(file, bufnr)
         end
 
         scheduler()
-        if ui.is_open() and ui.is_buffers_open() then
+        if ui.is_open() and ui.is_buffers_view_open() then
           if config.follow_focused_file and not node then
             node = tree.root:expand({ to = file })
           else
@@ -230,7 +230,7 @@ local function on_buf_delete_and_term_close(file, bufnr)
       if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.files.root.path then
         tree.buffers.root:refresh({ root_path = tree.files.root.path })
       end
-      if ui.is_open() and ui.is_buffers_open() then
+      if ui.is_open() and ui.is_buffers_view_open() then
         ui.update(tree.root, ui.get_current_node())
       end
     end)()

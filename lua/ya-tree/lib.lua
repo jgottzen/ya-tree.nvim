@@ -497,7 +497,7 @@ function M.open_window(opts)
     else
       tree.root = tree.buffers.root
     end
-  elseif opts.view_mode == "git_status" then
+  elseif opts.view_mode == "git" then
     if not tree.git.root then
       local repo = path and git.create_repo(path) or tree.files.root.repo
       if repo then
@@ -686,12 +686,12 @@ function M._change_root_node_for_tree(tree, new_root)
   local tabpage = api.nvim_get_current_tabpage()
   tree = Tree.update_tree_root_node(tree, new_root)
   if tree.tabpage == tabpage and ui.is_open() then
-    if ui.is_search_open() then
-      ui.close_search(tree.root, tree.current_node)
-    elseif ui.is_buffers_open() then
-      ui.close_buffers(tree.root, tree.current_node)
-    elseif ui.is_git_status_open() then
-      ui.close_git_status(tree.root, tree.current_node)
+    if ui.is_search_view_open() then
+      ui.close_search_view(tree.root, tree.current_node)
+    elseif ui.is_buffers_view_open() then
+      ui.close_buffers_view(tree.root, tree.current_node)
+    elseif ui.is_git_view_open() then
+      ui.close_git_view(tree.root, tree.current_node)
     else
       ui.update(tree.root, tree.current_node)
     end
@@ -798,7 +798,7 @@ function M.search(node, term)
   local tree = Tree.get_tree()
 
   -- store the current tree only once, before the search is done
-  if not ui.is_search_open() then
+  if not ui.is_search_view_open() then
     tree.files.root = tree.root
     tree.files.current_node = ui.get_current_node()
   end
@@ -822,7 +822,7 @@ function M.search(node, term)
     tree.current_node = tree.search.current_node
 
     utils.notify(string.format("%q found %s matches for %q in %q", cmd, matches_or_error, term, node.path))
-    ui.open_search(tree.search.root, tree.search.current_node)
+    ui.open_search_view(tree.search.root, tree.search.current_node)
   else
     utils.warn(string.format("%q failed with message:\n\n%s", cmd, matches_or_error))
   end
@@ -851,11 +851,11 @@ function M.refresh_tree(node_or_path)
   if type(node_or_path) == "table" then
     node = node_or_path --[[@as YaTreeNode]]
   end
-  if ui.is_buffers_open() then
+  if ui.is_buffers_view_open() then
     tree.buffers.root:refresh()
-  elseif ui.is_git_status_open() then
+  elseif ui.is_git_view_open() then
     tree.git.root:refresh()
-  elseif ui.is_search_open() then
+  elseif ui.is_search_view_open() then
     tree.search.root:refresh()
   else
     tree.files.root:refresh({ recurse = true, refresh_git = config.git.enable })
@@ -879,31 +879,31 @@ local function close_search(tree, current_node)
   end
   tree.root = tree.files.root
   tree.current_node = tree.files.current_node
-  ui.close_search(tree.root, tree.current_node)
+  ui.close_search_view(tree.root, tree.current_node)
 end
 
 ---@async
 ---@param node YaTreeNode
 function M.goto_node_in_tree(node)
   local tree = Tree.get_tree()
-  if ui.is_search_open() then
+  if ui.is_search_view_open() then
     ---@cast node YaTreeSearchNode
     tree.files.current_node = tree.files.root:expand({ to = node.path })
     close_search(tree, node)
-  elseif ui.is_buffers_open() then
+  elseif ui.is_buffers_view_open() then
     ---@cast node YaTreeBufferNode
     if node:is_directory() or node:is_file() then
       tree.buffers.current_node = node
       tree.root = tree.files.root
       tree.current_node = tree.root:expand({ to = node.path })
-      ui.close_buffers(tree.root, tree.current_node)
+      ui.close_buffers_view(tree.root, tree.current_node)
     end
-  elseif ui.is_git_status_open() then
+  elseif ui.is_git_view_open() then
     ---@cast node YaTreeGitNode
     tree.git.current_node = node
     tree.root = tree.files.root
     tree.current_node = tree.root:expand({ to = node.path })
-    ui.close_git_status(tree.root, tree.current_node)
+    ui.close_git_view(tree.root, tree.current_node)
   end
 end
 
@@ -919,7 +919,7 @@ function M.show_last_search(node)
     tree.files.current_node = node
     tree.root = tree.search.root --[[@as YaTreeSearchNode]]
     tree.current_node = tree.search.current_node
-    ui.open_search(tree.search.root, tree.search.current_node)
+    ui.open_search_view(tree.search.root, tree.search.current_node)
   end
 end
 
@@ -952,14 +952,14 @@ end
 
 ---@async
 ---@param node YaTreeNode
-function M.toggle_git_status(node)
+function M.toggle_git_view(node)
   local tree = Tree.get_tree()
-  if ui.is_git_status_open() then
+  if ui.is_git_view_open() then
     ---@cast node YaTreeGitNode
     tree.git.current_node = node
     tree.root = tree.files.root
     tree.current_node = tree.files.current_node
-    ui.close_git_status(tree.root, tree.current_node)
+    ui.close_git_view(tree.root, tree.current_node)
   else
     if not node.repo then
       M.rescan_dir_for_git(node)
@@ -972,21 +972,21 @@ function M.toggle_git_status(node)
         tree.root = tree.git.root
         tree.current_node = tree.git.current_node
       end
-      ui.open_git_status(tree.git.root, tree.git.current_node)
+      ui.open_git_view(tree.git.root, tree.git.current_node)
     end
   end
 end
 
 ---@async
 ---@param node YaTreeNode
-function M.toggle_buffers(node)
+function M.toggle_buffers_view(node)
   local tree = Tree.get_tree()
-  if ui.is_buffers_open() then
+  if ui.is_buffers_view_open() then
     ---@cast node YaTreeBufferNode
     tree.buffers.current_node = node
     tree.root = tree.files.root
     tree.current_node = tree.files.current_node
-    ui.close_buffers(tree.root, tree.current_node)
+    ui.close_buffers_view(tree.root, tree.current_node)
   else
     tree.files.current_node = node
     if not tree.buffers.root then
@@ -995,7 +995,7 @@ function M.toggle_buffers(node)
       tree.root = tree.buffers.root --[[@as YaTreeBufferNode]]
       tree.current_node = tree.buffers.current_node
     end
-    ui.open_buffers(tree.buffers.root, tree.buffers.current_node)
+    ui.open_buffers_view(tree.buffers.root, tree.buffers.current_node)
   end
 end
 

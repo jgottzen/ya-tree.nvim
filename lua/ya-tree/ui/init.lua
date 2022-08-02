@@ -203,7 +203,7 @@ function M.open_help()
 end
 
 ---@return boolean
-function M.is_search_open()
+function M.is_search_view_open()
   return M.get_view_mode() == "search"
 end
 
@@ -221,47 +221,47 @@ end
 
 ---@param root YaTreeSearchRootNode
 ---@param node? YaTreeSearchNode
-function M.open_search(root, node)
+function M.open_search_view(root, node)
   change_view_mode("search", root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
-function M.close_search(root, node)
+function M.close_search_view(root, node)
   change_view_mode("files", root, node)
 end
 
 ---@return boolean
-function M.is_git_status_open()
-  return M.get_view_mode() == "git_status"
+function M.is_git_view_open()
+  return M.get_view_mode() == "git"
 end
 
 ---@param root YaTreeGitRootNode
 ---@param node? YaTreeGitNode
-function M.open_git_status(root, node)
-  change_view_mode("git_status", root, node)
+function M.open_git_view(root, node)
+  change_view_mode("git", root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
-function M.close_git_status(root, node)
+function M.close_git_view(root, node)
   change_view_mode("files", root, node)
 end
 
 ---@return boolean
-function M.is_buffers_open()
+function M.is_buffers_view_open()
   return M.get_view_mode() == "buffers"
 end
 
 ---@param root YaTreeBufferRootNode
 ---@param node? YaTreeBufferNode
-function M.open_buffers(root, node)
+function M.open_buffers_view(root, node)
   change_view_mode("buffers", root, node)
 end
 
 ---@param root YaTreeNode
 ---@param node YaTreeNode
-function M.close_buffers(root, node)
+function M.close_buffers_view(root, node)
   change_view_mode("files", root, node)
 end
 
