@@ -115,7 +115,7 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
----@param node YaTreeGitStatusNode
+---@param node YaTreeGitNode
 ---@return boolean displayable
 local function is_any_child_displayable(node)
   for _, child in ipairs(node.children) do
@@ -140,7 +140,7 @@ function M.is_node_displayable(node, config)
   if node:node_type() == "Buffer" then
     return true
   elseif node:node_type() == "GitStatus" then
-    ---@cast node YaTreeGitStatusNode
+    ---@cast node YaTreeGitNode
     if not config.git.show_ignored then
       if node:is_git_ignored() or (node:is_directory() and not is_any_child_displayable(node)) then
         return false, "git"

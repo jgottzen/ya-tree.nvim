@@ -3,9 +3,9 @@ local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
+local diagnostics = require("ya-tree.diagnostics")
 local lib = require("ya-tree.lib")
 local debounce_trailing = require("ya-tree.debounce").debounce_trailing
-local Nodes = require("ya-tree.nodes")
 local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
@@ -76,13 +76,13 @@ local function on_buf_add_and_file_post_and_term_open(file, bufnr)
       void(function()
         local node
         if buftype == "terminal" then
-          node = tree.buffers.root:add_buffer(file, bufnr)
+          node = tree.buffers.root:add_buffer(file, bufnr, true)
         else
           node = tree.buffers.root:get_child_if_loaded(file)
           if not node then
             if tree.buffers.root:is_ancestor_of(file) then
               log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
-              node = tree.buffers.root:add_buffer(file, bufnr)
+              node = tree.buffers.root:add_buffer(file, bufnr, false)
             else
               log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, tree.buffers.root.path)
               tree.buffers.root:refresh()
@@ -226,7 +226,7 @@ local function on_buf_delete_and_term_close(file, bufnr)
   if buftype == "" or buftype == "terminal" then
     void(function()
       log.debug("removing buffer %q from buffer tree", file)
-      tree.buffers.root:remove_buffer(file, bufnr)
+      tree.buffers.root:remove_buffer(file, bufnr, buftype == "terminal")
       if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.files.root.path then
         tree.buffers.root:refresh({ root_path = tree.files.root.path })
       end
@@ -268,17 +268,17 @@ local function on_buf_write_post(file, bufnr)
           end
         end
 
-        if tree.git_status.root and tree.git_status.root:is_ancestor_of(file) then
-          local git_node = tree.git_status.root:get_child_if_loaded(file)
+        if tree.git.root and tree.git.root:is_ancestor_of(file) then
+          local git_node = tree.git.root:get_child_if_loaded(file)
           if not repo then
-            repo = tree.git_status.root.repo
+            repo = tree.git.root.repo
             git_status_changed = repo:refresh_status_for_file(file)
           end
           if not git_node and git_status_changed then
-            tree.git_status.root:add_file(file)
+            tree.git.root:add_file(file)
           elseif git_node and git_status_changed then
             if not git_node:git_status() then
-              tree.git_status.root:remove_file(file)
+              tree.git.root:remove_file(file)
             end
           end
         end
@@ -336,27 +336,27 @@ end
 local function on_diagnostics_changed()
   scheduler()
   ---@type table<string, number>
-  local diagnostics = {}
+  local new_diagnostics = {}
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
     local bufnr = diagnostic.bufnr
     if api.nvim_buf_is_valid(bufnr) then
       ---@type string
       local bufname = api.nvim_buf_get_name(bufnr)
-      local severity = diagnostics[bufname]
+      local severity = new_diagnostics[bufname]
       -- lower severity value is a higher severity...
       if not severity or diagnostic.severity < severity then
-        diagnostics[bufname] = diagnostic.severity
+        new_diagnostics[bufname] = diagnostic.severity
       end
     end
   end
 
   if config.diagnostics.propagate_to_parents then
-    for path, severity in pairs(diagnostics) do
+    for path, severity in pairs(new_diagnostics) do
       for _, parent in next, Path:new(path):parents() do
         ---@cast parent string
-        local parent_severity = diagnostics[parent]
+        local parent_severity = new_diagnostics[parent]
         if not parent_severity or parent_severity > severity then
-          diagnostics[parent] = severity
+          new_diagnostics[parent] = severity
         else
           break
         end
@@ -364,20 +364,20 @@ local function on_diagnostics_changed()
     end
   end
 
-  local previous_diagnostics = Nodes.set_diagnostics(diagnostics)
+  local previous_diagnostics = diagnostics.set_diagnostics(new_diagnostics)
   local tree = lib._get_tree()
   if tree and ui.is_open() then
     ---@type number
-    local diagnostics_count = vim.tbl_count(diagnostics)
+    local new_diagnostics_count = vim.tbl_count(new_diagnostics)
     ---@type number
     local previous_diagnostics_count = vim.tbl_count(previous_diagnostics)
 
     local changed = false
-    if diagnostics_count > 0 and previous_diagnostics_count > 0 then
-      if diagnostics_count ~= previous_diagnostics_count then
+    if new_diagnostics_count > 0 and previous_diagnostics_count > 0 then
+      if new_diagnostics_count ~= previous_diagnostics_count then
         changed = true
       else
-        for path, severity in pairs(diagnostics) do
+        for path, severity in pairs(new_diagnostics) do
           if previous_diagnostics[path] ~= severity then
             changed = true
             break
@@ -385,7 +385,7 @@ local function on_diagnostics_changed()
         end
       end
     else
-      changed = diagnostics_count ~= previous_diagnostics_count
+      changed = new_diagnostics_count ~= previous_diagnostics_count
     end
 
     -- only update the ui if the diagnostics have changed

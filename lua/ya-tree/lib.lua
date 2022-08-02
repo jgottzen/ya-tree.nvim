@@ -36,12 +36,12 @@ local M = {
 ---@field public tabpage number the current tabpage.
 ---@field public cwd string the workding directory of the tabpage.
 ---@field public refreshing boolean if the tree is currently refreshing.
----@field public root YaTreeNode|YaTreeSearchRootNode|YaTreeBufferNode|YaTreeGitStatusNode the root of the current tree.
+---@field public root YaTreeNode|YaTreeSearchRootNode|YaTreeBufferRootNode|YaTreeGitRootNode the root of the current tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 ---@field public files YaFilesTreeRoot the current files tree.
 ---@field public search YaSearchTreeRoot the current search tree.
 ---@field public buffers YaBufferTreeRoot the buffers tree info.
----@field public git_status YaGitStatusTreeRoot the git status info.
+---@field public git YaGitTreeRoot the git status info.
 
 ---@class YaFilesTreeRoot
 ---@field public root YaTreeNode the root fo the tree.
@@ -52,12 +52,12 @@ local M = {
 ---@field public current_node? YaTreeSearchNode the currently selected node.
 
 ---@class YaBufferTreeRoot
----@field public root? YaTreeBufferNode
+---@field public root? YaTreeBufferRootNode
 ---@field public current_node? YaTreeBufferNode
 
----@class YaGitStatusTreeRoot
----@field public root? YaTreeGitStatusNode
----@field public current_node? YaTreeGitStatusNode
+---@class YaGitTreeRoot
+---@field public root? YaTreeGitRootNode
+---@field public current_node? YaTreeGitNode
 
 local Tree = {}
 
@@ -83,8 +83,8 @@ do
         if tree then
           if fs_changes then
             log.debug("git listener called with fs_changes=true, refreshing tree")
-            if tree.git_status.root then
-              tree.git_status.root:refresh({ refresh_git = false })
+            if tree.git.root then
+              tree.git.root:refresh({ refresh_git = false })
             end
             local node = tree.files.root:get_child_if_loaded(repo.toplevel)
             if node then
@@ -160,7 +160,7 @@ do
     local cwd = uv.cwd()
     local root = root_path
     log.debug("creating new tree data for tabpage %s with cwd %q and root %q", tabpage, cwd, root)
-    local root_node = Nodes.root(root)
+    local root_node = Nodes.create_filesystem_tree(root)
     ---@type YaTree
     local tree = setmetatable({
       tabpage = tabpage,
@@ -180,7 +180,7 @@ do
         root = nil,
         current_node = nil,
       },
-      git_status = {
+      git = {
         root = nil,
         current_node = nil,
       },
@@ -257,7 +257,7 @@ do
         end
 
         while root.path ~= new_root do
-          root = Nodes.root(Path:new(root.path):parent().filename, root)
+          root = Nodes.create_filesystem_tree(Path:new(root.path):parent().filename, root)
         end
       else
         log.debug("current tree %s is not a child or ancestor of %q", tostring(tree), new_root)
@@ -417,10 +417,10 @@ end
 ---@async
 ---@param tree YaTree
 ---@param repo GitRepo
-local function create_git_status_tree(tree, repo)
-  tree.git_status.root, tree.git_status.current_node = Nodes.create_git_status_tree(repo)
-  tree.root = tree.git_status.root
-  tree.current_node = tree.git_status.current_node
+local function create_git_tree(tree, repo)
+  tree.git.root, tree.git.current_node = Nodes.create_git_tree(repo)
+  tree.root = tree.git.root
+  tree.current_node = tree.git.current_node
 end
 
 ---@async
@@ -498,15 +498,15 @@ function M.open_window(opts)
       tree.root = tree.buffers.root
     end
   elseif opts.view_mode == "git_status" then
-    if not tree.git_status.root then
+    if not tree.git.root then
       local repo = path and git.create_repo(path) or tree.files.root.repo
       if repo then
-        create_git_status_tree(tree, repo)
+        create_git_tree(tree, repo)
       else
         utils.warn(string.format("Could not find a Git repository in path %q", tree.files.root.path))
       end
     else
-      tree.root = tree.git_status.root
+      tree.root = tree.git.root
     end
   elseif opts.view_mode ~= nil then
     log.error("view mode %q is not supported when opening the window", opts.view_mode)
@@ -854,7 +854,7 @@ function M.refresh_tree(node_or_path)
   if ui.is_buffers_open() then
     tree.buffers.root:refresh()
   elseif ui.is_git_status_open() then
-    tree.git_status.root:refresh()
+    tree.git.root:refresh()
   elseif ui.is_search_open() then
     tree.search.root:refresh()
   else
@@ -899,8 +899,8 @@ function M.goto_node_in_tree(node)
       ui.close_buffers(tree.root, tree.current_node)
     end
   elseif ui.is_git_status_open() then
-    ---@cast node YaTreeGitStatusNode
-    tree.git_status.current_node = node
+    ---@cast node YaTreeGitNode
+    tree.git.current_node = node
     tree.root = tree.files.root
     tree.current_node = tree.root:expand({ to = node.path })
     ui.close_git_status(tree.root, tree.current_node)
@@ -955,8 +955,8 @@ end
 function M.toggle_git_status(node)
   local tree = Tree.get_tree()
   if ui.is_git_status_open() then
-    ---@cast node YaTreeGitStatusNode
-    tree.git_status.current_node = node
+    ---@cast node YaTreeGitNode
+    tree.git.current_node = node
     tree.root = tree.files.root
     tree.current_node = tree.files.current_node
     ui.close_git_status(tree.root, tree.current_node)
@@ -966,13 +966,13 @@ function M.toggle_git_status(node)
     end
     if node.repo then
       tree.files.current_node = node
-      if not tree.git_status.root or tree.git_status.root.repo ~= node.repo then
-        create_git_status_tree(tree, node.repo)
+      if not tree.git.root or tree.git.root.repo ~= node.repo then
+        create_git_tree(tree, node.repo)
       else
-        tree.root = tree.git_status.root
-        tree.current_node = tree.git_status.current_node
+        tree.root = tree.git.root
+        tree.current_node = tree.git.current_node
       end
-      ui.open_git_status(tree.git_status.root, tree.git_status.current_node)
+      ui.open_git_status(tree.git.root, tree.git.current_node)
     end
   end
 end

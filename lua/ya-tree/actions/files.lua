@@ -33,7 +33,7 @@ function M.open()
             return
           end
         end
-        local id = node:get_toggleterm_id()
+        local id = node:toggleterm_id()
         if id then
           pcall(vim.cmd, id .. "ToggleTerm")
         end

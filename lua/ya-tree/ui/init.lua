@@ -236,8 +236,8 @@ function M.is_git_status_open()
   return M.get_view_mode() == "git_status"
 end
 
----@param root YaTreeGitStatusNode
----@param node? YaTreeGitStatusNode
+---@param root YaTreeGitRootNode
+---@param node? YaTreeGitNode
 function M.open_git_status(root, node)
   change_view_mode("git_status", root, node)
 end
@@ -253,7 +253,7 @@ function M.is_buffers_open()
   return M.get_view_mode() == "buffers"
 end
 
----@param root YaTreeBufferNode
+---@param root YaTreeBufferRootNode
 ---@param node? YaTreeBufferNode
 function M.open_buffers(root, node)
   change_view_mode("buffers", root, node)
