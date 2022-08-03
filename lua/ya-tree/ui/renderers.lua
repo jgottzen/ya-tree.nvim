@@ -284,52 +284,53 @@ function M.repository(node, _, renderer)
     } }
 
     if renderer.show_status then
-      if repo.behind > 0 and renderer.icons.behind ~= "" then
+      local status = repo:meta_status()
+      if status.behind > 0 and renderer.icons.behind ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,
-          text = renderer.icons.behind .. repo.behind,
+          text = renderer.icons.behind .. status.behind,
           highlight = hl.GIT_BEHIND_COUNT,
         }
       end
-      if repo.ahead > 0 and renderer.icons.ahead ~= "" then
+      if status.ahead > 0 and renderer.icons.ahead ~= "" then
         results[#results + 1] = {
-          padding = repo.behind and "" or renderer.padding,
-          text = renderer.icons.ahead .. repo.ahead,
+          padding = status.behind and "" or renderer.padding,
+          text = renderer.icons.ahead .. status.ahead,
           highlight = hl.GIT_AHEAD_COUNT,
         }
       end
-      if repo.stashed > 0 and renderer.icons.stashed ~= "" then
+      if status.stashed > 0 and renderer.icons.stashed ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,
-          text = renderer.icons.stashed .. repo.stashed,
+          text = renderer.icons.stashed .. status.stashed,
           highlight = hl.GIT_STASH_COUNT,
         }
       end
-      if repo.unmerged > 0 and renderer.icons.unmerged ~= "" then
+      if status.unmerged > 0 and renderer.icons.unmerged ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,
-          text = renderer.icons.unmerged .. repo.unmerged,
+          text = renderer.icons.unmerged .. status.unmerged,
           highlight = hl.GIT_UNMERGED_COUNT,
         }
       end
-      if repo.staged > 0 and renderer.icons.staged ~= "" then
+      if status.staged > 0 and renderer.icons.staged ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,
-          text = renderer.icons.staged .. repo.staged,
+          text = renderer.icons.staged .. status.staged,
           highlight = hl.GIT_STAGED_COUNT,
         }
       end
-      if repo.unstaged > 0 and renderer.icons.unstaged ~= "" then
+      if status.unstaged > 0 and renderer.icons.unstaged ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,
-          text = renderer.icons.unstaged .. repo.unstaged,
+          text = renderer.icons.unstaged .. status.unstaged,
           highlight = hl.GIT_UNSTAGED_COUNT,
         }
       end
-      if repo.untracked > 0 and renderer.icons.untracked ~= "" then
+      if status.untracked > 0 and renderer.icons.untracked ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,
-          text = renderer.icons.untracked .. repo.untracked,
+          text = renderer.icons.untracked .. status.untracked,
           highlight = hl.GIT_UNTRACKED_COUNT,
         }
       end

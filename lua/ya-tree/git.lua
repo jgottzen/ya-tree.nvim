@@ -19,7 +19,11 @@ local M = {
   repos = setmetatable({}, { __mode = "kv" }),
 }
 
----@type async fun(args: string[], null_terminated?: boolean, cmd?: string): string[], string
+---@param args string[]
+---@param null_terminated? boolean
+---@param cmd? string
+---@param callback fun(stdin: string[], stderr?: string)
+---@type async fun(args: string[], null_terminated?: boolean, cmd?: string): string[], string?
 local command = wrap(function(args, null_terminated, cmd, callback)
   cmd = cmd or "git"
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
@@ -62,10 +66,10 @@ local function get_repo_info(path, cmd)
   if #result == 0 then
     return nil, "", ""
   end
+
   local toplevel = result[1]
   local git_root = result[2]
   local branch = result[3]
-
   if utils.is_windows then
     toplevel = windowize_path(toplevel)
     git_root = windowize_path(git_root)
@@ -79,10 +83,7 @@ end
 ---@field stop fun(self: uv_fs_poll_t):0|nil, string?
 ---@field close fun(self: uv_fs_poll_t)
 
----@class GitRepo
----@field public toplevel string
----@field public remote_url string
----@field public branch string
+---@class GitRepoMetaStatus
 ---@field public unmerged number
 ---@field public stashed number
 ---@field public behind number
@@ -90,11 +91,19 @@ end
 ---@field public staged number
 ---@field public unstaged number
 ---@field public untracked number
+
+---@class GitRepoStatus : GitRepoMetaStatus
+---@field private _changed_entries table<string, string>
+---@field private _propagated_changed_entries table<string, string>
+---@field private _ignored string[]
+
+---@class GitRepo
+---@field public toplevel string
+---@field public remote_url string
+---@field public branch string
+---@field private _status GitRepoStatus
 ---@field private _is_yadm boolean
 ---@field private _git_dir string
----@field private _git_status table<string, string>
----@field private _propagated_git_status table<string, string>
----@field private _ignored string[]
 ---@field private _git_dir_watcher? uv_fs_poll_t
 ---@field private _git_listeners table<string, async fun(repo: GitRepo, listener_id: string, fs_changes: boolean)>
 local Repo = {}
@@ -156,18 +165,20 @@ function Repo:new(path)
   local this = setmetatable({
     toplevel = toplevel,
     branch = branch,
-    unmerged = 0,
-    stashed = 0,
-    behind = 0,
-    ahead = 0,
-    staged = 0,
-    unstaged = 0,
-    untracked = 0,
+    _status = {
+      unmerged = 0,
+      stashed = 0,
+      behind = 0,
+      ahead = 0,
+      staged = 0,
+      unstaged = 0,
+      untracked = 0,
+      _changed_entries = {},
+      _propagated_changed_entries = {},
+      _ignored = {},
+    },
     _is_yadm = is_yadm,
     _git_dir = git_dir,
-    _git_status = {},
-    _propagated_git_status = {},
-    _ignored = {},
     _git_listeners = {},
   }, self)
 
@@ -184,9 +195,14 @@ function Repo:is_yadm()
   return self._is_yadm
 end
 
----@return table<string, string> git_status
-function Repo:git_status()
-  return self._git_status
+---@return string[] files
+function Repo:working_tree_changed_paths()
+  return vim.tbl_keys(self._status._changed_entries) --[=[@as string[]]=]
+end
+
+---@return GitRepoMetaStatus status
+function Repo:meta_status()
+  return self._status
 end
 
 ---@async
@@ -196,10 +212,10 @@ end
 function Repo:command(args, null_terminated)
   -- always run in the the toplevel directory, so all paths are relative the root,
   -- this way we can just concatenate the paths returned by git with the toplevel
-  local result, e = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
+  local result, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
   scheduler()
-  if e then
-    local message = vim.split(e, "\n", { plain = true, trimempty = true })
+  if err then
+    local message = vim.split(err, "\n", { plain = true, trimempty = true })
     log.error("error running git command, %s", table.concat(message, " "))
   end
   return result
@@ -355,13 +371,13 @@ function Repo:refresh_status_for_file(file)
   log.debug("git status for file %q", file)
   local results = self:command(args, true)
 
-  local old_status = self._git_status[file]
+  local old_status = self._status._changed_entries[file]
   if old_status then
     if is_staged(old_status) then
-      self.staged = self.staged - 1
+      self._status.staged = self._status.staged - 1
     end
     if is_unstaged(old_status) then
-      self.unstaged = self.unstaged - 1
+      self._status.unstaged = self._status.unstaged - 1
     end
   end
 
@@ -384,9 +400,9 @@ function Repo:refresh_status_for_file(file)
     i = i + 1
   end
   if not found then
-    self._git_status[file] = nil
-    self._propagated_git_status = {}
-    for path, status in pairs(self._git_status) do
+    self._status._changed_entries[file] = nil
+    self._status._propagated_git_status = {}
+    for path, status in pairs(self._status._changed_entries) do
       if status ~= "!" then
         local fully_staged = is_staged(status) and not is_unstaged(status)
         self:_propagate_status_to_parents(path, fully_staged)
@@ -395,7 +411,7 @@ function Repo:refresh_status_for_file(file)
   end
 
   scheduler()
-  return old_status ~= self._git_status[file]
+  return old_status ~= self._status._changed_entries[file]
 end
 
 ---@async
@@ -408,17 +424,17 @@ function Repo:refresh_status(opts)
   log.debug("git status for %q", self.toplevel)
   local results = self:command(args, true)
 
-  local old_status = self._git_status
-  self.unmerged = 0
-  self.staged = 0
-  self.unstaged = 0
-  self.untracked = 0
-  self.stashed = 0
-  self.ahead = 0
-  self.behind = 0
-  self._git_status = {}
-  self._propagated_git_status = {}
-  self._ignored = {}
+  local old_changed_entries = self._status._changed_entries
+  self._status.unmerged = 0
+  self._status.stashed = 0
+  self._status.behind = 0
+  self._status.ahead = 0
+  self._status.staged = 0
+  self._status.unstaged = 0
+  self._status.untracked = 0
+  self._status._changed_entries = {}
+  self._status._propagated_changed_entries = {}
+  self._status._ignored = {}
 
   local fs_changes = false
   local size = #results
@@ -451,7 +467,7 @@ function Repo:refresh_status(opts)
 
   -- _parse_porcelainv2_change_row and _parse_porcelainv2_rename_row doens't detect all changes
   -- that signify a fs change, comparing the number of entries gives it a decent chance
-  fs_changes = fs_changes or vim.tbl_count(old_status) ~= vim.tbl_count(self._git_status)
+  fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self._status._changed_entries)
 
   scheduler()
   return fs_changes
@@ -478,14 +494,14 @@ function Repo:_parse_porcelainv2_header_row(line)
   elseif _type == "branch.ab" then
     local ahead = parts[3]
     if ahead then
-      self.ahead = tonumber(ahead:sub(2)) or 0
+      self._status.ahead = tonumber(ahead:sub(2)) or 0
     end
     local behind = parts[4]
     if behind then
-      self.behind = tonumber(behind:sub(2)) or 0
+      self._status.behind = tonumber(behind:sub(2)) or 0
     end
   elseif _type == "stash" then
-    self.stashed = tonumber(parts[3]) or 0
+    self._status.stashed = tonumber(parts[3]) or 0
   end
 end
 
@@ -510,7 +526,7 @@ function Repo:_parse_porcelainv2_change_row(line)
   local status = line:sub(3, 4)
   local relative_path = line:sub(114)
   local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._git_status[absolute_path] = status
+  self._status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
   return status:sub(1, 1) == "D" or status:sub(2, 2) == "D"
@@ -523,10 +539,10 @@ function Repo:_update_stage_counts(status)
   local staged = is_staged(status)
   local unstaged = is_unstaged(status)
   if staged then
-    self.staged = self.staged + 1
+    self._status.staged = self._status.staged + 1
   end
   if unstaged then
-    self.unstaged = self.unstaged + 1
+    self._status.unstaged = self._status.unstaged + 1
   end
 
   return staged and not unstaged
@@ -544,11 +560,11 @@ function Repo:_propagate_status_to_parents(path, fully_staged)
     if #parent <= size then
       break
     end
-    if self._propagated_git_status[parent] == "dirty" then
+    if self._status._propagated_changed_entries[parent] == "dirty" then
       -- if the status of a parent is already "dirty", don't overwrite it, and stop
       return
     end
-    self._propagated_git_status[parent] = status
+    self._status._propagated_changed_entries[parent] = status
   end
 end
 
@@ -567,7 +583,7 @@ function Repo:_parse_porcelainv2_rename_row(line)
   local end_of_score_pos = line:find(" ", 114, true)
   local relative_path = line:sub(end_of_score_pos + 1)
   local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._git_status[absolute_path] = status
+  self._status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
 end
@@ -581,8 +597,8 @@ function Repo:_parse_porcelainv2_merge_row(line)
   local status = line:sub(3, 4)
   local relative_path = line:sub(162)
   local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._git_status[absolute_path] = status
-  self.unmerged = self.unmerged + 1
+  self._status._changed_entries[absolute_path] = status
+  self._status.unmerged = self._status.unmerged + 1
 end
 
 ---@private
@@ -598,8 +614,8 @@ function Repo:_parse_porcelainv2_untracked_row(line)
     local status = line:sub(1, 1)
     local relative_path = line:sub(3)
     local absolute_path = make_absolute_path(self.toplevel, relative_path)
-    self._git_status[absolute_path] = status
-    self.untracked = self.untracked + 1
+    self._status._changed_entries[absolute_path] = status
+    self._status.untracked = self._status.untracked + 1
   end
 end
 
@@ -614,14 +630,14 @@ function Repo:_parse_porcelainv2_ignored_row(line)
   local status = line:sub(1, 1)
   local relative_path = line:sub(3)
   local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._git_status[absolute_path] = status
-  self._ignored[#self._ignored + 1] = absolute_path
+  self._status._changed_entries[absolute_path] = status
+  self._status._ignored[#self._status._ignored + 1] = absolute_path
 end
 
 ---@param path string
 ---@return string|nil status
 function Repo:status_of(path)
-  return self._git_status[path] or self._propagated_git_status[path]
+  return self._status._changed_entries[path] or self._status._propagated_changed_entries[path]
 end
 
 ---@param path string
@@ -629,7 +645,7 @@ end
 ---@return boolean ignored
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path
-  for _, ignored in ipairs(self._ignored) do
+  for _, ignored in ipairs(self._status._ignored) do
     if #ignored > 0 and ignored:sub(-1) == os_sep then
       -- directory ignore
       if vim.startswith(path, ignored) then

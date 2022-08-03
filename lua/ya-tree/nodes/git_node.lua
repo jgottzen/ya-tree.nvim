@@ -72,15 +72,7 @@ function GitRootNode:refresh(opts)
   if refresh_git then
     self.repo:refresh_status({ ignored = true })
   end
-
-  local git_status = self.repo:git_status()
-  ---@type string[]
-  local paths = {}
-  for path in pairs(git_status) do
-    if self:is_ancestor_of(path) then
-      paths[#paths + 1] = path
-    end
-  end
+  local paths = self.repo:working_tree_changed_paths()
 
   self.children = {}
   self.empty = true
