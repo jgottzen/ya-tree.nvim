@@ -553,7 +553,6 @@ do
 
     git_staus_to_hl = {}
     for k, v in pairs(git_icons_and_hl) do
-      ---@cast k string
       if #v == 1 then
         git_staus_to_hl[k] = v[1].highlight
       elseif #v == 2 then

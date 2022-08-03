@@ -104,8 +104,8 @@ local function create_highlight(name, link, highlight)
   if link then
     api.nvim_set_hl(0, name, { default = true, link = link })
   else
-    highlight.default = true
     ---@cast highlight table<string, any>
+    highlight.default = true
     api.nvim_set_hl(0, name, highlight)
   end
 end

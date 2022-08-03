@@ -221,11 +221,10 @@ function BufferRootNode:refresh(opts)
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
   if root_path ~= self.path then
     log.debug("setting new root path to %q", root_path)
-    local fs_node = fs.node_for(root_path)
-    ---@cast fs_node -?
+    local fs_node = fs.node_for(root_path) --[[@as FsNode]]
     self:_merge_new_data(fs_node)
-    self.expanded = true
     self.scanned = true
+    self.expanded = true
     self.repo = git.get_repo_for_path(root_path)
   end
 

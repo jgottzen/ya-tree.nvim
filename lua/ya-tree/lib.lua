@@ -917,7 +917,7 @@ function M.show_last_search(node)
   local tree = Tree.get_tree()
   if tree.search.root then
     tree.files.current_node = node
-    tree.root = tree.search.root --[[@as YaTreeSearchNode]]
+    tree.root = tree.search.root
     tree.current_node = tree.search.current_node
     ui.open_search_view(tree.search.root, tree.search.current_node)
   end
@@ -992,7 +992,7 @@ function M.toggle_buffers_view(node)
     if not tree.buffers.root then
       create_buffers_tree(tree)
     else
-      tree.root = tree.buffers.root --[[@as YaTreeBufferNode]]
+      tree.root = tree.buffers.root
       tree.current_node = tree.buffers.current_node
     end
     ui.open_buffers_view(tree.buffers.root, tree.buffers.current_node)
