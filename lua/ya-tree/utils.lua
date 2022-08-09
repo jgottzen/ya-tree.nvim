@@ -93,7 +93,7 @@ end
 ---@param path string
 ---@return boolean is_directory
 function M.is_directory_sync(path)
-  local stat = uv.fs_stat(path)
+  local stat = uv.fs_stat(path) --[[@as uv_fs_stat]]
   return stat and stat.type == "directory" or false
 end
 
@@ -128,6 +128,24 @@ local function is_any_child_displayable(node)
     end
   end
   return false
+end
+
+-- taken from nvim-tree
+---@param size integer
+---@return string
+function M.format_size(size)
+  local units = { "B", "KB", "MB", "GB", "TB" }
+
+  size = math.max(size, 0)
+  local pow = math.floor((size and math.log(size) or 0) / math.log(1024))
+  pow = math.min(pow, #units)
+
+  local value = size / (1024 ^ pow)
+  value = math.floor((value * 10) + 0.5) / 10
+
+  pow = pow + 1
+
+  return (units[pow] == nil) and (size .. " B") or (value .. " " .. units[pow])
 end
 
 ---@alias not_display_reason "filter" | "git"

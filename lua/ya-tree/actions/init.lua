@@ -58,6 +58,7 @@ local M = {}
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
 ---| "open_help"
+---| "show_node_info"
 
 ---@alias YaTreeActionMode "n" | "v" | "V"
 
@@ -230,6 +231,7 @@ local actions = {
     { "n" }
   ),
   open_help = create_action(ui.open_help, "Open keybindings help", { "files", "search", "buffers", "git" }, { "n" }),
+  show_node_info = create_action(files.show_node_info, "Show node info in popup", { "files", "search", "buffers", "git" }, { "n" }),
 }
 
 ---@param mapping YaTreeActionMapping

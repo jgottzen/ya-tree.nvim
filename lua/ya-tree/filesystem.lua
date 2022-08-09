@@ -1,3 +1,4 @@
+local bit = require("plenary.bit")
 local uv = require("plenary.async").uv
 local Path = require("plenary.path")
 
@@ -5,14 +6,26 @@ local utils = require("ya-tree.utils")
 
 local loop = vim.loop
 
+local os_sep = Path.path.sep
+
 local M = {}
 
 ---@async
 ---@param path string
 ---@return boolean is_directory
 function M.is_directory(path)
+  ---@type userdata, uv_fs_stat
   local _, stat = uv.fs_stat(path)
   return stat and stat.type == "directory" or false
+end
+
+---@async
+---@param path string
+---@return uv_fs_stat|nil stat
+function M.lstat(path)
+  ---@type userdata, uv_fs_stat?
+  local _, stat = uv.fs_lstat(path)
+  return stat
 end
 
 ---@async
@@ -29,10 +42,34 @@ end
 
 ---@alias file_type "directory" | "file" | "fifo" | "socket" | "char" | "block"
 
+---@class uv_timespec
+---@field sec integer
+---@field nsec integer
+
+---@class uv_fs_stat
+---@field dev integer
+---@field mode integer
+---@field nlink integer
+---@field uid integer
+---@field gid integer
+---@field rdev integer
+---@field ino integer
+---@field size integer
+---@field blksize integer
+---@field blocks integer
+---@field flags integer
+---@field gen integer
+---@field atime uv_timespec
+---@field mtime uv_timespec
+---@field ctime uv_timespec
+---@field birthtime uv_timespec
+---@field type file_type|"unknown"
+
 ---@class FsNode
 ---@field public name string
 ---@field public type file_type
 ---@field public path string
+---@field public _stat? uv_fs_stat
 
 ---@class FsDirectoryNode : FsNode
 ---@field public empty boolean
@@ -41,8 +78,9 @@ end
 ---@async
 ---@param dir string the directory containing the directory
 ---@param name string the name of the directory
+---@param stat? uv_fs_stat
 ---@return FsDirectoryNode node
-local function directory_node(dir, name)
+local function directory_node(dir, name, stat)
   local path = utils.join_path(dir, name)
   local empty = is_empty(path)
 
@@ -50,22 +88,17 @@ local function directory_node(dir, name)
     name = name,
     type = "directory",
     path = path,
+    _stat = stat,
     empty = empty,
   }
 end
 
----@async
----@param path string
----@param extension string
----@return boolean executable
-local function is_executable(path, extension)
-  if utils.is_windows then
-    return utils.is_windows_exe(extension)
-  else
-    local _, exec = uv.fs_access(path, "X")
-    return exec == true
-  end
-end
+M.st_mode_masks = {
+  executable = 0x49,                -- octal 111, corresponding to S_IXUSR, S_IXGRP and S_IXOTH
+  user_permissions_mask = 0x1c0,    -- octal 700, corresponding to S_IRWXU
+  group_permissions_mask = 0x38,    -- octal 70, corresponding to S_IRWXG
+  others_permissions_mask = 0x7,    -- octal 7, corresponding to S_IRWXO
+}
 
 ---@class FsFileNode : FsNode
 ---@field public extension string
@@ -75,16 +108,28 @@ end
 ---@async
 ---@param dir string the directory containing the file
 ---@param name string the name of the file
+---@param stat? uv_fs_stat
 ---@return FsFileNode node
-local function file_node(dir, name)
+local function file_node(dir, name, stat)
   local path = utils.join_path(dir, name)
   local extension = name:match(".?[^.]+%.(.*)") or ""
-  local executable = is_executable(path, extension)
+  local executable
+  if utils.is_windows then
+    executable = utils.is_windows_exe(extension)
+  else
+    if not stat then
+      local _
+      ---@type userdata, uv_fs_stat
+      _, stat = uv.fs_lstat(path)
+    end
+    executable = bit.band(M.st_mode_masks.executable, stat.mode) > 1
+  end
 
   return {
     name = name,
     type = "file",
     path = path,
+    _stat = stat,
     extension = extension,
     executable = executable,
   }
@@ -93,11 +138,11 @@ end
 ---@param path string
 ---@return string name
 local function get_file_name(path)
-  if path:sub(-1) == utils.os_sep then
+  if path:sub(-1) == os_sep then
     path = path:sub(1, -2)
   end
   ---@type string[]
-  local splits = vim.split(path, utils.os_sep, { plain = true })
+  local splits = vim.split(path, os_sep, { plain = true })
   return splits[#splits]
 end
 
@@ -106,9 +151,10 @@ end
 ---@async
 ---@param dir string the directory containing the fifo
 ---@param name string name of the fifo
+---@param stat? uv_fs_stat
 ---@return FsFifoNode node
-local function fifo_node(dir, name)
-  local node = file_node(dir, name)
+local function fifo_node(dir, name, stat)
+  local node = file_node(dir, name, stat)
   node.type = "fifo"
   return node --[[@as FsFifoNode]]
 end
@@ -118,9 +164,10 @@ end
 ---@async
 ---@param dir string the directory containing the socket
 ---@param name string name of the socket
+---@param stat? uv_fs_stat
 ---@return FsSocketNode node
-local function socket_node(dir, name)
-  local node = file_node(dir, name)
+local function socket_node(dir, name, stat)
+  local node = file_node(dir, name, stat)
   node.type = "socket"
   return node --[[@as FsSocketNode]]
 end
@@ -130,9 +177,10 @@ end
 ---@async
 ---@param dir string the directory containing the char device file
 ---@param name string name of the char device file
+---@param stat? uv_fs_stat
 ---@return FsCharNode node
-local function char_node(dir, name)
-  local node = file_node(dir, name)
+local function char_node(dir, name, stat)
+  local node = file_node(dir, name, stat)
   node.type = "char"
   return node --[[@as FsCharNode]]
 end
@@ -142,9 +190,10 @@ end
 ---@async
 ---@param dir string the directory containing the block device file
 ---@param name string name of the block device file
+---@param stat? uv_fs_stat
 ---@return FsBlockNode node
-local function block_node(dir, name)
-  local node = file_node(dir, name)
+local function block_node(dir, name, stat)
+  local node = file_node(dir, name, stat)
   node.type = "block"
   return node --[[@as FsBlockNode]]
 end
@@ -164,16 +213,27 @@ end
 ---@async
 ---@param dir string the directory containing the link
 ---@param name string name of the link
+---@param stat? uv_fs_stat
 ---@return FsDirectoryLinkNode|FsFileLinkNode|nil node
-local function link_node(dir, name)
+local function link_node(dir, name, stat)
   local path = utils.join_path(dir, name)
+  local rel_link_to
   ---@type userdata, string
   local _, abs_link_to = uv.fs_readlink(path)
-  local rel_link_to = Path:new(abs_link_to):make_relative(dir) --[[@as string]]
-  local _, stat = uv.fs_stat(path)
+  if not abs_link_to or not utils.is_absolute_path(abs_link_to) then
+    rel_link_to = abs_link_to
+    abs_link_to = dir .. os_sep .. abs_link_to
+  else
+    rel_link_to = Path:new(abs_link_to):make_relative(dir) --[[@as string]]
+  end
+  if not stat then
+    local _
+    ---@type userdata, uv_fs_stat?
+    _, stat = uv.fs_stat(path)
+  end
   local node
   if stat then
-    local _type = stat.type --[[@as file_type]]
+    local _type = stat.type
     if _type == "directory" then
       node = directory_node(dir, name)
     elseif _type == "file" or _type == "fifo" or _type == "socket" or _type == "char" or _type == "block" then
@@ -209,29 +269,29 @@ end
 ---@return FsNode|nil node
 function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
+  ---@type userdata, uv_fs_stat?
   local _, stat = uv.fs_lstat(path)
-  local _type = stat and stat.type or nil --[[@as file_type?]]
-  if not _type then
+  if not stat then
     return nil
   end
 
   ---@type string
   local parent_path = Path:new(path):parent():absolute()
   local name = get_file_name(path)
-  if _type == "directory" then
-    return directory_node(parent_path, name)
-  elseif _type == "file" then
-    return file_node(parent_path, name)
-  elseif _type == "link" then
-    return link_node(parent_path, name)
-  elseif _type == "fifo" then
-    return fifo_node(parent_path, name)
-  elseif _type == "socket" then
-    return socket_node(parent_path, name)
-  elseif _type == "char" then
-    return char_node(parent_path, name)
-  elseif _type == "block" then
-    return block_node(parent_path, name)
+  if stat.type == "directory" then
+    return directory_node(parent_path, name, stat)
+  elseif stat.type == "file" then
+    return file_node(parent_path, name, stat)
+  elseif stat.type == "link" then
+    return link_node(parent_path, name, stat)
+  elseif stat.type == "fifo" then
+    return fifo_node(parent_path, name, stat)
+  elseif stat.type == "socket" then
+    return socket_node(parent_path, name, stat)
+  elseif stat.type == "char" then
+    return char_node(parent_path, name, stat)
+  elseif stat.type == "block" then
+    return block_node(parent_path, name, stat)
   else
     -- "unknown"
     return nil
@@ -248,7 +308,7 @@ function M.scan_dir(dir)
   local _, fd = uv.fs_scandir(dir)
   if fd then
     while true do
-      ---@type string, file_type?
+      ---@type string?, file_type?
       local name, _type = loop.fs_scandir_next(fd)
       if name == nil then
         break
@@ -303,6 +363,7 @@ function M.copy_dir(source, destination, replace)
     return false
   end
 
+  ---@type userdata, uv_fs_stat
   local _, stat = uv.fs_stat(source_path:absolute())
   local mode = stat.mode
   local continue = replace
@@ -312,6 +373,7 @@ function M.copy_dir(source, destination, replace)
   end
   if continue then
     while true do
+      ---@type string?, file_type
       local name, _type = loop.fs_scandir_next(fd)
       if not name then
         break
@@ -363,14 +425,15 @@ function M.create_dir(path)
   local mode = 493 -- 755 in octal
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
-  local abs_path = Path:new(path):absolute()
+  local abs_path = Path:new(path):absolute() --[[@as string]]
   local _, success = uv.fs_mkdir(abs_path, mode)
   if not success and not M.exists(abs_path) then
     ---@type string[]
-    local dirs = vim.split(abs_path, utils.os_sep)
+    local dirs = vim.split(abs_path, os_sep, { plain = true })
     local acc = ""
     for _, dir in ipairs(dirs) do
       local current = utils.join_path(acc, dir)
+      ---@type userdata, uv_fs_stat?
       local _, stat = uv.fs_stat(current)
       if stat then
         if stat.type == "directory" then
@@ -422,7 +485,7 @@ function M.remove_dir(path)
   end
 
   while true do
-    ---@type string, file_type?
+    ---@type string?, file_type
     local name, _type = loop.fs_scandir_next(fd)
     if not name then
       break

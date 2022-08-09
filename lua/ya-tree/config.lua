@@ -454,6 +454,7 @@ local M = {
         ["gx"] = "system_open",
         ["b"] = "toggle_buffers_view",
         ["<C-g>"] = "toggle_git_view",
+        ["<C-i>"] = "show_node_info",
       },
     },
   },

@@ -1,10 +1,13 @@
+local bit = require("plenary.bit")
 local void = require("plenary.async").void
 local scheduler = require("plenary.async.util").scheduler
+local Path = require("plenary.path")
 
 local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
 local ui = require("ya-tree.ui")
+local hl = require("ya-tree.ui.highlights")
 local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
@@ -279,6 +282,222 @@ function M.system_open(node)
       utils.warn(string.format("%q returned error code %q and message:\n\n%s", config.system_open.cmd, code, stderr))
     end
   end)
+end
+
+do
+  ---@type integer
+  local ns = api.nvim_create_namespace("YaTreeFileInfoPopUp")
+  ---@type table<file_type, string>
+  local node_type_map = {
+    directory = "Directory",
+    file = "File",
+    link = "Symbolic Link",
+    fifo = "Fifo (Named Pipe)",
+    socket = "Socket",
+    char = "Character Device",
+    block = "Block Device",
+    unknown = "Unknown",
+  }
+
+  -- taken from https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/scandir.lua
+  local get_username = (function()
+    if jit and utils.os_sep ~= "\\" then
+      local ffi = require("ffi")
+      ffi.cdef([[
+        typedef unsigned int __uid_t;
+        typedef __uid_t uid_t;
+        typedef unsigned int __gid_t;
+        typedef __gid_t gid_t;
+
+        typedef struct {
+          char *pw_name;
+          char *pw_passwd;
+          __uid_t pw_uid;
+          __gid_t pw_gid;
+          char *pw_gecos;
+          char *pw_dir;
+          char *pw_shell;
+        } passwd;
+
+        passwd *getpwuid(uid_t uid);
+      ]])
+
+      ---@param id integer
+      ---@return string username
+      return function(id)
+        ---@diagnostic disable-next-line:undefined-field
+        local struct = ffi.C.getpwuid(id)
+        local name
+        if struct == nil then
+          name = tostring(id)
+        else
+          name = ffi.string(struct.pw_name)
+        end
+        return name
+      end
+    else
+      ---@param id integer
+      ---@return string username
+      return function(id)
+        return tostring(id)
+      end
+    end
+  end)()
+
+  -- taken from https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/scandir.lua
+  local get_groupname = (function()
+    if jit and utils.os_sep ~= "\\" then
+      local ffi = require("ffi")
+      ffi.cdef([[
+        typedef unsigned int __gid_t;
+        typedef __gid_t gid_t;
+
+        typedef struct {
+          char *gr_name;
+          char *gr_passwd;
+          __gid_t gr_gid;
+          char **gr_mem;
+        } group;
+        group *getgrgid(gid_t gid);
+      ]])
+
+      ---@param id integer
+      ---@return string groupname
+      return function(id)
+        ---@diagnostic disable-next-line:undefined-field
+        local struct = ffi.C.getgrgid(id)
+        local name
+        if struct == nil then
+          name = tostring(id)
+        else
+          name = ffi.string(struct.gr_name)
+        end
+        return name
+      end
+    else
+      ---@param id integer
+      ---@return string groupname
+      return function(id)
+        return tostring(id)
+      end
+    end
+  end)()
+
+  local permissions_tbl = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
+  local permission_hls = {
+    ["-"] = "TelescopePreviewHyphen",
+    r = "TelescopePreviewRead",
+    w = "TelescopePreviewWrite",
+    x = "TelescopePreviewExecute",
+  }
+
+  ---@class FilePopupInfo
+  ---@field winid integer
+  ---@field path string
+  ---@field aug integer
+
+  ---@type FilePopupInfo?
+  local popup = nil
+
+  local function close_popup()
+    if popup ~= nil then
+      api.nvim_win_close(popup.winid, true)
+      api.nvim_clear_autocmds({ group = popup.aug })
+      popup = nil
+    end
+  end
+
+  ---@async
+  ---@param node YaTreeNode
+  function M.show_node_info(node)
+    if popup ~= nil then
+      close_popup()
+      return
+    end
+
+    local stat = node:fs_stat()
+    scheduler()
+    local location = node.parent and node.parent.path or Path:new(node.path):parent().filename
+    local format_string = "%13s: %s "
+
+    local lines = {
+      string.format(format_string, "Type", node:is_link() and "Symbolic Link" or node_type_map[node.type] or "Unknown"),
+      string.format(format_string, "Location", location),
+      string.format(format_string, "Size", utils.format_size(stat.size)),
+      "",
+    }
+
+    if node:is_link() then
+      lines[#lines + 1] = string.format(format_string, "Points to", node.absolute_link_to)
+      lines[#lines + 1] = ""
+    end
+
+    local username = get_username(stat.uid)
+    local groupname = get_groupname(stat.gid)
+    lines[#lines + 1] = string.format(format_string, "User", username)
+    lines[#lines + 1] = string.format(format_string, "Group", groupname)
+    local user_perms = bit.rshift(bit.band(fs.st_mode_masks.user_permissions_mask, stat.mode), 6)
+    local group_perms = bit.rshift(bit.band(fs.st_mode_masks.group_permissions_mask, stat.mode), 6)
+    local others_perms = bit.band(fs.st_mode_masks.others_permissions_mask, stat.mode)
+    local permissions = string.format("%s %s %s", permissions_tbl[user_perms], permissions_tbl[group_perms], permissions_tbl[others_perms])
+    lines[#lines + 1] = string.format(format_string, "Permissions", permissions)
+    lines[#lines + 1] = ""
+
+    lines[#lines + 1] = string.format(format_string, "Created", os.date("%Y-%m-%d %H:%M:%S", stat.birthtime.sec))
+    lines[#lines + 1] = string.format(format_string, "Modified", os.date("%Y-%m-%d %H:%M:%S", stat.mtime.sec))
+    lines[#lines + 1] = string.format(format_string, "Accessed", os.date("%Y-%m-%d %H:%M:%S", stat.atime.sec))
+
+    local max_width = 0
+    for _, line in ipairs(lines) do
+      max_width = math.max(max_width, api.nvim_strwidth(line))
+    end
+
+    ---@type integer
+    local buf = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    for i = 0, #lines - 1 do
+      api.nvim_buf_add_highlight(buf, ns, "Label", i, 1, 13)
+    end
+    api.nvim_buf_add_highlight(buf, ns, "Type", 0, 15, -1)
+    api.nvim_buf_add_highlight(buf, ns, "Directory", 1, 15, -1)
+    api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewSize", 2, 15, -1)
+    if node:is_link() then
+      api.nvim_buf_add_highlight(buf, ns, node:is_directory() and "Directory" or hl.FILE_NAME, 4, 15, -1)
+    end
+    api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewUser", #lines - 7, 15, -1)
+    api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewGroup", #lines - 6, 15, -1)
+    for i = 1, #permissions do
+      local permission = permissions:sub(i, i)
+      api.nvim_buf_add_highlight(buf, ns, permission_hls[permission] or "None", #lines - 5, 14 + i, 14 + i + 1)
+    end
+    for i = #lines - 2, #lines do
+      api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewDate", i - 1, 15, -1)
+    end
+
+    ---@type integer
+    local winid = api.nvim_open_win(buf, false, {
+      relative = "cursor",
+      row = 1,
+      col = 1,
+      width = max_width,
+      height = #lines,
+      zindex = 150,
+      style = "minimal",
+      border = "rounded",
+    })
+
+    ---@type integer
+    local aug = api.nvim_create_augroup("YaTreeFileInfoPopup", { clear = true })
+    popup = {
+      winid = winid,
+      path = node.path,
+      aug = aug,
+    }
+    api.nvim_create_autocmd("CursorMoved", {
+      group = aug,
+      callback = close_popup,
+    })
+  end
 end
 
 return M
