@@ -103,6 +103,7 @@ function M.open()
     api.nvim_buf_set_keymap(bufnr, "n", key, "<cmd>bdelete<CR>", opts)
   end
 
+  local config = require("ya-tree.config").config
   local width = vim.o.columns
   -- have to take into account if the statusline is shown, and the two border line - top and bottom
   local height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0) - 2
@@ -114,7 +115,7 @@ function M.open()
     height = math.min(height, #lines),
     zindex = 150,
     style = "minimal",
-    border = "rounded",
+    border = config.view.popups.border,
   })
 
   -- set the filetype last so that autocommands that change the border can set it correctly

@@ -133,6 +133,7 @@ local M = {
     ---@field on_open? fun(config: YaTreeConfig) Callback function when the tree view is opened, default: `nil`.
     ---@field on_close? fun(config: YaTreeConfig) Callback function when the tree view is closed, default: `nil`.
     ---@field barbar YaTreeConfig.View.Barbar `romgrk/barbar.nvim` integration configuration.
+    ---@field popups YaTreeConfig.View.Popups Popup window configuration.
     ---@field renderers YaTreeConfig.View.Renderers Which renderers to use in the tree view.
     view = {
       width = 40,
@@ -148,6 +149,12 @@ local M = {
       barbar = {
         enable = false,
         title = nil,
+      },
+
+      ---@class YaTreeConfig.View.Popups
+      ---@field border string|string[] The border type for floating windows, default: `"rounded"`.
+      popups = {
+        border = "rounded",
       },
 
       ---@class YaTreeConfig.View.Renderers.DirectoryRenderer : YaTreeRendererConfig

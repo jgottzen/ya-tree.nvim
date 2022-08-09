@@ -111,8 +111,9 @@ function M.add(node)
     node = node.parent --[[@as YaTreeNode]]
   end
 
+  local border = require("ya-tree.config").config.view.popups.border
   local title = "New file (an ending " .. utils.os_sep .. " will create a directory):"
-  local input = Input:new({ prompt = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4 }, {
+  local input = Input:new({ prompt = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4, border = border }, {
     ---@param path string
     on_submit = void(function(path)
       if not path then
@@ -474,6 +475,7 @@ do
       api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewDate", i - 1, 15, -1)
     end
 
+    local config = require("ya-tree.config").config
     ---@type integer
     local winid = api.nvim_open_win(buf, false, {
       relative = "cursor",
@@ -483,7 +485,7 @@ do
       height = #lines,
       zindex = 150,
       style = "minimal",
-      border = "rounded",
+      border = config.view.popups.border,
     })
 
     ---@type integer

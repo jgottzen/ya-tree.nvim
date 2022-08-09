@@ -29,9 +29,10 @@ function M.search_interactively(node)
     end)
   end
 
+  local border = require("ya-tree.config").config.view.popups.border
   local term = ""
   local height, width = ui.get_size()
-  local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2 }, {
+  local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2, border = border }, {
     ---@param text string
     on_change = void(function(text)
       if text == term or text == nil then
@@ -94,7 +95,8 @@ end
 
 ---@async
 function M.search_for_path_in_tree()
-  local input = Input:new({ prompt = "Path:", completion = "file_in_path" }, {
+  local border = require("ya-tree.config").config.view.popups.border
+  local input = Input:new({ prompt = "Path:", completion = "file_in_path", border = border }, {
     on_submit = void(function(path)
       if path then
         lib.search_for_node_in_tree(path)

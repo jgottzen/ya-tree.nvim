@@ -48,7 +48,7 @@ local win_options = {
 
 --- Create a new `Input`.
 ---
----@param opts {prompt?: string, default?: string, completion?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number}
+---@param opts {prompt?: string, default?: string, completion?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number, border?: string|string[]}
 ---  - {opts.title} `string`
 ---  - {opts.prompt?} `string` defaults to an empty string.
 ---  - {opts.default?} `string` defaults to an empty string.
@@ -59,6 +59,7 @@ local win_options = {
 ---  - {opts.row?} `number` defaults to `1`.
 ---  - {opts.col?} `number` defaults to `1`.
 ---  - {opts.width?} `number` defaults to `30`.
+---  - {opts.border?} `string|string[]` defaults to "rounded".
 ---
 ---@param callbacks {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}
 ---  - {callbacks.on_submit?} `function(text: string): void`
@@ -79,7 +80,7 @@ function Input:new(opts, callbacks)
       width = opts.width or 30,
       height = 1,
       style = "minimal",
-      border = "rounded",
+      border = opts.border or "rounded",
       noautocmd = true,
     },
   }, self)
