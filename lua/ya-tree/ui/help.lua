@@ -47,7 +47,7 @@ function M.open()
 
   local header = string.format(format_string, "Key", "Mapping", "View")
   ---@type string[]
-  local lines = { " KEY MAPPINGS", header, "", " Normal Mode:" }
+  local lines = { "", header, "", " Normal Mode:" }
   ---@type number
   local max_line_width = api.nvim_strwidth(header)
 
@@ -69,6 +69,8 @@ function M.open()
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
   end
   local visual_end_linenr = #lines
+
+  lines[1] = string.format("%" .. (max_line_width / 2) + 6 .. "s", "KEY MAPPINGS")
 
   ---@type integer
   local ns = api.nvim_create_namespace("YaTreeKeyMaps")
