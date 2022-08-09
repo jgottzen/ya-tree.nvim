@@ -1,7 +1,6 @@
 local wrap = require("plenary.async").wrap
 
 local Canvas = require("ya-tree.ui.canvas")
-local help = require("ya-tree.ui.help")
 local hl = require("ya-tree.ui.highlights")
 local log = require("ya-tree.log")
 
@@ -196,10 +195,6 @@ function M.set_view_mode(view_mode)
   if canvas then
     canvas.view_mode = view_mode
   end
-end
-
-function M.open_help()
-  help.open()
 end
 
 ---@return boolean

@@ -2,6 +2,7 @@ local void = require("plenary.async").void
 
 local lib = require("ya-tree.lib")
 local ui = require("ya-tree.ui")
+local help = require("ya-tree.ui.help")
 local clipboard = require("ya-tree.actions.clipboard")
 local files = require("ya-tree.actions.files")
 local search = require("ya-tree.actions.search")
@@ -230,7 +231,7 @@ local actions = {
     { "files", "search", "buffers", "git" },
     { "n" }
   ),
-  open_help = create_action(ui.open_help, "Open keybindings help", { "files", "search", "buffers", "git" }, { "n" }),
+  open_help = create_action(help.open, "Open keybindings help", { "files", "search", "buffers", "git" }, { "n" }),
   show_node_info = create_action(files.show_node_info, "Show node info in popup", { "files", "search", "buffers", "git" }, { "n" }),
 }
 
