@@ -346,11 +346,26 @@ end
 ---@return RenderResult|nil result
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
-    return {
-      padding = renderer.padding,
-      text = renderer.arrow_icon .. " " .. node.relative_link_to,
-      highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK,
-    }
+    if node.link_orphan then
+      return {
+        {
+          padding = renderer.padding,
+          text = renderer.arrow_icon .. " ",
+          highlight = hl.SYMBOLIC_LINK,
+        },
+        {
+          padding = "",
+          text = node.relative_link_to,
+          highlight = hl.ERROR_FILE_NAME,
+        },
+      }
+    else
+      return {
+        padding = renderer.padding,
+        text = renderer.arrow_icon .. " " .. node.relative_link_to,
+        highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK,
+      }
+    end
   end
 end
 
