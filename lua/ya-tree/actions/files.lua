@@ -7,6 +7,7 @@ local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
 local ui = require("ya-tree.ui")
+local Popup = require("ya-tree.ui.popup")
 local hl = require("ya-tree.ui.highlights")
 local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
@@ -286,8 +287,6 @@ function M.system_open(node)
 end
 
 do
-  ---@type integer
-  local ns = api.nvim_create_namespace("YaTreeNodeInfoPopUp")
   ---@type table<file_type, string>
   local node_type_map = {
     directory = "Directory",
@@ -301,9 +300,11 @@ do
   }
 
   -- taken from https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/scandir.lua
-  local get_username = (function()
+  local get_username, get_groupname
+  do
     if jit and utils.os_sep ~= "\\" then
       local ffi = require("ffi")
+
       ffi.cdef([[
         typedef unsigned int __uid_t;
         typedef __uid_t uid_t;
@@ -325,7 +326,7 @@ do
 
       ---@param id integer
       ---@return string username
-      return function(id)
+      get_username = function(id)
         ---@diagnostic disable-next-line:undefined-field
         local struct = ffi.C.getpwuid(id)
         local name
@@ -336,19 +337,7 @@ do
         end
         return name
       end
-    else
-      ---@param id integer
-      ---@return string username
-      return function(id)
-        return tostring(id)
-      end
-    end
-  end)()
 
-  -- taken from https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/scandir.lua
-  local get_groupname = (function()
-    if jit and utils.os_sep ~= "\\" then
-      local ffi = require("ffi")
       ffi.cdef([[
         typedef unsigned int __gid_t;
         typedef __gid_t gid_t;
@@ -364,7 +353,7 @@ do
 
       ---@param id integer
       ---@return string groupname
-      return function(id)
+      get_groupname = function(id)
         ---@diagnostic disable-next-line:undefined-field
         local struct = ffi.C.getgrgid(id)
         local name
@@ -377,12 +366,18 @@ do
       end
     else
       ---@param id integer
+      ---@return string username
+      get_username = function(id)
+        return tostring(id)
+      end
+
+      ---@param id integer
       ---@return string groupname
-      return function(id)
+      get_groupname = function(id)
         return tostring(id)
       end
     end
-  end)()
+  end
 
   local permissions_tbl = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
   local permission_hls = {
@@ -392,11 +387,13 @@ do
     x = "TelescopePreviewExecute",
   }
 
+  ---@type integer
+  local aug = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
+
   ---@class NodeInfoPopup
   ---@field winid integer
   ---@field bufnr integer
   ---@field path string
-  ---@field aug integer
 
   ---@type NodeInfoPopup?
   local popup = nil
@@ -404,7 +401,6 @@ do
   local function close_popup()
     if popup ~= nil then
       api.nvim_win_close(popup.winid, true)
-      api.nvim_clear_autocmds({ group = popup.aug })
       popup = nil
     end
   end
@@ -513,14 +509,14 @@ do
   function M.show_node_info(node)
     if popup ~= nil then
       if node.path == popup.path then
-        api.nvim_clear_autocmds({ group = popup.aug })
+        api.nvim_clear_autocmds({ group = aug })
         api.nvim_set_current_win(popup.winid)
-        vim.keymap.set("n", "q", close_popup, { buffer = popup.bufnr, silent = true, nowait = true })
       else
         close_popup()
       end
       return
     end
+
     ---@type string[], highlight_group[][]
     local lines, highlight_groups
     if node:node_type() == "Buffer" and node.extension == "terminal" then
@@ -540,49 +536,21 @@ do
       lines, highlight_groups = create_fs_info(node, stat)
     end
 
-    local max_width = 0
-    for _, line in ipairs(lines) do
-      max_width = math.max(max_width, api.nvim_strwidth(line))
-    end
-
-    ---@type integer
-    local bufnr = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-    for line, highlight_group in ipairs(highlight_groups) do
-      for _, highlight in ipairs(highlight_group) do
-        api.nvim_buf_add_highlight(bufnr, ns, highlight.name, line - 1, highlight.from, highlight.to)
-      end
-    end
-
-    local config = require("ya-tree.config").config
-    ---@type integer
-    local winid = api.nvim_open_win(bufnr, false, {
-      relative = "cursor",
-      row = 1,
-      col = 1,
-      width = max_width,
-      height = #lines,
-      zindex = 150,
-      style = "minimal",
-      border = config.view.popups.border,
-    })
-
-    ---@type integer
-    local aug = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
     ---@type NodeInfoPopup
-    popup = {
-      winid = winid,
-      bufnr = bufnr,
-      path = node.path,
-      aug = aug,
-    }
+    popup = { path = node.path }
+    popup.winid, popup.bufnr = Popup.new(lines, highlight_groups)
+      :close_with({ "q", "<ESC>" })
+      :close_on_focus_loss()
+      :on_close(function()
+        popup = nil
+      end)
+      :open()
+
     api.nvim_create_autocmd("CursorMoved", {
       group = aug,
       callback = close_popup,
+      once = true,
     })
-    api.nvim_buf_set_option(bufnr, "filetype", "YaTreeNodeInfoPopup")
-    api.nvim_buf_set_option(bufnr, "modifiable", false)
-    api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   end
 end
 
