@@ -12,7 +12,6 @@ local utils = require("ya-tree.utils")
 ---@field private __node_type YaTreeNodeType
 ---@field public parent? YaTreeNode
 ---@field private type file_type
----@field private _stat? uv_fs_stat
 ---@field public children? YaTreeNode[]
 ---@field public empty? boolean
 ---@field public extension? string
@@ -237,12 +236,9 @@ function Node:is_block_device()
 end
 
 ---@async
----@return uv_fs_stat stat
+---@return uv_fs_stat? stat
 function Node:fs_stat()
-  if not self._stat then
-    self._stat = fs.lstat(self.path)
-  end
-  return self._stat
+  return fs.lstat(self.path)
 end
 
 ---@param path string

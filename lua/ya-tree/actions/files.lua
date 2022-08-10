@@ -287,7 +287,7 @@ end
 
 do
   ---@type integer
-  local ns = api.nvim_create_namespace("YaTreeFileInfoPopUp")
+  local ns = api.nvim_create_namespace("YaTreeNodeInfoPopUp")
   ---@type table<file_type, string>
   local node_type_map = {
     directory = "Directory",
@@ -392,12 +392,13 @@ do
     x = "TelescopePreviewExecute",
   }
 
-  ---@class FilePopupInfo
+  ---@class NodeInfoPopup
   ---@field winid integer
+  ---@field bufnr integer
   ---@field path string
   ---@field aug integer
 
-  ---@type FilePopupInfo?
+  ---@type NodeInfoPopup?
   local popup = nil
 
   local function close_popup()
@@ -410,43 +411,134 @@ do
 
   ---@async
   ---@param node YaTreeNode
-  function M.show_node_info(node)
-    if popup ~= nil then
-      close_popup()
-      return
-    end
-
-    local stat = node:fs_stat()
-    scheduler()
-    local location = node.parent and node.parent.path or Path:new(node.path):parent().filename
+  ---@param stat uv_fs_stat
+  ---@return string[] lines
+  ---@return highlight_group[][] highlights
+  local function create_fs_info(node, stat)
     local format_string = "%13s: %s "
+    local left_column_end = 13
+    local right_column_start = 15
 
+    ---@type string[]
     local lines = {
+      string.format(format_string, "Name", node.name),
+      "",
       string.format(format_string, "Type", node:is_link() and "Symbolic Link" or node_type_map[node.type] or "Unknown"),
-      string.format(format_string, "Location", location),
+      string.format(format_string, "Location", node.parent and node.parent.path or Path:new(node.path):parent().filename),
       string.format(format_string, "Size", utils.format_size(stat.size)),
       "",
+    }
+    ---@type highlight_group[][]
+    local highlights = {
+      { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
+      {},
+      { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
+      { { name = "Label", from = 1, to = left_column_end }, { name = "Directory", from = right_column_start, to = -1 } },
+      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewSize", from = right_column_start, to = -1 } },
+      {},
     }
 
     if node:is_link() then
       lines[#lines + 1] = string.format(format_string, "Points to", node.absolute_link_to)
       lines[#lines + 1] = ""
+      local highlight = node.link_orphan and "Error" or (node:is_directory() and "Directory" or hl.FILE_NAME)
+      highlights[#highlights + 1] =
+        { { name = "Label", from = 1, to = left_column_end }, { name = highlight, from = right_column_start, to = -1 } }
+      highlights[#highlights + 1] = {}
     end
 
-    local username = get_username(stat.uid)
-    local groupname = get_groupname(stat.gid)
-    lines[#lines + 1] = string.format(format_string, "User", username)
-    lines[#lines + 1] = string.format(format_string, "Group", groupname)
+    lines[#lines + 1] = string.format(format_string, "User", get_username(stat.uid))
+    highlights[#highlights + 1] =
+      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewUser", from = right_column_start, to = -1 } }
+    lines[#lines + 1] = string.format(format_string, "Group", get_groupname(stat.gid))
+    highlights[#highlights + 1] =
+      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewGroup", from = right_column_start, to = -1 } }
+
     local user_perms = bit.rshift(bit.band(fs.st_mode_masks.user_permissions_mask, stat.mode), 6)
-    local group_perms = bit.rshift(bit.band(fs.st_mode_masks.group_permissions_mask, stat.mode), 6)
+    local group_perms = bit.rshift(bit.band(fs.st_mode_masks.group_permissions_mask, stat.mode), 3)
     local others_perms = bit.band(fs.st_mode_masks.others_permissions_mask, stat.mode)
     local permissions = string.format("%s %s %s", permissions_tbl[user_perms], permissions_tbl[group_perms], permissions_tbl[others_perms])
     lines[#lines + 1] = string.format(format_string, "Permissions", permissions)
     lines[#lines + 1] = ""
+    local permission_highligts = { { name = "Label", from = 1, to = left_column_end } }
+    for i = 1, #permissions do
+      local permission = permissions:sub(i, i)
+      permission_highligts[#permission_highligts + 1] =
+        { name = permission_hls[permission] or "None", from = right_column_start - 1 + i, to = right_column_start + i}
+    end
+    highlights[#highlights + 1] = permission_highligts
+    highlights[#highlights + 1] = {}
 
     lines[#lines + 1] = string.format(format_string, "Created", os.date("%Y-%m-%d %H:%M:%S", stat.birthtime.sec))
+    highlights[#highlights + 1] =
+      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewDate", from = right_column_start, to = -1 } }
     lines[#lines + 1] = string.format(format_string, "Modified", os.date("%Y-%m-%d %H:%M:%S", stat.mtime.sec))
+    highlights[#highlights + 1] =
+      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewDate", from = right_column_start, to = -1 } }
     lines[#lines + 1] = string.format(format_string, "Accessed", os.date("%Y-%m-%d %H:%M:%S", stat.atime.sec))
+    highlights[#highlights + 1] =
+      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewDate", from = right_column_start, to = -1 } }
+
+    return lines, highlights
+  end
+
+  ---@param node YaTreeBufferNode
+  ---@return string[] lines
+  ---@return highlight_group[][] highlights
+  local function create_terminal_info(node)
+    local format_string = "%5s: %s "
+    local left_column_end = 5
+    local right_column_start = 7
+
+    ---@type string[]
+    local lines = {
+      string.format(format_string, "Name", node.name),
+      "",
+      string.format(format_string, "Type", "Terminal"),
+      string.format(format_string, "Buf#", node.bufnr),
+    }
+    ---@type highlight_group[][]
+    local highlights = {
+      { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
+      {},
+      { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
+      { { name = "Label", from = 1, to = left_column_end }, { name = "Number", from = right_column_start, to = -1 } },
+    }
+
+    return lines, highlights
+  end
+
+  ---@async
+  ---@param node YaTreeNode
+  function M.show_node_info(node)
+    if popup ~= nil then
+      if node.path == popup.path then
+        api.nvim_clear_autocmds({ group = popup.aug })
+        api.nvim_set_current_win(popup.winid)
+        vim.keymap.set("n", "q", close_popup, { buffer = popup.bufnr, silent = true, nowait = true })
+      else
+        close_popup()
+      end
+      return
+    end
+    ---@type string[], highlight_group[][]
+    local lines, highlight_groups
+    if node:node_type() == "Buffer" and node.extension == "terminal" then
+      ---@cast node YaTreeBufferNode
+      if node:is_terminal() then
+        lines, highlight_groups = create_terminal_info(node)
+      else
+        return
+      end
+    else
+      local stat = node:fs_stat()
+      scheduler()
+      if not stat then
+        utils.warn(string.format("Could not read filesystem data for %q", node.path))
+        return
+      end
+      lines, highlight_groups = create_fs_info(node, stat)
+    end
 
     local max_width = 0
     for _, line in ipairs(lines) do
@@ -454,30 +546,17 @@ do
     end
 
     ---@type integer
-    local buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    for i = 0, #lines - 1 do
-      api.nvim_buf_add_highlight(buf, ns, "Label", i, 1, 13)
-    end
-    api.nvim_buf_add_highlight(buf, ns, "Type", 0, 15, -1)
-    api.nvim_buf_add_highlight(buf, ns, "Directory", 1, 15, -1)
-    api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewSize", 2, 15, -1)
-    if node:is_link() then
-      api.nvim_buf_add_highlight(buf, ns, node:is_directory() and "Directory" or hl.FILE_NAME, 4, 15, -1)
-    end
-    api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewUser", #lines - 7, 15, -1)
-    api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewGroup", #lines - 6, 15, -1)
-    for i = 1, #permissions do
-      local permission = permissions:sub(i, i)
-      api.nvim_buf_add_highlight(buf, ns, permission_hls[permission] or "None", #lines - 5, 14 + i, 14 + i + 1)
-    end
-    for i = #lines - 2, #lines do
-      api.nvim_buf_add_highlight(buf, ns, "TelescopePreviewDate", i - 1, 15, -1)
+    local bufnr = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    for line, highlight_group in ipairs(highlight_groups) do
+      for _, highlight in ipairs(highlight_group) do
+        api.nvim_buf_add_highlight(bufnr, ns, highlight.name, line - 1, highlight.from, highlight.to)
+      end
     end
 
     local config = require("ya-tree.config").config
     ---@type integer
-    local winid = api.nvim_open_win(buf, false, {
+    local winid = api.nvim_open_win(bufnr, false, {
       relative = "cursor",
       row = 1,
       col = 1,
@@ -489,9 +568,11 @@ do
     })
 
     ---@type integer
-    local aug = api.nvim_create_augroup("YaTreeFileInfoPopup", { clear = true })
+    local aug = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
+    ---@type NodeInfoPopup
     popup = {
       winid = winid,
+      bufnr = bufnr,
       path = node.path,
       aug = aug,
     }
@@ -499,6 +580,9 @@ do
       group = aug,
       callback = close_popup,
     })
+    api.nvim_buf_set_option(bufnr, "filetype", "YaTreeNodeInfoPopup")
+    api.nvim_buf_set_option(bufnr, "modifiable", false)
+    api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   end
 end
 

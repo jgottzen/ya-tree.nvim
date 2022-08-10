@@ -69,7 +69,6 @@ end
 ---@field public name string
 ---@field public type file_type
 ---@field public path string
----@field public _stat? uv_fs_stat
 
 ---@class FsDirectoryNode : FsNode
 ---@field public empty boolean
@@ -78,9 +77,8 @@ end
 ---@async
 ---@param dir string the directory containing the directory
 ---@param name string the name of the directory
----@param stat? uv_fs_stat
 ---@return FsDirectoryNode node
-local function directory_node(dir, name, stat)
+local function directory_node(dir, name)
   local path = utils.join_path(dir, name)
   local empty = is_empty(path)
 
@@ -88,16 +86,15 @@ local function directory_node(dir, name, stat)
     name = name,
     type = "directory",
     path = path,
-    _stat = stat,
     empty = empty,
   }
 end
 
 M.st_mode_masks = {
-  executable = 0x49,                -- octal 111, corresponding to S_IXUSR, S_IXGRP and S_IXOTH
-  user_permissions_mask = 0x1c0,    -- octal 700, corresponding to S_IRWXU
-  group_permissions_mask = 0x38,    -- octal 70, corresponding to S_IRWXG
-  others_permissions_mask = 0x7,    -- octal 7, corresponding to S_IRWXO
+  executable = 0x49, -- octal 111, corresponding to S_IXUSR, S_IXGRP and S_IXOTH
+  user_permissions_mask = 0x1c0, -- octal 700, corresponding to S_IRWXU
+  group_permissions_mask = 0x38, -- octal 70, corresponding to S_IRWXG
+  others_permissions_mask = 0x7, -- octal 7, corresponding to S_IRWXO
 }
 
 ---@class FsFileNode : FsNode
@@ -129,7 +126,6 @@ local function file_node(dir, name, stat)
     name = name,
     type = "file",
     path = path,
-    _stat = stat,
     extension = extension,
     executable = executable,
   }
@@ -213,9 +209,9 @@ end
 ---@async
 ---@param dir string the directory containing the link
 ---@param name string name of the link
----@param stat? uv_fs_stat
+---@param lstat? uv_fs_stat
 ---@return FsDirectoryLinkNode|FsFileLinkNode|nil node
-local function link_node(dir, name, stat)
+local function link_node(dir, name, lstat)
   local path = utils.join_path(dir, name)
   local rel_link_to
   ---@type userdata, string
@@ -226,11 +222,10 @@ local function link_node(dir, name, stat)
   else
     rel_link_to = Path:new(abs_link_to):make_relative(dir) --[[@as string]]
   end
-  if not stat then
-    local _
-    ---@type userdata, uv_fs_stat?
-    _, stat = uv.fs_stat(path)
-  end
+
+  -- stat here is for the target of the link
+  ---@type userdata, uv_fs_stat?
+  local _, stat = uv.fs_stat(path)
   local node
   if stat then
     local _type = stat.type
@@ -241,7 +236,7 @@ local function link_node(dir, name, stat)
       ---@type string
       local link_extension = link_name:match(".?[^.]+%.(.*)") or ""
 
-      node = file_node(dir, name)
+      node = file_node(dir, name, stat)
       node.link_name = link_name
       node.link_extension = link_extension
       node.type = _type
@@ -253,7 +248,7 @@ local function link_node(dir, name, stat)
     node.link_orphan = false
   else
     -- the link is orphaned
-    node = file_node(dir, name)
+    node = file_node(dir, name, lstat)
     node.link_orphan = true
   end
 
@@ -270,28 +265,28 @@ end
 function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type userdata, uv_fs_stat?
-  local _, stat = uv.fs_lstat(path)
-  if not stat then
+  local _, lstat = uv.fs_lstat(path)
+  if not lstat then
     return nil
   end
 
   ---@type string
   local parent_path = Path:new(path):parent():absolute()
   local name = get_file_name(path)
-  if stat.type == "directory" then
-    return directory_node(parent_path, name, stat)
-  elseif stat.type == "file" then
-    return file_node(parent_path, name, stat)
-  elseif stat.type == "link" then
-    return link_node(parent_path, name, stat)
-  elseif stat.type == "fifo" then
-    return fifo_node(parent_path, name, stat)
-  elseif stat.type == "socket" then
-    return socket_node(parent_path, name, stat)
-  elseif stat.type == "char" then
-    return char_node(parent_path, name, stat)
-  elseif stat.type == "block" then
-    return block_node(parent_path, name, stat)
+  if lstat.type == "directory" then
+    return directory_node(parent_path, name)
+  elseif lstat.type == "file" then
+    return file_node(parent_path, name, lstat)
+  elseif lstat.type == "link" then
+    return link_node(parent_path, name, lstat)
+  elseif lstat.type == "fifo" then
+    return fifo_node(parent_path, name, lstat)
+  elseif lstat.type == "socket" then
+    return socket_node(parent_path, name, lstat)
+  elseif lstat.type == "char" then
+    return char_node(parent_path, name, lstat)
+  elseif lstat.type == "block" then
+    return block_node(parent_path, name, lstat)
   else
     -- "unknown"
     return nil
