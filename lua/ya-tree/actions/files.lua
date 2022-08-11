@@ -381,10 +381,10 @@ do
 
   local permissions_tbl = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
   local permission_hls = {
-    ["-"] = "TelescopePreviewHyphen",
-    r = "TelescopePreviewRead",
-    w = "TelescopePreviewWrite",
-    x = "TelescopePreviewExecute",
+    ["-"] = hl.INFO_PERMISSION_NONE,
+    r = hl.INFO_PERMISSION_READ,
+    w = hl.INFO_PERMISSION_WRITE,
+    x = hl.INFO_PERMISSION_EXECUTE,
   }
 
   ---@type integer
@@ -430,7 +430,7 @@ do
       {},
       { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
       { { name = "Label", from = 1, to = left_column_end }, { name = "Directory", from = right_column_start, to = -1 } },
-      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewSize", from = right_column_start, to = -1 } },
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_SIZE, from = right_column_start, to = -1 } },
       {},
     }
 
@@ -445,10 +445,10 @@ do
 
     lines[#lines + 1] = string.format(format_string, "User", get_username(stat.uid))
     highlights[#highlights + 1] =
-      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewUser", from = right_column_start, to = -1 } }
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_USER, from = right_column_start, to = -1 } }
     lines[#lines + 1] = string.format(format_string, "Group", get_groupname(stat.gid))
     highlights[#highlights + 1] =
-      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewGroup", from = right_column_start, to = -1 } }
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_GROUP, from = right_column_start, to = -1 } }
 
     local user_perms = bit.rshift(bit.band(fs.st_mode_masks.user_permissions_mask, stat.mode), 6)
     local group_perms = bit.rshift(bit.band(fs.st_mode_masks.group_permissions_mask, stat.mode), 3)
@@ -460,20 +460,20 @@ do
     for i = 1, #permissions do
       local permission = permissions:sub(i, i)
       permission_highligts[#permission_highligts + 1] =
-        { name = permission_hls[permission] or "None", from = right_column_start - 1 + i, to = right_column_start + i}
+        { name = permission_hls[permission] or "None", from = right_column_start - 1 + i, to = right_column_start + i }
     end
     highlights[#highlights + 1] = permission_highligts
     highlights[#highlights + 1] = {}
 
     lines[#lines + 1] = string.format(format_string, "Created", os.date("%Y-%m-%d %H:%M:%S", stat.birthtime.sec))
     highlights[#highlights + 1] =
-      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewDate", from = right_column_start, to = -1 } }
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_DATE, from = right_column_start, to = -1 } }
     lines[#lines + 1] = string.format(format_string, "Modified", os.date("%Y-%m-%d %H:%M:%S", stat.mtime.sec))
     highlights[#highlights + 1] =
-      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewDate", from = right_column_start, to = -1 } }
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_DATE, from = right_column_start, to = -1 } }
     lines[#lines + 1] = string.format(format_string, "Accessed", os.date("%Y-%m-%d %H:%M:%S", stat.atime.sec))
     highlights[#highlights + 1] =
-      { { name = "Label", from = 1, to = left_column_end }, { name = "TelescopePreviewDate", from = right_column_start, to = -1 } }
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_DATE, from = right_column_start, to = -1 } }
 
     return lines, highlights
   end
@@ -498,7 +498,7 @@ do
       { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
       {},
       { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
-      { { name = "Label", from = 1, to = left_column_end }, { name = "Number", from = right_column_start, to = -1 } },
+      { { name = "Label", from = 1, to = left_column_end }, { name = hl.BUFFER_NUMBER, from = right_column_start, to = -1 } },
     }
 
     return lines, highlights

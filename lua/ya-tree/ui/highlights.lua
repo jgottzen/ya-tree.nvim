@@ -64,123 +64,116 @@ local M = {
   GIT_DELETED = "YaTreeGitDeleted",
   GIT_IGNORED = "YaTreeGitIgnored",
   GIT_UNTRACKED = "YaTreeGitUntracked",
-}
 
----@type table<string, string>
-local hl_links = {
-  [M.DIRECTORY_ICON] = "Directory",
-  [M.SYMBOLIC_DIRECTORY_ICON] = M.DIRECTORY_ICON,
-  [M.DIRECTORY_NAME] = "Directory",
-  [M.SYMBOLIC_DIRECTORY_NAME] = M.DIRECTORY_NAME,
-  [M.EMPTY_DIRECTORY_NAME] = M.DIRECTORY_NAME,
-  [M.EMPTY_SYMBOLIC_DIRECTORY_NAME] = M.DIRECTORY_NAME,
-  [M.FILE_NAME] = "Normal",
-  [M.SYMBOLIC_FILE_NAME] = M.FILE_NAME,
-  [M.FIFO_FILE_NAME] = M.FIFO_FILE_ICON,
-  [M.SOCKET_FILE_NAME] = M.SOCKET_FILE_ICON,
-  [M.CHAR_DEVICE_FILE_NAME] = M.CHAR_DEVICE_FILE_ICON,
-  [M.BLOCK_DEVICE_FILE_NAME] = M.BLOCK_DEVICE_FILE_ICON,
-  [M.EXECUTABLE_FILE_NAME] = M.FILE_NAME,
-  [M.BUFFER_NUMBER] = "SpecialChar",
-  [M.BUFFER_HIDDEN] = "WarningMsg",
-  [M.CLIPBOARD_STATUS] = "Comment",
-  [M.TEXT] = "Comment",
-  [M.SEARCH_TERM] = "SpecialChar",
-
-  [M.NORMAL] = "Normal",
-  [M.NORMAL_NC] = "NormalNC",
-  [M.CURSOR_LINE] = "CursorLine",
-  [M.VERTICAL_SPLIT] = "VertSplit",
-  [M.STATUS_LINE] = "StatusLine",
-  [M.STATUS_LINE_NC] = "StatusLineNC",
-
-  [M.GIT_IGNORED] = "Comment",
+  INFO_SIZE = "YaTreeInfoSize",
+  INFO_USER = "YaTreeInfoUser",
+  INFO_GROUP = "YaTreeInfoGroup",
+  INFO_PERMISSION_NONE = "YaTreeInfoPermissionNone",
+  INFO_PERMISSION_READ = "YaTreeInfoPermissionRead",
+  INFO_PERMISSION_WRITE = "YaTreeInfoPermissionWrite",
+  INFO_PERMISSION_EXECUTE = "YaTreeInfoPermissionExecute",
+  INFO_DATE = "YaTreeInfoDate",
 }
 
 ---@param name string
----@param link? string
+---@param links? string[]
 ---@param highlight? {fg: string, bg?: string, bold?: boolean, italic?: boolean}
-local function create_highlight(name, link, highlight)
-  if link then
-    api.nvim_set_hl(0, name, { default = true, link = link })
-  else
-    ---@cast highlight table<string, any>
-    highlight.default = true
-    api.nvim_set_hl(0, name, highlight)
-  end
-end
-
----@param number number
----@return string
-local function dec_to_hex(number)
-  return string.format("%06x", number)
-end
-
----@param names string[]
----@param fallback string
----@return string
-local function get_foreground_color_from_hl(names, fallback)
-  for _, name in ipairs(names) do
-    local success, group = pcall(api.nvim_get_hl_by_name, name, true)
-    if success and group.foreground then
-      return "#" .. dec_to_hex(group.foreground)
+---@param fallback? string
+local function create_highlight(name, links, highlight, fallback)
+  if links then
+    for _, link in ipairs(links) do
+      local ok = pcall(api.nvim_get_hl_by_name, link, true)
+      if ok then
+        api.nvim_set_hl(0, name, { default = true, link = link })
+        return
+      end
+    end
+    if not fallback then
+      api.nvim_set_hl(0, name, { default = true, link = links[1] })
+      return
+    else
+      highlight = { fg = fallback, default = true }
     end
   end
 
-  return fallback
-end
-
----@return table<string, {fg: string, bold?: boolean, italic?: boolean}>
-local function get_groups()
-  local git_add_fg = get_foreground_color_from_hl({ "GitSignsAdd", "GitGutterAdd" }, "#6f8352")
-  local git_change_fg = get_foreground_color_from_hl({ "GitSignsChange", "GitGutterChange" }, "#cb8327")
-  local git_delete_fg = get_foreground_color_from_hl({ "GitSignsDelete", "GitGutterDelete" }, "#ea6962")
-  local title_fg = get_foreground_color_from_hl({ "Title" }, "#7daea3")
-  local character_fg = get_foreground_color_from_hl({ "Character" }, "#a9b665")
-  local type_fg = get_foreground_color_from_hl({ "Type" }, "#d8a657")
-
-  return {
-    [M.ROOT_NAME] = { fg = "#ddc7a1", bold = true },
-
-    [M.INDENT_MARKER] = { fg = "#5a524c" },
-
-    [M.FIFO_FILE_ICON] = { fg = "#af0087" },
-    [M.SOCKET_FILE_ICON] = { fg = "#ff005f" },
-    [M.CHAR_DEVICE_FILE_ICON] = { fg = "#87d75f" },
-    [M.BLOCK_DEVICE_FILE_ICON] = { fg = "#5f87d7" },
-
-    [M.OPENED_FILE_NAME] = { fg = get_foreground_color_from_hl({ "TSKeyword" }, "#d3869b") },
-    [M.ERROR_FILE_NAME] = { fg = "#080808", bg = "#ff0000" },
-
-    [M.SYMBOLIC_LINK] = { fg = get_foreground_color_from_hl({ "TSInclude" }, "#7daea3"), italic = true },
-
-    [M.GIT_REPO_TOPLEVEL] = { fg = character_fg },
-    [M.GIT_UNMERGED_COUNT] = { fg = git_delete_fg },
-    [M.GIT_STASH_COUNT] = { fg = character_fg },
-    [M.GIT_AHEAD_COUNT] = { fg = character_fg },
-    [M.GIT_BEHIND_COUNT] = { fg = character_fg },
-    [M.GIT_STAGED_COUNT] = { fg = type_fg },
-    [M.GIT_UNSTAGED_COUNT] = { fg = type_fg },
-    [M.GIT_UNTRACKED_COUNT] = { fg = title_fg },
-
-    [M.GIT_STAGED] = { fg = character_fg },
-    [M.GIT_DIRTY] = { fg = git_change_fg },
-    [M.GIT_NEW] = { fg = git_add_fg },
-    [M.GIT_MERGE] = { fg = get_foreground_color_from_hl({ "Statement" }, "#d3869b") },
-    [M.GIT_RENAMED] = { fg = title_fg },
-    [M.GIT_DELETED] = { fg = git_delete_fg },
-    [M.GIT_UNTRACKED] = { fg = type_fg },
-  }
+  ---@cast highlight table<string, any>
+  highlight.default = true
+  api.nvim_set_hl(0, name, highlight)
 end
 
 function M.setup()
-  for name, group in pairs(get_groups()) do
-    create_highlight(name, nil, group)
-  end
+  create_highlight(M.ROOT_NAME, nil, { fg = "#ddc7a1", bold = true })
 
-  for name, link in pairs(hl_links) do
-    create_highlight(name, link)
-  end
+  create_highlight(M.INDENT_MARKER, nil, { fg = "#5a524c" })
+
+  create_highlight(M.DIRECTORY_ICON, { "Directory" })
+  create_highlight(M.SYMBOLIC_DIRECTORY_ICON, { M.DIRECTORY_ICON })
+
+  create_highlight(M.DIRECTORY_NAME, { "Directory" })
+  create_highlight(M.SYMBOLIC_DIRECTORY_NAME, { M.DIRECTORY_NAME })
+  create_highlight(M.EMPTY_DIRECTORY_NAME, { M.DIRECTORY_NAME })
+  create_highlight(M.EMPTY_SYMBOLIC_DIRECTORY_NAME, { M.DIRECTORY_NAME })
+
+  create_highlight(M.DEFAULT_FILE_ICON, { "Normal" })
+  create_highlight(M.SYMBOLIC_FILE_ICON, { M.SYMBOLIC_FILE_ICON })
+  create_highlight(M.FIFO_FILE_ICON, nil, { fg = "#af0087" })
+  create_highlight(M.SOCKET_FILE_ICON, nil, { fg = "#ff005f" })
+  create_highlight(M.CHAR_DEVICE_FILE_ICON, nil, { fg = "#87d75f" })
+  create_highlight(M.BLOCK_DEVICE_FILE_ICON, nil, { fg = "#5f87d7" })
+
+  create_highlight(M.FILE_NAME, { "Normal" })
+  create_highlight(M.SYMBOLIC_FILE_NAME, { M.FILE_NAME })
+  create_highlight(M.FIFO_FILE_NAME, { M.FIFO_FILE_ICON })
+  create_highlight(M.SOCKET_FILE_NAME, { M.SOCKET_FILE_ICON })
+  create_highlight(M.CHAR_DEVICE_FILE_NAME, { M.CHAR_DEVICE_FILE_ICON })
+  create_highlight(M.BLOCK_DEVICE_FILE_NAME, { M.BLOCK_DEVICE_FILE_ICON })
+  create_highlight(M.EXECUTABLE_FILE_NAME, { M.FILE_NAME })
+  create_highlight(M.OPENED_FILE_NAME, { "TSKeyword" }, nil, "#d3869b")
+  create_highlight(M.ERROR_FILE_NAME, nil, { fg = "#080808", bg = "#ff0000" })
+
+  create_highlight(M.SYMBOLIC_LINK, nil, { fg = "#7daea3", italic = true })
+
+  create_highlight(M.BUFFER_NUMBER, { "SpecialChar" })
+  create_highlight(M.BUFFER_HIDDEN, { "WarningMsg" })
+
+  create_highlight(M.CLIPBOARD_STATUS, { "Comment" })
+
+  create_highlight(M.TEXT, { "Comment" })
+  create_highlight(M.SEARCH_TERM, { "SpecialChar" })
+
+  create_highlight(M.NORMAL, { "Normal" })
+  create_highlight(M.NORMAL_NC, { "NormalNC" })
+  create_highlight(M.CURSOR_LINE, { "CursorLine" })
+  create_highlight(M.VERTICAL_SPLIT, { "VertSplit" })
+  create_highlight(M.STATUS_LINE, { "StatusLine" })
+  create_highlight(M.STATUS_LINE_NC, { "StatusLineNC" })
+
+  create_highlight(M.GIT_REPO_TOPLEVEL, { "Character" }, nil, "#a9b665")
+  create_highlight(M.GIT_UNMERGED_COUNT, { "GitSignsDelete", "GitGutterDelete" }, nil, "#ea6962")
+  create_highlight(M.GIT_STASH_COUNT, { "Character" }, nil, "#a9b665")
+  create_highlight(M.GIT_AHEAD_COUNT, { "Character" }, nil, "#a9b665")
+  create_highlight(M.GIT_BEHIND_COUNT, { "Character" }, nil, "#a9b665")
+  create_highlight(M.GIT_STAGED_COUNT, { "Type" }, nil, "#d8a657")
+  create_highlight(M.GIT_UNSTAGED_COUNT, { "Type" }, nil, "#d8a657")
+  create_highlight(M.GIT_UNTRACKED_COUNT, { "Title" }, nil, "#7daea3")
+
+  create_highlight(M.GIT_STAGED, { "Character" }, nil, "#a9b665")
+  create_highlight(M.GIT_DIRTY, { "GitSignsChange", "GitGutterChange" }, nil, "#cb8327")
+  create_highlight(M.GIT_NEW, { "GitSignsAdd", "GitGutterAdd" }, nil, "#6f8352")
+  create_highlight(M.GIT_MERGE, { "Statement" }, nil, "#d3869b")
+  create_highlight(M.GIT_RENAMED, { "Title" }, nil, "#7daea3")
+  create_highlight(M.GIT_DELETED, { "GitSignsDelete", "GitGutterDelete" }, nil, "#ea6962")
+  create_highlight(M.GIT_IGNORED, { "Comment" })
+  create_highlight(M.GIT_UNTRACKED, { "Type" }, nil, "#d8a657")
+
+  create_highlight(M.INFO_SIZE, { "TelescopePreviewSize" })
+  create_highlight(M.INFO_USER, { "TelescopePreviewUser" })
+  create_highlight(M.INFO_GROUP, { "TelescopePreviewGroup" })
+  create_highlight(M.INFO_PERMISSION_NONE, { "TelescopePreviewHyphen" })
+  create_highlight(M.INFO_PERMISSION_READ, { "TelescopePreviewRead" })
+  create_highlight(M.INFO_PERMISSION_WRITE, { "TelescopePreviewWrite" })
+  create_highlight(M.INFO_PERMISSION_EXECUTE, { "TelescopePreviewExecute" })
+  create_highlight(M.INFO_DATE, { "TelescopePreviewDate" })
 end
 
 return M
