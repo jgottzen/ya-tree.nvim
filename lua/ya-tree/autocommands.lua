@@ -121,7 +121,7 @@ local function on_buf_enter(file, bufnr)
   local tree = lib._get_tree()
 
   -- Must use a synchronous directory check here, otherwise a scheduler call is required before the call to ui.is_open,
-  -- the scheduler call will update the ui, and if the a buffer was opened in the tree window, and the config option to
+  -- the scheduler call will update the ui, and if the buffer was opened in the tree window, and the config option to
   -- move it to the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the
   -- edit window. Not very visually pleasing.
   if config.replace_netrw and utils.is_directory_sync(file) then
@@ -297,7 +297,7 @@ end
 ---@param new_cwd string
 ---@param window_change boolean
 local function on_dir_changed(scope, new_cwd, window_change)
-  -- if the autocmd was fire was because of a switch to a tab or window with a different
+  -- if the autocmd was fired because of a switch to a tab or window with a different
   -- cwd than the previous tab/window, it can safely be ignored.
   if window_change then
     return
@@ -306,9 +306,8 @@ local function on_dir_changed(scope, new_cwd, window_change)
 
   if scope == "tabpage" then
     local tree = lib._get_tree()
-    -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
-    -- the tree.cwd is always bound to the tab cwd, and the root path of the
-    -- tree doens't have to be checked
+    -- since DirChanged is only subscribed to if config.cwd.follow is enabled, the tree.cwd is always bound to the tab cwd,
+    -- and the root path of the tree doesn't have to be checked
     if not tree then
       return
     elseif new_cwd == tree.cwd then
@@ -321,9 +320,8 @@ local function on_dir_changed(scope, new_cwd, window_change)
     lib._change_root_node_for_tree(tree, new_cwd)
   elseif scope == "global" then
     lib._for_each_tree(function(tree)
-      -- since DirChanged is only subscribed to if config.cwd.follow is enabled,
-      -- the tree.cwd is always bound to the tab cwd, and the root path of the
-      -- tree doens't have to be checked
+      -- since DirChanged is only subscribed to if config.cwd.follow is enabled, the tree.cwd is always bound to the tab cwd,
+      -- and the root path of the tree doesn't have to be checked
       if new_cwd ~= tree.cwd then
         tree.cwd = new_cwd
         lib._change_root_node_for_tree(tree, new_cwd)

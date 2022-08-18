@@ -161,7 +161,7 @@ function logger.new(opts)
 
     if self.config.to_console then
       vim.schedule(function()
-        for _, m in ipairs(vim.split(fmt_message, "\n")) do
+        for _, m in ipairs(vim.split(fmt_message, "\n", { plain = true })) do
           m = fmt("[%s] %s", config.name, m)
           local chunk = (self.config.highlight and highlight) and { m, highlight } or { m }
           api.nvim_echo({ chunk }, true, {})

@@ -205,22 +205,6 @@ function Repo:meta_status()
   return self._status
 end
 
----@async
----@param args string[]
----@param null_terminated? boolean
----@return string[]
-function Repo:command(args, null_terminated)
-  -- always run in the the toplevel directory, so all paths are relative the root,
-  -- this way we can just concatenate the paths returned by git with the toplevel
-  local result, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
-  scheduler()
-  if err then
-    local message = vim.split(err, "\n", { plain = true, trimempty = true })
-    log.error("error running git command, %s", table.concat(message, " "))
-  end
-  return result
-end
-
 local get_next_listner_id
 do
   local listener_id = 0
@@ -312,6 +296,22 @@ function Repo:has_git_listeners()
 end
 
 ---@async
+---@param args string[]
+---@param null_terminated? boolean
+---@return string[]
+function Repo:command(args, null_terminated)
+  -- always run in the the toplevel directory, so all paths are relative the root,
+  -- this way we can just concatenate the paths returned by git with the toplevel
+  local result, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
+  scheduler()
+  if err then
+    local message = vim.split(err, "\n", { plain = true, trimempty = true })
+    log.error("error running git command, %s", table.concat(message, " "))
+  end
+  return result
+end
+
+---@async
 ---@private
 function Repo:_read_remote_url()
   self.remote_url = self:command({ "ls-remote", "--get-url" })[1]
@@ -342,7 +342,7 @@ local function create_status_arguments(opts)
     -- "--ignore-submodules=all", -- this is the default
     "--porcelain=v2",
     "-unormal", -- "--untracked-files=normal",
-    "-z",
+    "-z", -- null-terminated
   }
   if opts.header then
     args[#args + 1] = "-b" --branch

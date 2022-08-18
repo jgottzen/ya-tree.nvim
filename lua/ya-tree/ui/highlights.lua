@@ -38,6 +38,7 @@ local M = {
   CLIPBOARD_STATUS = "YaTreeClipboardStatus",
 
   TEXT = "YaTreeText",
+  DIM_TEXT = "YaTreeDimText",
   SEARCH_TERM = "YaTreeSearchTerm",
 
   NORMAL = "YaTreeNormal",
@@ -138,7 +139,8 @@ function M.setup()
 
   create_highlight(M.CLIPBOARD_STATUS, { "Comment" })
 
-  create_highlight(M.TEXT, { "Comment" })
+  create_highlight(M.TEXT, { "Normal" })
+  create_highlight(M.DIM_TEXT, { "Comment" })
   create_highlight(M.SEARCH_TERM, { "SpecialChar" })
 
   create_highlight(M.NORMAL, { "Normal" })

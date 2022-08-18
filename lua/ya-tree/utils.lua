@@ -16,7 +16,7 @@ do
   ---@type table<string, boolean>
   local extensions = {}
   ---@type string[]
-  local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";")
+  local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true })
   for _, extension in pairs(splits) do
     extensions[extension:upper()] = true
   end

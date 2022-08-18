@@ -250,7 +250,6 @@ function Input:map(mode, key, rhs, opts)
   end
   opts = opts or {}
   opts.buffer = self.bufnr
-  opts.remap = opts.remap or false
 
   log.trace("creating mapping for bufnr=%s, mode=%s, key=%s, rhs=%s, opts=%s", self.bufnr, mode, key, rhs, opts)
   vim.keymap.set(mode, key, rhs, opts)

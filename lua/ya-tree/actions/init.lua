@@ -189,36 +189,11 @@ local actions = {
     { "files", "search", "buffers", "git" },
     { "n" }
   ),
-  focus_next_sibling = create_action(
-    ui.focus_next_sibling,
-    "Go to next sibling node",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  focus_first_sibling = create_action(
-    ui.focus_first_sibling,
-    "Go to first sibling node",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  focus_last_sibling = create_action(
-    ui.focus_last_sibling,
-    "Go to last sibling node",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  focus_prev_git_item = create_action(
-    ui.focus_prev_git_item,
-    "Go to previous git item",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  focus_next_git_item = create_action(
-    ui.focus_next_git_item,
-    "Go to next git item",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
+  focus_next_sibling = create_action(ui.focus_next_sibling, "Go to next sibling node", { "files", "search", "buffers", "git" }, { "n" }),
+  focus_first_sibling = create_action(ui.focus_first_sibling, "Go to first sibling node", { "files", "search", "buffers", "git" }, { "n" }),
+  focus_last_sibling = create_action(ui.focus_last_sibling, "Go to last sibling node", { "files", "search", "buffers", "git" }, { "n" }),
+  focus_prev_git_item = create_action(ui.focus_prev_git_item, "Go to previous git item", { "files", "search", "buffers", "git" }, { "n" }),
+  focus_next_git_item = create_action(ui.focus_next_git_item, "Go to next git item", { "files", "search", "buffers", "git" }, { "n" }),
   focus_prev_diagnostic_item = create_action(
     ui.focus_prev_diagnostic_item,
     "Go to the previous diagnostic item",
@@ -265,7 +240,7 @@ end
 ---@param bufnr number
 function M.apply_mappings(bufnr)
   for _, mapping in pairs(M.mappings) do
-    local opts = { remap = false, silent = true, nowait = true, buffer = bufnr, desc = mapping.desc }
+    local opts = { buffer = bufnr, silent = true, nowait = true, desc = mapping.desc }
     local rhs = create_keymap_function(mapping)
 
     if not rhs or not pcall(vim.keymap.set, mapping.mode, mapping.key, rhs, opts) then

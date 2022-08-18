@@ -1001,10 +1001,9 @@ end
 
 local function setup_netrw()
   if config.replace_netrw then
-    vim.cmd([[silent! autocmd! FileExplorer *]])
-    vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
     vim.g.loaded_netrw = 1
     vim.g.loaded_netrwPlugin = 1
+    api.nvim_create_augroup("FileExplorer", { clear = true })
   end
 end
 

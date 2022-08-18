@@ -142,7 +142,7 @@ function M.icon(node, _, renderer)
   }
 end
 
----@param node YaTreeNode|YaTreeSearchRootNode|YaTreeBufferNode
+---@param node YaTreeNode
 ---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Name
 ---@return RenderResult[] results
@@ -152,20 +152,16 @@ function M.name(node, context, renderer)
     if text:sub(-1) ~= utils.os_sep then
       text = text .. utils.os_sep
     end
-    ---@type RenderResult
-    local root = {
-      padding = "",
-      text = text,
-      highlight = hl.ROOT_NAME,
-    }
 
+    ---@type RenderResult[]
     local results
     if context.view_mode == "search" then
+      ---@cast node YaTreeSearchRootNode
       results = {
         {
           padding = "",
           text = 'Find "',
-          highlight = hl.TEXT,
+          highlight = hl.DIM_TEXT,
         },
         {
           padding = "",
@@ -175,36 +171,34 @@ function M.name(node, context, renderer)
         {
           padding = "",
           text = '" in: ',
-          highlight = hl.TEXT,
+          highlight = hl.DIM_TEXT,
         },
-        root,
       }
     elseif context.view_mode == "buffers" then
       results = {
         {
           padding = "",
           text = "Buffers: ",
-          highlight = hl.TEXT,
+          highlight = hl.DIM_TEXT,
         },
-        root,
       }
     elseif context.view_mode == "git" then
       results = {
         {
           padding = "",
           text = "Git: ",
-          highlight = hl.TEXT,
-        },
-        {
-          padding = "",
-          text = fn.fnamemodify(node.repo.toplevel, renderer.root_folder_format),
-          highlight = hl.ROOT_NAME,
+          highlight = hl.DIM_TEXT,
         },
       }
     else
-      results = { root }
+      results = {}
     end
 
+    results[#results + 1] = {
+      padding = "",
+      text = text,
+      highlight = hl.ROOT_NAME,
+    }
     return results
   end
 
@@ -235,8 +229,11 @@ function M.name(node, context, renderer)
       highlight = hl.CHAR_DEVICE_FILE_NAME
     elseif node:is_block_device() then
       highlight = hl.BLOCK_DEVICE_FILE_NAME
-    elseif node:node_type() == "Buffer" and node:is_terminal() then
-      highlight = node.hidden and hl.GIT_IGNORED or hl.FILE_NAME
+    elseif node:node_type() == "Buffer" then
+      ---@cast node YaTreeBufferNode
+      if node:is_terminal() then
+        highlight = node.hidden and hl.GIT_IGNORED or hl.FILE_NAME
+      end
     end
 
     if context.config.git.show_ignored then
