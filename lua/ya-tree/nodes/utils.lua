@@ -9,10 +9,10 @@ local M = {}
 
 ---Creates a new node.
 ---@generic T : YaTreeNode
----@param class `T`
+---@param class T
 ---@param fs_node FsNode filesystem data.
----@param parent? `T` the parent node.
----@return `T` node
+---@param parent? T the parent node.
+---@return T node
 function M.create_node(class, fs_node, parent)
   local this = setmetatable(fs_node, class) --[[@as YaTreeNode]]
   ---@cast parent YaTreeNode?
@@ -34,10 +34,10 @@ end
 
 ---@async
 ---@generic T : YaTreeNode
----@param root `T`
+---@param root T
 ---@param paths string[]
----@param node_creator async fun(path: string, parent: `T`): `T`|nil
----@return `T` first_leaf_node
+---@param node_creator async fun(path: string, parent: T): T|nil
+---@return T first_leaf_node
 function M.create_tree_from_paths(root, paths, node_creator)
   ---@cast root YaTreeNode
   ---@type table<string, YaTreeNode>
@@ -92,10 +92,10 @@ end
 
 ---@async
 ---@generic T : YaTreeBufferRootNode|YaTreeGitRootNode
----@param root `T`
+---@param root T
 ---@param file string
----@param node_creator fun(fs_node: FsNode, parent: `T`): `T`
----@return `T`|nil node
+---@param node_creator fun(fs_node: FsNode, parent: T): T
+---@return T|nil node
 function M.add_fs_node(root, file, node_creator)
   if not fs.exists(file) then
     log.error("no file node found for %q", file)

@@ -269,6 +269,7 @@ function BufferRootNode:refresh(opts)
 
   self.children = {}
   self.empty = true
+  ---@type YaTreeBufferNode
   local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then

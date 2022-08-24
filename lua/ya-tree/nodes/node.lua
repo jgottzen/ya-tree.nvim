@@ -295,11 +295,11 @@ end
 ---Returns an iterator function for this `node`s children.
 --
 ---@generic T : YaTreeNode
----@param self `T`
----@param opts? { reverse?: boolean, from?: `T` }
+---@param self T
+---@param opts? { reverse?: boolean, from?: T }
 ---  - {opts.reverse?} `boolean`
----  - {opts.from?} `T`
----@return fun():`T` iterator
+---  - {opts.from?} T
+---@return fun():T iterator
 function Node.iterate_children(self, opts)
   ---@cast self YaTreeNode
   if not self.children or #self.children == 0 then
@@ -362,11 +362,11 @@ end
 --
 ---@async
 ---@generic T : YaTreeNode
----@param self `T`
+---@param self T
 ---@param opts? {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return `T`|nil node if {opts.to} is specified, and found.
+---@return T|nil node if {opts.to} is specified, and found.
 function Node.expand(self, opts)
   ---@cast self YaTreeNode
   log.debug("expanding %q", self.path)
@@ -401,10 +401,10 @@ function Node.expand(self, opts)
 end
 
 ---Returns the child node specified by `path` if it has been loaded.
----@generic T : YaTreeNode
----@param self `T`
+---@generic T :YaTreeNode
+---@param self T
 ---@param path string
----@return `T`|nil
+---@return T|nil
 function Node.get_child_if_loaded(self, path)
   ---@cast self YaTreeNode
   if self.path == path then
