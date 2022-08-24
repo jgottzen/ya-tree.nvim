@@ -22,6 +22,7 @@ local utils = require("ya-tree.utils")
 ---@field public link_orphan? boolean
 ---@field public link_name? string
 ---@field public link_extension? string
+---@field public modified boolean
 ---@field public repo? GitRepo
 ---@field public clipboard_status clipboard_action|nil
 ---@field private scanned? boolean

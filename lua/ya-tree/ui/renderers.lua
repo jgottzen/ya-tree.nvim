@@ -257,6 +257,20 @@ end
 
 ---@param node YaTreeNode
 ---@param _ RenderingContext
+---@param renderer YaTreeConfig.Renderers.Modified
+---@return RenderResult|nil result
+function M.modified(node, _, renderer)
+  if node.modified then
+    return {
+      padding = renderer.padding,
+      text = renderer.icon,
+      highlight = hl.MODIFIED,
+    }
+  end
+end
+
+---@param node YaTreeNode
+---@param _ RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Repository
 ---@return RenderResult[]|nil results
 function M.repository(node, _, renderer)

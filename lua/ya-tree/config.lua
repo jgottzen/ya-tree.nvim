@@ -180,6 +180,7 @@ local M = {
           { "indentation" },
           { "icon" },
           { "name", use_git_status_colors = true },
+          { "modified" },
           { "symlink_target" },
           { "git_status" },
           { "diagnostics" },
@@ -197,6 +198,7 @@ local M = {
     ---@field indentation YaTreeConfig.Renderers.Indentation Indentation rendering configuration.
     ---@field icon YaTreeConfig.Renderers.Icon Icon rendering configuration.
     ---@field name YaTreeConfig.Renderers.Name File and directory name rendering configuration.
+    ---@field modified YaTreeConfig.Renderers.Modified Modified file rendering configurations.
     ---@field repository YaTreeConfig.Renderers.Repository Repository rendering configuration.
     ---@field symlink_target YaTreeConfig.Renderers.SymlinkTarget Symbolic link rendering configuration.
     ---@field git_status YaTreeConfig.Renderers.GitStatus Git status rendering configuration.
@@ -276,6 +278,16 @@ local M = {
         trailing_slash = false,
         use_git_status_colors = false,
         highlight_open_file = false,
+      },
+
+      ---@class YaTreeConfig.Renderers.Modified : YaTreeRendererConfig
+      ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field icon string The icon for modified files.
+      modified = {
+        padding = " ",
+        view_modes = { "files", "search", "buffers", "git" },
+        icon = "[+]",
       },
 
       ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig

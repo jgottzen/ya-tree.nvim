@@ -8,6 +8,7 @@ local log = require("ya-tree.log")
 local node_utils = require("ya-tree.nodes.utils")
 local utils = require("ya-tree.utils")
 
+local api = vim.api
 local fn = vim.fn
 
 ---@alias buffer_type file_type | "terminal" | "container"
@@ -30,12 +31,14 @@ setmetatable(BufferNode, { __index = Node })
 ---@param parent YaTreeBufferRootNode|YaTreeBufferNode the parent node.
 ---@param bufname? string the vim buffer name.
 ---@param bufnr? number the buffer number.
+---@param modified? boolean if the buffer is modified.
 ---@param hidden? boolean if the buffer is listed.
 ---@return YaTreeBufferNode node
-function BufferNode:new(fs_node, parent, bufname, bufnr, hidden)
+function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
   local this = node_utils.create_node(self, fs_node, parent)
   this.bufname = bufname
   this.bufnr = bufnr
+  this.modified = modified or false
   this.hidden = hidden
   if this:is_container() then
     this.empty = true
@@ -208,6 +211,42 @@ local function add_terminal_buffer_to_container(container, terminal)
   return node
 end
 
+---@class FileBufferData
+---@field bufnr number
+---@field modified boolean
+
+---@class TerminalBufferData
+---@field name string
+---@field bufnr number
+
+---@return table<string, FileBufferData> paths, TerminalBufferData[] terminal
+local function get_current_buffers()
+  ---@type table<string, FileBufferData>
+  local buffers = {}
+  ---@type TerminalBufferData[]
+  local terminals = {}
+  for _, bufnr in ipairs(api.nvim_list_bufs()) do
+    ---@cast bufnr number
+    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+    if ok then
+      ---@type string
+      local path = api.nvim_buf_get_name(bufnr)
+      if buftype == "terminal" then
+        terminals[#terminals + 1] = {
+          name = path,
+          bufnr = bufnr,
+        }
+      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+        buffers[path] = {
+          bufnr = bufnr,
+          modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
+        }
+      end
+    end
+  end
+  return buffers, terminals
+end
+
 ---@async
 ---@param opts? { root_path?: string }
 --- -- {opts.root_path?} `string`
@@ -215,7 +254,7 @@ end
 function BufferRootNode:refresh(opts)
   opts = opts or {}
   scheduler()
-  local buffers, terminals = utils.get_current_buffers()
+  local buffers, terminals = get_current_buffers()
   ---@type string[]
   local paths = vim.tbl_keys(buffers)
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
@@ -233,8 +272,10 @@ function BufferRootNode:refresh(opts)
   local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then
-      local is_buffer_node = buffers[fs_node.path] ~= nil
-      local node = BufferNode:new(fs_node, parent, is_buffer_node and path or nil, buffers[fs_node.path], false)
+      local buffer_node = buffers[fs_node.path]
+      local bufnr = buffer_node and buffer_node.bufnr or nil
+      local modified = buffer_node and buffer_node.modified or false
+      local node = BufferNode:new(fs_node, parent, buffer_node and path or nil, bufnr, modified, false)
       if not parent.repo or parent.repo:is_yadm() then
         node.repo = git.get_repo_for_path(node.path)
       end
@@ -270,7 +311,7 @@ function BufferRootNode:add_buffer(file, bufnr, is_terminal)
   else
     return node_utils.add_fs_node(self, file, function(fs_node, parent)
       local is_buffer_node = fs_node.path == file
-      local node = BufferNode:new(fs_node, parent, is_buffer_node and file or nil, is_buffer_node and bufnr or nil, false)
+      local node = BufferNode:new(fs_node, parent, is_buffer_node and file or nil, is_buffer_node and bufnr or nil, false, false)
       if not parent.repo or parent.repo:is_yadm() then
         node.repo = git.get_repo_for_path(node.path)
       end

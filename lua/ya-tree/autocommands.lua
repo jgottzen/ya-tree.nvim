@@ -237,6 +237,51 @@ local function on_buf_delete_and_term_close(file, bufnr)
   end
 end
 
+---@param tree YaTree
+---@param path string
+---@param mutator fun(node: YaTreeNode)
+local function update_tree_nodes_if_loaded(tree, path, mutator)
+  local node = tree.files.root:get_child_if_loaded(path)
+  if node then
+    mutator(node)
+  end
+  node = tree.buffers.root and tree.buffers.root:get_child_if_loaded(path)
+  if node then
+    mutator(node)
+  end
+  node = tree.search.root and tree.search.root:get_child_if_loaded(path)
+  if node then
+    mutator(node)
+  end
+  node = tree.git.root and tree.git.root:get_child_if_loaded(path)
+  if node then
+    mutator(node)
+  end
+end
+
+---@param file string
+---@param bufnr number
+local function on_buf_modified_set(file, bufnr)
+  if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
+    ---@type number
+    local tabpage = api.nvim_get_current_tabpage()
+    ---@type boolean
+    local modified = api.nvim_buf_get_option(bufnr, "modified")
+    void(function()
+      lib._for_each_tree(function(tree)
+        update_tree_nodes_if_loaded(tree, file, function(node)
+          node.modified = modified
+        end)
+
+        local node = tree.root:get_child_if_loaded(file)
+        if node and tabpage == tree.tabpage and ui.is_open() and ui.is_node_rendered(node) then
+          ui.update(tree.root)
+        end
+      end)
+    end)()
+  end
+end
+
 ---@param file string
 ---@param bufnr number
 local function on_buf_write_post(file, bufnr)
@@ -254,6 +299,10 @@ local function on_buf_write_post(file, bufnr)
             node:refresh()
           end
         end
+
+        update_tree_nodes_if_loaded(tree, file, function(child)
+          child.modified = false
+        end)
 
         local git_status_changed = false
         local repo
@@ -474,6 +523,13 @@ function M.setup()
       on_buf_delete_and_term_close(input.match, input.buf)
     end,
     desc = "Updating buffers view",
+  })
+  api.nvim_create_autocmd("BufModifiedSet", {
+    group = group,
+    pattern = "*",
+    callback = function(input)
+      on_buf_modified_set(input.file, input.buf)
+    end,
   })
   if config.auto_reload_on_write then
     api.nvim_create_autocmd("BufWritePost", {

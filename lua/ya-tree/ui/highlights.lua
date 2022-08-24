@@ -30,6 +30,8 @@ local M = {
   OPENED_FILE_NAME = "YaTreeOpenedFileName",
   ERROR_FILE_NAME = "YaTreeErrorFileName",
 
+  MODIFIED = "YaTreeFileModified",
+
   SYMBOLIC_LINK = "YaTreeSymbolicLink",
 
   BUFFER_NUMBER = "YaTreeBufferNumber",
@@ -131,6 +133,8 @@ function M.setup()
   create_highlight(M.EXECUTABLE_FILE_NAME, { M.FILE_NAME })
   create_highlight(M.OPENED_FILE_NAME, { "TSKeyword" }, nil, "#d3869b")
   create_highlight(M.ERROR_FILE_NAME, nil, { fg = "#080808", bg = "#ff0000" })
+
+  create_highlight(M.MODIFIED, nil, { fg = "#cb8327", bold = true })
 
   create_highlight(M.SYMBOLIC_LINK, nil, { fg = "#7daea3", italic = true })
 

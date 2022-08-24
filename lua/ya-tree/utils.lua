@@ -185,35 +185,6 @@ function M.is_node_displayable(node, config)
   end
 end
 
----@class TerminalBufferData
----@field name string
----@field bufnr number
-
----@return table<string, number> paths, TerminalBufferData[] terminal
-function M.get_current_buffers()
-  ---@type table<string, number>
-  local buffers = {}
-  ---@type TerminalBufferData[]
-  local terminals = {}
-  for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    ---@cast bufnr number
-    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
-    if ok then
-      ---@type string
-      local path = api.nvim_buf_get_name(bufnr)
-      if buftype == "terminal" then
-        terminals[#terminals + 1] = {
-          name = path,
-          bufnr = bufnr,
-        }
-      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
-        buffers[path] = bufnr
-      end
-    end
-  end
-  return buffers, terminals
-end
-
 ---@return boolean is_directory, string path
 function M.get_path_from_directory_buffer()
   ---@type number

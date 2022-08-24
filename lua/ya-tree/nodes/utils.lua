@@ -17,6 +17,7 @@ function M.create_node(class, fs_node, parent)
   local this = setmetatable(fs_node, class) --[[@as YaTreeNode]]
   ---@cast parent YaTreeNode?
   this.parent = parent
+  this.modified = false
   if this:is_container() then
     this.children = {}
   end
