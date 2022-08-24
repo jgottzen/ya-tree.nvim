@@ -291,12 +291,13 @@ local function on_buf_write_post(file, bufnr)
     void(function()
       lib._for_each_tree(function(tree)
         local node
-        -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git status
+        -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git
         if tree.files.root:is_ancestor_of(file) then
           log.debug("changed file %q is in tree %q and tab %s", file, tree.files.root.path, tree.tabpage)
-          node = tree.files.root:get_child_if_loaded(file)
-          if node then
-            node:refresh()
+          local parent = tree.files.root:get_child_if_loaded(Path:new(file):parent().filename)
+          if parent then
+            parent:refresh()
+            node = parent:get_child_if_loaded(file)
           end
         end
 
@@ -332,8 +333,7 @@ local function on_buf_write_post(file, bufnr)
           end
         end
 
-        -- only update the ui if something has changed, and the tree is for the current tabpage
-        if tree.tabpage == tabpage and ui.is_open() and (git_status_changed or (node and ui.is_node_rendered(node))) then
+        if tree.tabpage == tabpage and ui.is_open() then
           ui.update(tree.root)
         end
       end)
