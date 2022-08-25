@@ -8,8 +8,10 @@ local log = require("ya-tree.log")
 local node_utils = require("ya-tree.nodes.utils")
 
 ---@class YaTreeSearchNode : YaTreeNode
----@field public parent YaTreeSearchRootNode|YaTreeSearchNode
+---@field public parent? YaTreeSearchNode
 ---@field public children? YaTreeSearchNode[]
+---@field public search_term? string
+---@field private _search_options? { cmd: string, args: string[] }
 local SearchNode = { __node_type = "Search" }
 SearchNode.__index = SearchNode
 SearchNode.__tostring = Node.__tostring
@@ -32,36 +34,6 @@ end
 
 ---@private
 function SearchNode:_scandir() end
-
----@async
-function SearchNode:refresh()
-  self.parent:refresh()
-end
-
----@class YaTreeSearchRootNode : YaTreeSearchNode
----@field public search_term string
----@field private _search_options { cmd: string, args: string[] }
----@field public parent nil
----@field public children YaTreeSearchNode[]
-local SearchRootNode = { __node_type = "Search" }
-SearchRootNode.__index = SearchRootNode
-SearchRootNode.__tostring = Node.__tostring
-SearchRootNode.__eq = Node.__eq
-setmetatable(SearchRootNode, { __index = SearchNode })
-
----Creates a new search node.
----@param fs_node FsNode filesystem data.
----@return YaTreeSearchRootNode node
-function SearchRootNode:new(fs_node)
-  local this = node_utils.create_node(self, fs_node)
-  this.empty = true
-  this.scanned = true
-  this.expanded = true
-  return this
-end
-
----@private
-function SearchRootNode:_scandir() end
 
 do
   ---@param path string
@@ -90,8 +62,12 @@ do
   ---@param cmd? string
   ---@param args? string[]
   ---@return YaTreeSearchNode|nil first_leaf_node
-  ---@return number|string matches_or_error
-  function SearchRootNode:search(term, cmd, args)
+  ---@return number|string nr_of_matches_or_error
+  function SearchNode:search(term, cmd, args)
+    if self.parent then
+      return self.parent:search(term, cmd, args)
+    end
+
     self.search_term = term and term or self.search_term
     self._search_options = cmd and { cmd = cmd, args = args } or self._search_options
     if not self.search_term or not self._search_options then
@@ -99,6 +75,7 @@ do
     end
 
     self.children = {}
+    self.empty = true
     local paths, err = search(self.path, self._search_options.cmd, self._search_options.args)
     if paths then
       local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
@@ -113,20 +90,20 @@ do
       end)
       return first_leaf_node, #paths
     else
-      self.empty = true
       return nil, err
     end
   end
 end
 
 ---@async
-function SearchRootNode:refresh()
+function SearchNode:refresh()
+  if self.parent then
+    return self.parent:refresh()
+  end
+
   if self.search_term and self._search_options then
     self:search()
   end
 end
 
-return {
-  SearchNode = SearchNode,
-  SearchRootNode = SearchRootNode
-}
+return SearchNode

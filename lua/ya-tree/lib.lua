@@ -36,27 +36,27 @@ local M = {
 ---@field public tabpage number the current tabpage.
 ---@field public cwd string the workding directory of the tabpage.
 ---@field public refreshing boolean if the tree is currently refreshing.
----@field public root YaTreeNode|YaTreeSearchRootNode|YaTreeBufferRootNode|YaTreeGitRootNode the root of the current tree.
+---@field public root YaTreeNode|YaTreeSearchNode|YaTreeBufferNode|YaTreeGitNode the root of the current tree.
 ---@field public current_node? YaTreeNode the currently selected node.
----@field public files YaFilesTreeRoot the current files tree.
----@field public search YaSearchTreeRoot the current search tree.
----@field public buffers YaBufferTreeRoot the buffers tree info.
----@field public git YaGitTreeRoot the git status info.
+---@field public files YaFilesTree the current files tree.
+---@field public search YaSearchTree the current search tree.
+---@field public buffers YaBufferTree the buffers tree info.
+---@field public git YaGitTree the git status info.
 
----@class YaFilesTreeRoot
+---@class YaFilesTree
 ---@field public root YaTreeNode the root fo the tree.
 ---@field public current_node? YaTreeNode the currently selected node.
 
----@class YaSearchTreeRoot
----@field public root? YaTreeSearchRootNode the root of the search tree.
+---@class YaSearchTree
+---@field public root? YaTreeSearchNode the root of the search tree.
 ---@field public current_node? YaTreeSearchNode the currently selected node.
 
----@class YaBufferTreeRoot
----@field public root? YaTreeBufferRootNode
+---@class YaBufferTree
+---@field public root? YaTreeBufferNode
 ---@field public current_node? YaTreeBufferNode
 
----@class YaGitTreeRoot
----@field public root? YaTreeGitRootNode
+---@class YaGitTree
+---@field public root? YaTreeGitNode
 ---@field public current_node? YaTreeGitNode
 
 local Tree = {}

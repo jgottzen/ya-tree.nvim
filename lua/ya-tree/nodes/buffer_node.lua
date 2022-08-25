@@ -14,7 +14,7 @@ local fn = vim.fn
 ---@alias buffer_type file_type | "terminal" | "container"
 
 ---@class YaTreeBufferNode : YaTreeNode
----@field public parent YaTreeBufferRootNode|YaTreeBufferNode
+---@field public parent? YaTreeBufferNode
 ---@field private type buffer_type
 ---@field public bufname? string
 ---@field public bufnr? number
@@ -28,7 +28,7 @@ setmetatable(BufferNode, { __index = Node })
 
 ---Creates a new buffer node.
 ---@param fs_node FsNode filesystem data.
----@param parent YaTreeBufferRootNode|YaTreeBufferNode the parent node.
+---@param parent? YaTreeBufferNode the parent node.
 ---@param bufname? string the vim buffer name.
 ---@param bufnr? number the buffer number.
 ---@param modified? boolean if the buffer is modified.
@@ -65,56 +65,6 @@ function BufferNode:toggleterm_id()
   end
 end
 
----@private
-function BufferNode:_scandir() end
-
----@async
----@param opts? { root_path?: string }
---- -- {opts.root_path?} `string`
----@return YaTreeBufferNode first_leaf_node
-function BufferNode:refresh(opts)
-  return self.parent:refresh(opts)
-end
-
----Expands the node, if it is a directory.
---
----@async
----@param opts? {force_scan?: boolean, all?: boolean, to?: string}
----  - {opts.force_scan?} `boolean` rescan directories.
----  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return YaTreeBufferNode|nil node if {opts.to} is specified, and found.
-function BufferNode:expand(opts)
-  opts = opts or {}
-  if opts.to and vim.startswith(opts.to, "term://") then
-    return self.parent:expand(opts)
-  else
-    return Node.expand(self, opts)
-  end
-end
-
----@class YaTreeBufferRootNode : YaTreeBufferNode
----@field public parent nil
----@field public children YaTreeBufferNode[]
-local BufferRootNode = { __node_type = "Buffer" }
-BufferRootNode.__index = BufferRootNode
-BufferRootNode.__tostring = Node.__tostring
-BufferRootNode.__eq = Node.__eq
-setmetatable(BufferRootNode, { __index = BufferNode })
-
----Creates a new buffer root node.
----@param fs_node FsNode filesystem data.
----@return YaTreeBufferRootNode node
-function BufferRootNode:new(fs_node)
-  local this = node_utils.create_node(self, fs_node)
-  this.empty = true
-  this.scanned = true
-  this.expanded = true
-  return this
-end
-
----@private
-function BufferRootNode:_scandir() end
-
 ---@param node? YaTreeBufferNode
 ---@return boolean is_container
 local function is_terminals_container(node)
@@ -124,7 +74,7 @@ end
 ---@param a YaTreeBufferNode
 ---@param b YaTreeBufferNode
 ---@return boolean
-function BufferRootNode.node_comparator(a, b)
+function BufferNode.node_comparator(a, b)
   if is_terminals_container(a) then
     return false
   elseif is_terminals_container(b) then
@@ -133,29 +83,43 @@ function BufferRootNode.node_comparator(a, b)
   return Node.node_comparator(a, b)
 end
 
----Expands the node, if it is a directory.
---
----@async
----@param opts? {force_scan?: boolean, all?: boolean, to?: string}
----  - {opts.force_scan?} `boolean` rescan directories.
----  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return YaTreeBufferNode|nil node if {opts.to} is specified, and found.
-function BufferRootNode:expand(opts)
-  opts = opts or {}
-  if opts.to and vim.startswith(opts.to, "term://") then
-    if self.children then
-      local container = self.children[#self.children]
-      if is_terminals_container(container) then
-        for _, child in ipairs(container.children) do
-          if child.bufname == opts.to then
-            return child
-          end
-        end
+---@private
+function BufferNode:_scandir() end
+
+---@class FileBufferData
+---@field bufnr number
+---@field modified boolean
+
+---@class TerminalBufferData
+---@field name string
+---@field bufnr number
+
+---@return table<string, FileBufferData> paths, TerminalBufferData[] terminal
+local function get_current_buffers()
+  ---@type table<string, FileBufferData>
+  local buffers = {}
+  ---@type TerminalBufferData[]
+  local terminals = {}
+  for _, bufnr in ipairs(api.nvim_list_bufs()) do
+    ---@cast bufnr number
+    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+    if ok then
+      ---@type string
+      local path = api.nvim_buf_get_name(bufnr)
+      if buftype == "terminal" then
+        terminals[#terminals + 1] = {
+          name = path,
+          bufnr = bufnr,
+        }
+      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+        buffers[path] = {
+          bufnr = bufnr,
+          modified = api.nvim_buf_get_option(bufnr, "modified"), --[[@as boolean]]
+        }
       end
     end
-  else
-    return Node.expand(self, opts)
   end
+  return buffers, terminals
 end
 
 ---@param tree_root_path string
@@ -177,7 +141,7 @@ local function get_buffers_root_path(tree_root_path, paths)
   return root_path
 end
 
----@param root YaTreeBufferRootNode
+---@param root YaTreeBufferNode
 ---@return YaTreeBufferNode container
 local function create_terminal_buffers_container(root)
   local container = BufferNode:new({
@@ -211,47 +175,15 @@ local function add_terminal_buffer_to_container(container, terminal)
   return node
 end
 
----@class FileBufferData
----@field bufnr number
----@field modified boolean
-
----@class TerminalBufferData
----@field name string
----@field bufnr number
-
----@return table<string, FileBufferData> paths, TerminalBufferData[] terminal
-local function get_current_buffers()
-  ---@type table<string, FileBufferData>
-  local buffers = {}
-  ---@type TerminalBufferData[]
-  local terminals = {}
-  for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    ---@cast bufnr number
-    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
-    if ok then
-      ---@type string
-      local path = api.nvim_buf_get_name(bufnr)
-      if buftype == "terminal" then
-        terminals[#terminals + 1] = {
-          name = path,
-          bufnr = bufnr,
-        }
-      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
-        buffers[path] = {
-          bufnr = bufnr,
-          modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
-        }
-      end
-    end
-  end
-  return buffers, terminals
-end
-
 ---@async
 ---@param opts? { root_path?: string }
 --- -- {opts.root_path?} `string`
 ---@return YaTreeBufferNode first_leaf_node
-function BufferRootNode:refresh(opts)
+function BufferNode:refresh(opts)
+  if self.parent then
+    return self.parent:refresh(opts)
+  end
+
   opts = opts or {}
   scheduler()
   local buffers, terminals = get_current_buffers()
@@ -269,7 +201,6 @@ function BufferRootNode:refresh(opts)
 
   self.children = {}
   self.empty = true
-  ---@type YaTreeBufferNode
   local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then
@@ -297,12 +228,42 @@ function BufferRootNode:refresh(opts)
   return first_leaf_node
 end
 
+---Expands the node, if it is a directory.
+--
+---@async
+---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
+---  - {opts.force_scan?} `boolean` rescan directories.
+---  - {opts.to?} `string` recursively expand to the specified path and return it.
+---@return YaTreeBufferNode|nil node if {opts.to} is specified, and found.
+function BufferNode:expand(opts)
+  opts = opts or {}
+  if opts.to and vim.startswith(opts.to, "term://") then
+    if self.children then
+      local container = self.children[#self.children]
+      if is_terminals_container(container) then
+        for _, child in ipairs(container.children) do
+          if child.bufname == opts.to then
+            container.expanded = true
+            return child
+          end
+        end
+      end
+    end
+  else
+    return Node.expand(self, opts)
+  end
+end
+
 ---@async
 ---@param file string
 ---@param bufnr number
 ---@param is_terminal boolean
 ---@return YaTreeBufferNode|nil node
-function BufferRootNode:add_buffer(file, bufnr, is_terminal)
+function BufferNode:add_buffer(file, bufnr, is_terminal)
+  if self.parent then
+    return self.parent:add_buffer(file, bufnr, is_terminal)
+  end
+
   if is_terminal then
     local container = self.children[#self.children]
     if not is_terminals_container(container) then
@@ -327,7 +288,11 @@ end
 ---@param file string
 ---@param bufnr number
 ---@param hidden boolean
-function BufferRootNode:set_terminal_hidden(file, bufnr, hidden)
+function BufferNode:set_terminal_hidden(file, bufnr, hidden)
+  if self.parent then
+    self.parent:set_terminal_hidden(file, bufnr, hidden)
+  end
+
   local container = self.children[#self.children]
   if is_terminals_container(container) then
     for _, child in ipairs(container.children) do
@@ -343,7 +308,11 @@ end
 ---@param file string
 ---@param bufnr number
 ---@param is_terminal boolean
-function BufferRootNode:remove_buffer(file, bufnr, is_terminal)
+function BufferNode:remove_buffer(file, bufnr, is_terminal)
+  if self.parent then
+    self.parent:remove_buffer(file, bufnr, is_terminal)
+  end
+
   if is_terminal then
     local container = self.children[#self.children]
     if is_terminals_container(container) then
@@ -365,7 +334,4 @@ function BufferRootNode:remove_buffer(file, bufnr, is_terminal)
   end
 end
 
-return {
-  BufferNode = BufferNode,
-  BufferRootNode = BufferRootNode,
-}
+return BufferNode

@@ -91,7 +91,7 @@ function M.create_tree_from_paths(root, paths, node_creator)
 end
 
 ---@async
----@generic T : YaTreeBufferRootNode|YaTreeGitRootNode
+---@generic T : YaTreeBufferNode|YaTreeGitNode
 ---@param root T
 ---@param file string
 ---@param node_creator fun(fs_node: FsNode, parent: T): T
@@ -102,7 +102,7 @@ function M.add_fs_node(root, file, node_creator)
     return nil
   end
 
-  ---@cast root YaTreeBufferRootNode|YaTreeGitRootNode
+  ---@cast root YaTreeBufferNode|YaTreeGitNode
   local rest = file:sub(#root.path + 1)
   ---@type string[]
   local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true })
@@ -136,7 +136,7 @@ function M.add_fs_node(root, file, node_creator)
   return node
 end
 
----@param root YaTreeBufferRootNode|YaTreeGitRootNode
+---@param root YaTreeBufferNode|YaTreeGitNode
 ---@param file string
 function M.remove_fs_node(root, file)
   local node = root:get_child_if_loaded(file)

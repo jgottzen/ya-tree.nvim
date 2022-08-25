@@ -214,7 +214,7 @@ local function change_view_mode(mode, root, node)
   end
 end
 
----@param root YaTreeSearchRootNode
+---@param root YaTreeSearchNode
 ---@param node? YaTreeSearchNode
 function M.open_search_view(root, node)
   change_view_mode("search", root, node)
@@ -231,7 +231,7 @@ function M.is_git_view_open()
   return M.get_view_mode() == "git"
 end
 
----@param root YaTreeGitRootNode
+---@param root YaTreeGitNode
 ---@param node? YaTreeGitNode
 function M.open_git_view(root, node)
   change_view_mode("git", root, node)
@@ -248,7 +248,7 @@ function M.is_buffers_view_open()
   return M.get_view_mode() == "buffers"
 end
 
----@param root YaTreeBufferRootNode
+---@param root YaTreeBufferNode
 ---@param node? YaTreeBufferNode
 function M.open_buffers_view(root, node)
   change_view_mode("buffers", root, node)

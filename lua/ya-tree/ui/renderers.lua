@@ -158,7 +158,7 @@ function M.name(node, context, renderer)
     ---@type RenderResult[]
     local results
     if context.view_mode == "search" then
-      ---@cast node YaTreeSearchRootNode
+      ---@cast node YaTreeSearchNode
       results = {
         {
           padding = "",

@@ -1,9 +1,9 @@
 local Path = require("plenary.path")
 
 local Node = require("ya-tree.nodes.node")
-local BufferRootNode = require("ya-tree.nodes.buffer_node").BufferRootNode
-local GitStatusRootNode = require("ya-tree.nodes.git_node").GitRootNode
-local SearchRootNode = require("ya-tree.nodes.search_node").SearchRootNode
+local BufferNode = require("ya-tree.nodes.buffer_node")
+local GitNode = require("ya-tree.nodes.git_node")
+local SearchNode = require("ya-tree.nodes.search_node")
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 
@@ -40,12 +40,12 @@ end
 ---@param term string
 ---@param cmd string
 ---@param args string[]
----@return YaTreeSearchRootNode root
+---@return YaTreeSearchNode root
 ---@return YaTreeSearchNode|nil first_leaf_node
 ---@return number|string matches_or_error
 function M.create_search_tree(root_path, term, cmd, args)
   local fs_node = fs.node_for(root_path) --[[@as FsNode]]
-  local root = SearchRootNode:new(fs_node)
+  local root = SearchNode:new(fs_node)
   root.repo = git.get_repo_for_path(root_path)
   return root, root:search(term, cmd, args)
 end
@@ -53,10 +53,10 @@ end
 ---Creates a buffer node tree.
 ---@async
 ---@param root_path string
----@return YaTreeBufferRootNode root, YaTreeBufferNode first_leaf_node
+---@return YaTreeBufferNode root, YaTreeBufferNode first_leaf_node
 function M.create_buffers_tree(root_path)
   local fs_node = fs.node_for(root_path) --[[@as FsNode]]
-  local root = BufferRootNode:new(fs_node)
+  local root = BufferNode:new(fs_node)
   root.repo = git.get_repo_for_path(root_path)
   return root, root:refresh()
 end
@@ -64,10 +64,10 @@ end
 ---Creates a git node tree, with the `repo` toplevel as the root node.
 ---@async
 ---@param repo GitRepo
----@return YaTreeGitRootNode root, YaTreeGitNode first_leaft_node
+---@return YaTreeGitNode root, YaTreeGitNode first_leaft_node
 function M.create_git_tree(repo)
   local fs_node = fs.node_for(repo.toplevel) --[[@as FsNode]]
-  local root = GitStatusRootNode:new(fs_node)
+  local root = GitNode:new(fs_node)
   root.repo = repo
   return root, root:refresh()
 end
