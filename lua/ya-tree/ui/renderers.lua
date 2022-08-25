@@ -21,6 +21,8 @@ local M = {
 ---@class RenderingContext
 ---@field view_mode YaTreeCanvasViewMode
 ---@field config YaTreeConfig
+---@field depth integer
+---@field last_child boolean
 
 ---@class RenderResult
 ---@field padding string
@@ -31,29 +33,29 @@ do
   ---@type table<number, boolean>
   local marker_at = {}
 
-  ---@param node YaTreeNode
-  ---@param _ RenderingContext
+  ---@param _ YaTreeNode
+  ---@param context RenderingContext
   ---@param renderer YaTreeConfig.Renderers.Indentation
   ---@return RenderResult|nil result
-  function M.indentation(node, _, renderer)
-    if node.depth == 0 then
+  function M.indentation(_, context, renderer)
+    if context.depth == 0 then
       return
     end
 
     local text = ""
     if renderer.use_marker then
-      marker_at[node.depth] = not node.last_child
-      for i = 1, node.depth do
-        local marker = (i == node.depth and node.last_child) and renderer.last_indent_marker or renderer.indent_marker
+      marker_at[context.depth] = not context.last_child
+      for i = 1, context.depth do
+        local marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
 
-        if marker_at[i] or i == node.depth then
+        if marker_at[i] or i == context.depth then
           text = text .. marker .. " "
         else
           text = text .. "  "
         end
       end
     else
-      text = string.rep("  ", node.depth)
+      text = string.rep("  ", context.depth)
     end
 
     return {
@@ -65,11 +67,11 @@ do
 end
 
 ---@param node YaTreeNode
----@param _ RenderingContext
+---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Icon
 ---@return RenderResult|nil result
-function M.icon(node, _, renderer)
-  if node.depth == 0 then
+function M.icon(node, context, renderer)
+  if context.depth == 0 then
     return
   end
 
@@ -147,7 +149,7 @@ end
 ---@param renderer YaTreeConfig.Renderers.Name
 ---@return RenderResult[] results
 function M.name(node, context, renderer)
-  if node.depth == 0 then
+  if context.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
     if text:sub(-1) ~= utils.os_sep then
       text = text .. utils.os_sep
@@ -270,11 +272,11 @@ function M.modified(node, _, renderer)
 end
 
 ---@param node YaTreeNode
----@param _ RenderingContext
+---@param context RenderingContext
 ---@param renderer YaTreeConfig.Renderers.Repository
 ---@return RenderResult[]|nil results
-function M.repository(node, _, renderer)
-  if node:is_git_repository_root() or (node.depth == 0 and node.repo) then
+function M.repository(node, context, renderer)
+  if node:is_git_repository_root() or (context.depth == 0 and node.repo) then
     local repo = node.repo --[[@as GitRepo]]
     local icon = renderer.icons.remote.default
     if repo.remote_url then

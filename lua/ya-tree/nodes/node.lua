@@ -27,8 +27,6 @@ local utils = require("ya-tree.utils")
 ---@field public clipboard_status clipboard_action|nil
 ---@field private scanned? boolean
 ---@field public expanded? boolean
----@field public depth integer
----@field public last_child boolean
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
 

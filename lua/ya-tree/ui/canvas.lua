@@ -407,20 +407,16 @@ local function line_part(pos, padding, text, highlight)
 end
 
 ---@param node YaTreeNode
----@param mode YaTreeCanvasViewMode
----@param container_renderers YaTreeViewRenderer[]
----@param file_renderers YaTreeViewRenderer[]
+---@param context RenderingContext
+---@param renderers YaTreeViewRenderer[]
 ---@return string text, highlight_group[] highlights
-local function render_node(node, mode, container_renderers, file_renderers)
+local function render_node(node, context, renderers)
   ---@type string[]
   local content = {}
   ---@type highlight_group[]
   local highlights = {}
 
-  local renderers = node:is_container() and container_renderers or file_renderers
   local pos = 0
-  ---@type RenderingContext
-  local context = { view_mode = mode, config = config }
   for _, renderer in ipairs(renderers) do
     local results = renderer.fn(node, context, renderer.config)
     if results then
@@ -450,21 +446,19 @@ function Canvas:_render_tree(root)
   ---@type highlight_group[][]
   local highlights = {}
   local linenr = 0
-
-  ---@type YaTreeViewRenderer[]
-  local container_renderers = {}
-  for _, renderer in ipairs(all_container_renderers) do
-    if vim.tbl_contains(renderer.config.view_modes, self.view_mode) then
-      container_renderers[#container_renderers + 1] = renderer
-    end
-  end
-  ---@type YaTreeViewRenderer[]
-  local file_renderers = {}
-  for _, renderer in ipairs(all_file_renderers) do
-    if vim.tbl_contains(renderer.config.view_modes, self.view_mode) then
-      file_renderers[#file_renderers + 1] = renderer
-    end
-  end
+  ---@type RenderingContext
+  local context = {
+    view_mode = self.view_mode,
+    config = config,
+  }
+  ---@param renderer YaTreeViewRenderer
+  local container_renderers = vim.tbl_filter(function(renderer)
+    return vim.tbl_contains(renderer.config.view_modes, self.view_mode)
+  end, all_container_renderers) --[=[@as YaTreeViewRenderer[]]=]
+  ---@param renderer YaTreeViewRenderer
+  local file_renderers = vim.tbl_filter(function(renderer)
+    return vim.tbl_contains(renderer.config.view_modes, self.view_mode)
+  end, all_file_renderers) --[=[@as YaTreeViewRenderer[]]=]
 
   ---@param node YaTreeNode
   ---@param depth integer
@@ -472,11 +466,11 @@ function Canvas:_render_tree(root)
   local function append_node(node, depth, last_child)
     if utils.is_node_displayable(node, config) or depth == 0 then
       linenr = linenr + 1
-      node.depth = depth
-      node.last_child = last_child
+      context.depth = depth
+      context.last_child = last_child
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr], highlights[linenr] = render_node(node, self.view_mode, container_renderers, file_renderers)
+      lines[linenr], highlights[linenr] = render_node(node, context, node:is_container() and container_renderers or file_renderers)
 
       if node:is_container() and node.expanded then
         local nr_of_children = #node.children
