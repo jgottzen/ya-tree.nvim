@@ -7,7 +7,7 @@ local node_utils = require("ya-tree.nodes.utils")
 ---@field public parent YaTreeGitRootNode|YaTreeGitNode
 ---@field public children? YaTreeGitNode[]
 ---@field public repo GitRepo
-local GitNode = { __node_type = "GitStatus" }
+local GitNode = { __node_type = "Git" }
 GitNode.__index = GitNode
 GitNode.__tostring = Node.__tostring
 GitNode.__eq = Node.__eq
@@ -42,7 +42,7 @@ end
 ---@field public parent nil
 ---@field public children YaTreeGitNode[]
 ---@field public repo GitRepo
-local GitRootNode = { __node_type = "GitStatus" }
+local GitRootNode = { __node_type = "Git" }
 GitRootNode.__index = GitRootNode
 GitRootNode.__tostring = Node.__tostring
 GitRootNode.__eq = Node.__eq

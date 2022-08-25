@@ -157,7 +157,7 @@ end
 function M.is_node_displayable(node, config)
   if node:node_type() == "Buffer" then
     return true
-  elseif node:node_type() == "GitStatus" then
+  elseif node:node_type() == "Git" then
     ---@cast node YaTreeGitNode
     if not config.git.show_ignored then
       if node:is_git_ignored() or (node:is_directory() and not is_any_child_displayable(node)) then

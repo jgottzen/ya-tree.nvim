@@ -6,7 +6,7 @@ local log = require("ya-tree.log")
 local node_utils = require("ya-tree.nodes.utils")
 local utils = require("ya-tree.utils")
 
----@alias YaTreeNodeType "FileSystem" | "Search" | "Buffer" | "GitStatus"
+---@alias YaTreeNodeType "FileSystem" | "Search" | "Buffer" | "Git"
 
 ---@class YaTreeNode : FsNode
 ---@field private __node_type YaTreeNodeType
