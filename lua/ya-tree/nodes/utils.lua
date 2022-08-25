@@ -36,7 +36,7 @@ end
 ---@generic T : YaTreeNode
 ---@param root T
 ---@param paths string[]
----@param node_creator async fun(path: string, parent: T): T|nil
+---@param node_creator async fun(path: string, parent: T, directory: boolean): T|nil
 ---@return T first_leaf_node
 function M.create_tree_from_paths(root, paths, node_creator)
   ---@cast root YaTreeNode
@@ -45,8 +45,9 @@ function M.create_tree_from_paths(root, paths, node_creator)
 
   ---@param path string
   ---@param parent YaTreeNode
-  local function add_node(path, parent)
-    local node = node_creator(path, parent)
+  ---@param directory boolean
+  local function add_node(path, parent, directory)
+    local node = node_creator(path, parent, directory)
     if node then
       parent.children[#parent.children + 1] = node
       parent.empty = false
@@ -57,24 +58,22 @@ function M.create_tree_from_paths(root, paths, node_creator)
 
   local min_path_size = #root.path
   for _, path in ipairs(paths) do
-    if fs.exists(path) then
-      ---@type string[]
-      local parents = Path:new(path):parents()
-      for i = #parents, 1, -1 do
-        local parent_path = parents[i]
-        -- skip paths 'above' the root node
-        if #parent_path > min_path_size then
-          local parent = node_map[parent_path]
-          if not parent then
-            local grand_parent = node_map[parents[i + 1]]
-            add_node(parent_path, grand_parent)
-          end
+    ---@type string[]
+    local parents = Path:new(path):parents()
+    for i = #parents, 1, -1 do
+      local parent_path = parents[i]
+      -- skip paths 'above' the root node
+      if #parent_path > min_path_size then
+        local parent = node_map[parent_path]
+        if not parent then
+          local grand_parent = node_map[parents[i + 1]]
+          add_node(parent_path, grand_parent, true)
         end
       end
-
-      local parent = node_map[parents[1]]
-      add_node(path, parent)
     end
+
+    local parent = node_map[parents[1]]
+    add_node(path, parent, false)
   end
 
   local first_leaf_node = root

@@ -48,11 +48,16 @@ function GitNode:refresh(opts)
 
   self.children = {}
   self.empty = true
-  return node_utils.create_tree_from_paths(self, paths, function(path, parent)
+  return node_utils.create_tree_from_paths(self, paths, function(path, parent, directory)
     local fs_node = fs.node_for(path)
-    if fs_node then
-      return GitNode:new(fs_node, parent)
+    if not fs_node then
+      fs_node = {
+        name = fs.get_file_name(path),
+        path = path,
+        type = directory and "directory" or "file",
+      }
     end
+    return GitNode:new(fs_node, parent)
   end)
 end
 
