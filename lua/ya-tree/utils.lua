@@ -115,73 +115,24 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
----@param node YaTreeGitNode
----@return boolean displayable
-local function is_any_child_displayable(node)
-  for _, child in ipairs(node.children) do
-    if not child:is_git_ignored() then
-      if child:is_directory() and is_any_child_displayable(child) then
-        return true
-      elseif child:is_file() then
-        return true
-      end
-    end
-  end
-  return false
-end
-
--- taken from nvim-tree
----@param size integer
----@return string
-function M.format_size(size)
+do
   local units = { "B", "KB", "MB", "GB", "TB" }
+  local log1024 = math.log(1024)
 
-  size = math.max(size, 0)
-  local pow = math.floor((size and math.log(size) or 0) / math.log(1024))
-  pow = math.min(pow, #units)
+  -- taken from nvim-tree
+  ---@param size integer
+  ---@return string
+  function M.format_size(size)
+    size = math.max(size, 0)
+    local pow = math.floor((size and math.log(size) or 0) / log1024)
+    pow = math.min(pow, #units)
 
-  local value = size / (1024 ^ pow)
-  value = math.floor((value * 10) + 0.5) / 10
+    local value = size / (1024 ^ pow)
+    value = math.floor((value * 10) + 0.5) / 10
 
-  pow = pow + 1
+    pow = pow + 1
 
-  return (units[pow] == nil) and (size .. " B") or (value .. " " .. units[pow])
-end
-
----@alias not_display_reason "filter" | "git"
-
----@param node YaTreeNode
----@param config YaTreeConfig
----@return boolean displayable
----@return not_display_reason? reason
-function M.is_node_displayable(node, config)
-  if node:node_type() == "Buffer" then
-    return true
-  elseif node:node_type() == "Git" then
-    ---@cast node YaTreeGitNode
-    if not config.git.show_ignored then
-      if node:is_git_ignored() or (node:is_directory() and not is_any_child_displayable(node)) then
-        return false, "git"
-      end
-    end
-
-    return true
-  else
-    if config.filters.enable then
-      if config.filters.dotfiles and node:is_dotfile() then
-        return false, "filter"
-      elseif vim.tbl_contains(config.filters.custom, node.name) then
-        return false, "filter"
-      end
-    end
-
-    if not config.git.show_ignored then
-      if node:is_git_ignored() then
-        return false, "git"
-      end
-    end
-
-    return true
+    return (units[pow] == nil) and (size .. " B") or (value .. " " .. units[pow])
   end
 end
 
@@ -201,7 +152,7 @@ function M.get_path_from_directory_buffer()
   ---@type string[]
   local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
   if #lines == 0 or (#lines == 1 and lines[1] == "") then
-    return true, bufname
+    return true, Path:new(bufname):absolute()
   else
     return false, ""
   end

@@ -12,27 +12,19 @@ local M = {}
 ---@param focus? boolean
 ---@param view_mode? string
 function M.open(path, switch_root, focus, view_mode)
-  void(function()
-    require("ya-tree.lib").open_window({ path = path, switch_root = switch_root, focus = focus, view_mode = view_mode })
-  end)()
+  void(require("ya-tree.lib").open_window)({ path = path, switch_root = switch_root, focus = focus, view_mode = view_mode })
 end
 
 function M.close()
-  void(function()
-    require("ya-tree.lib").close_window()
-  end)()
+  void(require("ya-tree.lib").close_window)()
 end
 
 function M.toggle()
-  void(function()
-    require("ya-tree.lib").toggle_window()
-  end)()
+  void(require("ya-tree.lib").toggle_window)()
 end
 
 function M.focus()
-  void(function()
-    require("ya-tree.lib").open_window({ focus = true })
-  end)()
+  void(require("ya-tree.lib").open_window)({ focus = true })
 end
 
 ---@param level LogLevel
@@ -77,11 +69,11 @@ local function complete_open(arg_lead, cmdline)
     end
   end
 
-  if vim.startswith(arg_lead, "path=") then
+  if not path_completed and vim.startswith(arg_lead, "path=") then
     return fn.getcompletion(arg_lead:sub(6), "file")
-  elseif vim.startswith(arg_lead, "focus=") then
+  elseif not focus_completed and vim.startswith(arg_lead, "focus=") then
     return { "true", "false" }
-  elseif vim.startswith(arg_lead, "view=") then
+  elseif not view_completed and vim.startswith(arg_lead, "view=") then
     return { "files", "buffers", "git" }
   else
     local t = {}

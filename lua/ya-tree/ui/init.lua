@@ -197,11 +197,6 @@ function M.set_view_mode(view_mode)
   end
 end
 
----@return boolean
-function M.is_search_view_open()
-  return M.get_view_mode() == "search"
-end
-
 ---@param mode YaTreeCanvasViewMode
 ---@param root YaTreeNode
 ---@param node? YaTreeNode
@@ -214,16 +209,21 @@ local function change_view_mode(mode, root, node)
   end
 end
 
+---@param root YaTreeNode
+---@param node YaTreeNode
+function M.open_files_view(root, node)
+  change_view_mode("files", root, node)
+end
+
+---@return boolean
+function M.is_search_view_open()
+  return M.get_view_mode() == "search"
+end
+
 ---@param root YaTreeSearchNode
 ---@param node? YaTreeSearchNode
 function M.open_search_view(root, node)
   change_view_mode("search", root, node)
-end
-
----@param root YaTreeNode
----@param node YaTreeNode
-function M.close_search_view(root, node)
-  change_view_mode("files", root, node)
 end
 
 ---@return boolean
@@ -237,12 +237,6 @@ function M.open_git_view(root, node)
   change_view_mode("git", root, node)
 end
 
----@param root YaTreeNode
----@param node YaTreeNode
-function M.close_git_view(root, node)
-  change_view_mode("files", root, node)
-end
-
 ---@return boolean
 function M.is_buffers_view_open()
   return M.get_view_mode() == "buffers"
@@ -252,12 +246,6 @@ end
 ---@param node? YaTreeBufferNode
 function M.open_buffers_view(root, node)
   change_view_mode("buffers", root, node)
-end
-
----@param root YaTreeNode
----@param node YaTreeNode
-function M.close_buffers_view(root, node)
-  change_view_mode("files", root, node)
 end
 
 function M.restore()

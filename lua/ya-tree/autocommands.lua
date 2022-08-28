@@ -12,17 +12,16 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
 local api = vim.api
-local fn = vim.fn
 local uv = vim.loop
 
 local M = {}
 
----@param closed_winid number
-local function on_win_closed(closed_winid)
+---@param winid number
+local function on_win_closed(winid)
   -- if the closed window was a floating window, do nothing.
   -- otherwise we will quit from a hijacked netrw buffer when using
   -- any form of popup, including command mode
-  if ui.is_window_floating(closed_winid) or not ui.is_open() then
+  if ui.is_window_floating(winid) or not ui.is_open() then
     return
   end
 
@@ -47,7 +46,6 @@ local function on_tab_new_entered()
   lib.open_window({ focus = config.auto_open.focus_tree })
 end
 
----@async
 local function on_tab_enter()
   lib.redraw()
 end
@@ -69,7 +67,7 @@ local function on_buf_add_and_file_post_and_term_open(file, bufnr)
     return
   end
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if buftype == "" or buftype == "terminal" then
+  if (buftype == "" or buftype == "terminal") and not utils.is_directory_sync(file) then
     -- BufFilePost is fired before the file is available on the file system, causing the node creation
     -- to fail, by deferring the call for a short time, we should be able to find the file
     vim.defer_fn(
@@ -139,12 +137,9 @@ local function on_buf_enter(file, bufnr)
     end
     log.debug("deleting buffer %s with file %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
-    -- force barbar update, otherwise a ghost tab for the buffer can remain
-    if type(fn["bufferline#update"]) == "function" then
-      pcall(vim.cmd, "call bufferline#update()")
-    end
 
-    local opts = { path = file, focus = true }
+    ---@type YaTreeLib.OpenWindow
+    local opts = { path = file, focus = true, view_mode = "files" }
     if not tree then
       log.debug("no tree for current tab")
       ---@type string
@@ -162,24 +157,18 @@ local function on_buf_enter(file, bufnr)
       log.debug("current tree is parent of directory %s", file)
     end
 
-    M.open_window(opts)
+    lib.open_window(opts)
   elseif tree and ui.is_open() then
-    -- only update the ui iff highlighting of open files is enabled and
-    -- the necessary config options are set
-    local update_ui = ui.is_highlight_open_file_enabled()
     if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
       log.debug("moving buffer %s to edit window", bufnr)
       ui.move_buffer_to_edit_window(bufnr)
     end
+
     if config.follow_focused_file then
       log.debug("focusing on node %q", file)
-      tree.current_node = tree.root:expand({ to = file })
-      ui.update(tree.root, tree.current_node, { focus_node = true })
-      -- avoid updating twice
-      update_ui = false
-    end
-
-    if update_ui then
+      local node = tree.root:expand({ to = file })
+      ui.update(tree.root, node, { focus_node = true })
+    elseif ui.is_highlight_open_file_enabled() then
       ui.update(tree.root)
     end
   end
@@ -215,6 +204,7 @@ local function on_buf_win_enter(file, bufnr)
   end
 end
 
+---@async
 ---@param file string
 ---@param bufnr number
 local function on_buf_delete_and_term_close(file, bufnr)
@@ -224,16 +214,14 @@ local function on_buf_delete_and_term_close(file, bufnr)
   end
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "" or buftype == "terminal" then
-    void(function()
-      log.debug("removing buffer %q from buffer tree", file)
-      tree.buffers.root:remove_buffer(file, bufnr, buftype == "terminal")
-      if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.files.root.path then
-        tree.buffers.root:refresh({ root_path = tree.files.root.path })
-      end
-      if ui.is_open() and ui.is_buffers_view_open() then
-        ui.update(tree.root, ui.get_current_node())
-      end
-    end)()
+    log.debug("removing buffer %q from buffer tree", file)
+    tree.buffers.root:remove_buffer(file, bufnr, buftype == "terminal")
+    if #tree.buffers.root.children == 0 and tree.buffers.root.path ~= tree.files.root.path then
+      tree.buffers.root:refresh({ root_path = tree.files.root.path })
+    end
+    if ui.is_open() and ui.is_buffers_view_open() then
+      ui.update(tree.root, ui.get_current_node())
+    end
   end
 end
 
@@ -267,77 +255,74 @@ local function on_buf_modified_set(file, bufnr)
     local tabpage = api.nvim_get_current_tabpage()
     ---@type boolean
     local modified = api.nvim_buf_get_option(bufnr, "modified")
-    void(function()
-      lib._for_each_tree(function(tree)
-        update_tree_nodes_if_loaded(tree, file, function(node)
-          node.modified = modified
-        end)
-
-        local node = tree.root:get_child_if_loaded(file)
-        if node and tabpage == tree.tabpage and ui.is_open() and ui.is_node_rendered(node) then
-          ui.update(tree.root)
-        end
+    lib._for_each_tree(function(tree)
+      update_tree_nodes_if_loaded(tree, file, function(node)
+        node.modified = modified
       end)
-    end)()
+
+      local node = tree.root:get_child_if_loaded(file)
+      if node and tabpage == tree.tabpage and ui.is_open() and ui.is_node_rendered(node) then
+        ui.update(tree.root)
+      end
+    end)
   end
 end
 
+---@async
 ---@param file string
 ---@param bufnr number
 local function on_buf_write_post(file, bufnr)
   if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     ---@type number
     local tabpage = api.nvim_get_current_tabpage()
-    void(function()
-      lib._for_each_tree(function(tree)
-        local node
-        -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git
-        if tree.files.root:is_ancestor_of(file) then
-          log.debug("changed file %q is in tree %q and tab %s", file, tree.files.root.path, tree.tabpage)
-          local parent = tree.files.root:get_child_if_loaded(Path:new(file):parent().filename)
-          if parent then
-            parent:refresh()
-            node = parent:get_child_if_loaded(file)
-          end
+    lib._for_each_tree(function(tree)
+      local node
+      -- always refresh the 'actual' tree, and not the current 'view', i.e. search, buffers or git
+      if tree.files.root:is_ancestor_of(file) then
+        log.debug("changed file %q is in tree %q and tab %s", file, tree.files.root.path, tree.tabpage)
+        local parent = tree.files.root:get_child_if_loaded(Path:new(file):parent().filename)
+        if parent then
+          parent:refresh()
+          node = parent:get_child_if_loaded(file)
         end
+      end
 
-        update_tree_nodes_if_loaded(tree, file, function(child)
-          child.modified = false
-        end)
-
-        local git_status_changed = false
-        local repo
-        if config.git.enable then
-          if node then
-            repo = node.repo
-          else
-            repo = git.get_repo_for_path(file)
-          end
-          if repo then
-            git_status_changed = repo:refresh_status_for_file(file)
-          end
-        end
-
-        if tree.git.root and tree.git.root:is_ancestor_of(file) then
-          local git_node = tree.git.root:get_child_if_loaded(file)
-          if not repo then
-            repo = tree.git.root.repo
-            git_status_changed = repo:refresh_status_for_file(file)
-          end
-          if not git_node and git_status_changed then
-            tree.git.root:add_file(file)
-          elseif git_node and git_status_changed then
-            if not git_node:git_status() then
-              tree.git.root:remove_file(file)
-            end
-          end
-        end
-
-        if tree.tabpage == tabpage and ui.is_open() then
-          ui.update(tree.root)
-        end
+      update_tree_nodes_if_loaded(tree, file, function(child)
+        child.modified = false
       end)
-    end)()
+
+      local git_status_changed = false
+      local repo
+      if config.git.enable then
+        if node then
+          repo = node.repo
+        else
+          repo = git.get_repo_for_path(file)
+        end
+        if repo then
+          git_status_changed = repo:refresh_status_for_file(file)
+        end
+      end
+
+      if tree.git.root and tree.git.root:is_ancestor_of(file) then
+        local git_node = tree.git.root:get_child_if_loaded(file)
+        if not repo then
+          repo = tree.git.root.repo
+          git_status_changed = repo:refresh_status_for_file(file)
+        end
+        if not git_node and git_status_changed then
+          tree.git.root:add_file(file)
+        elseif git_node and git_status_changed then
+          if not git_node:git_status() then
+            tree.git.root:remove_file(file)
+          end
+        end
+      end
+
+      if tree.tabpage == tabpage and ui.is_open() then
+        ui.update(tree.root)
+      end
+    end)
   end
 end
 
@@ -379,9 +364,7 @@ local function on_dir_changed(scope, new_cwd, window_change)
   end
 end
 
----@async
 local function on_diagnostics_changed()
-  scheduler()
   ---@type table<string, number>
   local new_diagnostics = {}
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
@@ -462,17 +445,13 @@ function M.setup()
   if config.auto_open.on_new_tab then
     api.nvim_create_autocmd("TabNewEntered", {
       group = group,
-      callback = void(function()
-        on_tab_new_entered()
-      end),
+      callback = void(on_tab_new_entered),
       desc = "Opening the tree on new tabs",
     })
   end
   api.nvim_create_autocmd("TabEnter", {
     group = group,
-    callback = void(function()
-      on_tab_enter()
-    end),
+    callback = on_tab_enter,
     desc = "Redraw the tree when switching tabs",
   })
   api.nvim_create_autocmd("TabClosed", {
@@ -519,9 +498,9 @@ function M.setup()
   api.nvim_create_autocmd({ "BufDelete", "TermClose" }, {
     group = group,
     pattern = "*",
-    callback = function(input)
+    callback = void(function(input)
       on_buf_delete_and_term_close(input.match, input.buf)
-    end,
+    end),
     desc = "Updating buffers view",
   })
   api.nvim_create_autocmd("BufModifiedSet", {
@@ -535,9 +514,9 @@ function M.setup()
     api.nvim_create_autocmd("BufWritePost", {
       group = group,
       pattern = "*",
-      callback = function(input)
+      callback = void(function(input)
         on_buf_write_post(input.match, input.buf)
-      end,
+      end),
       desc = "Update tree on buffer writes, git status",
     })
   end
@@ -558,7 +537,7 @@ function M.setup()
     api.nvim_create_autocmd("DiagnosticChanged", {
       group = group,
       pattern = "*",
-      callback = debounce_trailing(void(on_diagnostics_changed), config.diagnostics.debounce_time),
+      callback = debounce_trailing(on_diagnostics_changed, config.diagnostics.debounce_time),
       desc = "Diagnostic icons in the tree",
     })
   end

@@ -48,6 +48,11 @@ function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
   return this
 end
 
+---@return boolean hidden
+function BufferNode:is_hidden()
+  return false
+end
+
 ---@return boolean is_container
 function BufferNode:is_container()
   return self.type == "container" or self.type == "directory"

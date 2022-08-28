@@ -290,6 +290,27 @@ function Node:diagnostics_severity()
   return diagnostics.of(self.path)
 end
 
+---@alias hidden_reason "filter" | "git"
+
+---@param config YaTreeConfig
+---@return boolean hidden
+---@return hidden_reason? reason
+function Node:is_hidden(config)
+  if config.filters.enable then
+    if config.filters.dotfiles and self:is_dotfile() then
+      return true, "filter"
+    elseif vim.tbl_contains(config.filters.custom, self.name) then
+      return true, "filter"
+    end
+  end
+  if not config.git.show_ignored then
+    if self:is_git_ignored() then
+      return true, "git"
+    end
+  end
+  return false
+end
+
 ---Returns an iterator function for this `node`s children.
 --
 ---@generic T : YaTreeNode

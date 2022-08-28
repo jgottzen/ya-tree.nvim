@@ -78,6 +78,23 @@ local M = {
   INFO_DATE = "YaTreeInfoDate",
 }
 
+---@param number number
+---@return string
+local function dec_to_hex(number)
+  return string.format("%06x", number)
+end
+
+---@param name string
+---@param fallback string
+---@return string
+local function get_foreground_color_from_hl(name, fallback)
+  local success, group = pcall(api.nvim_get_hl_by_name, name, true)
+  if success and group.foreground then
+    return "#" .. dec_to_hex(group.foreground)
+  end
+  return fallback
+end
+
 ---@param name string
 ---@param links? string[]
 ---@param highlight? {fg: string, bg?: string, bold?: boolean, italic?: boolean}
@@ -105,6 +122,8 @@ local function create_highlight(name, links, highlight, fallback)
 end
 
 function M.setup()
+  local normal_fg = get_foreground_color_from_hl("Normal", "#d4be98")
+
   create_highlight(M.ROOT_NAME, nil, { fg = "#ddc7a1", bold = true })
 
   create_highlight(M.INDENT_MARKER, nil, { fg = "#5a524c" })
@@ -134,7 +153,7 @@ function M.setup()
   create_highlight(M.OPENED_FILE_NAME, { "TSKeyword" }, nil, "#d3869b")
   create_highlight(M.ERROR_FILE_NAME, nil, { fg = "#080808", bg = "#ff0000" })
 
-  create_highlight(M.MODIFIED, nil, { fg = "#cb8327", bold = true })
+  create_highlight(M.MODIFIED, nil, { fg = normal_fg, bold = true })
 
   create_highlight(M.SYMBOLIC_LINK, nil, { fg = "#7daea3", italic = true })
 

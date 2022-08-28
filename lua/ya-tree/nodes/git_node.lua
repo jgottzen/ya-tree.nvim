@@ -27,6 +27,33 @@ function GitNode:new(fs_node, parent)
   return this
 end
 
+---@param node YaTreeNode
+---@return boolean displayable
+local function is_any_child_displayable(node)
+  for _, child in ipairs(node.children) do
+    if not child:is_git_ignored() then
+      if child:is_directory() and is_any_child_displayable(child) then
+        return true
+      elseif child:is_file() then
+        return true
+      end
+    end
+  end
+  return false
+end
+
+---@param config YaTreeConfig
+---@return boolean hidden
+---@return hidden_reason? reason
+function GitNode:is_hidden(config)
+  if not config.git.show_ignored then
+    if self:is_git_ignored() or (self:is_directory() and not is_any_child_displayable(self)) then
+      return true, "git"
+    end
+  end
+  return false
+end
+
 ---@private
 function GitNode:_scandir() end
 
