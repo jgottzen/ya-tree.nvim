@@ -16,50 +16,47 @@ local M = {
 
 ---@alias clipboard_action "copy" | "cut"
 
----@param node YaTreeNode
+---@param tree YaTree
 ---@param action clipboard_action
-local function add_or_remove_or_replace_in_queue(node, action)
-  for i, item in ipairs(M.queue) do
-    if item.path == node.path then
-      if item.clipboard_status == action then
-        table.remove(M.queue, i)
-        node:clear_clipboard_status()
-      else
-        node:set_clipboard_status(action)
-      end
-      return
-    elseif item:is_ancestor_of(node.path) then
-      return
-    end
-  end
-  M.queue[#M.queue + 1] = node
-  node:set_clipboard_status(action)
-end
-
----@async
-function M.copy_node()
-  local nodes = ui.get_selected_nodes()
-  for _, node in ipairs(nodes) do
+local function cut_or_copy_nodes(tree, action)
+  local update = false
+  for _, node in ipairs(ui.get_selected_nodes()) do
     -- copying the root node will not work
-    if not lib.is_node_root(node) then
-      add_or_remove_or_replace_in_queue(node, "copy")
+    if tree.root ~= node then
+      for i, item in ipairs(M.queue) do
+        if item.path == node.path then
+          if item.clipboard_status == action then
+            table.remove(M.queue, i)
+            node:clear_clipboard_status()
+          else
+            node:set_clipboard_status(action)
+          end
+          return
+        elseif item:is_ancestor_of(node.path) then
+          return
+        end
+      end
+      M.queue[#M.queue + 1] = node
+      node:set_clipboard_status(action)
+      update = true
     end
   end
 
-  lib.redraw()
+  if update then
+    ui.update(tree)
+  end
 end
 
 ---@async
-function M.cut_node()
-  local nodes = ui.get_selected_nodes()
-  for _, node in ipairs(nodes) do
-    -- cutting the root node will not work
-    if not lib.is_node_root(node) then
-      add_or_remove_or_replace_in_queue(node, "cut")
-    end
-  end
+---@param tree YaTree
+function M.copy_node(tree)
+  cut_or_copy_nodes(tree, "copy")
+end
 
-  lib.redraw()
+---@async
+---@param tree YaTree
+function M.cut_node(tree)
+  cut_or_copy_nodes(tree, "cut")
 end
 
 ---@async
@@ -123,11 +120,12 @@ local function clear_clipboard()
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.paste_nodes(node)
+function M.paste_nodes(tree, node)
   -- paste can only be done into directories
   if not node:is_directory() then
-    node = node.parent --[[@as YaTreeNode]]
+    node = node.parent
     if not node then
       return
     end
@@ -144,16 +142,17 @@ function M.paste_nodes(node)
     -- let the event loop catch up if there was a very large amount of files pasted
     scheduler()
     clear_clipboard()
-    lib.refresh_tree(first_file)
+    lib.refresh_tree_and_goto_path(tree, first_file)
   else
     utils.notify("Nothing in clipboard")
   end
 end
 
 ---@async
-function M.clear_clipboard()
+---@param tree YaTree
+function M.clear_clipboard(tree)
   clear_clipboard()
-  lib.redraw()
+  ui.update(tree)
   utils.notify("Clipboard cleared!")
 end
 
@@ -165,15 +164,17 @@ local function copy_to_system_clipboard(content)
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.copy_name_to_clipboard(node)
+function M.copy_name_to_clipboard(_, node)
   copy_to_system_clipboard(node.name)
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.copy_root_relative_path_to_clipboard(node)
-  local relative = utils.relative_path_for(node.path, lib.get_root_path())
+function M.copy_root_relative_path_to_clipboard(tree, node)
+  local relative = utils.relative_path_for(node.path, tree.root.path)
   if node:is_directory() then
     relative = relative .. utils.os_sep
   end
@@ -181,8 +182,9 @@ function M.copy_root_relative_path_to_clipboard(node)
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.copy_absolute_path_to_clipboard(node)
+function M.copy_absolute_path_to_clipboard(_, node)
   copy_to_system_clipboard(node.path)
 end
 

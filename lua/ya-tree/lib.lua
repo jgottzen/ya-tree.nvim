@@ -3,10 +3,8 @@ local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
-local fs = require("ya-tree.filesystem")
-local git = require("ya-tree.git")
-local Nodes = require("ya-tree.nodes")
 local job = require("ya-tree.job")
+local Trees = require("ya-tree.trees")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
@@ -20,415 +18,31 @@ local uv = vim.loop
 -- filesystem and repository scanning again.
 local setting_up = false
 
-local M = {
-  ---@private
-  ---@type table<string, YaTree>
-  _trees = {},
-  ---@private
-  ---@type table<GitRepo, number[]>
-  _repo_tabpages = {},
-  ---@private
-  ---@type table<GitRepo, string>
-  _repo_listeners = {},
-}
+local M = {}
 
----@class YaTree
----@field public tabpage number the current tabpage.
----@field public cwd string the workding directory of the tabpage.
----@field public refreshing boolean if the tree is currently refreshing.
----@field public root YaTreeNode|YaTreeSearchNode|YaTreeBufferNode|YaTreeGitNode the root of the current tree.
----@field public current_node? YaTreeNode the currently selected node.
----@field public files YaFilesTree the current files tree.
----@field public search YaSearchTree the current search tree.
----@field public buffers YaBufferTree the buffers tree info.
----@field public git YaGitTree the git status info.
-
----@class YaFilesTree
----@field public root YaTreeNode the root fo the tree.
----@field public current_node? YaTreeNode the currently selected node.
-
----@class YaSearchTree
----@field public root? YaTreeSearchNode the root of the search tree.
----@field public current_node? YaTreeSearchNode the currently selected node.
-
----@class YaBufferTree
----@field public root? YaTreeBufferNode
----@field public current_node? YaTreeBufferNode
-
----@class YaGitTree
----@field public root? YaTreeGitNode
----@field public current_node? YaTreeGitNode
-
-local Tree = {}
-
-local add_git_change_listener
-do
-  ---@async
-  ---@param repo GitRepo
-  ---@param listener_id string
-  ---@param fs_changes boolean
-  local function on_git_change(repo, listener_id, fs_changes)
-    if vim.v.exiting ~= vim.NIL or M._repo_listeners[repo] ~= listener_id then
-      return
-    end
-    log.debug("git repo %s changed", tostring(repo))
-
-    scheduler()
-    ---@type number
-    local tabpage = api.nvim_get_current_tabpage()
-    local tabpages = M._repo_tabpages[repo]
-    if tabpages then
-      for _, tab in ipairs(tabpages) do
-        local tree = Tree.get_tree(tab)
-        if tree then
-          if fs_changes then
-            log.debug("git listener called with fs_changes=true, refreshing tree")
-            if tree.git.root then
-              tree.git.root:refresh({ refresh_git = false })
-            end
-            local node = tree.files.root:get_child_if_loaded(repo.toplevel)
-            if node then
-              log.debug("repo %s is loaded in node %q", tostring(repo), node.path)
-              node:refresh({ recurse = true })
-            elseif tree.files.root.path:find(repo.toplevel, 1, true) ~= nil then
-              log.debug("tree root %q is a subdirectory of repo %s", tree.files.root.path, tostring(repo))
-              tree.files.root:refresh({ recurse = true })
-            end
-          end
-          scheduler()
-          if tabpage == tree.tabpage and ui.is_open() then
-            -- get the current node to keep the cursor on it, if `fs_changes` and the tree changed
-            ui.update(tree.root, ui.get_current_node())
-          end
-        end
-      end
-    end
-  end
-
-  ---@param tabpage number
-  ---@param repo GitRepo
-  add_git_change_listener = function(tabpage, repo)
-    if config.git.enable and config.git.watch_git_dir then
-      local tabpages = M._repo_tabpages[repo]
-      if not tabpages then
-        if M._repo_listeners[repo] ~= nil then
-          log.error("repo %s already has a listener_id %q registered", tostring(repo), M._repo_listeners[repo])
-        end
-        local listener_id = repo:add_git_change_listener(on_git_change)
-        if listener_id then
-          M._repo_tabpages[repo] = { tabpage }
-          M._repo_listeners[repo] = listener_id
-          log.debug("attached git listener for tree %s to git repo %s with id %s", tabpage, tostring(repo), listener_id)
-        else
-          log.error("failed to add git change listener for tree %s to git repo %s", tabpage, tostring(repo))
-        end
-      else
-        tabpages[#tabpages + 1] = tabpage
-        log.debug("added repo %s to tree %s", tostring(repo), tabpage)
-      end
-    end
-  end
-end
-
-do
-  ---@param tree YaTree
-  ---@return string
-  local function tree_tostring(tree)
-    return string.format("(tabpage=%s, cwd=%q, root=%q)", tree.tabpage, tree.cwd, tree.root.path)
-  end
-
-  ---@private
-  ---@param tabpage? number
-  ---@return YaTree tree
-  function Tree.get_tree(tabpage)
-    ---@type number
-    tabpage = tabpage or api.nvim_get_current_tabpage()
-    return M._trees[tostring(tabpage)]
-  end
-
-  ---@async
-  ---@param root_path string
-  ---@param tabpage? number
-  ---@return YaTree tree
-  local function create_tree(root_path, tabpage)
-    if not tabpage then
-      scheduler()
-      tabpage = api.nvim_get_current_tabpage() --[[@as number]]
-    end
-    local cwd = uv.cwd() --[[@as string]]
-    local root_node = Nodes.create_filesystem_tree(root_path)
-    ---@type YaTree
-    local tree = {
-      tabpage = tabpage,
-      cwd = cwd,
-      refreshing = false,
-      root = root_node,
-      current_node = nil,
-      files = {
-        root = root_node,
-        current_node = root_node,
-      },
-      search = {
-        root = nil,
-        current_node = nil,
-      },
-      buffers = {
-        root = nil,
-        current_node = nil,
-      },
-      git = {
-        root = nil,
-        current_node = nil,
-      },
-    }
-    setmetatable(tree, { __tostring = tree_tostring })
-    M._trees[tostring(tabpage)] = tree
-    log.debug("created new tree %s", tostring(tree))
-
-    return tree
-  end
-
-  ---@async
-  ---@param tabpage number
-  ---@param root_path? string
-  ---@return YaTree tree
-  function Tree.get_or_create_tree(tabpage, root_path)
-    root_path = root_path or uv.cwd()
-    if not fs.is_directory(root_path) then
-      root_path = Path:new(root_path):parent():absolute() --[[@as string]]
-    end
-    log.debug("getting or creating tree for %q", root_path)
-    local tree = Tree.get_tree(tabpage)
-    if tree then
-      if tree.files.root.path == root_path then
-        log.debug("current tree %s root is the same as the requested root %s", tostring(tree), root_path)
-        return tree
-      else
-        log.debug("current tree %s doesn't have the requested root %q", tostring(tree), root_path)
-        M._delete_tree(tree.tabpage)
-      end
-    end
-
-    tree = create_tree(root_path, tabpage)
-    if config.git.enable then
-      local repo = git.create_repo(root_path)
-      if repo then
-        tree.files.root:set_git_repo(repo)
-        repo:refresh_status({ ignored = true })
-        add_git_change_listener(tree.tabpage, repo)
-      end
-    end
-    return tree
-  end
-
-  ---@async
-  ---@param tree YaTree
-  ---@param new_root string
-  ---@return YaTree|nil tree returns `nil` if the current tree cannot walk up or down to reach the specified directory.
-  local function update_tree_root_node(tree, new_root)
-    tree.refreshing = true
-    if tree.files.root.path ~= new_root then
-      local root
-      if tree.files.root:is_ancestor_of(new_root) then
-        log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(tree), new_root)
-        -- the new root is located 'below' the current root,
-        -- if it's already loaded in the tree, use that node as the root, else expand to it
-        root = tree.files.root:get_child_if_loaded(new_root)
-        if root then
-          root:expand({ force_scan = true })
-        else
-          root = tree.files.root:expand({ force_scan = true, to = new_root })
-        end
-      elseif tree.files.root.path:find(Path:new(new_root):absolute(), 1, true) then
-        log.debug("current tree %s is a child of new root %q, creating parents up to it", tostring(tree), new_root)
-        -- the new root is located 'above' the current root,
-        -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
-        root = tree.files.root
-        while root.parent do
-          root = root.parent --[[@as YaTreeNode]]
-          root:refresh()
-          if root.path == new_root then
-            break
-          end
-        end
-
-        while root.path ~= new_root do
-          root = Nodes.create_filesystem_tree(Path:new(root.path):parent().filename, root)
-        end
-      else
-        log.debug("current tree %s is not a child or ancestor of %q", tostring(tree), new_root)
-      end
-
-      if not root then
-        log.debug("cannot walk the tree to find a node for %q, returning nil", new_root)
-        return nil
-      else
-        tree.root = root
-        tree.files.root = root
-      end
-    else
-      log.debug("the new root %q is the same as the current root %s, skipping", new_root, tostring(tree.root))
-    end
-
-    tree.refreshing = false
-    return tree
-  end
-
-  ---@async
-  ---@param tree YaTree
-  ---@param new_root string|YaTreeNode
-  ---@return YaTree tree
-  function Tree.update_tree_root_node(tree, new_root)
-    if type(new_root) == "string" then
-      log.debug("new root is string %q", new_root)
-      if not fs.is_directory(new_root) then
-        new_root = Path:new(new_root):parent():absolute() --[[@as string]]
-      end
-      local new_tree = update_tree_root_node(tree, new_root)
-      if not new_tree then
-        log.debug("root %q could not be found walking the old tree %q, creating a new tree", new_root, tree.files.root.path)
-        new_tree = Tree.get_or_create_tree(tree.tabpage, new_root)
-      end
-      return new_tree
-    elseif type(new_root) == "table" then
-      ---@cast new_root YaTreeNode
-      if tree.files.root.path ~= new_root.path then
-        log.debug("new root is node %q", tostring(new_root))
-        tree.refreshing = true
-        tree.root = new_root
-        tree.root:expand({ force_scan = true })
-        tree.files.root = new_root
-        tree.refreshing = false
-      else
-        log.debug("the new root %q is the same as the current root %s, skipping", tostring(new_root), tostring(tree.root))
-      end
-      return tree
-    else
-      log.error("new_root is of a type %q, which is not supported, returning old tree", type(new_root))
-      return tree
-    end
-  end
-end
-
-M._get_tree = Tree.get_tree
-
----@private
----@param cb fun(tree: YaTree)
-function M._for_each_tree(cb)
-  for _, tree in pairs(M._trees) do
-    cb(tree)
-  end
-end
-
----@private
----@param tabpage number
-function M._delete_tree(tabpage)
-  local tree = M._trees[tostring(tabpage)]
-  if tree then
-    log.debug("deleting tree for tabpage %s", tabpage)
-    M._trees[tostring(tabpage)] = nil
-  end
-
-  for repo, tabpages in pairs(M._repo_tabpages) do
-    for index, tab in ipairs(tabpages) do
-      if tab == tabpage then
-        log.debug("removing tab %s from repo %s list of tabpages", tab, tostring(repo))
-        table.remove(tabpages, index)
-        break
-      end
-    end
-    if #tabpages == 0 then
-      log.debug("no tree contains repo %s, removing it", tostring(repo))
-      local listener_id = M._repo_listeners[repo]
-      if not listener_id then
-        log.error("no listener_id registered for repo %s", tostring(repo))
-      else
-        repo:remove_git_change_listener(listener_id)
-      end
-      if not repo:has_git_listeners() then
-        git.remove_repo(repo)
-      end
-      M._repo_tabpages[repo] = nil
-      M._repo_listeners[repo] = nil
-    end
-  end
-end
-
----@private
----@param tabindex number
----@return number? tabpage
-function M._tabindex_to_tabpage(tabindex)
-  ---@type number[]
-  local tabpages = {}
-  for tab in pairs(M._trees) do
-    tabpages[#tabpages + 1] = tonumber(tab)
-  end
-  table.sort(tabpages)
-  return tabpages[tabindex]
-end
-
----@param node YaTreeNode
----@return boolean is_node_root
-function M.is_node_root(node)
-  return Tree.get_tree().root.path == node.path
-end
-
----@return string root_path
-function M.get_root_path()
-  return Tree.get_tree().root.path
-end
-
---- Resolves the `path` in the `tree`.
----@param tree YaTree
 ---@param path string
 ---@return string|nil path the fully resolved path, or `nil`
-local function resolve_path_in_tree(tree, path)
+local function resolve_path(path)
   if not utils.is_absolute_path(path) then
-    -- a relative path is relative to the current cwd, not the tree's root node
+    -- a relative path is relative to the current cwd
     path = Path:new({ uv.cwd(), path }):absolute() --[[@as string]]
     log.debug("expanded cwd relative path to %s", path)
   end
-
-  if path:find(tree.root.path, 1, true) then
-    log.debug("found path %q in tree root %q", path, tree.root.path)
-    -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
-    if path:sub(-1) == utils.os_sep then
-      path = path:sub(1, -2)
-    end
-
-    return path
-  end
-end
-
----@async
----@param tree YaTree
-local function create_buffers_tree(tree)
-  tree.buffers.root, tree.buffers.current_node = Nodes.create_buffers_tree(tree.files.root.path)
-  tree.root = tree.buffers.root
-  tree.current_node = tree.buffers.current_node
-end
-
----@async
----@param tree YaTree
----@param repo GitRepo
-local function create_git_tree(tree, repo)
-  tree.git.root, tree.git.current_node = Nodes.create_git_tree(repo)
-  tree.root = tree.git.root
-  tree.current_node = tree.git.current_node
+  return path
 end
 
 ---@class YaTreeLib.OpenWindow
 ---@field path? string
 ---@field switch_root? boolean
 ---@field focus? boolean
----@field view_mode? YaTreeCanvasViewMode
+---@field tree_type? YaTreeType|string
 
 ---@async
 ---@param opts? YaTreeLib.OpenWindow
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
----  - {opts.view_mode?} `YaTreeCanvasViewMode`
+---  - {opts.tree_type?} `YaTreeName|string`
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")
@@ -442,13 +56,25 @@ function M.open_window(opts)
   opts = opts or {}
   log.debug("opening window with %s", opts)
   -- If the switch_root flag is true and a file is given _and_ the appropriate config flag is set,
-  -- we need to update the tree with the new cwd and root _before_ issuing the `tcd` command, since
+  -- we need to update the filesystem tree with the new cwd and root _before_ issuing the `tcd` command, since
   -- control passes to the handler. Issuing it after will be a no-op since since the tree cwd is already set.
   local issue_tcd = false
 
   scheduler()
-  local tree
   local tabpage = api.nvim_get_current_tabpage() --[[@as number]]
+
+  local tree
+  if opts.tree_type then
+    tree = Trees.get_tree(tabpage, opts.tree_type, true)
+    if not tree then
+      local path = opts.path and resolve_path(opts.path) or uv.cwd()
+      tree = Trees.new_tree(tabpage, opts.tree_type, true, path)
+      if not tree then
+        utils.warn(string.format("Could not create tree for path %q", path))
+      end
+    end
+  end
+
   if opts.switch_root and opts.path then
     issue_tcd = config.cwd.update_from_tree
     local path = Path:new(opts.path)
@@ -458,60 +84,38 @@ function M.open_window(opts)
       cwd = path:absolute() --[[@as string]]
     end
     if path:exists() then
-      log.debug("switching tree cwd to %q", cwd)
-      tree = Tree.get_tree()
+      log.debug("switching cwd to %q", cwd)
+      tree = Trees.filesystem(tabpage, true)
       if tree then
-        tree = Tree.update_tree_root_node(tree, cwd)
+        tree:change_root_node(cwd)
       else
-        tree = Tree.get_or_create_tree(tabpage, cwd)
+        tree = Trees.new_filesystem(tabpage, true, cwd)
       end
       if config.cwd.update_from_tree then
         -- updating the root node doesn't change the cwd, so set it
         tree.cwd = cwd
       end
       scheduler()
-      -- when switching root and creating a new tree, force the view mode to 'files',
-      -- otherwise visual inconsistencies can arise
-      ui.set_view_mode("files")
     else
       utils.warn(string.format("Path %q doesn't exist.\nUsing %q as tree root", opts.path, uv.cwd()))
-      tree = Tree.get_or_create_tree(tabpage)
+      tree = Trees.current_tree(tabpage)
     end
-  else
-    tree = Tree.get_or_create_tree(tabpage)
+  end
+
+  if not tree then
+    tree = Trees.current_tree(tabpage)
+    if not tree then
+      tree = Trees.new_filesystem(tabpage, true)
+    end
   end
 
   ---@type string|nil
   local path
   if opts.path then
-    path = resolve_path_in_tree(tree, opts.path)
+    path = resolve_path(opts.path)
     if not path then
-      log.info("%q cannot be resolved in the current tree (cwd=%q, root=%q)", opts.path, uv.cwd(), tree.root.path)
+      log.info("%q cannot be resolved in relation to the current cwd %q", opts.path, uv.cwd())
     end
-  end
-
-  if opts.view_mode == "files" then
-    tree.root = tree.files.root
-  elseif opts.view_mode == "buffers" then
-    if not tree.buffers.root then
-      create_buffers_tree(tree)
-    else
-      tree.root = tree.buffers.root
-    end
-  elseif opts.view_mode == "git" then
-    if not tree.git.root then
-      local repo = path and git.create_repo(path) or tree.files.root.repo
-      if repo then
-        create_git_tree(tree, repo)
-      else
-        utils.warn(string.format("Could not find a Git repository in path %q", tree.files.root.path))
-      end
-    else
-      tree.root = tree.git.root
-    end
-  elseif opts.view_mode ~= nil then
-    log.error("view mode %q is not supported when opening the window", opts.view_mode)
-    opts.view_mode = nil
   end
 
   local node
@@ -528,13 +132,13 @@ function M.open_window(opts)
       end
       log.debug("navigating to %q", path)
     else
-      -- need to check if the view_mode is explicitly "files"
-      if opts.view_mode and opts.view_mode == "files" then
+      -- need to check if the `tree_type` is explicitly "files"
+      if opts.tree_type and opts.tree_type == "files" then
         log.error("cannot expand to file %q in with root %s", path, tostring(tree.root))
         utils.warn(string.format("Path %q is not a file or directory", opts.path))
       else
-        log.debug("cannot expand to node %q in view %q", path, opts.view_mode)
-        utils.notify(string.format("Path %q is not available in the %s view", path, opts.view_mode or "current"))
+        log.debug("cannot expand to node %q in view %q", path, opts.tree_type)
+        utils.notify(string.format("Path %q is not available in the %s view", path, opts.tree_type or "current"))
       end
     end
   elseif config.follow_focused_file then
@@ -551,33 +155,24 @@ function M.open_window(opts)
   scheduler()
   if ui.is_open() then
     local ui_node = ui.get_current_node()
-    local view_mode = ui.get_view_mode()
-    if view_mode == "files" then
-      tree.files.current_node = ui_node
-    elseif view_mode == "search" then
-      tree.search.current_node = ui_node --[[@as YaTreeSearchNode]]
-    elseif view_mode == "buffers" then
-      tree.buffers.current_node = ui_node --[[@as YaTreeBufferNode]]
-    elseif view_mode == "git" then
-      tree.git.current_node = ui_node --[[@as YaTreeGitNode]]
-    end
+    tree.current_node = ui_node
 
     if not node then
       node = ui_node
     end
   end
-  if ui.is_open() and not opts.view_mode then
+  if ui.is_open() and not opts.tree_type then
     if opts.focus then
       ui.focus()
     end
-    ui.update(tree.root, node)
+    ui.update(tree, node)
   else
-    ui.open(tree.root, node, { focus = opts.focus, focus_edit_window = not opts.focus, view_mode = opts.view_mode })
+    ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus })
   end
 
   if issue_tcd then
-    log.debug("issueing tcd autocmd to %q", tree.files.root.path)
-    vim.cmd("tcd " .. fn.fnameescape(tree.files.root.path))
+    log.debug("issueing tcd autocmd to %q", tree.root.path)
+    vim.cmd("tcd " .. fn.fnameescape(tree.root.path))
   end
 end
 
@@ -595,17 +190,17 @@ function M.toggle_window()
 end
 
 function M.redraw()
-  local tree = Tree.get_tree()
+  local tree = Trees.current_tree(api.nvim_get_current_tabpage())
   if tree and ui.is_open() then
     log.debug("redrawing tree")
-    ui.update(tree.root)
+    ui.update(tree)
   end
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.toggle_node(node)
-  local tree = Tree.get_tree()
+function M.toggle_node(tree, node)
   if not node:is_container() or tree.root == node then
     return
   end
@@ -615,12 +210,12 @@ function M.toggle_node(node)
   else
     node:expand()
   end
-  ui.update(tree.root, node)
+  ui.update(tree, node)
 end
 
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.close_node(node)
-  local tree = Tree.get_tree()
+function M.close_node(tree, node)
   -- bail if the node is the root node
   if tree.root == node then
     return
@@ -635,23 +230,23 @@ function M.close_node(node)
       node = parent
     end
   end
-  ui.update(tree.root, node)
+  ui.update(tree, node)
 end
 
 ---@async
-function M.close_all_nodes()
-  local tree = Tree.get_tree()
+---@param tree YaTree
+function M.close_all_nodes(tree)
   tree.root:collapse({ recursive = true, children_only = true })
-  ui.update(tree.root, tree.root)
+  ui.update(tree, tree.root)
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.close_all_child_nodes(node)
-  local tree = Tree.get_tree()
+function M.close_all_child_nodes(tree, node)
   if node:is_container() then
     node:collapse({ recursive = true, children_only = true })
-    ui.update(tree.root, node)
+    ui.update(tree, node)
   end
 end
 
@@ -671,44 +266,58 @@ do
   end
 
   ---@async
+  ---@param tree YaTree
   ---@param node YaTreeNode
-  function M.expand_all_nodes(node)
-    local tree = Tree.get_tree()
+  function M.expand_all_nodes(tree, node)
     expand(tree.root, 1)
-    ui.update(tree.root, node)
+    ui.update(tree, node)
   end
 
   ---@async
+  ---@param tree YaTree
   ---@param node YaTreeNode
-  function M.expand_all_child_nodes(node)
+  function M.expand_all_child_nodes(tree, node)
     if node:is_container() then
-      local tree = Tree.get_tree()
       expand(node, 1)
-      ui.update(tree.root, node)
+      ui.update(tree, node)
     end
   end
 end
 
 ---@async
----@private
----@param tree YaTree
----@param new_root string|YaTreeNode
-function M._change_root_node_for_tree(tree, new_root)
-  log.debug("changing root node to %q for tree %s", tostring(new_root), tostring(tree))
+---@param tabpage integer
+---@param set_default? boolean
+---@param root? string
+local function get_or_create_filesystem_tree(tabpage, set_default, root)
+  local tree = Trees.filesystem(tabpage, set_default)
+  if not tree then
+    tree = Trees.new_filesystem(tabpage, set_default or false, root)
+  end
+  return tree
+end
 
-  scheduler()
-  ---@type number
-  local tabpage = api.nvim_get_current_tabpage()
-  tree = Tree.update_tree_root_node(tree, new_root)
-  if tree.tabpage == tabpage and ui.is_open() then
-    ui.open_files_view(tree.root, tree.current_node)
+---@async
+---@param tabpage integer
+---@param new_root YaTreeNode|string
+local function change_cwd(tabpage, new_root)
+  local tree = get_or_create_filesystem_tree(tabpage, true, new_root)
+  local new_cwd = type(new_root) == "string" and new_root or new_root.path
+
+  -- only issue a :tcd if the config is set, _and_ the path is different from the filesystem tree's cwd
+  if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
+    vim.cmd("tcd " .. fn.fnameescape(new_cwd))
+  elseif new_cwd ~= tree.root.path then
+    tree:change_root_node(new_root)
+    scheduler()
+    ui.update(tree, type(new_root) == "table" and new_root or tree.current_node)
   end
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.cd_to(node)
-  local tree = Tree.get_tree()
+function M.cd_to(tree, node)
+  local tabpage = api.nvim_get_current_tabpage()
   if node == tree.root then
     return
   end
@@ -719,82 +328,76 @@ function M.cd_to(node)
     node = node.parent --[[@as YaTreeNode]]
   end
   log.debug("cd to %q", node.path)
-
-  -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
-  if config.cwd.update_from_tree and node.path ~= tree.cwd then
-    vim.cmd("tcd " .. fn.fnameescape(node.path))
-  elseif node.path ~= tree.root.path then
-    M._change_root_node_for_tree(tree, node)
-  end
+  change_cwd(tabpage, node)
 end
 
 ---@async
----@param node YaTreeNode
-function M.cd_up(node)
-  local tree = Tree.get_tree()
-  if utils.is_root(tree.root.path) then
+function M.cd_up(tree)
+  local tabpage = api.nvim_get_current_tabpage()
+  if utils.is_root_directory(tree.root.path) then
     return
   end
 
   local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
   log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
-  -- save current position
-  tree.current_node = node
-  -- only issue a :tcd if the config is set, _and_ the path is different from the tree's cwd
-  if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
-    vim.cmd("tcd " .. fn.fnameescape(new_cwd))
-  else
-    M._change_root_node_for_tree(tree, tree.root.parent or new_cwd)
-  end
+  change_cwd(tabpage, tree.root.parent or new_cwd)
 end
 
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.toggle_ignored(node)
+function M.toggle_ignored(tree, node)
   config.git.show_ignored = not config.git.show_ignored
   log.debug("toggling git ignored to %s", config.git.show_ignored)
-  local tree = Tree.get_tree()
-  ui.update(tree.root, node)
+  ui.update(tree, node)
 end
 
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.toggle_filter(node)
+function M.toggle_filter(tree, node)
   config.filters.enable = not config.filters.enable
   log.debug("toggling filter to %s", config.filters.enable)
-  local tree = Tree.get_tree()
-  ui.update(tree.root, node)
+  ui.update(tree, node)
 end
 
 ---@async
+---@param tree YaFsTree
 ---@param node YaTreeNode
-function M.rescan_dir_for_git(node)
-  if not config.git.enable then
-    utils.notify("Git is not enabled.")
-    return
-  end
-  local tree = Tree.get_tree()
-  if tree.refreshing or vim.v.exiting ~= vim.NIL then
-    log.debug("refresh already in progress or vim is exiting, aborting refresh")
-    return
-  end
+---@return boolean found
+local function rescan_dir_for_git(tree, node)
   tree.refreshing = true
   log.debug("checking if %s is in a git repository", node.path)
 
   if not node:is_directory() then
     node = node.parent --[[@as YaTreeNode]]
   end
+  local found = false
   if not node.repo or node.repo:is_yadm() then
-    local repo = git.create_repo(node.path)
-    if repo then
-      node:set_git_repo(repo)
-      repo:refresh_status({ ignored = true })
-      add_git_change_listener(tree.tabpage, repo)
-      ui.update(tree.root, node)
-    else
-      utils.notify(string.format("No Git repository found in %q.", node.path))
-    end
+    found = tree:check_node_for_repo(node)
   end
   tree.refreshing = false
+  return found
+end
+
+---@async
+---@param _? YaTree
+---@param node YaTreeNode
+function M.rescan_dir_for_git(_, node)
+  if not config.git.enable then
+    utils.notify("Git is not enabled.")
+    return
+  end
+
+  local tree = Trees.filesystem(api.nvim_get_current_tabpage())
+  if not tree or tree.refreshing or vim.v.exiting ~= vim.NIL then
+    log.debug("refresh already in progress or vim is exiting, aborting refresh")
+    return false
+  end
+  if rescan_dir_for_git(tree, node) then
+    ui.update(tree, node)
+  else
+    utils.notify(string.format("No Git repository found in %q.", node.path))
+  end
 end
 
 ---@async
@@ -802,48 +405,33 @@ end
 ---@param term string
 function M.search(node, term)
   scheduler()
-  local tree = Tree.get_tree()
-
-  -- store the current node only once, before the search is done
-  if not ui.is_search_view_open() then
-    tree.files.current_node = node
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = Trees.search(tabpage, true)
+  if not tree then
+    tree = Trees.new_search(tabpage, true, node.path)
+  elseif tree.root.path ~= node.path then
+    tree:change_root_node(node.path)
   end
-
-  local cmd, args = utils.build_search_arguments(term, node.path, true)
-  if not cmd then
-    utils.warn("No suitable search command found!")
-    return
-  end
-
-  local result_node, matches_or_error
-  if not tree.search.root or tree.search.root.path ~= node.path then
-    tree.search.root, result_node, matches_or_error = Nodes.create_search_tree(node.path, term, cmd, args)
+  local matches_or_error = tree:search(term)
+  if type(matches_or_error) == "number" then
+    utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, node.path))
+    ui.update(tree, tree.current_node)
   else
-    result_node, matches_or_error = tree.search.root:search(term, cmd, args)
-  end
-  if result_node then
-    tree.search.current_node = result_node
-    tree.root = tree.search.root
-    tree.current_node = tree.search.current_node
-
-    utils.notify(string.format("%q found %s matches for %q in %q", cmd, matches_or_error, term, node.path))
-    ui.open_search_view(tree.search.root, tree.search.current_node)
-  else
-    utils.warn(string.format("%q failed with message:\n\n%s", cmd, matches_or_error))
+    utils.warn(string.format("Failed with message:\n\n%s", matches_or_error))
   end
 end
 
 function M.focus_first_search_result()
-  local tree = Tree.get_tree()
-  if tree.search.current_node then
-    ui.focus_node(tree.search.current_node)
+  local tree = Trees.current_tree(api.nvim_get_current_tabpage())
+  if tree and tree.TYPE == "search" and tree.current_node then
+    ui.focus_node(tree.current_node)
   end
 end
 
 ---@async
----@param node_or_path YaTreeNode|string
-function M.refresh_tree(node_or_path)
-  local tree = Tree.get_tree()
+---@param tree YaTree
+---@param node YaTreeNode
+function M.refresh_tree(tree, node)
   if tree.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return
@@ -851,81 +439,48 @@ function M.refresh_tree(node_or_path)
   tree.refreshing = true
   log.debug("refreshing current tree")
 
-  scheduler()
-  local node
-  if type(node_or_path) == "table" then
-    node = node_or_path --[[@as YaTreeNode]]
-  end
-  if ui.is_buffers_view_open() then
-    tree.buffers.root:refresh()
-  elseif ui.is_git_view_open() then
-    tree.git.root:refresh()
-  elseif ui.is_search_view_open() then
-    tree.search.root:refresh()
-  else
-    tree.files.root:refresh({ recurse = true, refresh_git = config.git.enable })
-    if type(node_or_path) == "string" then
-      node = tree.files.root:expand({ to = node_or_path })
-    elseif not node then
-      log.error("the node_or_path parameter is of an unsupported type %q", type(node_or_path))
-    end
-  end
-
-  ui.update(tree.root, node, { focus_node = true })
+  tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
+  ui.update(tree, node, { focus_node = true })
   tree.refreshing = false
 end
 
+---@async
 ---@param tree YaTree
----@param node? YaTreeSearchNode
-local function close_search(tree, node)
-  -- save the current node in the search tree
-  if node then
-    tree.search.current_node = node
-  end
-  tree.root = tree.files.root
-  tree.current_node = tree.files.current_node
-  ui.open_files_view(tree.root, tree.current_node)
+---@param path string
+function M.refresh_tree_and_goto_path(tree, path)
+  tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
+  local node = tree.root:expand({ to = path })
+  ui.update(tree, node, { focus_node = true })
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.goto_node_in_tree(node)
-  local tree = Tree.get_tree()
-  if ui.is_search_view_open() then
-    ---@cast node YaTreeSearchNode
-    close_search(tree, node)
-    return
-  elseif ui.is_buffers_view_open() then
-    if node:is_directory() or node:is_file() then
-      tree.buffers.current_node = node --[[@as YaTreeBufferNode]]
-    end
-  elseif ui.is_git_view_open() then
-    tree.git.current_node = node --[[@as YaTreeGitNode]]
-  end
-
-  tree.root = tree.files.root
-  tree.current_node = tree.root:expand({ to = node.path })
-  ui.open_files_view(tree.root, tree.current_node)
+function M.goto_node_in_tree(_, node)
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = get_or_create_filesystem_tree(tabpage, true)
+  local target_node = tree.root:expand({ to = node.path })
+  ui.update(tree, target_node)
 end
 
----@param node? YaTreeSearchNode
-function M.close_search(node)
-  close_search(Tree.get_tree(), node)
+---@async
+function M.close_search()
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = get_or_create_filesystem_tree(tabpage, true)
+  ui.update(tree, tree.current_node)
 end
 
----@param node YaTreeNode
-function M.show_last_search(node)
-  local tree = Tree.get_tree()
-  if tree.search.root then
-    tree.files.current_node = node
-    tree.root = tree.search.root
-    ui.open_search_view(tree.search.root, tree.search.current_node)
+function M.show_last_search()
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = Trees.search(tabpage, true)
+  if tree then
+    ui.update(tree, tree.current_node)
   end
 end
 
+---@param tree YaTree
 ---@param path string
-function M.search_for_node_in_tree(path)
-  local tree = Tree.get_tree()
+function M.search_for_node_in_tree(tree, path)
   local cmd, args = utils.build_search_arguments(path, tree.root.path, false)
   if not cmd then
     return
@@ -940,7 +495,7 @@ function M.search_for_node_in_tree(path)
       if #lines > 0 then
         local node = tree.root:expand({ to = lines[1] })
         scheduler()
-        ui.update(tree.root, node)
+        ui.update(tree, node)
       else
         utils.notify(string.format("%q cannot be found in the tree", path))
       end
@@ -951,45 +506,46 @@ function M.search_for_node_in_tree(path)
 end
 
 ---@async
+---@param current_tree YaTree
 ---@param node YaTreeNode
-function M.toggle_git_view(node)
-  local tree = Tree.get_tree()
-  if ui.is_git_view_open() then
-    tree.git.current_node = node --[[@as YaTreeGitNode]]
-    tree.root = tree.files.root
-    ui.open_files_view(tree.root, tree.files.current_node)
-  else
-    if not node.repo then
-      M.rescan_dir_for_git(node)
+function M.toggle_git_view(current_tree, node)
+  local tabpage = api.nvim_get_current_tabpage()
+
+  if current_tree.TYPE == "git" then
+    local tree = get_or_create_filesystem_tree(tabpage, true)
+    ui.update(tree, tree.current_node)
+  elseif current_tree.TYPE == "files" then
+    ---@cast current_tree YaFsTree
+    if not node.repo or node.repo:is_yadm() then
+      rescan_dir_for_git(current_tree, node)
     end
     if node.repo then
-      tree.files.current_node = node
-      if not tree.git.root or tree.git.root.repo ~= node.repo then
-        create_git_tree(tree, node.repo)
-      else
-        tree.root = tree.git.root
+      local tree = Trees.git(tabpage, true)
+      if not tree then
+        tree = Trees.new_git(tabpage, true, node.repo)
+      elseif tree.root.repo ~= node.repo then
+        tree:change_root_node(node.repo)
       end
-      ui.open_git_view(tree.git.root, tree.git.current_node)
+      ui.update(tree, tree.current_node)
     end
   end
 end
 
 ---@async
+---@param current_tree YaTree
 ---@param node YaTreeNode
-function M.toggle_buffers_view(node)
-  local tree = Tree.get_tree()
-  if ui.is_buffers_view_open() then
-    tree.buffers.current_node = node --[[@as YaTreeBufferNode]]
-    tree.root = tree.files.root
-    ui.open_files_view(tree.root, tree.files.current_node)
-  else
-    tree.files.current_node = node
-    if not tree.buffers.root then
-      create_buffers_tree(tree)
-    else
-      tree.root = tree.buffers.root
+function M.toggle_buffers_view(current_tree, node)
+  local tabpage = api.nvim_get_current_tabpage()
+
+  if current_tree.TYPE == "buffers" then
+    local tree = get_or_create_filesystem_tree(tabpage, true, node.path)
+    ui.update(tree, tree.current_node)
+  elseif current_tree.TYPE == "files" then
+    local tree = Trees.buffers(tabpage, true)
+    if not tree then
+      tree = Trees.new_buffers(tabpage, true, uv.cwd())
     end
-    ui.open_buffers_view(tree.buffers.root, tree.buffers.current_node)
+    ui.update(tree, tree.current_node)
   end
 end
 
@@ -1001,6 +557,101 @@ local function setup_netrw()
   end
 end
 
+---@param winid number
+local function on_win_closed(winid)
+  -- if the closed window was a floating window, do nothing.
+  -- otherwise we will quit from a hijacked netrw buffer when using
+  -- any form of popup, including command mode
+  if ui.is_window_floating(winid) or not ui.is_open() then
+    return
+  end
+
+  -- defer until the window in question has closed, so that we can check only the remaining windows
+  vim.defer_fn(function()
+    if #api.nvim_tabpage_list_wins(0) == 1 and vim.bo.filetype == "YaTree" then
+      -- check that there are no buffers with unsaved modifications,
+      -- if so, just return
+      for _, bufnr in ipairs(api.nvim_list_bufs()) do
+        if api.nvim_buf_is_loaded(bufnr) and api.nvim_buf_get_option(bufnr, "modified") then
+          return
+        end
+      end
+      log.debug("is last window, closing it")
+      api.nvim_command(":silent q!")
+    end
+  end, 100)
+end
+
+---@async
+---@param bufnr integer
+---@param file string
+local function on_buf_enter(bufnr, file)
+  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  if file == "" or not (buftype == "" or buftype == "terminal") then
+    return
+  end
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = Trees.current_tree(tabpage)
+
+  -- Must use a synchronous directory check here, otherwise a scheduler call is required before the call to ui.is_open,
+  -- the scheduler call will update the ui, and if the buffer was opened in the tree window, and the config option to
+  -- move it to the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the
+  -- edit window. Not very visually pleasing.
+  if config.replace_netrw and utils.is_directory_sync(file) then
+    -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
+    if file:sub(-1) == utils.os_sep then
+      file = file:sub(1, -2)
+    end
+    log.debug("the opened buffer is a directory with path %q", file)
+
+    if ui.is_current_window_ui() then
+      ui.restore()
+    else
+      -- switch back to the previous buffer so the window isn't closed
+      vim.cmd("bprevious")
+    end
+    log.debug("deleting buffer %s with file %q", bufnr, file)
+    api.nvim_buf_delete(bufnr, { force = true })
+
+    ---@type YaTreeLib.OpenWindow
+    local opts = { path = file, focus = true, tree_type = "files" }
+    if not tree then
+      log.debug("no tree for current tab")
+      ---@type string
+      local cwd = uv.cwd()
+      if file:find(cwd, 1, true) then
+        log.debug("requested directory is a subpath of the current cwd %q, opening tree with root at cwd", cwd)
+      else
+        log.debug("requested directory is not a subpath of the current cwd %q, opening tree with root of the requested path", cwd)
+        opts.switch_root = true
+      end
+    else
+      tree = Trees.filesystem(tabpage)
+      if not tree or not tree.root:is_ancestor_of(file) and tree.root.path ~= file then
+        log.debug("the current tree is not a parent for directory %s", file)
+        opts.switch_root = true
+      else
+        log.debug("current tree is parent of directory %s", file)
+      end
+    end
+
+    M.open_window(opts)
+  elseif tree and ui.is_open() then
+    if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
+      log.debug("moving buffer %s to edit window", bufnr)
+      ui.move_buffer_to_edit_window(bufnr)
+    end
+
+    if config.follow_focused_file then
+      log.debug("focusing on node %q", file)
+      local node = tree.root:expand({ to = file })
+      ui.update(tree, node, { focus_node = true })
+    elseif ui.is_highlight_open_file_enabled() then
+      ui.update(tree)
+    end
+  end
+end
+
 function M.setup()
   setting_up = true
   config = require("ya-tree.config").config
@@ -1008,26 +659,39 @@ function M.setup()
   setup_netrw()
 
   local is_directory = false
-  local root_path
+  local path
   if config.replace_netrw then
-    is_directory, root_path = utils.get_path_from_directory_buffer()
+    is_directory, path = utils.get_path_from_directory_buffer()
   end
   if not is_directory then
-    root_path = uv.cwd() --[[@as string]]
+    path = uv.cwd() --[[@as string]]
   end
 
   void(function()
-    local tree = Tree.get_or_create_tree(api.nvim_get_current_tabpage(), root_path)
+    local tree = get_or_create_filesystem_tree(api.nvim_get_current_tabpage(), true, path)
 
     scheduler()
     if is_directory or config.auto_open.on_setup then
       local focus = config.auto_open.on_setup and config.auto_open.focus_tree
-      ui.open(tree.root, tree.current_node, { hijack_buffer = is_directory, focus = focus, focus_edit_window = not focus })
+      ui.open(tree, tree.current_node, { hijack_buffer = is_directory, focus = focus, focus_edit_window = not focus })
     end
 
-    -- the autocmds must be set up last, this avoids triggering the BufNewFile event,
-    -- if the initial buffer is a directory
-    require("ya-tree.autocommands").setup()
+    local events = require("ya-tree.events")
+    local event = require("ya-tree.events.event")
+
+    events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", false, function(_, _, match)
+      if config.auto_close then
+        local winid = tonumber(match) --[[@as number]]
+        on_win_closed(winid)
+      end
+    end)
+    events.on_autocmd_event(event.TAB_NEW, "YA_TREE_LIB_AUTO_OPEN_NEW_TAB", true, function()
+      if config.auto_open.on_new_tab then
+        M.open_window({ focus = config.auto_open.focus_tree })
+      end
+    end)
+    events.on_autocmd_event(event.TAB_ENTERED, "YA_TREE_LIB_REDRAW_TAB", true, M.redraw)
+    events.on_autocmd_event(event.BUFFER_ENTERED, "YA_TREE_LIB_BUFFER_ENTERED", true, on_buf_enter)
 
     setting_up = false
   end)()

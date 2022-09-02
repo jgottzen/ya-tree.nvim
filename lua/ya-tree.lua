@@ -10,9 +10,9 @@ local M = {}
 ---@param path? string
 ---@param switch_root? boolean
 ---@param focus? boolean
----@param view_mode? string
-function M.open(path, switch_root, focus, view_mode)
-  void(require("ya-tree.lib").open_window)({ path = path, switch_root = switch_root, focus = focus, view_mode = view_mode })
+---@param tree_type? YaTreeType|string
+function M.open(path, switch_root, focus, tree_type)
+  void(require("ya-tree.lib").open_window)({ path = path, switch_root = switch_root, focus = focus, tree_type = tree_type })
 end
 
 function M.close()
@@ -58,14 +58,14 @@ local function complete_open(arg_lead, cmdline)
 
   local focus_completed = false
   local path_completed = false
-  local view_completed = false
+  local tree_type_completed = false
   for index = 2, i do
     if vim.startswith(splits[index], "focus=") then
       focus_completed = true
     elseif vim.startswith(splits[index], "path=") then
       path_completed = true
-    elseif vim.startswith(splits[index], "view=") then
-      view_completed = true
+    elseif vim.startswith(splits[index], "tree_type=") then
+      tree_type_completed = true
     end
   end
 
@@ -73,7 +73,7 @@ local function complete_open(arg_lead, cmdline)
     return fn.getcompletion(arg_lead:sub(6), "file")
   elseif not focus_completed and vim.startswith(arg_lead, "focus=") then
     return { "true", "false" }
-  elseif not view_completed and vim.startswith(arg_lead, "view=") then
+  elseif not tree_type_completed and vim.startswith(arg_lead, "tree_type=") then
     return { "files", "buffers", "git" }
   else
     local t = {}
@@ -83,32 +83,32 @@ local function complete_open(arg_lead, cmdline)
     if not path_completed then
       t[#t + 1] = "path=./"
     end
-    if not view_completed then
-      t[#t + 1] = "view="
+    if not tree_type_completed then
+      t[#t + 1] = "tree_type="
     end
     return t
   end
 end
 
 ---@param fargs string[]
----@return string|nil path, boolean focus, string|nil view
+---@return string|nil path, boolean focus, string|nil tree_type
 local function parse_open_command_input(fargs)
   ---@type string|nil
   local path = nil
   local focus = false
   ---@type string|nil
-  local view = nil
+  local tree_type = nil
   for _, arg in ipairs(fargs) do
     if vim.startswith(arg, "path=") then
       path = arg:sub(6)
     elseif vim.startswith(arg, "focus=") then
       focus = arg:sub(7) == "true"
-    elseif vim.startswith(arg, "view=") then
-      view = arg:sub(6)
+    elseif vim.startswith(arg, "tree_type=") then
+      tree_type = arg:sub(11)
     end
   end
 
-  return path, focus, view
+  return path, focus, tree_type
 end
 
 ---@param opts? YaTreeConfig
@@ -121,14 +121,16 @@ function M.setup(opts)
 
   log.trace("using config=%s", config)
 
+  require("ya-tree.trees").setup()
   require("ya-tree.actions").setup()
   require("ya-tree.git").setup()
   require("ya-tree.ui").setup()
+  require("ya-tree.diagnostics").setup()
   require("ya-tree.lib").setup()
 
   api.nvim_create_user_command("YaTreeOpen", function(input)
-    local path, focus, view = parse_open_command_input(input.fargs)
-    M.open(path, input.bang, focus, view)
+    local path, focus, tree_type = parse_open_command_input(input.fargs)
+    M.open(path, input.bang, focus, tree_type)
   end, { bang = true, nargs = "*", complete = complete_open, desc = "Open the tree view" })
   api.nvim_create_user_command("YaTreeClose", function()
     M.close()
@@ -140,10 +142,10 @@ function M.setup(opts)
     M.focus()
   end, { desc = "Focuses the tree view, opens it if not open" })
   api.nvim_create_user_command("YaTreeFindFile", function(input)
-    ---@type string
+    ---@type string?
     local file = input.args
-    if file == "" then
-      file = api.nvim_buf_get_name(0)
+    if not file or file == "" then
+      file = api.nvim_buf_get_name(0) --[[@as string]]
       file = fn.filereadable(file) == 1 and file or nil
     end
     M.open(file, input.bang, true)

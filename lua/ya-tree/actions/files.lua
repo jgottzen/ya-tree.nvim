@@ -20,12 +20,13 @@ local M = {}
 ---@alias cmd_mode "edit" | "vsplit" | "split" | "tabnew"
 
 ---@async
-function M.open()
+---@param tree YaTree
+function M.open(tree)
   local nodes = ui.get_selected_nodes()
   if #nodes == 1 then
     local node = nodes[1]
     if node:is_container() then
-      lib.toggle_node(node)
+      lib.toggle_node(tree, node)
     elseif node:is_file() then
       ui.open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
@@ -53,24 +54,27 @@ function M.open()
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.vsplit(node)
+function M.vsplit(_, node)
   if node:is_file() then
     ui.open_file(node.path, "vsplit")
   end
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.split(node)
+function M.split(_, node)
   if node:is_file() then
     ui.open_file(node.path, "split")
   end
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.preview(node)
+function M.preview(_, node)
   if node:is_file() then
     local already_loaded = vim.fn.bufloaded(node.path) > 0
     ui.open_file(node.path, "edit")
@@ -79,9 +83,8 @@ function M.preview(node)
     if not already_loaded then
       local bufnr = api.nvim_get_current_buf()
       vim.bo.bufhidden = "delete"
-      local group = api.nvim_create_augroup("YaTreeRemoveBufHidden", { clear = true })
       api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-        group = group,
+        group = api.nvim_create_augroup("YaTreeRemoveBufHidden", { clear = true }),
         buffer = bufnr,
         once = true,
         callback = function()
@@ -98,16 +101,18 @@ function M.preview(node)
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.tabnew(node)
+function M.tabnew(_, node)
   if node:is_file() then
     ui.open_file(node.path, "tabnew")
   end
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.add(node)
+function M.add(tree, node)
   if node:is_file() then
     node = node.parent --[[@as YaTreeNode]]
   end
@@ -132,7 +137,7 @@ function M.add(node)
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
         scheduler()
-        lib.refresh_tree(path)
+        lib.refresh_tree_and_goto_path(tree, path)
       else
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
       end
@@ -142,10 +147,11 @@ function M.add(node)
 end
 
 ---@async
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.rename(node)
+function M.rename(tree, node)
   -- prohibit renaming the root node
-  if lib.is_node_root(node) then
+  if tree.root == node then
     return
   end
 
@@ -160,16 +166,16 @@ function M.rename(node)
   if fs.rename(node.path, path) then
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
     scheduler()
-    lib.refresh_tree(path)
+    lib.refresh_tree_and_goto_path(tree, path)
   else
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
   end
 end
 
+---@param root_path string
 ---@return YaTreeNode[] nodes, string common_parent
-local function get_nodes_to_delete()
+local function get_nodes_to_delete(root_path)
   local nodes = ui.get_selected_nodes()
-  local root_path = lib.get_root_path()
 
   ---@type string[]
   local parents = {}
@@ -208,8 +214,9 @@ local function delete_node(node)
 end
 
 ---@async
-function M.delete()
-  local nodes, common_parent = get_nodes_to_delete()
+---@param tree YaTree
+function M.delete(tree)
+  local nodes, common_parent = get_nodes_to_delete(tree.root.path)
   if #nodes == 0 then
     return
   end
@@ -221,18 +228,19 @@ function M.delete()
   -- let the event loop catch up if there were a very large amount of files deleted
   scheduler()
   if refresh then
-    lib.refresh_tree(common_parent)
+    lib.refresh_tree_and_goto_path(tree, common_parent)
   end
 end
 
 ---@async
-function M.trash()
+---@param tree YaTree
+function M.trash(tree)
   local config = require("ya-tree.config").config
   if not config.trash.enable then
     return
   end
 
-  local nodes, common_parent = get_nodes_to_delete()
+  local nodes, common_parent = get_nodes_to_delete(tree.root.path)
   if #nodes == 0 then
     return
   end
@@ -257,7 +265,7 @@ function M.trash()
     log.debug("trashing files %s", files)
     job.run({ cmd = "trash", args = files, async_callback = true }, function(code, _, stderr)
       if code == 0 then
-        lib.refresh_tree(common_parent)
+        lib.refresh_tree_and_goto_path(tree, common_parent)
       else
         log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
         utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
@@ -267,8 +275,9 @@ function M.trash()
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.system_open(node)
+function M.system_open(_, node)
   local config = require("ya-tree.config").config
   if not config.system_open.cmd then
     utils.warn("No sytem open command set, or OS cannot be recognized!")
@@ -388,7 +397,7 @@ do
   }
 
   ---@type integer
-  local aug = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
+  local augroup = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
 
   ---@class NodeInfoPopup
   ---@field winid integer
@@ -505,11 +514,12 @@ do
   end
 
   ---@async
+  ---@param _ YaTree
   ---@param node YaTreeNode
-  function M.show_node_info(node)
+  function M.show_node_info(_, node)
     if popup ~= nil then
       if node.path == popup.path then
-        api.nvim_clear_autocmds({ group = aug })
+        api.nvim_clear_autocmds({ group = augroup })
         api.nvim_set_current_win(popup.winid)
       else
         close_popup()
@@ -547,7 +557,7 @@ do
       :open()
 
     api.nvim_create_autocmd("CursorMoved", {
-      group = aug,
+      group = augroup,
       callback = close_popup,
       once = true,
     })

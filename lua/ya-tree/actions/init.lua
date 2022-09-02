@@ -6,8 +6,11 @@ local help = require("ya-tree.ui.help")
 local clipboard = require("ya-tree.actions.clipboard")
 local files = require("ya-tree.actions.files")
 local search = require("ya-tree.actions.search")
+local Trees = require("ya-tree.trees")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
+
+local api = vim.api
 
 local M = {}
 
@@ -64,21 +67,21 @@ local M = {}
 ---@alias YaTreeActionMode "n" | "v" | "V"
 
 ---@class YaTreeAction
----@field fn async fun(node: YaTreeNode)
+---@field fn async fun(tree: YaTree, node: YaTreeNode)
 ---@field desc string
----@field views YaTreeCanvasViewMode[]
+---@field tree_types YaTreeType[]|string[]
 ---@field modes YaTreeActionMode[]
 
----@param fn async fun(node: YaTreeNode)
+---@param fn async fun(tree: YaTree, node: YaTreeNode)
 ---@param desc string
----@param views YaTreeCanvasViewMode[]
+---@param tree_types YaTreeType[]|string[]
 ---@param modes YaTreeActionMode[]
 ---@return YaTreeAction
-local function create_action(fn, desc, views, modes)
+local function create_action(fn, desc, tree_types, modes)
   return {
     fn = fn,
     desc = desc,
-    views = views,
+    tree_types = tree_types,
     modes = modes,
   }
 end
@@ -213,26 +216,30 @@ local actions = {
 ---@param mapping YaTreeActionMapping
 ---@return function|nil handler
 local function create_keymap_function(mapping)
-  ---@type fun(node: YaTreeNode)
   local fn
   if mapping.action then
-    local action = actions[mapping.action]
+    local action = actions[mapping.action] --[[@as YaTreeAction]]
     if action and action.fn then
-      fn = void(action.fn)
+      fn = void(action.fn) --[[@as fun(tree: YaTree, node: YaTreeNode)]]
     else
       log.error("action %q has no mapping", mapping.action)
       return nil
     end
   elseif mapping.fn then
-    fn = void(mapping.fn)
+    fn = void(mapping.fn) --[[@as fun(tree: YaTree, node: YaTreeNode)]]
   else
     log.error("cannot create keymap function for mappings %s", mapping)
     return nil
   end
 
+  local tree_types = mapping.tree_types
   return function()
-    if vim.tbl_contains(mapping.views, ui.get_view_mode()) then
-      fn(ui.get_current_node())
+    if vim.tbl_contains(tree_types, ui.get_tree_type()) then
+      local tabpage = api.nvim_get_current_tabpage()
+      local node = ui.get_current_node() --[[@as YaTreeNode]]
+      local tree = Trees.current_tree(tabpage) --[[@as YaTree]]
+      tree.current_node = node
+      fn(tree, node)
     end
   end
 end
@@ -250,12 +257,12 @@ function M.apply_mappings(bufnr)
 end
 
 ---@class YaTreeActionMapping
----@field views YaTreeCanvasViewMode[]
+---@field tree_types YaTreeType[]|string[]
 ---@field mode YaTreeActionMode
 ---@field key string
 ---@field desc string
 ---@field action? YaTreeActionName
----@field fn? async fun(node: YaTreeNode)
+---@field fn? async fun(tree: YaTree, node: YaTreeNode)
 
 ---@param mappings YaTreeConfig.Mappings
 ---@return YaTreeActionMapping[]
@@ -276,7 +283,7 @@ local function validate_and_create_mappings(mappings)
         local action = actions[name]
         for _, mode in ipairs(action.modes) do
           action_mappings[#action_mappings + 1] = {
-            views = action.views,
+            tree_types = action.tree_types,
             mode = mode,
             key = key,
             desc = action.desc,
@@ -290,7 +297,7 @@ local function validate_and_create_mappings(mappings)
       if type(fn) == "function" then
         for _, mode in ipairs(mapping.modes) do
           action_mappings[#action_mappings + 1] = {
-            views = mapping.views,
+            tree_types = mapping.tree_types,
             mode = mode,
             key = key,
             desc = mapping.desc or "User '<function>'",

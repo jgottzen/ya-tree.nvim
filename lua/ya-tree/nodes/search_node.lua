@@ -6,6 +6,7 @@ local git = require("ya-tree.git")
 local job = require("ya-tree.job")
 local log = require("ya-tree.log")
 local node_utils = require("ya-tree.nodes.utils")
+local utils = require("ya-tree.utils")
 
 ---@class YaTreeSearchNode : YaTreeNode
 ---@field public parent? YaTreeSearchNode
@@ -59,17 +60,22 @@ do
 
   ---@async
   ---@param term? string
-  ---@param cmd? string
-  ---@param args? string[]
   ---@return YaTreeSearchNode|nil first_leaf_node
   ---@return number|string nr_of_matches_or_error
-  function SearchNode:search(term, cmd, args)
+  function SearchNode:search(term)
     if self.parent then
-      return self.parent:search(term, cmd, args)
+      return self.parent:search(term)
     end
 
-    self.search_term = term and term or self.search_term
-    self._search_options = cmd and { cmd = cmd, args = args } or self._search_options
+    if term then
+      local cmd, args = utils.build_search_arguments(term, self.path, true)
+      if not cmd then
+        return nil, "No suitable search command found!"
+      end
+      self.search_term = term
+      self._search_options = { cmd = cmd, args = args }
+    end
+
     if not self.search_term or not self._search_options then
       return nil, "No search term or command supplied"
     end

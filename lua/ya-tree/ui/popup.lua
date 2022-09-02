@@ -3,7 +3,7 @@ local api = vim.api
 ---@type integer
 local ns = api.nvim_create_namespace("YaTreePopUp")
 ---@type integer
-local auto_close_aug = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true })
+local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true })
 
 local M = {}
 
@@ -225,7 +225,7 @@ function PopupBuilder:open(enter)
     ---@type integer
     local aucmd
     aucmd = api.nvim_create_autocmd("WinEnter", {
-      group = auto_close_aug,
+      group = auto_close_augroup,
       callback = function()
         local buftype = api.nvim_buf_get_option(0, "buftype")
         local filetype = api.nvim_buf_get_option(0, "filetype")

@@ -4,6 +4,7 @@ local wrap = require("plenary.async").wrap
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
+local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
 local job = require("ya-tree.job")
 local utils = require("ya-tree.utils")
@@ -11,7 +12,6 @@ local log = require("ya-tree.log")
 
 local os_sep = Path.path.sep
 
-local api = vim.api
 local uv = vim.loop
 
 local M = {
@@ -105,7 +105,6 @@ end
 ---@field private _is_yadm boolean
 ---@field private _git_dir string
 ---@field private _git_dir_watcher? uv_fs_poll_t
----@field private _git_listeners table<string, async fun(repo: GitRepo, listener_id: string, fs_changes: boolean)>
 local Repo = {}
 Repo.__index = Repo
 
@@ -179,7 +178,6 @@ function Repo:new(path)
     },
     _is_yadm = is_yadm,
     _git_dir = git_dir,
-    _git_listeners = {},
   }, self)
 
   this:_read_remote_url()
@@ -187,6 +185,9 @@ function Repo:new(path)
   log.debug("created Repo %s for %q", tostring(this), path)
   M.repos[this.toplevel] = this
 
+  if config.git.watch_git_dir then
+    this:add_git_watcher()
+  end
   return this
 end
 
@@ -205,23 +206,7 @@ function Repo:meta_status()
   return self._status
 end
 
-local get_next_listner_id
-do
-  local listener_id = 0
-
-  get_next_listner_id = function()
-    listener_id = listener_id + 1
-    return tostring(listener_id)
-  end
-end
-
----@param fn async fun(repo: GitRepo, listener_id: string, fs_changes: boolean)
----@return string|nil listener_id
-function Repo:add_git_change_listener(fn)
-  local listener_id = get_next_listner_id()
-  self._git_listeners[listener_id] = fn
-  log.debug("add git change listener %s with id %s", fn, listener_id)
-
+function Repo:add_git_watcher()
   if not self._git_dir_watcher then
     ---@param err string
     ---@type fun(err?: string)
@@ -232,25 +217,14 @@ function Repo:add_git_change_listener(fn)
         return
       end
 
-      if vim.tbl_count(self._git_listeners) == 0 then
-        log.error("the fs_poll callback was called without any registered listeners, stopping and removing the listener")
-        self._git_dir_watcher:stop()
-        self._git_dir_watcher = nil
-        return
-      end
-
       local fs_changes = self:refresh_status({ ignored = true })
-      for id, listener in pairs(self._git_listeners) do
-        pcall(listener, self, id, fs_changes)
-        scheduler()
-      end
+      events.fire_git_event(self, fs_changes)
     end)
 
     local result, message = uv.new_fs_poll()
     if result ~= nil then
       self._git_dir_watcher = result
     else
-      self._git_listeners[listener_id] = nil
       log.error("failed to create fs_poll for directory %s, error: %s", self._git_dir, message)
       return
     end
@@ -263,36 +237,20 @@ function Repo:add_git_change_listener(fn)
       pcall(self._git_dir_watcher.stop, self._git_dir_watcher)
       pcall(self._git_dir_watcher.close, self._git_dir_watcher)
       self._git_dir_watcher = nil
-      self._git_listeners[listener_id] = nil
       log.error("failed to start fs_poll for directory %s, error: %s", self._git_dir, message)
-      return
     end
   end
-
-  return listener_id
 end
 
----@param listener_id string
-function Repo:remove_git_change_listener(listener_id)
-  if not self._git_listeners[listener_id] then
-    log.error("no listener with id %s for repo %s", listener_id, tostring(self))
-    return
-  end
-
-  self._git_listeners[listener_id] = nil
-  log.debug("removed listener with id %s for repo %s", listener_id, tostring(self))
-
-  if vim.tbl_count(self._git_listeners) == 0 and self._git_dir_watcher ~= nil then
+function Repo:remove_git_watcher()
+  if self._git_dir_watcher ~= nil then
     self._git_dir_watcher:stop()
     self._git_dir_watcher:close()
     self._git_dir_watcher = nil
-    log.debug("the last listener was removed, stopping fs_poll for repo %s", tostring(self))
+    if vim.v.exiting == nil then
+      log.debug("the last listener was removed, stopping fs_poll for repo %s", tostring(self))
+    end
   end
-end
-
----@return boolean
-function Repo:has_git_listeners()
-  return self._git_dir_watcher ~= nil
 end
 
 ---@async
@@ -670,12 +628,7 @@ end
 
 ---@param repo GitRepo
 function M.remove_repo(repo)
-  if repo._git_dir_watcher ~= nil then
-    repo._git_dir_watcher:stop()
-    repo._git_dir_watcher:close()
-    repo._git_dir_watcher = nil
-    repo._git_listeners = {}
-  end
+  repo:remove_git_watcher()
   M.repos[repo.toplevel] = nil
   log.debug("removed repo %s from cache", tostring(repo))
 end
@@ -704,27 +657,15 @@ end
 
 local function on_vim_leave_pre()
   for _, repo in pairs(M.repos) do
-    if repo._git_dir_watcher then
-      repo._git_dir_watcher:stop()
-      repo._git_dir_watcher:close()
-      repo._git_dir_watcher = nil
-    end
+    repo:remove_git_watcher()
   end
 end
 
 function M.setup()
   config = require("ya-tree.config").config
 
-  ---@type number
-  local group = api.nvim_create_augroup("YaTreeGit", { clear = true })
-  api.nvim_create_autocmd("VimLeavePre", {
-    group = group,
-    pattern = "*",
-    callback = function()
-      on_vim_leave_pre()
-    end,
-    desc = "Clean up any .git directory pollers",
-  })
+  local event = require("ya-tree.events.event")
+  events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", false, on_vim_leave_pre)
 end
 
 return M

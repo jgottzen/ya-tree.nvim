@@ -9,8 +9,8 @@ local node_utils = require("ya-tree.nodes.utils")
 ---@field public repo GitRepo
 local GitNode = { __node_type = "Git" }
 GitNode.__index = GitNode
-GitNode.__tostring = Node.__tostring
 GitNode.__eq = Node.__eq
+GitNode.__tostring = Node.__tostring
 setmetatable(GitNode, { __index = Node })
 
 ---Creates a new git status node.

@@ -53,10 +53,8 @@ local tab_var_barbar_set_name = "_YaTreeBarbar"
 local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
 local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
 
----@alias YaTreeCanvasViewMode "files" | "search" | "buffers" | "git"
-
 ---@class YaTreeCanvas
----@field public view_mode YaTreeCanvasViewMode
+---@field public tree_type YaTreeType|string
 ---@field private winid? number
 ---@field private edit_winid? number
 ---@field private bufnr? number
@@ -72,11 +70,11 @@ Canvas.__index = Canvas
 ---@return string
 Canvas.__tostring = function(self)
   return string.format(
-    "(winid=%s, bufnr=%s, edit_winid=%s, mode=%s, nodes=[%s, %s])",
+    "(winid=%s, bufnr=%s, edit_winid=%s, tree_type=%s, nodes=[%s, %s])",
     self.winid,
     self.bufnr,
     self.edit_winid,
-    self.view_mode,
+    self.tree_type,
     self.nodes and #self.nodes or 0,
     self.nodes and tostring(self.nodes[1]) or "nil"
   )
@@ -85,7 +83,6 @@ end
 ---@return YaTreeCanvas canvas
 function Canvas:new()
   local this = setmetatable({}, self)
-  this.view_mode = "files"
   this.width = config.view.width
   this.nodes = {}
   this.node_path_to_index_lookup = {}
@@ -214,8 +211,7 @@ function Canvas:_set_window_options()
     group = self.window_augroup,
     buffer = self.bufnr,
     callback = function()
-      ---@type number
-      self.width = api.nvim_win_get_width(self.winid)
+      self.width = api.nvim_win_get_width(self.winid) --[[@as number]]
     end,
     desc = "Storing window width",
   })
@@ -292,10 +288,10 @@ function Canvas:_create_window()
   self:_set_window_options()
 end
 
----@param root YaTreeNode
+---@param tree YaTree
 ---@param opts? {hijack_buffer?: boolean}
 ---  - {opts.hijack_buffer?} `boolean`
-function Canvas:open(root, opts)
+function Canvas:open(tree, opts)
   if self:is_open() then
     return
   end
@@ -315,7 +311,7 @@ function Canvas:open(root, opts)
     self:_create_window()
   end
 
-  self:render(root)
+  self:render(tree)
 
   -- barbar can only set offsets on the left side
   if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
@@ -436,10 +432,10 @@ local function render_node(node, context, renderers)
 end
 
 ---@private
----@param root YaTreeNode
+---@param tree YaTree
 ---@return string[] lines, highlight_group[][] highlights
-function Canvas:_render_tree(root)
-  log.debug("creating %q canvas tree with root node %s", self.view_mode, root.path)
+function Canvas:_render_tree(tree)
+  log.debug("creating %q canvas tree with root node %s", self.tree_type, tree.root.path)
   self.nodes, self.node_path_to_index_lookup = {}, {}
   ---@type string[]
   local lines = {}
@@ -448,16 +444,16 @@ function Canvas:_render_tree(root)
   local linenr = 0
   ---@type RenderingContext
   local context = {
-    view_mode = self.view_mode,
+    tree_type = self.tree_type,
     config = config,
   }
   ---@param renderer YaTreeViewRenderer
   local container_renderers = vim.tbl_filter(function(renderer)
-    return vim.tbl_contains(renderer.config.view_modes, self.view_mode)
+    return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
   end, all_container_renderers) --[=[@as YaTreeViewRenderer[]]=]
   ---@param renderer YaTreeViewRenderer
   local file_renderers = vim.tbl_filter(function(renderer)
-    return vim.tbl_contains(renderer.config.view_modes, self.view_mode)
+    return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
   end, all_file_renderers) --[=[@as YaTreeViewRenderer[]]=]
 
   ---@param node YaTreeNode
@@ -481,14 +477,15 @@ function Canvas:_render_tree(root)
     end
   end
 
-  append_node(root, 0, false)
+  append_node(tree.root, 0, false)
 
   return lines, highlights
 end
 
----@param root YaTreeNode
-function Canvas:render(root)
-  local lines, highlights = self:_render_tree(root)
+---@param tree YaTree
+function Canvas:render(tree)
+  self.tree_type = tree.TYPE
+  local lines, highlights = self:_render_tree(tree)
 
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)

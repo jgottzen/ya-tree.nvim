@@ -192,7 +192,7 @@ local M = {
 
     ---@class YaTreeRendererConfig
     ---@field padding string The padding to use to the left of the renderer.
-    ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in.
+    ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in.
 
     ---@class YaTreeConfig.Renderers
     ---@field indentation YaTreeConfig.Renderers.Indentation Indentation rendering configuration.
@@ -208,13 +208,13 @@ local M = {
     renderers = {
       ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field use_marker boolean Wether to show indent markers, default: `false`.
       ---@field indent_marker string Default: `"│"`.
       ---@field last_indent_marker string Default: `"└"`.
       indentation = {
         padding = "",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
         use_marker = false,
         indent_marker = "│",
         last_indent_marker = "└",
@@ -222,12 +222,12 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field directory YaTreeConfig.Renderers.Icon.Directory Directory icon rendering configuration.
       ---@field file YaTreeConfig.Renderers.Icon.File File icon rendering configuration.
       icon = {
         padding = "",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
 
         ---@class YaTreeConfig.Renderers.Icon.Directory
         ---@field default string The icon for closed directories, default: `""`.
@@ -266,14 +266,14 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Name : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
       ---@field trailing_slash boolean Wether to show a trailing os directory separator after directory names, default: `false`.
       ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
       ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `false`.
       name = {
         padding = " ",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
         root_folder_format = ":~",
         trailing_slash = false,
         use_git_status_colors = false,
@@ -282,22 +282,22 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Modified : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field icon string The icon for modified files.
       modified = {
         padding = " ",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
         icon = "[+]",
       },
 
       ---@class YaTreeConfig.Renderers.Repository : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field show_status boolean Whether to show repository status on the repository toplevel directory, default: `true`.
       ---@field icons YaTreeConfig.Renderers.Repository.Icons Repository icons, setting an icon to an empty string will disabled that particular status information.
       repository = {
         padding = " ",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
         show_status = true,
 
         ---@class YaTreeConfig.Renderers.Repository.Icons
@@ -330,21 +330,21 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.SymlinkTarget : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
       symlink_target = {
         padding = " ",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
         arrow_icon = "➛",
       },
 
       ---@class YaTreeConfig.Renderers.GitStatus : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field icons YaTreeConfig.Renderers.GitStatus.Icons Git status icon configuration.
       git_status = {
         padding = " ",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
 
         ---@class YaTreeConfig.Renderers.GitStatus.Icons
         ---@field staged string The icon for staged changes, default: `""`.
@@ -384,36 +384,36 @@ local M = {
 
       ---@class YaTreeConfig.Renderers.Diagnostics : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field min_severity number The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
       diagnostics = {
         padding = " ",
-        view_modes = { "files", "search", "buffers", "git" },
+        tree_types = { "files", "search", "buffers", "git" },
         min_severity = vim.diagnostic.severity.HINT,
       },
 
       ---@class YaTreeConfig.Renderers.BufferInfo : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "buffers" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "buffers" }`.
       buffer_info = {
         padding = " ",
-        view_modes = { "buffers" },
+        tree_types = { "buffers" },
         hidden_icon = "",
       },
 
       ---@class YaTreeConfig.Renderers.Clipboard : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field view_modes YaTreeCanvasViewMode[] Which view modes the renderer should display in, default: `{ "files" }`.
+      ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files" }`.
       clipboard = {
         padding = " ",
-        view_modes = { "files" },
+        tree_types = { "files" },
       },
     },
 
     ---@class YaTreeConfig.CustomMapping Key mapping for user functions configuration.
     ---@field modes YaTreeActionMode[] The mode(s) for the keybinding.
-    ---@field views YaTreeCanvasViewMode[] The view modes the mapping is available for.
-    ---@field fn async fun(node: YaTreeNode) User function.
+    ---@field tree_types YaTreeType[]|string[] The tree types the mapping is available for.
+    ---@field fn async fun(tree: YaTree, node: YaTreeNode) User function.
     ---@field desc? string Description of what the mapping does.
 
     ---@class YaTreeConfig.Mappings

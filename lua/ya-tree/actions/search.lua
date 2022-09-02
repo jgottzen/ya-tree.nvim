@@ -10,8 +10,9 @@ local uv = vim.loop
 local M = {}
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.search_interactively(node)
+function M.search_interactively(_, node)
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
     node = node.parent --[[@as YaTreeNode]]
@@ -80,8 +81,9 @@ function M.search_interactively(node)
 end
 
 ---@async
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.search_once(node)
+function M.search_once(_, node)
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
     node = node.parent --[[@as YaTreeNode]]
@@ -94,12 +96,13 @@ function M.search_once(node)
 end
 
 ---@async
-function M.search_for_path_in_tree()
+---@param tree YaTree
+function M.search_for_path_in_tree(tree)
   local border = require("ya-tree.config").config.view.popups.border
   local input = Input:new({ prompt = "Path:", completion = "file_in_path", border = border }, {
     on_submit = void(function(path)
       if path then
-        lib.search_for_node_in_tree(path)
+        lib.search_for_node_in_tree(tree, path)
       end
     end),
   })

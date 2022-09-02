@@ -83,7 +83,7 @@ end
 
 ---@param path string
 ---@return boolean is_root
-function M.is_root(path)
+function M.is_root_directory(path)
   if M.os_sep == "\\" then
     return string.match(path, "^[A-Z]:\\?$")
   end
@@ -101,7 +101,7 @@ end
 ---@param second string
 ---@return string path
 function M.join_path(first, second)
-  if M.is_root(first) then
+  if M.is_root_directory(first) then
     return string.format("%s%s", first, second)
   else
     return string.format("%s%s%s", first, os_sep, second)

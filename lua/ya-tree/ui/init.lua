@@ -12,13 +12,14 @@ local M = {
   _canvases = {},
 }
 
----@param tabpage number
-function M.delete_ui(tabpage)
-  local tab = tostring(tabpage)
-  if M._canvases[tab] then
-    log.debug("deleting ui for tabpage %s", tabpage)
-    M._canvases[tab]:delete()
-    M._canvases[tab] = nil
+function M.delete_ui_after_tab_closed()
+  local tabpages = api.nvim_list_tabpages()
+  for tabpage, canvas in pairs(M._canvases) do
+    if not vim.tbl_contains(tabpages, tonumber(tabpage)) then
+      canvas:delete()
+      log.debug("deleted ui %s for tabpage %s", tostring(canvas), tabpage)
+      M._canvases[tabpage] = nil
+    end
   end
 end
 
@@ -27,10 +28,15 @@ local function get_canvas()
   return M._canvases[tostring(api.nvim_get_current_tabpage())]
 end
 
+---@param tree_type? YaTreeType|string
 ---@return boolean is_open
-function M.is_open()
+function M.is_open(tree_type)
   local canvas = get_canvas()
-  return canvas and canvas:is_open() or false
+  local is_open = canvas and canvas:is_open() or false
+  if is_open and tree_type then
+    return canvas.tree_type == tree_type
+  end
+  return is_open
 end
 
 ---@param node YaTreeNode
@@ -40,14 +46,13 @@ function M.is_node_rendered(node)
   return canvas and canvas:is_node_rendered(node) or false
 end
 
----@param root YaTreeNode
+---@param tree YaTree
 ---@param node? YaTreeNode
----@param opts? {hijack_buffer?: boolean, focus?: boolean, focus_edit_window?: boolean, view_mode?: YaTreeCanvasViewMode}
+---@param opts? {hijack_buffer?: boolean, focus?: boolean, focus_edit_window?: boolean}
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
 ---  - {opts.focus_edit_window?} `boolean`
----  - {opts.view_mode?} `YaTreeCanvasViewMode`
-function M.open(root, node, opts)
+function M.open(tree, node, opts)
   opts = opts or {}
   local tabpage = tostring(api.nvim_get_current_tabpage())
   local canvas = M._canvases[tabpage]
@@ -55,16 +60,12 @@ function M.open(root, node, opts)
     canvas = Canvas:new()
     M._canvases[tabpage] = canvas
   end
-  local view_mode_change = opts.view_mode and canvas.view_mode ~= opts.view_mode or false
-  if view_mode_change then
-    canvas.view_mode = opts.view_mode --[[@as YaTreeCanvasViewMode]]
-  end
 
   if not canvas:is_open() then
-    canvas:open(root, opts)
-  elseif view_mode_change or (node and not canvas:is_node_rendered(node)) then
-    -- redraw the tree if the diplay mode changed or a specific node is to be focused, and it's currently not rendered
-    canvas:render(root)
+    canvas:open(tree, { hijack_buffer = opts.hijack_buffer })
+  elseif tree.TYPE ~= canvas.tree_type or (node and not canvas:is_node_rendered(node)) then
+    -- redraw the tree if the tree type changed or a specific node is to be focused, and it's currently not rendered
+    canvas:render(tree)
   end
 
   if node then
@@ -92,15 +93,15 @@ function M.close()
   end
 end
 
----@param root YaTreeNode
+---@param tree YaTree
 ---@param node? YaTreeNode
 ---@param opts? {focus_node?: boolean}
 ---  - {opts.focus_node?} `boolean` focuse `node`
-function M.update(root, node, opts)
+function M.update(tree, node, opts)
   opts = opts or {}
   local canvas = get_canvas()
   if canvas and canvas:is_open() then
-    canvas:render(root)
+    canvas:render(tree)
     -- only update the focused node if the current window is the view window,
     -- or explicitly requested
     if node and (opts.focus_node or canvas:has_focus()) then
@@ -124,28 +125,33 @@ function M.focus_node(node)
   get_canvas():focus_node(node)
 end
 
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.focus_parent(node)
+function M.focus_parent(_, node)
   get_canvas():focus_parent(node)
 end
 
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.focus_prev_sibling(node)
+function M.focus_prev_sibling(_, node)
   get_canvas():focus_prev_sibling(node)
 end
 
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.focus_next_sibling(node)
+function M.focus_next_sibling(_, node)
   get_canvas():focus_next_sibling(node)
 end
 
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.focus_first_sibling(node)
+function M.focus_first_sibling(_, node)
   get_canvas():focus_first_sibling(node)
 end
 
+---@param _ YaTree
 ---@param node YaTreeNode
-function M.focus_last_sibling(node)
+function M.focus_last_sibling(_, node)
   get_canvas():focus_last_sibling(node)
 end
 
@@ -183,69 +189,10 @@ function M.get_size()
   return get_canvas():get_size()
 end
 
----@return YaTreeCanvasViewMode|nil view_mode
-function M.get_view_mode()
+---@return YaTreeType|string|nil tree_type
+function M.get_tree_type()
   local canvas = get_canvas()
-  return canvas and canvas.view_mode
-end
-
----@param view_mode YaTreeCanvasViewMode
-function M.set_view_mode(view_mode)
-  local canvas = get_canvas()
-  if canvas then
-    canvas.view_mode = view_mode
-  end
-end
-
----@param mode YaTreeCanvasViewMode
----@param root YaTreeNode
----@param node? YaTreeNode
-local function change_view_mode(mode, root, node)
-  local canvas = get_canvas()
-  canvas.view_mode = mode
-  canvas:render(root)
-  if node then
-    canvas:focus_node(node)
-  end
-end
-
----@param root YaTreeNode
----@param node YaTreeNode
-function M.open_files_view(root, node)
-  change_view_mode("files", root, node)
-end
-
----@return boolean
-function M.is_search_view_open()
-  return M.get_view_mode() == "search"
-end
-
----@param root YaTreeSearchNode
----@param node? YaTreeSearchNode
-function M.open_search_view(root, node)
-  change_view_mode("search", root, node)
-end
-
----@return boolean
-function M.is_git_view_open()
-  return M.get_view_mode() == "git"
-end
-
----@param root YaTreeGitNode
----@param node? YaTreeGitNode
-function M.open_git_view(root, node)
-  change_view_mode("git", root, node)
-end
-
----@return boolean
-function M.is_buffers_view_open()
-  return M.get_view_mode() == "buffers"
-end
-
----@param root YaTreeBufferNode
----@param node? YaTreeBufferNode
-function M.open_buffers_view(root, node)
-  change_view_mode("buffers", root, node)
+  return canvas and canvas.tree_type
 end
 
 function M.restore()
@@ -291,6 +238,11 @@ M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)
 
+---@return boolean enabled
+function M.is_highlight_open_file_enabled()
+  return Canvas.is_highlight_open_file_enabled()
+end
+
 ---@param bufnr number
 local function on_win_leave(bufnr)
   if M.is_window_floating() then
@@ -308,30 +260,15 @@ local function on_win_leave(bufnr)
 end
 
 function M.setup()
-  ---@type number
-  local group = api.nvim_create_augroup("YaTreeUi", { clear = true })
-  api.nvim_create_autocmd("WinLeave", {
-    group = group,
-    callback = function(input)
-      on_win_leave(input.buf)
-    end,
-    desc = "Keeping track of which window to open buffers in",
-  })
-  api.nvim_create_autocmd("ColorScheme", {
-    group = group,
-    callback = function()
-      hl.setup()
-    end,
-    desc = "Updating highlights",
-  })
-
   hl.setup()
   Canvas.setup()
-end
 
----@return boolean enabled
-function M.is_highlight_open_file_enabled()
-  return Canvas.is_highlight_open_file_enabled()
+  local events = require("ya-tree.events")
+  local event = require("ya-tree.events.event")
+
+  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_UI_TAB_CLOSE_CLEANUP", false, M.delete_ui_after_tab_closed)
+  events.on_autocmd_event(event.WINDOW_LEAVE, "YA_TREE_UI_SAVE_EDIT_WINDOW_ID", false, on_win_leave)
+  events.on_autocmd_event(event.COLORSCHEME, "YA_TREE_UI_HIGHLIGHTS", false, hl.setup)
 end
 
 return M

@@ -19,7 +19,7 @@ local M = {
 }
 
 ---@class RenderingContext
----@field view_mode YaTreeCanvasViewMode
+---@field tree_type YaTreeType|string
 ---@field config YaTreeConfig
 ---@field depth integer
 ---@field last_child boolean
@@ -157,7 +157,7 @@ function M.name(node, context, renderer)
 
     ---@type RenderResult[]
     local results
-    if context.view_mode == "search" then
+    if context.tree_type == "search" then
       ---@cast node YaTreeSearchNode
       results = {
         {
@@ -176,7 +176,7 @@ function M.name(node, context, renderer)
           highlight = hl.DIM_TEXT,
         },
       }
-    elseif context.view_mode == "buffers" then
+    elseif context.tree_type == "buffers" then
       results = {
         {
           padding = "",
@@ -184,7 +184,7 @@ function M.name(node, context, renderer)
           highlight = hl.DIM_TEXT,
         },
       }
-    elseif context.view_mode == "git" then
+    elseif context.tree_type == "git" then
       results = {
         {
           padding = "",
