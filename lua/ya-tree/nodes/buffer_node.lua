@@ -201,9 +201,9 @@ function BufferNode:refresh(opts)
     self:_merge_new_data(fs_node)
     self.scanned = true
     self.expanded = true
-    self.repo = git.get_repo_for_path(root_path)
   end
 
+  self.repo = git.get_repo_for_path(root_path)
   self.children = {}
   self.empty = true
   local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
