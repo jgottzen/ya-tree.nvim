@@ -287,9 +287,10 @@ local function is_unstaged(status)
   return status:sub(2, 2) ~= "."
 end
 
----@param opts { header?: boolean, ignored?: boolean}
+---@param opts { header?: boolean, ignored?: boolean, all_untracked?: boolean }
 ---  - {opts.header?} `boolean`
 ---  - {opts.ignored?} `boolean`
+---  - {opts.all_untracked?} `boolean`
 ---@return string[] arguments
 local function create_status_arguments(opts)
   -- use "-z" , otherwise bytes > 0x80 will be quoted, eg octal \303\244 for "ä"
@@ -302,6 +303,11 @@ local function create_status_arguments(opts)
     "-unormal", -- "--untracked-files=normal",
     "-z", -- null-terminated
   }
+  if opts.all_untracked then
+    args[#args + 1] = "-uall"
+  else
+    args[#args + 1] = "-unormal"
+  end
   if opts.header then
     args[#args + 1] = "-b" --branch
     args[#args + 1] = "--show-stash"
@@ -378,7 +384,7 @@ end
 ---@return boolean fs_changes
 function Repo:refresh_status(opts)
   opts = opts or {}
-  local args = create_status_arguments({ header = true, ignored = opts.ignored })
+  local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = self._is_yadm })
   log.debug("git status for %q", self.toplevel)
   local results = self:command(args, true)
 
