@@ -92,9 +92,7 @@ end
 
 M.st_mode_masks = {
   executable = 0x49, -- octal 111, corresponding to S_IXUSR, S_IXGRP and S_IXOTH
-  user_permissions_mask = 0x1c0, -- octal 700, corresponding to S_IRWXU
-  group_permissions_mask = 0x38, -- octal 70, corresponding to S_IRWXG
-  others_permissions_mask = 0x7, -- octal 7, corresponding to S_IRWXO
+  permissions_mask = 0x7, -- octal 7, corresponding to S_IRWX
 }
 
 ---@class FsFileNode : FsNode

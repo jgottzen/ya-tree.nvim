@@ -459,9 +459,9 @@ do
     highlights[#highlights + 1] =
       { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_GROUP, from = right_column_start, to = -1 } }
 
-    local user_perms = bit.rshift(bit.band(fs.st_mode_masks.user_permissions_mask, stat.mode), 6)
-    local group_perms = bit.rshift(bit.band(fs.st_mode_masks.group_permissions_mask, stat.mode), 3)
-    local others_perms = bit.band(fs.st_mode_masks.others_permissions_mask, stat.mode)
+    local user_perms = bit.band(fs.st_mode_masks.permissions_mask, bit.rshift(stat.mode, 6))
+    local group_perms = bit.band(fs.st_mode_masks.permissions_mask, bit.rshift(stat.mode, 3))
+    local others_perms = bit.band(fs.st_mode_masks.permissions_mask, stat.mode)
     local permissions = string.format("%s %s %s", permissions_tbl[user_perms], permissions_tbl[group_perms], permissions_tbl[others_perms])
     lines[#lines + 1] = string.format(format_string, "Permissions", permissions)
     lines[#lines + 1] = ""
