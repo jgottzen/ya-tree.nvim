@@ -2,9 +2,11 @@ local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 
 local lib = require("ya-tree.lib")
+local Trees = require("ya-tree.trees")
 local ui = require("ya-tree.ui")
 local Input = require("ya-tree.ui.input")
 
+local api = vim.api
 local uv = vim.loop
 
 local M = {}
@@ -67,7 +69,10 @@ function M.search_interactively(_, node)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
         scheduler()
-        lib.focus_first_search_result()
+        local tree = Trees.search(api.nvim_get_current_tabpage())
+        if tree and tree.current_node then
+          ui.focus_node(tree.current_node)
+        end
       end
       timer:close()
     end),

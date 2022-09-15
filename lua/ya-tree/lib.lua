@@ -421,13 +421,6 @@ function M.search(node, term)
   end
 end
 
-function M.focus_first_search_result()
-  local tree = Trees.current_tree(api.nvim_get_current_tabpage())
-  if tree and tree.TYPE == "search" and tree.current_node then
-    ui.focus_node(tree.current_node)
-  end
-end
-
 ---@async
 ---@param tree YaTree
 ---@param node YaTreeNode
