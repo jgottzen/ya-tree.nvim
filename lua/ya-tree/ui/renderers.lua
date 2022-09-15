@@ -1,11 +1,18 @@
-local icons_availble
----@type fun(filename: string, extension: string, opts?: {default?: boolean}): string, string
 local get_icon
 do
-  local icons
-  icons_availble, icons = pcall(require, "nvim-web-devicons")
-  if icons_availble then
-    get_icon = icons.get_icon
+  local icons_availble, icons = pcall(require, "nvim-web-devicons")
+
+  ---@param filename string
+  ---@param extension string
+  ---@param fallback_icon string
+  ---@param fallback_highlight string
+  ---@return string icon, string highlight
+  get_icon = function(filename, extension, fallback_icon, fallback_highlight)
+    if icons_availble then
+      return icons.get_icon(filename, extension)
+    else
+      return fallback_icon, fallback_highlight
+    end
   end
 end
 
@@ -78,26 +85,22 @@ function M.icon(node, context, renderer)
   local icon, highlight
   if node:is_container() then
     if node:node_type() == "Buffer" and node.extension == "terminal" then
-      icon = get_icon(node.name, node.extension)
+      icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
       highlight = hl.DIRECTORY_ICON
     else
-      local custom_icon = renderer.directory.custom[node.name]
-      if custom_icon then
-        icon = custom_icon
-        highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
-      else
+      icon = renderer.directory.custom[node.name]
+      if not icon then
         if node:is_link() then
           icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
-          highlight = hl.SYMBOLIC_DIRECTORY_ICON
         else
           if node.expanded then
             icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
           else
             icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
           end
-          highlight = hl.DIRECTORY_ICON
         end
       end
+      highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
     end
   elseif node:is_fifo() then
     icon = renderer.file.fifo
@@ -112,28 +115,23 @@ function M.icon(node, context, renderer)
     icon = renderer.file.block
     highlight = hl.BLOCK_DEVICE_FILE_ICON
   else
-    if icons_availble then
-      if node:is_link() then
-        if node.link_name and node.link_extension then
-          icon, highlight = get_icon(node.link_name, node.link_extension)
-        else
-          icon = renderer.file.symlink and renderer.file.symlink or renderer.file.default
-          highlight = renderer.file.symlink and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
-        end
+    if node:is_link() then
+      if node.link_name and node.link_extension then
+        icon, highlight = get_icon(node.link_name, node.link_extension, renderer.file.symlink, hl.SYMBOLIC_FILE_ICON)
       else
-        icon, highlight = get_icon(node.name, node.extension)
-      end
-
-      -- if the icon lookup didn't return anything use the defaults
-      if not icon then
-        icon = renderer.file.default
-      end
-      if not highlight then
-        highlight = hl.DEFAULT_FILE_ICON
+        icon = renderer.file.symlink
+        highlight = hl.SYMBOLIC_FILE_ICON
       end
     else
-      icon = (node:is_link() and renderer.file.symlink) and renderer.file.symlink or renderer.file.default
-      highlight = (node:is_link() and renderer.file.symlink) and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
+      icon, highlight = get_icon(node.name, node.extension, renderer.file.default, hl.DEFAULT_FILE_ICON)
+    end
+
+    -- if the icon lookup didn't return anything use the defaults
+    if not icon then
+      icon = node:is_link() and renderer.file.symlink or renderer.file.default
+    end
+    if not highlight then
+      highlight = node:is_link() and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
     end
   end
 
