@@ -137,7 +137,7 @@ function M.setup()
   create_highlight(M.EMPTY_SYMBOLIC_DIRECTORY_NAME, { M.DIRECTORY_NAME })
 
   create_highlight(M.DEFAULT_FILE_ICON, { "Normal" })
-  create_highlight(M.SYMBOLIC_FILE_ICON, { M.SYMBOLIC_FILE_ICON })
+  create_highlight(M.SYMBOLIC_FILE_ICON, { M.DEFAULT_FILE_ICON })
   create_highlight(M.FIFO_FILE_ICON, nil, { fg = "#af0087" })
   create_highlight(M.SOCKET_FILE_ICON, nil, { fg = "#ff005f" })
   create_highlight(M.CHAR_DEVICE_FILE_ICON, nil, { fg = "#87d75f" })
