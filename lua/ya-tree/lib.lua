@@ -109,7 +109,6 @@ function M.open_window(opts)
     end
   end
 
-  ---@type string|nil
   local path
   if opts.path then
     path = resolve_path(opts.path)
@@ -481,8 +480,7 @@ function M.search_for_node_in_tree(tree, path)
 
   job.run({ cmd = cmd, args = args, cwd = tree.root.path, async_callback = true }, function(code, stdout, stderr)
     if code == 0 then
-      ---@type string[]
-      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
       log.debug("%q found %s matches for %q in %q", cmd, #lines, path, tree.root.path)
 
       if #lines > 0 then
@@ -610,8 +608,7 @@ local function on_buf_enter(bufnr, file)
     local opts = { path = file, focus = true, tree_type = "files" }
     if not tree then
       log.debug("no tree for current tab")
-      ---@type string
-      local cwd = uv.cwd()
+      local cwd = uv.cwd() --[[@as string]]
       if file:find(cwd, 1, true) then
         log.debug("requested directory is a subpath of the current cwd %q, opening tree with root at cwd", cwd)
       else

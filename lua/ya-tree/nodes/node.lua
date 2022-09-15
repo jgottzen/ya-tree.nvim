@@ -482,7 +482,6 @@ do
       refresh_directory_node(self, recurse, refresh_git, {})
     else
       local fs_node = fs.node_for(self.path)
-      scheduler()
       if fs_node then
         self:_merge_new_data(fs_node)
         if refresh_git and self.repo then

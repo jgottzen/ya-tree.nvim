@@ -272,8 +272,7 @@ local function validate_and_create_mappings(mappings)
 
   for key, mapping in pairs(mappings.list) do
     if type(mapping) == "string" then
-      ---@type YaTreeActionName
-      local name = mapping
+      local name = mapping --[[@as YaTreeActionName]]
       if #name == 0 then
         log.debug("key %s is disabled by user config", key)
       elseif not actions[name] then

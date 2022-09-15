@@ -602,10 +602,8 @@ do
       sign = sign[1]
       if sign then
         diagnostic_icon_and_hl[k] = {
-          ---@type string
-          icon = sign.text,
-          ---@type string
-          highlight = sign.texthl,
+          icon = sign.text, --[[@as string]]
+          highlight = sign.texthl, --[[@as string]]
         }
       else
         diagnostic_icon_and_hl[k] = {

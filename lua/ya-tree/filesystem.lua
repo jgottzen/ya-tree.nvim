@@ -135,8 +135,7 @@ function M.get_file_name(path)
   if path:sub(-1) == os_sep then
     path = path:sub(1, -2)
   end
-  ---@type string[]
-  local splits = vim.split(path, os_sep, { plain = true })
+  local splits = vim.split(path, os_sep, { plain = true }) --[=[@as string[]]=]
   return splits[#splits]
 end
 
@@ -231,8 +230,7 @@ local function link_node(dir, name, lstat)
       node = directory_node(dir, name)
     elseif _type == "file" or _type == "fifo" or _type == "socket" or _type == "char" or _type == "block" then
       local link_name = M.get_file_name(abs_link_to)
-      ---@type string
-      local link_extension = link_name:match(".?[^.]+%.(.*)") or ""
+      local link_extension = link_name:match(".?[^.]+%.(.*)") or "" --[[@as string]]
 
       node = file_node(dir, name, stat)
       node.link_name = link_name
@@ -268,8 +266,7 @@ function M.node_for(path)
     return nil
   end
 
-  ---@type string
-  local parent_path = Path:new(path):parent():absolute()
+  local parent_path = Path:new(path):parent():absolute() --[[@as string]]
   local name = M.get_file_name(path)
   if lstat.type == "directory" then
     return directory_node(parent_path, name)
@@ -306,7 +303,6 @@ function M.scan_dir(dir)
       if name == nil then
         break
       end
-      ---@type FsNode?
       local node
       if _type == "directory" then
         node = directory_node(dir, name)
@@ -421,8 +417,7 @@ function M.create_dir(path)
   local abs_path = Path:new(path):absolute() --[[@as string]]
   local _, success = uv.fs_mkdir(abs_path, mode)
   if not success and not M.exists(abs_path) then
-    ---@type string[]
-    local dirs = vim.split(abs_path, os_sep, { plain = true })
+    local dirs = vim.split(abs_path, os_sep, { plain = true }) --[=[@as string[]]=]
     local acc = ""
     for _, dir in ipairs(dirs) do
       local current = utils.join_path(acc, dir)

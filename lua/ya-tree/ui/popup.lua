@@ -1,9 +1,7 @@
 local api = vim.api
 
----@type integer
-local ns = api.nvim_create_namespace("YaTreePopUp")
----@type integer
-local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true })
+local ns = api.nvim_create_namespace("YaTreePopUp") --[[@as integer]]
+local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true }) --[[@as integer]]
 
 local M = {}
 
@@ -68,8 +66,7 @@ end
 ---@return integer winid
 ---@return integer bufnr
 local function create_window(lines, highlight_groups, relative, row, col, width, height, enter)
-  ---@type integer
-  local bufnr = api.nvim_create_buf(false, true)
+  local bufnr = api.nvim_create_buf(false, true) --[[@as integer]]
   api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
   if highlight_groups then
     for line, highlight_group in ipairs(highlight_groups) do
@@ -79,7 +76,6 @@ local function create_window(lines, highlight_groups, relative, row, col, width,
     end
   end
   local border = require("ya-tree.config").config.view.popups.border
-  ---@type integer
   local winid = api.nvim_open_win(bufnr, enter, {
     relative = relative,
     row = row,
@@ -89,7 +85,7 @@ local function create_window(lines, highlight_groups, relative, row, col, width,
     zindex = 50,
     style = "minimal",
     border = border or "rounded",
-  })
+  }) --[[@as integer]]
   api.nvim_buf_set_option(bufnr, "modifiable", false)
   api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   api.nvim_buf_set_option(bufnr, "filetype", "YaTreePopup")
@@ -222,7 +218,6 @@ function PopupBuilder:open(enter)
     end
   end
   if self._close_on_focus_loss then
-    ---@type integer
     local aucmd
     aucmd = api.nvim_create_autocmd("WinEnter", {
       group = auto_close_augroup,
@@ -239,7 +234,7 @@ function PopupBuilder:open(enter)
           end
         end
       end,
-    })
+    }) --[[@as integer]]
   end
 
   return winid, bufnr

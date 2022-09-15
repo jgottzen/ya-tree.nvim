@@ -29,8 +29,7 @@ local command = wrap(function(args, null_terminated, cmd, callback)
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
 
   job.run({ cmd = cmd, args = args }, function(_, stdout, stderr)
-    ---@type string[]
-    local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true })
+    local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true }) --[=[@as string[]]=]
     if lines[#lines] == "" then
       lines[#lines] = nil
     end
@@ -450,8 +449,7 @@ function Repo:_parse_porcelainv2_header_row(line)
   -- # branch.ab +<ahead> -<behind>           If upstream is set and the commit is present.
   -- --------------------------------------------------------------------------------------
 
-  ---@type string[]
-  local parts = vim.split(line, " ", { plain = true })
+  local parts = vim.split(line, " ", { plain = true }) --[=[@as string[]]=]
   local _type = parts[2]
   if _type == "branch.head" then
     self.branch = parts[3]

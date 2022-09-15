@@ -58,8 +58,7 @@ function M.create_tree_from_paths(root, paths, node_creator)
 
   local min_path_size = #root.path
   for _, path in ipairs(paths) do
-    ---@type string[]
-    local parents = Path:new(path):parents()
+    local parents = Path:new(path):parents() --[=[@as string[]]=]
     for i = #parents, 1, -1 do
       local parent_path = parents[i]
       -- skip paths 'above' the root node
@@ -103,8 +102,7 @@ function M.add_fs_node(root, file, node_creator)
 
   ---@cast root YaTreeBufferNode|YaTreeGitNode
   local rest = file:sub(#root.path + 1)
-  ---@type string[]
-  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true })
+  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true }) --[=[@as string[]]=]
   local node = root
   for i = 1, #splits do
     local name = splits[i]

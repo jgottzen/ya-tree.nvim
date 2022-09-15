@@ -109,8 +109,7 @@ local function get_current_buffers()
     ---@cast bufnr number
     local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
     if ok then
-      ---@type string
-      local path = api.nvim_buf_get_name(bufnr)
+      local path = api.nvim_buf_get_name(bufnr) --[[@as string]]
       if buftype == "terminal" then
         terminals[#terminals + 1] = {
           name = path,
@@ -192,8 +191,7 @@ function BufferNode:refresh(opts)
   opts = opts or {}
   scheduler()
   local buffers, terminals = get_current_buffers()
-  ---@type string[]
-  local paths = vim.tbl_keys(buffers)
+  local paths = vim.tbl_keys(buffers) --[=[@as string[]]=]
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
   if root_path ~= self.path then
     log.debug("setting new root path to %q", root_path)

@@ -57,8 +57,7 @@ function M.open()
     {},
     { { name = hl.ROOT_NAME, from = 0, to = -1 } },
   }
-  ---@type number
-  local max_line_width = api.nvim_strwidth(header)
+  local max_line_width = api.nvim_strwidth(header) --[[@as number]]
 
   for _, mapping in ipairs(insert) do
     local line = string.format(format_string, mapping.key, mapping.desc, table.concat(mapping.tree_types, ", "))

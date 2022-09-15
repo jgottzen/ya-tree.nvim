@@ -33,8 +33,7 @@ local function on_diagnostics_changed()
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
     local bufnr = diagnostic.bufnr
     if api.nvim_buf_is_valid(bufnr) then
-      ---@type string
-      local bufname = api.nvim_buf_get_name(bufnr)
+      local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
       local severity = new_diagnostics[bufname]
       -- lower severity value is a higher severity...
       if not severity or diagnostic.severity < severity then
@@ -61,10 +60,8 @@ local function on_diagnostics_changed()
   diagnostics = new_diagnostics
   local tree = Trees.current_tree(tabpage)
   if tree and ui.is_open() then
-    ---@type number
-    local new_diagnostics_count = vim.tbl_count(new_diagnostics)
-    ---@type number
-    local previous_diagnostics_count = vim.tbl_count(previous_diagnostics)
+    local new_diagnostics_count = vim.tbl_count(new_diagnostics) --[[@as number]]
+    local previous_diagnostics_count = vim.tbl_count(previous_diagnostics) --[[@as number]]
 
     local changed = false
     if new_diagnostics_count > 0 and previous_diagnostics_count > 0 then

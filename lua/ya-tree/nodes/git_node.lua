@@ -27,7 +27,7 @@ function GitNode:new(fs_node, parent)
   return this
 end
 
----@param node YaTreeNode
+---@param node YaTreeGitNode
 ---@return boolean displayable
 local function is_any_child_displayable(node)
   for _, child in ipairs(node.children) do

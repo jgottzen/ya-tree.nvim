@@ -108,8 +108,7 @@ function Input:new(opts, callbacks)
 
   if callbacks.on_change then
     this.callbacks.on_change = function()
-      ---@type string
-      local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1]
+      local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1] --[[@as string]]
       callbacks.on_change(value:sub(#this.default + 1))
     end
   end
@@ -138,8 +137,7 @@ function Input:open()
 
   self.orig_row, self.orig_col = unpack(api.nvim_win_get_cursor(self.win_config.win or 0))
 
-  ---@type number
-  self.bufnr = api.nvim_create_buf(false, true)
+  self.bufnr = api.nvim_create_buf(false, true) --[[@as number]]
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
@@ -152,8 +150,7 @@ function Input:open()
     current_completion = self.completion
   end
 
-  ---@type number
-  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
+  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as number]]
   for k, v in pairs(win_options) do
     vim.opt_local[k] = v
   end
@@ -197,7 +194,6 @@ function Input:_create_title()
 
     local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.prompt))
     local bufnr = api.nvim_create_buf(false, true)
-    ---@type number
     self.title_winid = api.nvim_open_win(bufnr, false, {
       relative = "win",
       win = self.winid,
@@ -209,7 +205,7 @@ function Input:_create_title()
       zindex = 151,
       style = "minimal",
       noautocmd = true,
-    })
+    }) --[[@as number]]
     vim.opt_local["winblend"] = api.nvim_win_get_option(self.winid, "winblend")
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     local title = " " .. self.prompt:sub(1, math.min(width - 2, api.nvim_strwidth(self.prompt))) .. " "

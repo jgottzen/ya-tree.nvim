@@ -15,8 +15,7 @@ M.is_linux = fn.has("unix") == 1
 do
   ---@type table<string, boolean>
   local extensions = {}
-  ---@type string[]
-  local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true })
+  local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true }) --[=[@as string[]]=]
   for _, extension in pairs(splits) do
     extensions[extension:upper()] = true
   end
@@ -138,10 +137,8 @@ end
 
 ---@return boolean is_directory, string path
 function M.get_path_from_directory_buffer()
-  ---@type number
-  local bufnr = api.nvim_get_current_buf()
-  ---@type string
-  local bufname = api.nvim_buf_get_name(bufnr)
+  local bufnr = api.nvim_get_current_buf() --[[@as number]]
+  local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
   if not M.is_directory_sync(bufname) then
     return false, ""
   end
@@ -149,8 +146,7 @@ function M.get_path_from_directory_buffer()
     return false, ""
   end
 
-  ---@type string[]
-  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false) --[=[@as string[]]=]
   if #lines == 0 or (#lines == 1 and lines[1] == "") then
     return true, Path:new(bufname):absolute()
   else

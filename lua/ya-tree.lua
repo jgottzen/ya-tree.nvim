@@ -49,8 +49,7 @@ end
 ---@param cmdline string
 ---@return string[] completions
 local function complete_open(arg_lead, cmdline)
-  ---@type string[]
-  local splits = vim.split(cmdline, "%s+")
+  local splits = vim.split(cmdline, "%s+") --[=[@as string[]]=]
   local i = #splits
   if i > 4 then
     return {}
@@ -142,8 +141,7 @@ function M.setup(opts)
     M.focus()
   end, { desc = "Focuses the tree view, opens it if not open" })
   api.nvim_create_user_command("YaTreeFindFile", function(input)
-    ---@type string?
-    local file = input.args
+    local file = input.args --[[@as string?]]
     if not file or file == "" then
       file = api.nvim_buf_get_name(0) --[[@as string]]
       file = fn.filereadable(file) == 1 and file or nil

@@ -135,10 +135,12 @@ function M.add(tree, node)
       end
 
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
+        log.debug("created %s %q", is_directory and "directory" or "file", path)
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
         scheduler()
         lib.refresh_tree_and_goto_path(tree, path)
       else
+        log.error("failed to create %s %q", is_directory and "directory" or "file", path)
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
       end
     end),
@@ -164,10 +166,12 @@ function M.rename(tree, node)
   end
 
   if fs.rename(node.path, path) then
+    log.debug("renamed %q to %q", node.path, path)
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
     scheduler()
     lib.refresh_tree_and_goto_path(tree, path)
   else
+    log.error("failed to rename %q to %q", node.path, path)
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
   end
 end
@@ -203,8 +207,10 @@ local function delete_node(node)
   if response == "Yes" then
     local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
     if ok then
+      log.debug("deleted %q", node.path)
       utils.notify(string.format("Deleted %q.", node.path))
     else
+      log.error("failed to delete %q", node.path)
       utils.warn(string.format("Failed to delete %q!", node.path))
     end
     return true
@@ -284,8 +290,7 @@ function M.system_open(_, node)
     return
   end
 
-  ---@type string[]
-  local args = vim.deepcopy(config.system_open.args or {})
+  local args = vim.deepcopy(config.system_open.args or {}) --[=[@as string[]]=]
   table.insert(args, node.absolute_link_to or node.path)
   job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, stderr)
     if code ~= 0 then
@@ -396,8 +401,7 @@ do
     x = hl.INFO_PERMISSION_EXECUTE,
   }
 
-  ---@type integer
-  local augroup = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
+  local augroup = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true }) --[[@as integer]]
 
   ---@class NodeInfoPopup
   ---@field winid integer
@@ -527,7 +531,6 @@ do
       return
     end
 
-    ---@type string[], highlight_group[][]
     local lines, highlight_groups
     if node:node_type() == "Buffer" and node.extension == "terminal" then
       ---@cast node YaTreeBufferNode

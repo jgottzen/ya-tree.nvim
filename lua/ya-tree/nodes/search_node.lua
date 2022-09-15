@@ -47,8 +47,7 @@ do
 
     job.run({ cmd = cmd, args = args, cwd = path }, function(code, stdout, stderr)
       if code == 0 then
-        ---@type string[]
-        local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
+        local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
         log.debug("%q found %s matches for %q in %q", cmd, #lines, cmd, path)
         callback(lines)
       else
