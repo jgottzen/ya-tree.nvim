@@ -19,10 +19,10 @@ local M = {
 ---@param tree YaTree
 ---@param action clipboard_action
 local function cut_or_copy_nodes(tree, action)
-  local update = false
   for _, node in ipairs(ui.get_selected_nodes()) do
     -- copying the root node will not work
     if tree.root ~= node then
+      local skip = false
       for i, item in ipairs(M.queue) do
         if item.path == node.path then
           if item.clipboard_status == action then
@@ -31,20 +31,18 @@ local function cut_or_copy_nodes(tree, action)
           else
             node:set_clipboard_status(action)
           end
-          return
-        elseif item:is_ancestor_of(node.path) then
-          return
+          skip = true
+          break
         end
       end
-      M.queue[#M.queue + 1] = node
-      node:set_clipboard_status(action)
-      update = true
+      if not skip then
+        M.queue[#M.queue + 1] = node
+        node:set_clipboard_status(action)
+      end
     end
   end
 
-  if update then
-    ui.update(tree)
-  end
+  ui.update(tree)
 end
 
 ---@async
