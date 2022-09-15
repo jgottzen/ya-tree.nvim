@@ -23,7 +23,18 @@ local fn = vim.fn
 local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
 BufferNode.__tostring = Node.__tostring
-BufferNode.__eq = Node.__eq
+
+---@param self YaTreeBufferNode
+---@param other YaTreeBufferNode
+---@return boolean
+BufferNode.__eq = function (self, other)
+  if self.type == "terminal" then
+    return other.type == "terminal" and self.bufname == other.bufname or false
+  else
+    return Node.__eq(self, other)
+  end
+end
+
 setmetatable(BufferNode, { __index = Node })
 
 ---Creates a new buffer node.
