@@ -6,6 +6,8 @@ local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")
 
+local api = vim.api
+
 ---@class YaSearchTree : YaTree
 ---@field TYPE "search"
 ---@field private _singleton false
@@ -52,7 +54,11 @@ end
 ---@async
 ---@param repo GitRepo
 function SearchTree:on_git_event(repo)
-  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
+  if
+    vim.v.exiting == vim.NIL
+    and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil)
+    and self:is_shown_in_ui(api.nvim_get_current_tabpage())
+  then
     log.debug("git repo %s changed", tostring(repo))
     ui.update(self)
   end

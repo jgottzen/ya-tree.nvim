@@ -50,16 +50,24 @@ function BuffersTree:new(tabpage, path)
 
     local event = require("ya-tree.events.event")
     events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), false, function(bufnr, file)
-      singleton:on_buffer_new(bufnr, file)
+      if file ~= "" then
+        singleton:on_buffer_new(bufnr, file)
+      end
     end)
     events.on_autocmd_event(event.BUFFER_HIDDEN, singleton:create_event_id(event.BUFFER_HIDDEN), false, function(bufnr, file)
-      singleton:on_buffer_hidden(bufnr, file)
+      if file ~= "" then
+        singleton:on_buffer_hidden(bufnr, file)
+      end
     end)
     events.on_autocmd_event(event.BUFFER_DISPLAYED, singleton:create_event_id(event.BUFFER_DISPLAYED), false, function(bufnr, file)
-      singleton:on_buffer_displayed(bufnr, file)
+      if file ~= "" then
+        singleton:on_buffer_displayed(bufnr, file)
+      end
     end)
     events.on_autocmd_event(event.BUFFER_DELETED, singleton:create_event_id(event.BUFFER_DELETED), true, function(bufnr, _, match)
-      singleton:on_buffer_deleted(bufnr, match)
+      if match ~= "" then
+        singleton:on_buffer_deleted(bufnr, match)
+      end
     end)
     events.on_git_event(singleton:create_event_id(event.GIT), function(repo)
       singleton:on_git_event(repo)
@@ -92,9 +100,6 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersTree:on_buffer_new(bufnr, file)
-  if file == "" then
-    return
-  end
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if (buftype == "" or buftype == "terminal") and not utils.is_directory_sync(file) then
     -- BufFilePost is fired before the file is available on the file system, causing the node creation
@@ -124,7 +129,7 @@ function BuffersTree:on_buffer_new(bufnr, file)
         end
 
         scheduler()
-        if ui.is_open(self.TYPE) and self:is_for_tabpage(tabpage) then
+        if self:is_shown_in_ui(tabpage) then
           if require("ya-tree.config").config.follow_focused_file and not node then
             node = self.root:expand({ to = file })
           else
@@ -141,15 +146,12 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersTree:on_buffer_hidden(bufnr, file)
-  if file == "" then
-    return
-  end
   -- BufHidden might be triggered after TermClose, when the buffer no longer exists,
   -- so calling nvim_buf_get_option results in an error.
   local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
   if ok and buftype == "terminal" then
     self.root:set_terminal_hidden(file, bufnr, true)
-    if ui.is_open(self.TYPE) and self:is_for_tabpage(api.nvim_get_current_tabpage()) then
+    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
       ui.update(self)
     end
   end
@@ -158,13 +160,10 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersTree:on_buffer_displayed(bufnr, file)
-  if file == "" then
-    return
-  end
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "terminal" then
     self.root:set_terminal_hidden(file, bufnr, false)
-    if ui.is_open(self.TYPE) and self:is_for_tabpage(api.nvim_get_current_tabpage()) then
+    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
       ui.update(self)
     end
   end
@@ -174,9 +173,6 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersTree:on_buffer_deleted(bufnr, file)
-  if file == "" then
-    return
-  end
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "" or buftype == "terminal" then
     log.debug("removing buffer %q from buffer tree", file)
@@ -184,7 +180,7 @@ function BuffersTree:on_buffer_deleted(bufnr, file)
     if #self.root.children == 0 and self.root.path ~= uv.cwd() then
       self.root:refresh({ root_path = uv.cwd() })
     end
-    if ui.is_open(self.TYPE) and self:is_for_tabpage(api.nvim_get_current_tabpage()) then
+    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
       ui.update(self, ui.get_current_node())
     end
   end
@@ -193,7 +189,11 @@ end
 ---@async
 ---@param repo GitRepo
 function BuffersTree:on_git_event(repo)
-  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
+  if
+    vim.v.exiting == vim.NIL
+    and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil)
+    and self:is_shown_in_ui(api.nvim_get_current_tabpage())
+  then
     log.debug("git repo %s changed", tostring(repo))
     ui.update(self)
   end

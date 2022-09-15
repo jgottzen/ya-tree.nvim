@@ -8,6 +8,8 @@ local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")
 
+local api = vim.api
+
 ---@class YaGitTree : YaTree
 ---@field TYPE "git"
 ---@field private _singleton false
@@ -64,7 +66,7 @@ function GitTree:on_git_event(repo)
 
   self.root:refresh({ refresh_git = false })
   scheduler()
-  if ui.is_open(self.TYPE) then
+  if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
     -- get the current node to keep the cursor on it, if the tree changed
     ui.update(self, ui.get_current_node())
   end
@@ -90,7 +92,7 @@ function GitTree:on_buffer_saved(_, file)
     end
 
     scheduler()
-    if ui.is_open(self.TYPE) then
+    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
       ui.update(self)
     end
   end

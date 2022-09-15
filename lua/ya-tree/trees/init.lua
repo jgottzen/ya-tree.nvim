@@ -60,17 +60,6 @@ function M.delete_trees_after_tab_closed()
   end
 end
 
----@param tabpage? integer
----@param callback fun(tree: YaTree)
-function M.for_each_tree(tabpage, callback)
-  local tabpage_trees = tabpage and { M._tabpage_trees[tabpage] } or M._tabpage_trees
-  for _, trees in ipairs(tabpage_trees) do
-    for _, tree in pairs(trees) do
-      callback(tree)
-    end
-  end
-end
-
 ---@param tabpage integer
 ---@param name YaTreeType|string
 ---@param set_current? boolean
@@ -122,9 +111,11 @@ end
 ---@param tree YaTree
 function M.set_current_tree(tabpage, tree)
   local trees = M._tabpage_trees[tabpage]
-  if trees then
-    trees.current = tree
+  if not trees then
+    trees = {}
+    M._tabpage_trees[tabpage] = trees
   end
+  trees.current = tree
 end
 
 ---@param tabpage integer

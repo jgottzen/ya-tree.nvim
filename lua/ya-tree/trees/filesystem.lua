@@ -9,6 +9,7 @@ local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")
 
+local api = vim.api
 local uv = vim.loop
 
 ---@class YaFsTree : YaTree
@@ -78,9 +79,9 @@ function FilesystemTree:new(tabpage, root)
     root_node = create_root_node(this.cwd)
   end
 
-  this:check_node_for_repo(root_node)
   this.root = root_node
   this.current_node = this.root
+  this:check_node_for_repo(this.root)
 
   log.debug("created new tree %s", tostring(this))
   return this
@@ -140,7 +141,7 @@ function FilesystemTree:on_git_event(repo, fs_changes)
     end
   end
   scheduler()
-  if ui.is_open(self.TYPE) then
+  if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
     -- get the current node to keep the cursor on it
     ui.update(self, ui.get_current_node())
   end

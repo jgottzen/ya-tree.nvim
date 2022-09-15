@@ -34,14 +34,12 @@ end
 
 ---@generic T : YaTree
 ---@param self T
----@param tabpage? integer
----@param ...? any
+---@param tabpage integer
 ---@return T tree
----@diagnostic disable-next-line:unused-vararg
-function Tree.new(self, tabpage, ...)
-  ---@class YaTree
+function Tree.new(self, tabpage)
+  ---@type YaTree
   local this = {
-    _tabpage = tabpage or 1,
+    _tabpage = tabpage,
     refreshing = false,
   }
   setmetatable(this, self)
@@ -75,18 +73,14 @@ end
 ---@param bufnr integer
 ---@param file string
 function Tree:on_buffer_modified(bufnr, file)
-  if self.root then
-    if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
-      ---@type boolean
-      local modified = api.nvim_buf_get_option(bufnr, "modified")
-      local node = self.root:get_child_if_loaded(file)
-      if node and node.modified ~= modified then
-        node.modified = modified
+  if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
+    local modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
+    local node = self.root:get_child_if_loaded(file)
+    if node and node.modified ~= modified then
+      node.modified = modified
 
-        local tabpage = api.nvim_get_current_tabpage()
-        if self:is_for_tabpage(tabpage) and ui.is_open(self.TYPE) and ui.is_node_rendered(node) then
-          ui.update(self)
-        end
+      if self:is_shown_in_ui(api.nvim_get_current_tabpage()) and ui.is_node_rendered(node) then
+        ui.update(self)
       end
     end
   end
@@ -99,35 +93,38 @@ end
 ---@param file string
 ---@diagnostic disable-next-line:unused-local
 function Tree:on_buffer_saved(bufnr, file)
-  if self.root then
-    if self.root:is_ancestor_of(file) then
-      log.debug("changed file %q is in tree %s", file, tostring(self))
-      local parent = self.root:get_child_if_loaded(Path:new(file):parent().filename)
-      if parent then
-        parent:refresh()
-        local node = parent:get_child_if_loaded(file)
-        if node then
-          node.modified = false
-        end
-
-        if require("ya-tree.config").config.git.enable then
-          if node and node.repo then
-            node.repo:refresh_status_for_file(file)
-          end
-        end
+  if self.root:is_ancestor_of(file) then
+    log.debug("changed file %q is in tree %s", file, tostring(self))
+    local parent = self.root:get_child_if_loaded(Path:new(file):parent().filename)
+    if parent then
+      parent:refresh()
+      local node = parent:get_child_if_loaded(file)
+      if node then
+        node.modified = false
       end
 
-      scheduler()
-      local tabpage = api.nvim_get_current_tabpage()
-      if self:is_for_tabpage(tabpage) and ui.is_open(self.TYPE) then
-        ui.update(self)
+      if require("ya-tree.config").config.git.enable then
+        if node and node.repo then
+          node.repo:refresh_status_for_file(file)
+        end
       end
+    end
+
+    scheduler()
+    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
+      ui.update(self)
     end
   end
 end
 
 ---@param ... any
 function Tree:change_root_node(...) end
+
+---@param tabpage integer
+---@return boolean
+function Tree:is_shown_in_ui(tabpage)
+  return ui.is_open(self.TYPE) and self:is_for_tabpage(tabpage)
+end
 
 ---@param tabpage integer
 ---@return boolean
