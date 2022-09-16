@@ -134,6 +134,19 @@ function M.new_filesystem(tabpage, set_current, root)
   return M.new_tree(tabpage, "files", set_current or false, root) --[[@as YaFsTree]]
 end
 
+---@async
+---@param tabpage integer
+---@param set_current boolean
+---@param root? string|YaTreeNode
+---@return YaFsTree tree
+function M.filesystem_or_new(tabpage, set_current, root)
+  local tree = M.filesystem(tabpage, set_current)
+  if not tree then
+    tree = M.new_filesystem(tabpage, set_current, root)
+  end
+  return tree
+end
+
 ---@param tabpage integer
 ---@param set_current? boolean
 ---@return YaBuffersTree? tree

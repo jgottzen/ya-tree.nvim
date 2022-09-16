@@ -5,6 +5,8 @@ local ui = require("ya-tree.ui")
 local help = require("ya-tree.ui.help")
 local clipboard = require("ya-tree.actions.clipboard")
 local files = require("ya-tree.actions.files")
+local nodes = require("ya-tree.actions.nodes")
+local popups = require("ya-tree.actions.popups")
 local search = require("ya-tree.actions.search")
 local Trees = require("ya-tree.trees")
 local utils = require("ya-tree.utils")
@@ -129,6 +131,35 @@ local actions = {
     { "n" }
   ),
 
+  close_node = create_action(nodes.close_node, "Close directory", { "files", "search", "buffers", "git" }, { "n" }),
+  close_all_nodes = create_action(nodes.close_all_nodes, "Close all directories", { "files", "search", "buffers", "git" }, { "n" }),
+  close_all_child_nodes = create_action(
+    nodes.close_all_child_nodes,
+    "Close all child directories",
+    { "files", "search", "buffers", "git" },
+    { "n" }
+  ),
+  expand_all_nodes = create_action(
+    nodes.expand_all_nodes,
+    "Recursively expand all directories",
+    { "files", "search", "buffers", "git" },
+    { "n" }
+  ),
+  expand_all_child_nodes = create_action(
+    nodes.expand_all_child_nodes,
+    "Recursively expand all child directories",
+    { "files", "search", "buffers", "git" },
+    { "n" }
+  ),
+  goto_node_in_tree = create_action(
+    nodes.goto_node_in_tree,
+    "Close view and go to node in tree view",
+    { "search", "buffers", "git" },
+    { "n" }
+  ),
+
+  show_node_info = create_action(popups.show_node_info, "Show node info in popup", { "files", "search", "buffers", "git" }, { "n" }),
+
   search_interactively = create_action(search.search_interactively, "Search as you type", { "files", "search" }, { "n" }),
   search_once = create_action(search.search_once, "Search", { "files", "search" }, { "n" }),
   search_for_path_in_tree = create_action(
@@ -141,32 +172,6 @@ local actions = {
   show_last_search = create_action(lib.show_last_search, "Show last search result", { "files" }, { "n" }),
 
   close_window = create_action(lib.close_window, "Close the tree window", { "files", "search", "buffers", "git" }, { "n" }),
-  close_node = create_action(lib.close_node, "Close directory", { "files", "search", "buffers", "git" }, { "n" }),
-  close_all_nodes = create_action(lib.close_all_nodes, "Close all directories", { "files", "search", "buffers", "git" }, { "n" }),
-  close_all_child_nodes = create_action(
-    lib.close_all_child_nodes,
-    "Close all child directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  expand_all_nodes = create_action(
-    lib.expand_all_nodes,
-    "Recursively expand all directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  expand_all_child_nodes = create_action(
-    lib.expand_all_child_nodes,
-    "Recursively expand all child directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  goto_node_in_tree = create_action(
-    lib.goto_node_in_tree,
-    "Close view and go to node in tree view",
-    { "search", "buffers", "git" },
-    { "n" }
-  ),
   cd_to = create_action(lib.cd_to, "Set tree root to directory", { "files", "search", "buffers", "git" }, { "n" }),
   cd_up = create_action(lib.cd_up, "Set tree root one level up", { "files" }, { "n" }),
   toggle_ignored = create_action(
@@ -212,7 +217,6 @@ local actions = {
     { "n" }
   ),
   open_help = create_action(help.open, "Open keybindings help", { "files", "search", "buffers", "git" }, { "n" }),
-  show_node_info = create_action(files.show_node_info, "Show node info in popup", { "files", "search", "buffers", "git" }, { "n" }),
 }
 
 ---@param mapping YaTreeActionMapping
