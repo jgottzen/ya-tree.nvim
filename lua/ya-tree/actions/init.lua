@@ -20,6 +20,7 @@ local M = {}
 ---| "split"
 ---| "tabnew"
 ---| "preview"
+---| "preview_and_focus"
 ---| "add"
 ---| "rename"
 ---| "delete"
@@ -93,6 +94,7 @@ local actions = {
   split = create_action(files.split, "Open file in a split", { "files", "search", "git" }, { "n" }),
   tabnew = create_action(files.tabnew, "Open file in a new tabpage", { "files", "search", "git" }, { "n" }),
   preview = create_action(files.preview, "Open file (keep cursor in tree)", { "files", "search", "git" }, { "n" }),
+  preview_and_focus = create_action(files.preview_and_focus, "Open file (keep cursor in tree)", { "files", "search", "git" }, { "n" }),
   add = create_action(files.add, "Add file or directory", { "files" }, { "n" }),
   rename = create_action(files.rename, "Rename file or directory", { "files" }, { "n" }),
   delete = create_action(files.delete, "Delete files and directories", { "files" }, { "n", "v" }),

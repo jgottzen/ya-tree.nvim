@@ -436,6 +436,7 @@ local M = {
         ["<C-s>"] = "split",
         ["t"] = "tabnew",
         ["<Tab>"] = "preview",
+        ["<C-Tab>"] = "preview_and_focus",
         ["<BS>"] = "close_node",
         ["Z"] = "close_all_nodes",
         ["z"] = "close_all_child_nodes",

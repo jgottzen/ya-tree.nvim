@@ -72,9 +72,9 @@ function M.split(_, node)
 end
 
 ---@async
----@param _ YaTree
 ---@param node YaTreeNode
-function M.preview(_, node)
+---@param focus boolean
+local function preview(node, focus)
   if node:is_file() then
     local already_loaded = vim.fn.bufloaded(node.path) > 0
     ui.open_file(node.path, "edit")
@@ -93,11 +93,27 @@ function M.preview(_, node)
       })
     end
 
-    -- a scheduler call is required here for the event loop to to update the ui state
-    -- otherwise the focus will happen before the buffer is opened, and the buffer will keep the focus
-    scheduler()
-    ui.focus()
+    if not focus then
+      -- a scheduler call is required here for the event loop to to update the ui state
+      -- otherwise the focus will happen before the buffer is opened, and the buffer will keep the focus
+      scheduler()
+      ui.focus()
+    end
   end
+end
+
+---@async
+---@param _ YaTree
+---@param node YaTreeNode
+function M.preview(_, node)
+  preview(node, false)
+end
+
+---@async
+---@param _ YaTree
+---@param node YaTreeNode
+function M.preview_and_focus(_, node)
+  preview(node, true)
 end
 
 ---@async
