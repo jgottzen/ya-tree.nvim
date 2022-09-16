@@ -325,7 +325,7 @@ end
 ---@param tree YaTree
 ---@param path string
 function M.search_for_node_in_tree(tree, path)
-  local cmd, args = utils.build_search_arguments(path, tree.root.path, false)
+  local cmd, args = utils.build_search_arguments(path, tree.root.path)
   if not cmd then
     return
   end
@@ -336,7 +336,11 @@ function M.search_for_node_in_tree(tree, path)
       log.debug("%q found %s matches for %q in %q", cmd, #lines, path, tree.root.path)
 
       if #lines > 0 then
-        local node = tree.root:expand({ to = lines[1] })
+        local first = lines[1]
+        if first:sub(-1) == utils.os_sep then
+          first = first:sub(1, -2)
+        end
+        local node = tree.root:expand({ to = first })
         scheduler()
         ui.update(tree, node)
       else
