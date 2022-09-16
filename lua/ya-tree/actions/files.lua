@@ -142,7 +142,7 @@ function M.add(tree, node)
         return
       end
 
-      local is_directory = vim.endswith(path, utils.os_sep)
+      local is_directory = path:sub(-1) == utils.os_sep
       if is_directory then
         path = path:sub(1, -2)
       end

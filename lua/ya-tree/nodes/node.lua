@@ -51,7 +51,9 @@ function Node:new(fs_node, parent)
   return node_utils.create_node(self, fs_node, parent)
 end
 
----@param visitor fun(node: YaTreeNode):boolean called for each node, if the function returns `true` the `walk` terminates.
+---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` skips
+---any children of that node, but continues with the next child, if any.
+---@param visitor fun(node: YaTreeNode):boolean
 function Node:walk(visitor)
   if visitor(self) then
     return
@@ -59,9 +61,7 @@ function Node:walk(visitor)
 
   if self:is_container() then
     for _, child in ipairs(self.children) do
-      if child:walk(visitor) then
-        return
-      end
+      child:walk(visitor)
     end
   end
 end

@@ -201,6 +201,7 @@ end
 function FilesystemTree:change_root_node(new_root)
   local old_root = self.root
   if type(new_root) == "string" then
+    log.debug("setting new tree root to %q", new_root)
     if not fs.is_directory(new_root) then
       new_root = Path:new(new_root):parent():absolute() --[[@as string]]
     end
@@ -210,6 +211,7 @@ function FilesystemTree:change_root_node(new_root)
     end
   else
     ---@cast new_root YaTreeNode
+    log.debug("setting new tree root to %s", tostring(new_root))
     self.root = new_root
     self.root:expand({ force_scan = true })
 
@@ -222,6 +224,9 @@ function FilesystemTree:change_root_node(new_root)
     tree_root:walk(function(node)
       if node.repo and not found_toplevels[node.repo.toplevel] then
         found_toplevels[node.repo.toplevel] = true
+        if not node.repo:is_yadm() then
+          return true
+        end
       end
     end)
     local event = require("ya-tree.events.event")

@@ -30,10 +30,10 @@ end
 ---@param path string
 ---@return boolean is_absolute
 function M.is_absolute_path(path)
-  if M.os_sep == "\\" then
+  if os_sep == "\\" then
     return string.match(path, "^[%a]:\\.*$") ~= nil
   end
-  return string.sub(path, 1, 1) == M.os_sep
+  return string.sub(path, 1, 1) == os_sep
 end
 
 ---@param paths string[]
@@ -83,7 +83,7 @@ end
 ---@param path string
 ---@return boolean is_root
 function M.is_root_directory(path)
-  if M.os_sep == "\\" then
+  if os_sep == "\\" then
     return string.match(path, "^[A-Z]:\\?$")
   end
   return path == "/"

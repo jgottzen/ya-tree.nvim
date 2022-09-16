@@ -46,6 +46,9 @@ function M.delete_trees_after_tab_closed()
           tree.root:walk(function(node)
             if node.repo and not found_toplevels[node.repo.toplevel] then
               found_toplevels[node.repo.toplevel] = true
+              if not node.repo:is_yadm() then
+                return true
+              end
             end
           end)
         end
