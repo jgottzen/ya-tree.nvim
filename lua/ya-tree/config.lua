@@ -209,15 +209,21 @@ local M = {
       ---@class YaTreeConfig.Renderers.Indentation : YaTreeRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
       ---@field tree_types YaTreeType[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
-      ---@field use_marker boolean Wether to show indent markers, default: `false`.
-      ---@field indent_marker string Default: `"│"`.
-      ---@field last_indent_marker string Default: `"└"`.
+      ---@field use_indent_marker boolean Wether to show indent markers, default: `false`.
+      ---@field indent_marker string The icon for the indentation marker, default: `"│"`.
+      ---@field last_indent_marker string The icon for the last indentation marker, default: `"└"`.
+      ---@field use_expander_marker boolean Whether to show expanded and collapsed markers, default: `false`.
+      ---@field expanded_marker string The icon for expanded directories/containers, default `""`.
+      ---@field collapsed_marker string The icon for collapsed directories/containers, default `""`.
       indentation = {
         padding = "",
         tree_types = { "files", "search", "buffers", "git" },
-        use_marker = false,
+        use_indent_marker = false,
         indent_marker = "│",
         last_indent_marker = "└",
+        use_expander_marker = false,
+        expanded_marker = "",
+        collapsed_marker = "",
       },
 
       ---@class YaTreeConfig.Renderers.Icon : YaTreeRendererConfig
