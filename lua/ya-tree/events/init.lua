@@ -1,182 +1,210 @@
 local void = require("plenary.async").void
 
-local event = require("ya-tree.events.event")
+local events = require("ya-tree.events.event")
 local log = require("ya-tree.log")
 
 local api = vim.api
 
 ---@class YaTreeEvent.AutoCmdEventHandler
 ---@field id string
----@field handler fun(bufnr: integer, file: string, match: string)
+---@field callback fun(bufnr: integer, file: string, match: string)
 
 ---@class YaTreeEvent.GitEventHandler
 ---@field id string
----@field handler async fun(repo: GitRepo, fs_changes: boolean)
+---@field callback async fun(repo: GitRepo, fs_changes: boolean)
 
-local M = {
+local M = {}
+
+local get_event_name, create_autocmd
+do
+  local mt = {
+    __index = function(t, key)
+      local val = {}
+      rawset(t, key, val)
+      return val
+    end,
+  }
+
   ---@private
   ---@type integer
-  _augroup = api.nvim_create_augroup("YaTree", { clear = true }),
+  M._augroup = api.nvim_create_augroup("YaTree", { clear = true })
+  ---@private
+  ---@type { [integer]: string, [string]: integer }
+  M._autocmd_ids_and_event_names = {}
   ---@private
   ---@type table<string, YaTreeEvent.AutoCmdEventHandler[]>
-  _autocmd_event_listeners = {},
+  M._autocmd_event_listeners = setmetatable({}, mt)
   ---@private
-  ---@type YaTreeEvent.GitEventHandler[]
-  _git_event_listeners = {},
-  ---@private
+  ---@type table<string, YaTreeEvent.GitEventHandler[]>
+  M._git_event_listeners = setmetatable({}, mt)
+
   ---@type table<integer, string>
-  _autocmd_ids_to_event = {},
-}
-
----@param event_id YaTreeEvent
----@return string name
-local function event_id_to_event_name(event_id)
-  return event[event_id] --[[@as string]]
-end
-
----@param event_id YaTreeEvent
----@param id string
----@param async boolean
----@param callback fun(bufnr: integer, file: string, match: string)
-function M.on_autocmd_event(event_id, id, async, callback)
-  local event_name = event_id_to_event_name(event_id)
-  if not event_name then
-    log.error("no event of id %s and type %q exists", event_id, event_name)
-    return
-  end
-
-  local handlers = M._autocmd_event_listeners[event_name]
-  if not handlers then
-    handlers = {}
-    M._autocmd_event_listeners[event_name] = handlers
-  end
-  for k, v in ipairs(handlers) do
-    if v.id == id then
-      log.warn("event %q already has a handler with id %q registered, removing old handler from list", event_name, id)
-      table.remove(handlers, k)
+  local event_names = setmetatable({}, {
+    __index = function(_, key)
+      return "unknown_event_" .. key
+    end,
+  })
+  for _, ns in pairs(events) do
+    for name, event in pairs(ns) do
+      event_names[event] = name
     end
   end
-  handlers[#handlers + 1] = { id = id, handler = async and void(callback) or callback }
-  log.debug("added handler %q for event %q", id, event_name)
-end
 
----@param id string
----@param callback async fun(repo: GitRepo, fs_changes: boolean)
-function M.on_git_event(id, callback)
-  local event_name = event_id_to_event_name(event.GIT)
-  if not event_name then
-    log.error("no event of id %s and type %q exists", event.GIT, event_name)
-    return
+  ---@param event integer
+  ---@return string
+  get_event_name = function(event)
+    return event_names[event]
   end
+  M.get_event_name = get_event_name
 
-  for k, v in ipairs(M._git_event_listeners) do
-    if v.id == id then
-      log.warn("event %q already has a handler with id %q registered, removing old handler from list", event_name, id)
-      table.remove(M._git_event_listeners, k)
-    end
-  end
-  M._git_event_listeners[#M._git_event_listeners + 1] = { id = id, handler = callback }
-  log.debug("added handler %q for event %q", id, event_name)
-end
+  ---@type table<YaTreeEvents.AutocmdEvent, string|string[]>
+  local event_to_autocmds = {
+    [events.autocmd.TAB_NEW] = "TabNewEntered",
+    [events.autocmd.TAB_ENTERED] = "TabEnter",
+    [events.autocmd.TAB_CLOSED] = "TabClosed",
 
----@param event_id YaTreeEvent
----@param id string
-function M.remove_event_handler(event_id, id)
-  local event_name = event_id_to_event_name(event_id)
-  if not event_name then
-    log.error("no event of id %s and type %q exists", event_id, event_name)
-    return
-  end
+    [events.autocmd.BUFFER_NEW] = { "BufAdd", "BufFilePost", "TermOpen" },
+    [events.autocmd.BUFFER_ENTERED] = "BufEnter",
+    [events.autocmd.BUFFER_HIDDEN] = "BufHidden",
+    [events.autocmd.BUFFER_DISPLAYED] = "BufWinEnter",
+    [events.autocmd.BUFFER_DELETED] = { "BufDelete", "TermClose" },
+    [events.autocmd.BUFFER_MODIFIED] = "BufModifiedSet",
+    [events.autocmd.BUFFER_SAVED] = "BufWritePost",
 
-  local handlers = event_id == event.GIT and M._git_event_listeners or M._autocmd_event_listeners[event_name]
-  if handlers then
-    for index, handler in ipairs(handlers) do
-      if handler.id == id then
-        log.debug("removing event handler %q for event %q", id, event_name)
-        table.remove(handlers, index)
+    [events.autocmd.CWD_CHANGED] = "DirChanged",
+
+    [events.autocmd.DIAGNOSTICS_CHANGED] = "DiagnosticChanged",
+
+    [events.autocmd.WINDOW_LEAVE] = "WinLeave",
+    [events.autocmd.WINDOW_CLOSED] = "WinClosed",
+
+    [events.autocmd.COLORSCHEME] = "ColorScheme",
+
+    [events.autocmd.LEAVE_PRE] = "VimLeavePre",
+  }
+
+  ---@class NvimAutocmdInput
+  ---@field id integer
+  ---@field event string
+  ---@field buf integer
+  ---@field match string
+  ---@field file string
+
+  ---@param input NvimAutocmdInput
+  local function autocmd_callback(input)
+    local event_name = M._autocmd_ids_and_event_names[input.id]
+    local handlers = M._autocmd_event_listeners[event_name]
+    if #handlers > 0 then
+      if vim.v.exiting == nil then
+        log.debug("calling handlers for autocmd %q", input.event)
+      end
+      for _, handler in ipairs(handlers) do
+        handler.callback(input.buf, input.file, input.match)
       end
     end
   end
+
+  ---@param event YaTreeEvents.AutocmdEvent
+  ---@param event_name string
+  create_autocmd = function(event, event_name)
+    local autocmd = event_to_autocmds[event]
+    local id = M._autocmd_ids_and_event_names[event_name]
+    if id then
+      log.warn("an autocmd source has already been defined for event %q with id %s, removing old definition", event_name, id)
+      api.nvim_del_autocmd(id)
+      M._autocmd_ids_and_event_names[id] = nil
+      M._autocmd_ids_and_event_names[event_name] = nil
+    end
+    id = api.nvim_create_autocmd(autocmd, {
+      group = M._augroup,
+      pattern = "*",
+      callback = autocmd_callback,
+      desc = event_name,
+    }) --[[@as integer]]
+    M._autocmd_ids_and_event_names[id] = event_name
+    M._autocmd_ids_and_event_names[event_name] = id
+    log.debug('created "%s" autocmd handler for event %q as id %s', autocmd, event_name, id)
+  end
+end
+
+---@param event_name string
+---@param listeners { id: string, callback: fun(...) }[]
+---@param id string
+---@param callback fun(...)
+local function add_listener(event_name, listeners, id, callback)
+  for index, handler in ipairs(listeners) do
+    if handler.id == id then
+      log.warn("event %q already has a handler with id %q registered, removing old handler from list", event_name, id)
+      table.remove(listeners, index)
+    end
+  end
+  listeners[#listeners + 1] = { id = id, callback = callback }
+  log.debug("added handler %q for event %q", id, event_name)
+end
+
+---@param event YaTreeEvents.AutocmdEvent
+---@param id string
+---@param async boolean
+---@param callback fun(bufnr: integer, file: string, match: string)
+---@overload fun(event: YaTreeEvents.AutocmdEvent, id: string, callback: fun(bufnr: integer, file: string, match: string))
+function M.on_autocmd_event(event, id, async, callback)
+  if type(async) == "function" then
+    callback = async
+    async = false
+  end
+  local event_name = get_event_name(event)
+  if not M._autocmd_ids_and_event_names[event_name] then
+    create_autocmd(event, event_name)
+  end
+  add_listener(event_name, M._autocmd_event_listeners[event_name], id, async and void(callback) or callback)
+end
+
+---@param event_name string
+---@param listeners { id: string, handler: fun(...) }[]
+---@param id string
+local function remove_listener(event_name, listeners, id)
+  for index, handler in ipairs(listeners) do
+    if handler.id == id then
+      log.debug("removing event handler %q for event %q", id, event_name)
+      table.remove(listeners, index)
+    end
+  end
+end
+
+---@param event YaTreeEvents.AutocmdEvent
+---@param id string
+function M.remove_autocmd_event(event, id)
+  local event_name = get_event_name(event)
+  remove_listener(event_name, M._autocmd_event_listeners[event_name], id)
+end
+
+---@param event YaTreeEvents.GitEvent
+---@param id string
+---@param callback async fun(repo: GitRepo, fs_changes: boolean)
+function M.on_git_event(event, id, callback)
+  local event_name = get_event_name(event)
+  add_listener(event_name, M._git_event_listeners[event_name], id, callback)
+end
+
+---@param event YaTreeEvents.GitEvent
+---@param id string
+function M.remove_git_event(event, id)
+  local event_name = get_event_name(event)
+  remove_listener(event_name, M._git_event_listeners[event_name], id)
 end
 
 ---@async
+---@param event YaTreeEvents.GitEvent
 ---@param repo GitRepo
 ---@param fs_changes boolean
-function M.fire_git_event(repo, fs_changes)
-  local event_name = event_id_to_event_name(event.GIT)
+function M.fire_git_event(event, repo, fs_changes)
+  local event_name = get_event_name(event)
   if vim.v.exiting == nil then
     log.debug("calling handlers for event %q", event_name)
   end
-  for _, handler in ipairs(M._git_event_listeners) do
-    handler.handler(repo, fs_changes)
+  for _, handler in pairs(M._git_event_listeners[event_name]) do
+    handler.callback(repo, fs_changes)
   end
-end
-
----@class NvimAutocmdInput
----@field id integer
----@field event string
----@field buf integer
----@field match string
----@field file string
-
----@param input NvimAutocmdInput
-local function autocmd_callback(input)
-  local event_name = M._autocmd_ids_to_event[input.id]
-  local handlers = M._autocmd_event_listeners[event_name]
-  if handlers then
-    if vim.v.exiting == nil then
-      log.debug("calling handlers for autocmd %q", input.event)
-    end
-    for _, handler in ipairs(handlers) do
-      handler.handler(input.buf, input.file, input.match)
-    end
-  end
-end
-
----@param event_id YaTreeEvent
----@param autocmd string|string[]
-function M.define_autocmd_event_source(event_id, autocmd)
-  local event_name = event_id_to_event_name(event_id)
-  for k, v in pairs(M._autocmd_ids_to_event) do
-    if v == event_name then
-      log.warn("an autocmd source has already been defined for event %q with id %s, removing old definition", event_name, k)
-      api.nvim_del_autocmd(k)
-      M._autocmd_ids_to_event[k] = nil
-    end
-  end
-  local id = api.nvim_create_autocmd(autocmd, {
-    group = M._augroup,
-    pattern = "*",
-    callback = autocmd_callback,
-    desc = event_name,
-  })
-  M._autocmd_ids_to_event[id] = event_name
-  log.debug('created "%s" autocmd handler for event %q as id %s', autocmd, event_name, id)
-end
-
-do
-  M.define_autocmd_event_source(event.TAB_NEW, "TabNewEntered")
-  M.define_autocmd_event_source(event.TAB_ENTERED, "TabEnter")
-  M.define_autocmd_event_source(event.TAB_CLOSED, "TabClosed")
-
-  M.define_autocmd_event_source(event.BUFFER_NEW, { "BufAdd", "BufFilePost", "TermOpen" })
-  M.define_autocmd_event_source(event.BUFFER_ENTERED, "BufEnter")
-  M.define_autocmd_event_source(event.BUFFER_HIDDEN, "BufHidden")
-  M.define_autocmd_event_source(event.BUFFER_DISPLAYED, "BufWinEnter")
-  M.define_autocmd_event_source(event.BUFFER_DELETED, { "BufDelete", "TermClose" })
-  M.define_autocmd_event_source(event.BUFFER_MODIFIED, "BufModifiedSet")
-  M.define_autocmd_event_source(event.BUFFER_SAVED, "BufWritePost")
-
-  M.define_autocmd_event_source(event.CWD_CHANGED, "DirChanged")
-
-  M.define_autocmd_event_source(event.DIAGNOSTICS_CHANGED, "DiagnosticChanged")
-
-  M.define_autocmd_event_source(event.WINDOW_LEAVE, "WinLeave")
-  M.define_autocmd_event_source(event.WINDOW_CLOSED, "WinClosed")
-
-  M.define_autocmd_event_source(event.COLORSCHEME, "ColorScheme")
-
-  M.define_autocmd_event_source(event.LEAVE_PRE, "VimLeavePre")
 end
 
 return M

@@ -264,11 +264,11 @@ function M.setup()
   Canvas.setup()
 
   local events = require("ya-tree.events")
-  local event = require("ya-tree.events.event")
+  local event = require("ya-tree.events.event").autocmd
 
-  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_UI_TAB_CLOSE_CLEANUP", false, M.delete_ui_after_tab_closed)
-  events.on_autocmd_event(event.WINDOW_LEAVE, "YA_TREE_UI_SAVE_EDIT_WINDOW_ID", false, on_win_leave)
-  events.on_autocmd_event(event.COLORSCHEME, "YA_TREE_UI_HIGHLIGHTS", false, hl.setup)
+  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_UI_TAB_CLOSE_CLEANUP", M.delete_ui_after_tab_closed)
+  events.on_autocmd_event(event.WINDOW_LEAVE, "YA_TREE_UI_SAVE_EDIT_WINDOW_ID", on_win_leave)
+  events.on_autocmd_event(event.COLORSCHEME, "YA_TREE_UI_HIGHLIGHTS", hl.setup)
 end
 
 return M

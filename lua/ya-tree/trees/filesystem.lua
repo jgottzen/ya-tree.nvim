@@ -1,7 +1,6 @@
 local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
-local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local Node = require("ya-tree.nodes.node")
@@ -16,7 +15,6 @@ local uv = vim.loop
 ---@field TYPE "files"
 ---@field private _singleton false
 ---@field cwd string
----@field private _repos GitRepo[]
 local FilesystemTree = { TYPE = "files", _singleton = false }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
@@ -54,13 +52,6 @@ local function create_root_node(path, old_root)
   return root
 end
 
----@param tabpage integer
----@param toplevel string
----@return string id
-local function create_git_event_id(tabpage, toplevel)
-  return string.format("YA_TREE_FILES_TREE%s_%s_GIT", tabpage, toplevel)
-end
-
 ---@async
 ---@param tabpage integer
 ---@param root? string|YaTreeNode
@@ -68,7 +59,6 @@ end
 function FilesystemTree:new(tabpage, root)
   local this = Tree.new(self, tabpage)
   this.cwd = uv.cwd() --[[@as string]]
-  this._repos = {}
 
   local root_node
   if type(root) == "string" then
@@ -87,19 +77,6 @@ function FilesystemTree:new(tabpage, root)
   return this
 end
 
-function FilesystemTree:delete()
-  self:_clear_repos()
-end
-
----@private
-function FilesystemTree:_clear_repos()
-  local event = require("ya-tree.events.event")
-  for _, repo in ipairs(self._repos) do
-    events.remove_event_handler(event.GIT, create_git_event_id(self._tabpage, repo.toplevel))
-  end
-  self._repos = {}
-end
-
 ---@async
 ---@param node YaTreeNode
 ---@return boolean
@@ -107,13 +84,8 @@ function FilesystemTree:check_node_for_repo(node)
   if require("ya-tree.config").config.git.enable then
     local repo = git.create_repo(node.path)
     if repo then
-      self._repos[#self._repos + 1] = repo
-
       node:set_git_repo(repo)
       repo:refresh_status({ ignored = true })
-      events.on_git_event(create_git_event_id(self._tabpage, repo.toplevel), function(event_repo, fs_changes)
-        self:on_git_event(event_repo, fs_changes)
-      end)
       return true
     end
   end
@@ -124,7 +96,7 @@ end
 ---@param repo GitRepo
 ---@param fs_changes boolean
 function FilesystemTree:on_git_event(repo, fs_changes)
-  if vim.v.exiting ~= vim.NIL or not vim.tbl_contains(self._repos, repo) then
+  if vim.v.exiting ~= vim.NIL or not (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
     return
   end
   log.debug("git repo %s changed", tostring(repo))
@@ -206,7 +178,6 @@ function FilesystemTree:change_root_node(new_root)
       new_root = Path:new(new_root):parent():absolute() --[[@as string]]
     end
     if not update_tree_root_node(self, new_root) then
-      self:_clear_repos()
       self.root = create_root_node(new_root, self.root)
     end
   else
@@ -229,12 +200,6 @@ function FilesystemTree:change_root_node(new_root)
         end
       end
     end)
-    local event = require("ya-tree.events.event")
-    for _, repo in ipairs(self._repos) do
-      if not found_toplevels[repo.toplevel] then
-        events.remove_event_handler(event.GIT, create_git_event_id(self._tabpage, repo.toplevel))
-      end
-    end
   end
 
   if not self.root.repo then

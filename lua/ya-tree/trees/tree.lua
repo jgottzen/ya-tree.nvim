@@ -44,14 +44,19 @@ function Tree.new(self, tabpage)
   }
   setmetatable(this, self)
 
-  local event = require("ya-tree.events.event")
-  local buffer_modified_id = this:create_event_id(event.BUFFER_MODIFIED)
-  events.on_autocmd_event(event.BUFFER_MODIFIED, buffer_modified_id, false, function(bufnr, file)
+  local ae = require("ya-tree.events.event").autocmd
+  events.on_autocmd_event(ae.BUFFER_MODIFIED, this:create_event_id(ae.BUFFER_MODIFIED), function(bufnr, file)
     this:on_buffer_modified(bufnr, file)
   end)
   if require("ya-tree.config").config.auto_reload_on_write then
-    events.on_autocmd_event(event.BUFFER_SAVED, this:create_event_id(event.BUFFER_SAVED), true, function(bufnr, file)
-      this:on_buffer_saved(bufnr, file)
+    events.on_autocmd_event(ae.BUFFER_SAVED, this:create_event_id(ae.BUFFER_SAVED), true, function(bufnr, _, match)
+      this:on_buffer_saved(bufnr, match)
+    end)
+  end
+  if require("ya-tree.config").config.git.enable then
+    local ge = require("ya-tree.events.event").git
+    events.on_git_event(ge.DOT_GIT_DIR_CHANGED, this:create_event_id(ge.DOT_GIT_DIR_CHANGED), function(event_repo, fs_changes)
+      this:on_git_event(event_repo, fs_changes)
     end)
   end
 
@@ -61,13 +66,19 @@ end
 -- selene: allow(unused_variable)
 
 ---@param tabpage integer
-function Tree:delete(tabpage) end
+---@diagnostic disable-next-line:unused-local
+function Tree:delete(tabpage)
+  local ae = require("ya-tree.events.event").autocmd
+  events.remove_autocmd_event(ae.BUFFER_MODIFIED, self:create_event_id(ae.BUFFER_MODIFIED))
+  events.remove_autocmd_event(ae.BUFFER_SAVED, self:create_event_id(ae.BUFFER_SAVED))
+  local ge = require("ya-tree.events.event").git
+  events.remove_git_event(ge.DOT_GIT_DIR_CHANGED, self:create_event_id(ge.DOT_GIT_DIR_CHANGED))
+end
 
----@param event_id YaTreeEvent
+---@param event integer
 ---@return string id
-function Tree:create_event_id(event_id)
-  local event = require("ya-tree.events.event")
-  return string.format("YA_TREE_%s_TREE%s_%s", self.TYPE, self._tabpage, event[event_id])
+function Tree:create_event_id(event)
+  return string.format("YA_TREE_%s_TREE%s_%s", self.TYPE:upper(), self._tabpage, events.get_event_name(event))
 end
 
 ---@param bufnr integer
@@ -114,6 +125,23 @@ function Tree:on_buffer_saved(bufnr, file)
     if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
       ui.update(self)
     end
+  end
+end
+
+-- selene: allow(unused_variable)
+
+---@async
+---@param repo GitRepo
+---@param fs_changes boolean
+---@diagnostic disable-next-line:unused-local
+function Tree:on_git_event(repo, fs_changes)
+  if
+    vim.v.exiting == vim.NIL
+    and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil)
+    and self:is_shown_in_ui(api.nvim_get_current_tabpage())
+  then
+    log.debug("git repo %s changed", tostring(repo))
+    ui.update(self)
   end
 end
 

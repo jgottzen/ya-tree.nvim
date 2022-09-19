@@ -568,19 +568,19 @@ function M.setup()
     end
 
     local events = require("ya-tree.events")
-    local event = require("ya-tree.events.event")
+    local event = require("ya-tree.events.event").autocmd
 
-    events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", false, function(_, _, match)
-      if config.auto_close then
+    if config.auto_close then
+      events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", function(_, _, match)
         local winid = tonumber(match) --[[@as number]]
         on_win_closed(winid)
-      end
-    end)
-    events.on_autocmd_event(event.TAB_NEW, "YA_TREE_LIB_AUTO_OPEN_NEW_TAB", true, function()
-      if config.auto_open.on_new_tab then
+      end)
+    end
+    if config.auto_open.on_new_tab then
+      events.on_autocmd_event(event.TAB_NEW, "YA_TREE_LIB_AUTO_OPEN_NEW_TAB", true, function()
         M.open_window({ focus = config.auto_open.focus_tree })
-      end
-    end)
+      end)
+    end
     events.on_autocmd_event(event.TAB_ENTERED, "YA_TREE_LIB_REDRAW_TAB", true, M.redraw)
     events.on_autocmd_event(event.BUFFER_ENTERED, "YA_TREE_LIB_BUFFER_ENTERED", true, on_buf_enter)
 

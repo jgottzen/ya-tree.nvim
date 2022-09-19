@@ -48,18 +48,18 @@ function BuffersTree:new(tabpage, path)
     singleton.root.repo = git.get_repo_for_path(fs_node.path)
     singleton.current_node = singleton.root:refresh()
 
-    local event = require("ya-tree.events.event")
-    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), false, function(bufnr, file)
+    local event = require("ya-tree.events.event").autocmd
+    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), function(bufnr, file)
       if file ~= "" then
         singleton:on_buffer_new(bufnr, file)
       end
     end)
-    events.on_autocmd_event(event.BUFFER_HIDDEN, singleton:create_event_id(event.BUFFER_HIDDEN), false, function(bufnr, file)
+    events.on_autocmd_event(event.BUFFER_HIDDEN, singleton:create_event_id(event.BUFFER_HIDDEN), function(bufnr, file)
       if file ~= "" then
         singleton:on_buffer_hidden(bufnr, file)
       end
     end)
-    events.on_autocmd_event(event.BUFFER_DISPLAYED, singleton:create_event_id(event.BUFFER_DISPLAYED), false, function(bufnr, file)
+    events.on_autocmd_event(event.BUFFER_DISPLAYED, singleton:create_event_id(event.BUFFER_DISPLAYED), function(bufnr, file)
       if file ~= "" then
         singleton:on_buffer_displayed(bufnr, file)
       end
@@ -68,9 +68,6 @@ function BuffersTree:new(tabpage, path)
       if match ~= "" then
         singleton:on_buffer_deleted(bufnr, match)
       end
-    end)
-    events.on_git_event(singleton:create_event_id(event.GIT), function(repo)
-      singleton:on_git_event(repo)
     end)
 
     log.debug("created new tree %s", tostring(singleton))
@@ -90,11 +87,10 @@ function BuffersTree:delete(tabpage)
   end
 end
 
----@param event_id YaTreeEvent
+---@param event integer
 ---@return string id
-function BuffersTree:create_event_id(event_id)
-  local event = require("ya-tree.events.event")
-  return string.format("YA_TREE_%s_TREE_%s", self.TYPE, event[event_id])
+function BuffersTree:create_event_id(event)
+  return string.format("YA_TREE_%s_TREE_%s", self.TYPE:upper(), events.get_event_name(event))
 end
 
 ---@param bufnr integer
@@ -183,19 +179,6 @@ function BuffersTree:on_buffer_deleted(bufnr, file)
     if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
       ui.update(self, ui.get_current_node())
     end
-  end
-end
-
----@async
----@param repo GitRepo
-function BuffersTree:on_git_event(repo)
-  if
-    vim.v.exiting == vim.NIL
-    and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil)
-    and self:is_shown_in_ui(api.nvim_get_current_tabpage())
-  then
-    log.debug("git repo %s changed", tostring(repo))
-    ui.update(self)
   end
 end
 

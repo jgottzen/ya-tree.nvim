@@ -207,6 +207,7 @@ end
 
 function Repo:add_git_watcher()
   if not self._git_dir_watcher then
+    local event = require("ya-tree.events.event").git
     ---@param err string
     ---@type fun(err?: string)
     local fs_poll_callback = void(function(err)
@@ -217,7 +218,7 @@ function Repo:add_git_watcher()
       end
 
       local fs_changes = self:refresh_status({ ignored = true })
-      events.fire_git_event(self, fs_changes)
+      events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
     end)
 
     local result, message = uv.new_fs_poll()
@@ -668,8 +669,8 @@ end
 function M.setup()
   config = require("ya-tree.config").config
 
-  local event = require("ya-tree.events.event")
-  events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", false, on_vim_leave_pre)
+  local event = require("ya-tree.events.event").autocmd
+  events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", on_vim_leave_pre)
 end
 
 return M

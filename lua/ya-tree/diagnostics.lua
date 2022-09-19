@@ -89,15 +89,17 @@ end
 function M.setup()
   config = require("ya-tree.config").config
 
-  local events = require("ya-tree.events")
-  local event = require("ya-tree.events.event")
+  if config.diagnostics.enable then
+    local events = require("ya-tree.events")
+    local event = require("ya-tree.events.event").autocmd
 
-  local debounced_callback = require("ya-tree.debounce").debounce_trailing(function()
-    if require("ya-tree.config").config.diagnostics.enable then
-      on_diagnostics_changed()
-    end
-  end, config.diagnostics.debounce_time)
-  events.on_autocmd_event(event.DIAGNOSTICS_CHANGED, "YA_TREE_DIAGNOSTICS", false, debounced_callback)
+    local debounced_callback = require("ya-tree.debounce").debounce_trailing(function()
+      if require("ya-tree.config").config.diagnostics.enable then
+        on_diagnostics_changed()
+      end
+    end, config.diagnostics.debounce_time)
+    events.on_autocmd_event(event.DIAGNOSTICS_CHANGED, "YA_TREE_DIAGNOSTICS", debounced_callback)
+  end
 end
 
 return M

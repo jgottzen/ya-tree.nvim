@@ -1,6 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
 
-local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
@@ -34,26 +33,14 @@ function GitTree:new(tabpage, repo_or_toplevel)
   return this
 end
 
-function GitTree:delete()
-  local event = require("ya-tree.events.event")
-  events.remove_event_handler(event.GIT, self:create_event_id(event.GIT))
-end
-
 ---@async
 ---@private
 ---@param repo GitRepo
 function GitTree:_init(repo)
-  local event = require("ya-tree.events.event")
-  local id = self:create_event_id(event.GIT)
-  events.remove_event_handler(event.GIT, id)
-
   local fs_node = fs.node_for(repo.toplevel) --[[@as FsNode]]
   self.root = GitNode:new(fs_node)
   self.root.repo = repo
   self.current_node = self.root:refresh()
-  events.on_git_event(id, function(event_repo)
-    self:on_git_event(event_repo)
-  end)
 end
 
 ---@async
