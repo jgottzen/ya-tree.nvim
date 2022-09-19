@@ -570,7 +570,7 @@ function M.setup()
     local events = require("ya-tree.events")
     local event = require("ya-tree.events.event").autocmd
 
-    if config.auto_close then
+    if config.close_if_last_window then
       events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", function(_, _, match)
         local winid = tonumber(match) --[[@as number]]
         on_win_closed(winid)

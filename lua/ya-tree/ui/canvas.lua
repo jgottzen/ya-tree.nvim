@@ -211,7 +211,7 @@ function Canvas:_set_window_options()
     end,
     desc = "Cleaning up window specific settings",
   })
-  if config.hijack_cursor then
+  if config.move_cursor_to_name then
     api.nvim_create_autocmd("CursorMoved", {
       group = self.window_augroup,
       buffer = self.bufnr,
@@ -566,7 +566,7 @@ function Canvas:focus_node(node)
     if row then
       local column
       -- don't move the cursor on the first line
-      if config.hijack_cursor and row > 2 then
+      if config.move_cursor_to_name and row > 2 then
         local line = api.nvim_buf_get_lines(self.bufnr, row - 1, row, false)[1] --[[@as string?]]
         if line then
           column = (line:find(node.name, 1, true) or 0) - 1

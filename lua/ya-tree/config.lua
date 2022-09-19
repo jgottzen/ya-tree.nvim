@@ -2,10 +2,10 @@ local fn = vim.fn
 
 local M = {
   ---@class YaTreeConfig
-  ---@field auto_close boolean Force closing Neovim when YaTree is the last window, default: `false`.
+  ---@field close_if_last_window boolean Force closing Neovim when YaTree is the last window, default: `false`.
   ---@field auto_reload_on_write boolean Reloads the tree and the directory of the file changed, default: `true`.
   ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
-  ---@field hijack_cursor boolean Keep the cursor on the name in tree, default: `false`.
+  ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field replace_netrw boolean Replace `netrw` windows, default: `true`.
   ---@field log YaTreeConfig.Log Logging configuration.
@@ -21,11 +21,11 @@ local M = {
   ---@field renderers YaTreeConfig.Renderers Renderer configurations.
   ---@field mappings YaTreeConfig.Mappings Key mapping configuration.
   default = {
-    auto_close = false,
+    close_if_last_window = false,
     auto_reload_on_write = true,
 
     follow_focused_file = false,
-    hijack_cursor = false,
+    move_cursor_to_name = false,
     move_buffers_from_tree_window = true,
 
     replace_netrw = true,
@@ -167,8 +167,8 @@ local M = {
           { "indentation" },
           { "icon" },
           { "name", use_git_status_colors = true },
-          { "modified" },
           { "symlink_target" },
+          { "modified" },
           { "git_status" },
           { "diagnostics" },
           { "buffer_info" },
