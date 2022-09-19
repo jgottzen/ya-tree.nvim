@@ -5,7 +5,6 @@ local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local log = require("ya-tree.log")
-local node_utils = require("ya-tree.nodes.utils")
 local utils = require("ya-tree.utils")
 
 local api = vim.api
@@ -27,7 +26,7 @@ BufferNode.__tostring = Node.__tostring
 ---@param self YaTreeBufferNode
 ---@param other YaTreeBufferNode
 ---@return boolean
-BufferNode.__eq = function (self, other)
+BufferNode.__eq = function(self, other)
   if self.type == "terminal" then
     return other.type == "terminal" and self.bufname == other.bufname or false
   else
@@ -46,7 +45,7 @@ setmetatable(BufferNode, { __index = Node })
 ---@param hidden? boolean if the buffer is listed.
 ---@return YaTreeBufferNode node
 function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
-  local this = node_utils.create_node(self, fs_node, parent)
+  local this = Node.new(self, fs_node, parent)
   this.bufname = bufname
   this.bufnr = bufnr
   this.modified = modified or false
@@ -215,7 +214,7 @@ function BufferNode:refresh(opts)
   self.repo = git.get_repo_for_path(root_path)
   self.children = {}
   self.empty = true
-  local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
+  local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then
       local buffer_node = buffers[fs_node.path]
@@ -285,7 +284,7 @@ function BufferNode:add_buffer(file, bufnr, is_terminal)
     end
     return add_terminal_buffer_to_container(container, { name = file, bufnr = bufnr })
   else
-    return node_utils.add_fs_node(self, file, function(fs_node, parent)
+    return self:add_node(file, function(fs_node, parent)
       local is_buffer_node = fs_node.path == file
       local node = BufferNode:new(fs_node, parent, is_buffer_node and file or nil, is_buffer_node and bufnr or nil, false, false)
       if not parent.repo or parent.repo:is_yadm() then
@@ -344,7 +343,7 @@ function BufferNode:remove_buffer(file, bufnr, is_terminal)
       end
     end
   else
-    node_utils.remove_fs_node(self, file)
+    self:remove_node(file)
   end
 end
 

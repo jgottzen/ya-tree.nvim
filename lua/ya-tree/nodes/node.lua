@@ -1,9 +1,9 @@
 local scheduler = require("plenary.async.util").scheduler
+local Path = require("plenary.path")
 
 local diagnostics = require("ya-tree.diagnostics")
 local fs = require("ya-tree.filesystem")
 local log = require("ya-tree.log")
-local node_utils = require("ya-tree.nodes.utils")
 local utils = require("ya-tree.utils")
 
 ---@alias YaTreeNodeType "FileSystem" | "Search" | "Buffer" | "Git"
@@ -44,11 +44,28 @@ Node.__tostring = function(self)
 end
 
 ---Creates a new node.
+---@generic T : YaTreeNode
+---@param class T
 ---@param fs_node FsNode filesystem data.
----@param parent? YaTreeNode the parent node.
----@return YaTreeNode node
-function Node:new(fs_node, parent)
-  return node_utils.create_node(self, fs_node, parent)
+---@param parent? T the parent node.
+---@return T node
+function Node.new(class, fs_node, parent)
+  local this = setmetatable(fs_node, class) --[[@as YaTreeNode]]
+  ---@cast parent YaTreeNode?
+  this.parent = parent
+  this.modified = false
+  if this:is_container() then
+    this.children = {}
+  end
+
+  -- inherit any git repo
+  if parent and parent.repo then
+    this.repo = parent.repo
+  end
+
+  log.trace("created node %s", this)
+
+  return this
 end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` skips
@@ -288,6 +305,130 @@ end
 ---@return number|nil
 function Node:diagnostics_severity()
   return diagnostics.of(self.path)
+end
+
+---@async
+---@generic T : YaTreeNode
+---@param self T
+---@param file string
+---@param node_creator fun(fs_node: FsNode, parent: T): T
+---@return T|nil node
+function Node.add_node(self, file, node_creator)
+  if not fs.exists(file) then
+    log.error("no file node found for %q", file)
+    return nil
+  end
+
+  ---@cast self YaTreeNode
+  local rest = file:sub(#self.path + 1)
+  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true }) --[=[@as string[]]=]
+  local node = self
+  for i = 1, #splits do
+    local name = splits[i]
+    local found = false
+    for _, child in ipairs(node.children) do
+      if child.name == name then
+        found = true
+        node = child
+        break
+      end
+    end
+    if not found then
+      local fs_node = fs.node_for(node.path .. utils.os_sep .. name)
+      if fs_node then
+        local child = node_creator(fs_node, node)
+        log.debug("adding child %q to parent %q", child.path, node.path)
+        node.children[#node.children + 1] = child
+        node.empty = false
+        table.sort(node.children, self.node_comparator)
+        node = child
+      else
+        log.error("cannot create fs node for %q", node.path .. utils.os_sep .. name)
+        return nil
+      end
+    end
+  end
+
+  scheduler()
+  return node
+end
+
+---@param file string
+function Node:remove_node(file)
+  local node = self:get_child_if_loaded(file)
+  while node and node.parent and node ~= self do
+    if node.parent and node.parent.children then
+      for index, child in ipairs(node.parent.children) do
+        if child == node then
+          log.debug("removing child %q from parent %q", child.path, node.parent.path)
+          table.remove(node.parent.children, index)
+          break
+        end
+      end
+      if #node.parent.children == 0 then
+        node.parent.empty = true
+        node = node.parent
+      else
+        break
+      end
+    end
+  end
+end
+
+---@async
+---@generic T : YaTreeNode
+---@param self T
+---@param paths string[]
+---@param node_creator async fun(path: string, parent: T, directory: boolean): T|nil
+---@return T first_leaf_node
+function Node.populate_from_paths(self, paths, node_creator)
+  ---@cast self YaTreeNode
+  ---@type table<string, YaTreeNode>
+  local node_map = { [self.path] = self }
+
+  ---@param path string
+  ---@param parent YaTreeNode
+  ---@param directory boolean
+  local function add_node(path, parent, directory)
+    local node = node_creator(path, parent, directory)
+    if node then
+      parent.children[#parent.children + 1] = node
+      parent.empty = false
+      table.sort(parent.children, self.node_comparator)
+      node_map[node.path] = node
+    end
+  end
+
+  local min_path_size = #self.path
+  for _, path in ipairs(paths) do
+    local parents = Path:new(path):parents() --[=[@as string[]]=]
+    for i = #parents, 1, -1 do
+      local parent_path = parents[i]
+      -- skip paths 'above' the root node
+      if #parent_path > min_path_size then
+        local parent = node_map[parent_path]
+        if not parent then
+          local grand_parent = node_map[parents[i + 1]]
+          add_node(parent_path, grand_parent, true)
+        end
+      end
+    end
+
+    local parent = node_map[parents[1]]
+    add_node(path, parent, false)
+  end
+
+  local first_leaf_node = self
+  while first_leaf_node and first_leaf_node:is_container() do
+    if first_leaf_node.children and first_leaf_node.children[1] then
+      first_leaf_node = first_leaf_node.children[1]
+    else
+      break
+    end
+  end
+
+  scheduler()
+  return first_leaf_node
 end
 
 ---@alias hidden_reason "filter" | "git"

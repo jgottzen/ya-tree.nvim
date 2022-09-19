@@ -5,7 +5,6 @@ local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local job = require("ya-tree.job")
 local log = require("ya-tree.log")
-local node_utils = require("ya-tree.nodes.utils")
 local utils = require("ya-tree.utils")
 
 ---@class YaTreeSearchNode : YaTreeNode
@@ -24,7 +23,7 @@ setmetatable(SearchNode, { __index = Node })
 ---@param parent? YaTreeSearchNode the parent node.
 ---@return YaTreeSearchNode node
 function SearchNode:new(fs_node, parent)
-  local this = node_utils.create_node(self, fs_node, parent)
+  local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
     this.empty = true
     this.scanned = true
@@ -83,7 +82,7 @@ do
     self.empty = true
     local paths, err = search(self.path, self._search_options.cmd, self._search_options.args)
     if paths then
-      local first_leaf_node = node_utils.create_tree_from_paths(self, paths, function(path, parent)
+      local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
         local fs_node = fs.node_for(path)
         if fs_node then
           local node = SearchNode:new(fs_node, parent)

@@ -1,7 +1,6 @@
 local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.filesystem")
 local log = require("ya-tree.log")
-local node_utils = require("ya-tree.nodes.utils")
 
 ---@class YaTreeGitNode : YaTreeNode
 ---@field public parent? YaTreeGitNode
@@ -18,7 +17,7 @@ setmetatable(GitNode, { __index = Node })
 ---@param parent? YaTreeGitNode the parent node.
 ---@return YaTreeGitNode node
 function GitNode:new(fs_node, parent)
-  local this = node_utils.create_node(self, fs_node, parent)
+  local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
     this.empty = true
     this.scanned = true
@@ -75,7 +74,7 @@ function GitNode:refresh(opts)
 
   self.children = {}
   self.empty = true
-  return node_utils.create_tree_from_paths(self, paths, function(path, parent, directory)
+  return self:populate_from_paths(paths, function(path, parent, directory)
     local fs_node = fs.node_for(path)
     if not fs_node then
       fs_node = {
@@ -96,7 +95,7 @@ function GitNode:add_file(file)
     return self.parent:add_file(file)
   end
 
-  return node_utils.add_fs_node(self, file, function(fs_node, parent)
+  return self:add_node(file, function(fs_node, parent)
     return GitNode:new(fs_node, parent)
   end)
 end
@@ -107,7 +106,7 @@ function GitNode:remove_file(file)
     return self.parent:remove_file(file)
   end
 
-  node_utils.remove_fs_node(self, file)
+  self:remove_node(file)
 end
 
 return GitNode
