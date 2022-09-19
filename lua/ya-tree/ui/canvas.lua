@@ -8,12 +8,6 @@ local api = vim.api
 
 local ns = api.nvim_create_namespace("YaTreeHighlights") --[[@as integer]]
 
-local barbar_exists = false
-
----@class BarBarState
----@field set_offset fun(width: number, text?: string)
-local barbar_state = {}
-
 ---@type {name: string, value: string|boolean}[]
 local buf_options = {
   { name = "bufhidden", value = "hide" },
@@ -48,8 +42,6 @@ local win_options = {
     "StatusLineNC:YaTreeStatuslineNC",
   }, ","),
 }
-
-local tab_var_barbar_set_name = "_YaTreeBarbar"
 
 local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
 local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
@@ -231,24 +223,9 @@ function Canvas:_set_window_options()
   end
 end
 
----@param width number
-local function set_barbar_offset(width)
-  if barbar_exists then
-    local ok, result = pcall(barbar_state.set_offset, width, config.view.barbar.title or "")
-    if ok then
-      api.nvim_tabpage_set_var(0, tab_var_barbar_set_name, width)
-    else
-      log.error("error calling barbar to set offset: %", result)
-    end
-  end
-end
-
 ---@private
 function Canvas:_on_win_closed()
   log.debug("window %s was closed", self.winid)
-  if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    set_barbar_offset(0)
-  end
 
   local ok, result = pcall(api.nvim_del_augroup_by_id, self.window_augroup)
   if not ok then
@@ -300,11 +277,6 @@ function Canvas:open(tree, opts)
   end
 
   self:render(tree)
-
-  -- barbar can only set offsets on the left side
-  if config.view.barbar.enable and barbar_exists and config.view.side == "left" then
-    set_barbar_offset(self.width)
-  end
 
   events.fire_yatree_event(event.YA_TREE_WINDOW_OPENED, { winid = self.winid })
 end
@@ -747,36 +719,6 @@ function Canvas:focus_next_diagnostic_item()
   end
 end
 
-local on_tab_leave, on_tab_enter
-do
-  local previous_tab_page = 0
-
-  on_tab_leave = function()
-    previous_tab_page = api.nvim_get_current_tabpage()
-  end
-
-  ---@param tabpage number
-  ---@return boolean was_set, number width
-  local function get_tabbar_offset(tabpage)
-    local ok, value = pcall(api.nvim_tabpage_get_var, tabpage, tab_var_barbar_set_name)
-    if ok then
-      return ok, value
-    else
-      return false, 0
-    end
-  end
-
-  on_tab_enter = function()
-    local was_set, _ = get_tabbar_offset(previous_tab_page)
-    local is_set, current_width = get_tabbar_offset(api.nvim_get_current_tabpage())
-    if was_set and not is_set then
-      set_barbar_offset(0)
-    elseif is_set then
-      set_barbar_offset(current_width)
-    end
-  end
-end
-
 ---@class YaTreeViewRenderer
 ---@field name string
 ---@field fn fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
@@ -866,32 +808,6 @@ do
       end
     end
     log.trace("file renderers=%s", all_file_renderers)
-
-    barbar_exists, barbar_state = pcall(require, "bufferline.state")
-    barbar_exists = barbar_exists and type(barbar_state.set_offset) == "function"
-    log.debug("barbar has " .. (barbar_exists and "successfully" or "not") .. " been detected")
-    if config.view.barbar.enable and not barbar_exists then
-      utils.notify("barbar was not detected. Disabling 'view.barbar.enable' in the configuration")
-      config.view.barbar.enable = false
-    end
-
-    if barbar_exists and config.view.barbar.enable then
-      local group = api.nvim_create_augroup("YaTreeCanvas", { clear = true })
-      api.nvim_create_autocmd("TabLeave", {
-        group = group,
-        callback = function()
-          on_tab_leave()
-        end,
-        desc = "barbar tabline integration handling",
-      })
-      api.nvim_create_autocmd("TabEnter", {
-        group = group,
-        callback = function()
-          on_tab_enter()
-        end,
-        desc = "barbar tabline integration handling",
-      })
-    end
   end
 
   ---@return boolean enabled
