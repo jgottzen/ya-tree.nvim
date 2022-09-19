@@ -105,7 +105,7 @@ function M.open_window(opts)
   if not tree then
     tree = Trees.current_tree(tabpage)
     if not tree then
-      tree = Trees.new_filesystem(tabpage, true)
+      tree = Trees.filesystem_or_new(tabpage, true)
     end
   end
 
