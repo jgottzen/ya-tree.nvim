@@ -328,7 +328,7 @@ end
 ---@param tree YaTree
 ---@param path string
 function M.search_for_node_in_tree(tree, path)
-  local cmd, args = utils.build_search_arguments(path, tree.root.path)
+  local cmd, args = utils.build_search_arguments(path, tree.root.path, false)
   if not cmd then
     return
   end

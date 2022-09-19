@@ -171,8 +171,9 @@ do
 
   ---@param term string
   ---@param path string
+  ---@param glob boolean
   ---@return string|nil cmd, string[] arguments
-  function M.build_search_arguments(term, path)
+  function M.build_search_arguments(term, path, glob)
     local config = require("ya-tree.config").config
     local cmd = config.search.cmd
 
@@ -197,11 +198,16 @@ do
         if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
           table.insert(args, "--max-results=" .. config.search.max_results)
         end
-        table.insert(args, "--full-path")
-        if term ~= "*" and not term:find("*") then
-          term = ".*" .. term .. ".*"
+        if glob then
+          table.insert(args, "--glob")
+          if term ~= "*" and not term:find("*") then
+            term = "*" .. term .. "*"
+          end
+          table.insert(args, term)
+        else
+          table.insert(args, "--full-path")
+          table.insert(args, term)
         end
-        table.insert(args, term)
         table.insert(args, path)
       elseif cmd == "find" then
         args = { path, "-type", "f,d,l" }
@@ -210,11 +216,16 @@ do
           table.insert(args, "-path")
           table.insert(args, "*/.*")
         end
-        table.insert(args, "-ipath")
         if term ~= "*" and not term:find("*") then
           term = "*" .. term .. "*"
         end
-        table.insert(args, term)
+        if glob then
+          table.insert(args, "-iname")
+          table.insert(args, term)
+        else
+          table.insert(args, "-ipath")
+          table.insert(args, "*" .. term .. "*")
+        end
       elseif cmd == "where" then
         if term ~= "*" and not term:find("*") then
           term = "*" .. term .. "*"
