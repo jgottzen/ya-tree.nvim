@@ -298,15 +298,14 @@ local function create_status_arguments(opts)
   local args = {
     "--no-optional-locks",
     "status",
-    -- "--ignore-submodules=all", -- this is the default
+    -- --ignore-submodules=all, -- this is the default
     "--porcelain=v2",
-    "-unormal", -- "--untracked-files=normal",
     "-z", -- null-terminated
   }
   if opts.all_untracked then
-    args[#args + 1] = "-uall"
+    args[#args + 1] = "-uall" -- --untracked-files=all
   else
-    args[#args + 1] = "-unormal"
+    args[#args + 1] = "-unormal" -- --untracked-files=normal
   end
   if opts.header then
     args[#args + 1] = "-b" --branch
