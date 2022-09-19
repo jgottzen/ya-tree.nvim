@@ -275,6 +275,11 @@ local function rescan_dir_for_git(tree, node)
   local found = false
   if not node.repo or node.repo:is_yadm() then
     found = tree:check_node_for_repo(node)
+    if not found then
+      utils.notify(string.format("No Git repository found in %q.", node.path))
+    end
+  elseif node.repo and not node.repo:is_yadm() then
+    utils.notify(string.format("%q is already detected as a Git repository.", node.path))
   end
   tree.refreshing = false
   return found
@@ -296,8 +301,6 @@ function M.rescan_dir_for_git(_, node)
   end
   if rescan_dir_for_git(tree, node) then
     ui.update(tree, node)
-  else
-    utils.notify(string.format("No Git repository found in %q.", node.path))
   end
 end
 
