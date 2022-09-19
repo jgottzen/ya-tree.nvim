@@ -1,4 +1,6 @@
 local config = require("ya-tree.config").config
+local events = require("ya-tree.events")
+local event = require("ya-tree.events.event").ya_tree
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")
 
@@ -248,17 +250,12 @@ function Canvas:_on_win_closed()
     set_barbar_offset(0)
   end
 
-  if type(config.view.on_close) == "function" then
-    local ok, result = pcall(config.view.on_close, config)
-    if not ok then
-      log.error("error calling user supplied on_close function: %", result)
-    end
-  end
-
   local ok, result = pcall(api.nvim_del_augroup_by_id, self.window_augroup)
   if not ok then
     log.error("error deleting window local augroup: %s", result)
   end
+
+  events.fire_yatree_event(event.YA_TREE_WINDOW_CLOSED, { winid = self.winid })
 
   self.window_augroup = nil
   self.winid = nil
@@ -309,12 +306,7 @@ function Canvas:open(tree, opts)
     set_barbar_offset(self.width)
   end
 
-  if type(config.view.on_open) == "function" then
-    local ok, result = pcall(config.view.on_open, config)
-    if not ok then
-      log.error("error calling user supplied on_open function: %", result)
-    end
-  end
+  events.fire_yatree_event(event.YA_TREE_WINDOW_OPENED, { winid = self.winid })
 end
 
 function Canvas:focus()

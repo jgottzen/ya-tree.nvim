@@ -13,6 +13,10 @@ local api = vim.api
 ---@field id string
 ---@field callback async fun(repo: GitRepo, fs_changes: boolean)
 
+---@class YaTreeEvent.YaTreeEventHandler
+---@field id string
+---@field callback fun(...)
+
 local M = {}
 
 local get_event_name, create_autocmd
@@ -37,6 +41,9 @@ do
   ---@private
   ---@type table<string, YaTreeEvent.GitEventHandler[]>
   M._git_event_listeners = setmetatable({}, mt)
+  ---@private
+  ---@type table<string, YaTreeEvent.YaTreeEventHandler[]>
+  M._yatree_event_listeners = setmetatable({}, mt)
 
   ---@type table<integer, string>
   local event_names = setmetatable({}, {
@@ -204,6 +211,33 @@ function M.fire_git_event(event, repo, fs_changes)
   end
   for _, handler in pairs(M._git_event_listeners[event_name]) do
     handler.callback(repo, fs_changes)
+  end
+end
+
+---@param event YaTreeEvents.YaTreeEvent
+---@param id string
+---@param callback fun(...)
+function M.on_yatree_event(event, id, callback)
+  local event_name = get_event_name(event)
+  add_listener(event_name, M._yatree_event_listeners[event_name], id, callback)
+end
+
+---@param event YaTreeEvents.YaTreeEvent
+---@param id string
+function M.remove_yatree_event(event, id)
+  local event_name = get_event_name(event)
+  remove_listener(event_name, M._yatree_event_listeners[event_name], id)
+end
+
+---@param event YaTreeEvents.YaTreeEvent
+---@param ... any
+function M.fire_yatree_event(event, ...)
+  local event_name = get_event_name(event)
+  if vim.v.exiting == nil then
+    log.debug("calling handlers for event %q", event_name)
+  end
+  for _, handler in pairs(M._yatree_event_listeners[event_name]) do
+    handler.callback(...)
   end
 end
 

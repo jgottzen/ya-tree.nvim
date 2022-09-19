@@ -130,8 +130,6 @@ local M = {
     ---@field side "left"|"right" Where the tree panel is placed, default: `"left"`.
     ---@field number boolean Wether to show the number column, default: `false`.
     ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
-    ---@field on_open? fun(config: YaTreeConfig) Callback function when the tree view is opened, default: `nil`.
-    ---@field on_close? fun(config: YaTreeConfig) Callback function when the tree view is closed, default: `nil`.
     ---@field barbar YaTreeConfig.View.Barbar `romgrk/barbar.nvim` integration configuration.
     ---@field popups YaTreeConfig.View.Popups Popup window configuration.
     ---@field renderers YaTreeConfig.View.Renderers Which renderers to use in the tree view.
@@ -140,8 +138,6 @@ local M = {
       side = "left",
       number = false,
       relativenumber = false,
-      on_open = nil,
-      on_close = nil,
 
       ---@class YaTreeConfig.View.Barbar
       ---@field enable boolean Integrate with `romgrk/barbar.nvim` and adjust the tabline, default: `false`.

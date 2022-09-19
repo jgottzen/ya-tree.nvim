@@ -29,6 +29,12 @@ local M = {
   git = {
     DOT_GIT_DIR_CHANGED = 10001, -- fun(repo: GitRepo, fs_changes: boolean)
   },
+
+  ---@enum YaTreeEvents.YaTreeEvent
+  ya_tree = {
+    YA_TREE_WINDOW_OPENED = 20001, -- fun({ winid: integer })
+    YA_TREE_WINDOW_CLOSED = 20002, -- fun({ winid: integer })
+  },
 }
 
 return M
