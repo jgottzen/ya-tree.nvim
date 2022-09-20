@@ -60,12 +60,13 @@ function M.open_window(opts)
 
   local tree
   if opts.tree_type then
+    log.debug("opening tree of type %q", opts.tree_type)
     tree = Trees.get_tree(tabpage, opts.tree_type, true)
     if not tree then
       local path = opts.path and resolve_path(opts.path) or uv.cwd()
       tree = Trees.new_tree(tabpage, opts.tree_type, true, path)
       if not tree then
-        utils.warn(string.format("Could not create tree for path %q", path))
+        utils.warn(string.format("Could not create tree of type %q for path %q", opts.tree_type, path))
       end
     end
   end

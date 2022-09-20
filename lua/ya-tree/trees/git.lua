@@ -6,6 +6,7 @@ local GitNode = require("ya-tree.nodes.git_node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")
+local utils = require("ya-tree.utils")
 
 local api = vim.api
 
@@ -26,8 +27,18 @@ setmetatable(GitTree, { __index = Tree })
 ---@return Yat.Trees.Git tree
 function GitTree:new(tabpage, repo_or_toplevel)
   local this = Tree.new(self, tabpage)
-  local repo = type(repo_or_toplevel) == "string" and git.get_repo_for_path(repo_or_toplevel) or repo_or_toplevel --[[@as Yat.Git.Repo]]
-  this:_init(repo)
+  local repo
+  if type(repo_or_toplevel) == "string" then
+    repo = git.create_repo(repo_or_toplevel)
+  else
+    repo = repo_or_toplevel --[[@as Yat.Git.Repo]]
+  end
+  if not repo then
+    log.error("%q is either not a path to a git repo or a git repo object", tostring(repo_or_toplevel))
+    utils.warn(string.format("%q is either not a path to a git repo or a git repo object", tostring(repo_or_toplevel)))
+  else
+    this:_init(repo)
+  end
 
   log.debug("created new tree %s", tostring(this))
   return this
