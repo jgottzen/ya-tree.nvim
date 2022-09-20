@@ -46,8 +46,11 @@ local win_options = {
 local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
 local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
 
+---@alias YaTreeCanvas.Position "left"|"right"
+
 ---@class YaTreeCanvas
 ---@field public tree_type YaTreeType|string
+---@field public position YaTreeCanvas.Position
 ---@field private winid? number
 ---@field private edit_winid? number
 ---@field private bufnr? number
@@ -76,6 +79,7 @@ end
 ---@return YaTreeCanvas canvas
 function Canvas:new()
   local this = setmetatable({}, self)
+  this.position = config.view.position
   this.width = config.view.width
   this.nodes = {}
   this.node_path_to_index_lookup = {}
@@ -108,9 +112,9 @@ function Canvas:set_edit_winid(winid)
 end
 
 function Canvas:create_edit_window()
-  local position = config.view.side ~= "left" and "aboveleft" or "belowright"
+  local position = self.position ~= "left" and "aboveleft" or "belowright"
   local size = vim.o.columns - self.width - 1
-  api.nvim_command("noautocmd " .. position .. " " .. size .. "vsplit")
+  vim.cmd("noautocmd " .. position .. " " .. size .. "vsplit")
   self.edit_winid = api.nvim_get_current_win() --[[@as number]]
 
   log.debug("created edit window %s", self.edit_winid)
@@ -239,7 +243,8 @@ function Canvas:_on_win_closed()
 end
 
 ---@private
-function Canvas:_create_window()
+---@param position? YaTreeCanvas.Position
+function Canvas:_create_window(position)
   local winid = api.nvim_get_current_win() --[[@as number]]
   if winid ~= self.edit_winid then
     local old_edit_winid = self.edit_winid
@@ -247,16 +252,22 @@ function Canvas:_create_window()
     log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
   end
 
-  local position = config.view.side == "left" and "aboveleft" or "belowright"
-  api.nvim_command("noautocmd " .. position .. " " .. self.width .. "vsplit")
+  self.position = position or self.position
+  local pos = self.position == "right" and "belowright" or "aboveleft"
+  vim.cmd("noautocmd " .. pos .. " " .. self.width .. "vsplit")
   self.winid = api.nvim_get_current_win() --[[@as number]]
   log.debug("created window %s", self.winid)
   self:_set_window_options()
 end
 
+---@class YaTreeCanvas.Open
+---@field hijack_buffer? boolean
+---@field position? YaTreeCanvas.Position
+
 ---@param tree YaTree
----@param opts? {hijack_buffer?: boolean}
+---@param opts? YaTreeCanvas.Open
 ---  - {opts.hijack_buffer?} `boolean`
+---  - {opts.position?} `YaTreeCanvas.Position`
 function Canvas:open(tree, opts)
   if self:is_open() then
     return
@@ -273,7 +284,7 @@ function Canvas:open(tree, opts)
     self.edit_winid = nil
     self:_set_window_options()
   else
-    self:_create_window()
+    self:_create_window(opts.position)
   end
 
   self:render(tree)

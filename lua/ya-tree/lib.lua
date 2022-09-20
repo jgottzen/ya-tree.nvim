@@ -31,18 +31,13 @@ local function resolve_path(path)
   return path
 end
 
----@class YaTreeLib.OpenWindow
----@field path? string
----@field switch_root? boolean
----@field focus? boolean
----@field tree_type? YaTreeType|string
-
 ---@async
----@param opts? YaTreeLib.OpenWindow
+---@param opts? YaTree.OpenWindow
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
 ---  - {opts.tree_type?} `YaTreeName|string`
+---  - {opts.location?} `YaTreeCanvas.Location`
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")
@@ -166,7 +161,7 @@ function M.open_window(opts)
     end
     ui.update(tree, node)
   else
-    ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus })
+    ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position })
   end
 
   if issue_tcd then
@@ -467,7 +462,7 @@ local function on_win_closed(winid)
         end
       end
       log.debug("is last window, closing it")
-      api.nvim_command(":silent q!")
+      vim.cmd(":silent q!")
     end
   end, 100)
 end
@@ -503,7 +498,7 @@ local function on_buf_enter(bufnr, file)
     log.debug("deleting buffer %s with file %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
-    ---@type YaTreeLib.OpenWindow
+    ---@type YaTree.OpenWindow
     local opts = { path = file, focus = true, tree_type = "files" }
     if not tree then
       log.debug("no tree for current tab")

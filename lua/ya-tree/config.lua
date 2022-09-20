@@ -127,14 +127,14 @@ local M = {
 
     ---@class YaTreeConfig.View
     ---@field width number Widht of the tree panel, default: `40`.
-    ---@field side "left"|"right" Where the tree panel is placed, default: `"left"`.
+    ---@field position YaTreeCanvas.Position Where the tree panel is placed, default: `"left"`.
     ---@field number boolean Wether to show the number column, default: `false`.
     ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
     ---@field popups YaTreeConfig.View.Popups Popup window configuration.
     ---@field renderers YaTreeConfig.View.Renderers Which renderers to use in the tree view.
     view = {
       width = 40,
-      side = "left",
+      position = "left",
       number = false,
       relativenumber = false,
 

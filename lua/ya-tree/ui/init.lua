@@ -46,12 +46,19 @@ function M.is_node_rendered(node)
   return canvas and canvas:is_node_rendered(node) or false
 end
 
+---@class YaTreeUi.Open
+---@field hijack_buffer? boolean
+---@field focus? boolean
+---@field focus_edit_window? boolean
+---@field position? YaTreeCanvas.Position
+
 ---@param tree YaTree
 ---@param node? YaTreeNode
----@param opts? {hijack_buffer?: boolean, focus?: boolean, focus_edit_window?: boolean}
+---@param opts YaTreeUi.Open
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
 ---  - {opts.focus_edit_window?} `boolean`
+---  - {opts.position?} `YaTreeCanvas.Position`
 function M.open(tree, node, opts)
   opts = opts or {}
   local tabpage = tostring(api.nvim_get_current_tabpage())
@@ -62,7 +69,7 @@ function M.open(tree, node, opts)
   end
 
   if not canvas:is_open() then
-    canvas:open(tree, { hijack_buffer = opts.hijack_buffer })
+    canvas:open(tree, { hijack_buffer = opts.hijack_buffer, position = opts.position })
   elseif tree.TYPE ~= canvas.tree_type or (node and not canvas:is_node_rendered(node)) then
     -- redraw the tree if the tree type changed or a specific node is to be focused, and it's currently not rendered
     canvas:render(tree)
