@@ -364,7 +364,7 @@ function Repo:refresh_status_for_file(file)
   end
   if not found then
     self._status._changed_entries[file] = nil
-    self._status._propagated_git_status = {}
+    self._status._propagated_changed_entries = {}
     for path, status in pairs(self._status._changed_entries) do
       if status ~= "!" then
         local fully_staged = is_staged(status) and not is_unstaged(status)
