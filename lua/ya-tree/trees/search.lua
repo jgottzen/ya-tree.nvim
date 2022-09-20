@@ -6,10 +6,9 @@ local log = require("ya-tree.log")
 
 ---@class Yat.Trees.Search : Yat.Tree
 ---@field TYPE "search"
----@field private _singleton false
 ---@field root Yat.Nodes.Search
 ---@field current_node? Yat.Nodes.Search
-local SearchTree = { TYPE = "search", _singleton = false }
+local SearchTree = { TYPE = "search" }
 SearchTree.__index = SearchTree
 SearchTree.__eq = Tree.__eq
 SearchTree.__tostring = Tree.__tostring

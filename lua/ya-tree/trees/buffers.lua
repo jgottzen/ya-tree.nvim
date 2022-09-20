@@ -14,11 +14,10 @@ local uv = vim.loop
 
 ---@class Yat.Trees.Buffers : Yat.Tree
 ---@field TYPE "buffers"
----@field private _singleton true
 ---@field private _tabpage integer[]
 ---@field root Yat.Nodes.Buffer
 ---@field current_node? Yat.Nodes.Buffer
-local BuffersTree = { TYPE = "buffers", _singleton = true }
+local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
 
 ---@param self Yat.Trees.Buffers

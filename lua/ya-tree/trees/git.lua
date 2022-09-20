@@ -12,10 +12,9 @@ local api = vim.api
 
 ---@class Yat.Trees.Git : Yat.Tree
 ---@field TYPE "git"
----@field private _singleton false
 ---@field root Yat.Nodes.Git
 ---@field current_node? Yat.Nodes.Git
-local GitTree = { TYPE = "git", _singleton = false }
+local GitTree = { TYPE = "git" }
 GitTree.__index = GitTree
 GitTree.__eq = Tree.__eq
 GitTree.__tostring = Tree.__tostring

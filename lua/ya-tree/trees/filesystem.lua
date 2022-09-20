@@ -12,9 +12,8 @@ local uv = vim.loop
 
 ---@class Yat.Trees.Fs : Yat.Tree
 ---@field TYPE "files"
----@field private _singleton false
 ---@field cwd string
-local FilesystemTree = { TYPE = "files", _singleton = false }
+local FilesystemTree = { TYPE = "files" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
 

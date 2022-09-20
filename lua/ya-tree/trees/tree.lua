@@ -12,7 +12,6 @@ local api = vim.api
 
 ---@class Yat.Tree
 ---@field TYPE Yat.Trees.Type|string
----@field private _singleton boolean
 ---@field private _tabpage integer
 ---@field refreshing boolean
 ---@field root Yat.Node
