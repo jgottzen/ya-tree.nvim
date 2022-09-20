@@ -32,17 +32,17 @@ function M.delete_trees_after_tab_closed()
   local tabpages = api.nvim_list_tabpages()
   for tabpage, trees in pairs(M._tabpage_trees) do
     if not vim.tbl_contains(tabpages, tabpage) then
-      for name, tree in pairs(trees) do
-        if name ~= "current" then
+      for type, tree in pairs(trees) do
+        if type ~= "current" then
           tree:delete(tabpage)
         end
-        trees[name] = nil
+        trees[type] = nil
       end
       log.debug("Deleted trees for tabpage %s", tabpage)
       M._tabpage_trees[tabpage] = nil
     else
-      for name, tree in pairs(trees) do
-        if name ~= "current" then
+      for type, tree in pairs(trees) do
+        if type ~= "current" then
           tree.root:walk(function(node)
             if node.repo and not found_toplevels[node.repo.toplevel] then
               found_toplevels[node.repo.toplevel] = true
@@ -59,6 +59,17 @@ function M.delete_trees_after_tab_closed()
   for toplevel, repo in pairs(git.repos) do
     if not found_toplevels[toplevel] then
       git.remove_repo(repo)
+    end
+  end
+end
+
+---@param callback fun(tree: YaTree)
+function M.for_each_tree(callback)
+  for _, trees in pairs(M._tabpage_trees) do
+    for type, tree in pairs(trees) do
+      if type ~= "current" then
+        callback(tree)
+      end
     end
   end
 end

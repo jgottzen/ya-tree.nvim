@@ -2,7 +2,6 @@ local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local fs = require("ya-tree.filesystem")
-local git = require("ya-tree.git")
 local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
@@ -75,21 +74,6 @@ function FilesystemTree:new(tabpage, root)
 
   log.debug("created new tree %s", tostring(this))
   return this
-end
-
----@async
----@param node YaTreeNode
----@return boolean
-function FilesystemTree:check_node_for_repo(node)
-  if require("ya-tree.config").config.git.enable then
-    local repo = git.create_repo(node.path)
-    if repo then
-      node:set_git_repo(repo)
-      repo:refresh_status({ ignored = true })
-      return true
-    end
-  end
-  return false
 end
 
 ---@async

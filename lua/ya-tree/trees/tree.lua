@@ -2,6 +2,7 @@ local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local events = require("ya-tree.events")
+local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")
 
@@ -143,6 +144,21 @@ function Tree:on_git_event(repo, fs_changes)
     log.debug("git repo %s changed", tostring(repo))
     ui.update(self)
   end
+end
+
+---@async
+---@param node YaTreeNode
+---@return boolean
+function Tree:check_node_for_repo(node)
+  if require("ya-tree.config").config.git.enable then
+    local repo = git.create_repo(node.path)
+    if repo then
+      node:set_git_repo(repo)
+      repo:refresh_status({ ignored = true })
+      return true
+    end
+  end
+  return false
 end
 
 ---@param ... any

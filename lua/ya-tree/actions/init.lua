@@ -187,7 +187,7 @@ local actions = {
     { "n" }
   ),
   refresh_tree = create_action(lib.refresh_tree, "Refresh the tree", { "files", "search", "buffers", "git" }, { "n" }),
-  rescan_dir_for_git = create_action(lib.rescan_dir_for_git, "Rescan directory for git repo", { "files" }, { "n" }),
+  rescan_dir_for_git = create_action(lib.rescan_dir_for_git, "Rescan directory for git repo", { "files", "search", "buffers" }, { "n" }),
 
   toggle_git_view = create_action(lib.toggle_git_view, "Open or close the current git status view", { "files", "git" }, { "n" }),
   toggle_buffers_view = create_action(lib.toggle_buffers_view, "Open or close the current buffers view", { "files", "buffers" }, { "n" }),

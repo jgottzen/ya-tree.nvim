@@ -257,10 +257,10 @@ function M.toggle_filter(tree, node)
 end
 
 ---@async
----@param tree YaFsTree
+---@param tree YaTree
 ---@param node YaTreeNode
 ---@return boolean found
-local function rescan_dir_for_git(tree, node)
+local function rescan_node_for_git(tree, node)
   tree.refreshing = true
   log.debug("checking if %s is in a git repository", node.path)
 
@@ -270,6 +270,12 @@ local function rescan_dir_for_git(tree, node)
   local found = false
   if not node.repo or node.repo:is_yadm() then
     found = tree:check_node_for_repo(node)
+    Trees.for_each_tree(function(_tree)
+      local tree_node = _tree.root:get_child_if_loaded(node.path)
+      if tree_node then
+        tree_node:set_git_repo(node.repo)
+      end
+    end)
     if not found then
       utils.notify(string.format("No Git repository found in %q.", node.path))
     end
@@ -281,20 +287,19 @@ local function rescan_dir_for_git(tree, node)
 end
 
 ---@async
----@param _? YaTree
+---@param tree YaTree
 ---@param node YaTreeNode
-function M.rescan_dir_for_git(_, node)
+function M.rescan_dir_for_git(tree, node)
   if not config.git.enable then
     utils.notify("Git is not enabled.")
     return
   end
 
-  local tree = Trees.filesystem(api.nvim_get_current_tabpage())
-  if not tree or tree.refreshing or vim.v.exiting ~= vim.NIL then
+  if tree.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return false
   end
-  if rescan_dir_for_git(tree, node) then
+  if rescan_node_for_git(tree, node) then
     ui.update(tree, node)
   end
 end
@@ -402,7 +407,7 @@ function M.toggle_git_view(current_tree, node)
   elseif current_tree.TYPE == "files" then
     ---@cast current_tree YaFsTree
     if not node.repo or node.repo:is_yadm() then
-      rescan_dir_for_git(current_tree, node)
+      rescan_node_for_git(current_tree, node)
     end
     if node.repo then
       local tree = Trees.git(tabpage, true)
