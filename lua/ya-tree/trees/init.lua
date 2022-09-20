@@ -273,12 +273,11 @@ function M.setup()
   if require("ya-tree.config").config.cwd.follow then
     events.on_autocmd_event(event.CWD_CHANGED, "YA_TREE_TREES_CWD_CHANGED", true, function(_, new_cwd, scope)
       -- currently not available in the table passed to the callback
-      if vim.v.event.changed_window then
+      if not vim.v.event.changed_window then
         -- if the autocmd was fired because of a switch to a tab or window with a different
         -- cwd than the previous tab/window, it can safely be ignored.
-        return
+        on_cwd_changed(scope, new_cwd)
       end
-      on_cwd_changed(scope, new_cwd)
     end)
   end
 end
