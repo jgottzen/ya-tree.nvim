@@ -33,6 +33,7 @@ Tree.__tostring = function(self)
   return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), tostring(self.root))
 end
 
+---@async
 ---@generic T : Yat.Tree
 ---@param self T
 ---@param tabpage integer
@@ -161,6 +162,7 @@ function Tree:check_node_for_repo(node)
   return false
 end
 
+---@async
 ---@param ... any
 function Tree:change_root_node(...) end
 

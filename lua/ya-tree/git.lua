@@ -83,13 +83,13 @@ end
 ---@field close fun(self: uv_fs_poll_t)
 
 ---@class Yat.Git.Repo.MetaStatus
----@field public unmerged number
----@field public stashed number
----@field public behind number
----@field public ahead number
----@field public staged number
----@field public unstaged number
----@field public untracked number
+---@field public unmerged integer
+---@field public stashed integer
+---@field public behind integer
+---@field public ahead integer
+---@field public staged integer
+---@field public unstaged integer
+---@field public untracked integer
 
 ---@class Yat.Git.Repo.Status : Yat.Git.Repo.MetaStatus
 ---@field private _changed_entries table<string, string>
@@ -160,7 +160,8 @@ function Repo:new(path)
     return cached
   end
 
-  local this = setmetatable({
+  ---@type Yat.Git.Repo
+  local this = {
     toplevel = toplevel,
     branch = branch,
     _status = {
@@ -177,7 +178,8 @@ function Repo:new(path)
     },
     _is_yadm = is_yadm,
     _git_dir = git_dir,
-  }, self)
+  }
+  setmetatable(this, self)
 
   this:_read_remote_url()
 
@@ -345,10 +347,9 @@ function Repo:refresh_status_for_file(file)
   end
 
   local relative_path = utils.relative_path_for(file, self.toplevel)
-  local size = #results
   local i = 1
   local found = false
-  while i <= size do
+  while i <= #results do
     local line = results[i]
     if line:find(relative_path, 1, true) then
       found = true
@@ -400,9 +401,8 @@ function Repo:refresh_status(opts)
   self._status._ignored = {}
 
   local fs_changes = false
-  local size = #results
   local i = 1
-  while i <= size do
+  while i <= #results do
     local line = results[i]
     local line_type = line:sub(1, 1)
     if line_type == "#" then

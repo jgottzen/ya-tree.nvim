@@ -104,27 +104,27 @@ function FilesystemTree:on_git_event(repo, fs_changes)
 end
 
 ---@async
----@param self Yat.Trees.Fs
+---@param tree Yat.Trees.Fs
 ---@param new_root string
 ---@return boolean `false` if the current tree cannot walk up or down to reach the specified directory.
-local function update_tree_root_node(self, new_root)
-  if self.root.path ~= new_root then
+local function update_tree_root_node(tree, new_root)
+  if tree.root.path ~= new_root then
     local root
-    if self.root:is_ancestor_of(new_root) then
-      log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(self), new_root)
+    if tree.root:is_ancestor_of(new_root) then
+      log.debug("current tree %s is ancestor of new root %q, expanding to it", tostring(tree), new_root)
       -- the new root is located 'below' the current root,
       -- if it's already loaded in the tree, use that node as the root, else expand to it
-      root = self.root:get_child_if_loaded(new_root)
+      root = tree.root:get_child_if_loaded(new_root)
       if root then
         root:expand({ force_scan = true })
       else
-        root = self.root:expand({ force_scan = true, to = new_root })
+        root = tree.root:expand({ force_scan = true, to = new_root })
       end
-    elseif self.root.path:find(Path:new(new_root):absolute(), 1, true) then
-      log.debug("current tree %s is a child of new root %q, creating parents up to it", tostring(self), new_root)
+    elseif tree.root.path:find(Path:new(new_root):absolute(), 1, true) then
+      log.debug("current tree %s is a child of new root %q, creating parents up to it", tostring(tree), new_root)
       -- the new root is located 'above' the current root,
       -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
-      root = self.root
+      root = tree.root
       while root.parent do
         root = root.parent --[[@as Yat.Node]]
         root:refresh()
@@ -137,17 +137,17 @@ local function update_tree_root_node(self, new_root)
         root = create_root_node(Path:new(root.path):parent().filename, root)
       end
     else
-      log.debug("current tree %s is not a child or ancestor of %q", tostring(self), new_root)
+      log.debug("current tree %s is not a child or ancestor of %q", tostring(tree), new_root)
     end
 
     if not root then
       log.debug("cannot walk the tree to find a node for %q, returning nil", new_root)
       return false
     else
-      self.root = root
+      tree.root = root
     end
   else
-    log.debug("the new root %q is the same as the current root %s, skipping", new_root, tostring(self.root))
+    log.debug("the new root %q is the same as the current root %s, skipping", new_root, tostring(tree.root))
   end
   return true
 end
