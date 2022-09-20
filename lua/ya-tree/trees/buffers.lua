@@ -49,9 +49,13 @@ function BuffersTree:new(tabpage, path)
     singleton.current_node = singleton.root:refresh()
 
     local event = require("ya-tree.events.event").autocmd
-    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), function(bufnr, file)
+    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), true, function(bufnr, file)
       if file ~= "" then
-        singleton:on_buffer_new(bufnr, file)
+        -- The autocmds are fired before buftypes are set or in the case of BufFilePost before the file is available on the file system,
+        -- causing the node creation to fail, by deferring the call for a short time, we should be able to find the file
+        vim.defer_fn(function()
+          singleton:on_buffer_new(bufnr, file)
+        end, 100)
       end
     end)
     events.on_autocmd_event(event.BUFFER_HIDDEN, singleton:create_event_id(event.BUFFER_HIDDEN), function(bufnr, file)
@@ -93,49 +97,43 @@ function BuffersTree:create_event_id(event)
   return string.format("YA_TREE_%s_TREE_%s", self.TYPE:upper(), events.get_event_name(event))
 end
 
+---@async
 ---@param bufnr integer
 ---@param file string
 function BuffersTree:on_buffer_new(bufnr, file)
+  local tabpage = api.nvim_get_current_tabpage()
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if (buftype == "" or buftype == "terminal") and not utils.is_directory_sync(file) then
-    -- BufFilePost is fired before the file is available on the file system, causing the node creation
-    -- to fail, by deferring the call for a short time, we should be able to find the file
-    local tabpage = api.nvim_get_current_tabpage()
-    vim.defer_fn(
-      void(function()
-        local node
-        if buftype == "terminal" then
-          node = self.root:add_buffer(file, bufnr, true)
+    local node
+    if buftype == "terminal" then
+      node = self.root:add_buffer(file, bufnr, true)
+    else
+      node = self.root:get_child_if_loaded(file)
+      if not node then
+        if self.root:is_ancestor_of(file) then
+          log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
+          node = self.root:add_buffer(file, bufnr, false)
         else
-          node = self.root:get_child_if_loaded(file)
-          if not node then
-            if self.root:is_ancestor_of(file) then
-              log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
-              node = self.root:add_buffer(file, bufnr, false)
-            else
-              log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, self.root.path)
-              self.root:refresh()
-            end
-          elseif node.bufnr ~= bufnr then
-            log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
-            node.bufnr = bufnr
-          else
-            return
-          end
+          log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, self.root.path)
+          self.root:refresh()
         end
+      elseif node.bufnr ~= bufnr then
+        log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
+        node.bufnr = bufnr
+      else
+        return
+      end
+    end
 
-        scheduler()
-        if self:is_shown_in_ui(tabpage) then
-          if require("ya-tree.config").config.follow_focused_file and not node then
-            node = self.root:expand({ to = file })
-          else
-            node = ui.get_current_node()
-          end
-          ui.update(self, node, { focus_node = true })
-        end
-      end),
-      100
-    )
+    scheduler()
+    if self:is_shown_in_ui(tabpage) then
+      if require("ya-tree.config").config.follow_focused_file and not node then
+        node = self.root:expand({ to = file })
+      else
+        node = ui.get_current_node()
+      end
+      ui.update(self, node, { focus_node = true })
+    end
   end
 end
 
