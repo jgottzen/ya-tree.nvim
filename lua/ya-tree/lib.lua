@@ -398,14 +398,16 @@ end
 ---@async
 ---@param current_tree Yat.Tree
 ---@param node Yat.Node
-function M.toggle_git_view(current_tree, node)
+function M.toggle_git_tree(current_tree, node)
   local tabpage = api.nvim_get_current_tabpage()
 
   if current_tree.TYPE == "git" then
-    local tree = Trees.filesystem_or_new(tabpage, true)
+    local tree = Trees.previous_tree(tabpage, true)
+    if not tree then
+      tree = Trees.filesystem_or_new(tabpage, true)
+    end
     ui.update(tree, tree.current_node)
-  elseif current_tree.TYPE == "files" then
-    ---@cast current_tree Yat.Trees.Fs
+  else
     if not node.repo or node.repo:is_yadm() then
       rescan_node_for_git(current_tree, node)
     end
@@ -423,20 +425,29 @@ end
 
 ---@async
 ---@param current_tree Yat.Tree
----@param node Yat.Node
-function M.toggle_buffers_view(current_tree, node)
+function M.toggle_buffers_tree(current_tree)
   local tabpage = api.nvim_get_current_tabpage()
 
   if current_tree.TYPE == "buffers" then
-    local tree = Trees.filesystem_or_new(tabpage, true, node.path)
+    local tree = Trees.previous_tree(tabpage, true)
+    if not tree then
+      tree = Trees.filesystem_or_new(tabpage, true)
+    end
     ui.update(tree, tree.current_node)
-  elseif current_tree.TYPE == "files" then
+  else
     local tree = Trees.buffers(tabpage, true)
     if not tree then
       tree = Trees.new_buffers(tabpage, true, uv.cwd())
     end
     ui.update(tree, tree.current_node)
   end
+end
+
+---@async
+function M.show_file_tree()
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = Trees.filesystem_or_new(tabpage, true)
+  ui.update(tree, tree.current_node)
 end
 
 local function setup_netrw()

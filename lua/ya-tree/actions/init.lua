@@ -53,8 +53,9 @@ local M = {}
 ---| "toggle_filter"
 ---| "refresh_tree"
 ---| "rescan_dir_for_git"
----| "toggle_git_view"
----| "toggle_buffers_view"
+---| "toggle_git_tree"
+---| "toggle_buffers_tree"
+---| "show_file_tree"
 ---| "focus_parent"
 ---| "focus_prev_sibling"
 ---| "focus_next_sibling"
@@ -153,7 +154,7 @@ local actions = {
   ),
   goto_node_in_tree = create_action(
     nodes.goto_node_in_tree,
-    "Close view and go to node in tree view",
+    "Close current tree and go to node in the file tree",
     { "search", "buffers", "git" },
     { "n" }
   ),
@@ -189,8 +190,19 @@ local actions = {
   refresh_tree = create_action(lib.refresh_tree, "Refresh the tree", { "files", "search", "buffers", "git" }, { "n" }),
   rescan_dir_for_git = create_action(lib.rescan_dir_for_git, "Rescan directory for git repo", { "files", "search", "buffers" }, { "n" }),
 
-  toggle_git_view = create_action(lib.toggle_git_view, "Open or close the current git status view", { "files", "git" }, { "n" }),
-  toggle_buffers_view = create_action(lib.toggle_buffers_view, "Open or close the current buffers view", { "files", "buffers" }, { "n" }),
+  toggle_git_tree = create_action(
+    lib.toggle_git_tree,
+    "Open or close the current git status tree",
+    { "files", "search", "buffers", "git" },
+    { "n" }
+  ),
+  toggle_buffers_tree = create_action(
+    lib.toggle_buffers_tree,
+    "Open or close the current buffers tree",
+    { "files", "search", "buffers", "git" },
+    { "n" }
+  ),
+  show_file_tree = create_action(lib.show_file_tree, "Show the file tree", { "search", "buffers", "git" }, { "n" }),
 
   focus_parent = create_action(ui.focus_parent, "Go to parent directory", { "files", "search", "buffers", "git" }, { "n" }),
   focus_prev_sibling = create_action(

@@ -15,7 +15,7 @@ local M = {
   ---@type table<Yat.Trees.Type|string, Yat.Tree>
   _registered_trees = {},
   ---@private
-  ---@type table<integer, { [string|Yat.Trees.Type|"current"]: Yat.Tree }>
+  ---@type table<integer, { [string|Yat.Trees.Type|"current"|"previous"]: Yat.Tree }>
   _tabpage_trees = {},
 }
 
@@ -31,7 +31,7 @@ function M.delete_trees_after_tab_closed()
   for tabpage, trees in pairs(M._tabpage_trees) do
     if not vim.tbl_contains(tabpages, tabpage) then
       for type, tree in pairs(trees) do
-        if type ~= "current" then
+        if type ~= "current" and type ~= "previous" then
           tree:delete(tabpage)
         end
         trees[type] = nil
@@ -40,7 +40,7 @@ function M.delete_trees_after_tab_closed()
       M._tabpage_trees[tabpage] = nil
     else
       for type, tree in pairs(trees) do
-        if type ~= "current" then
+        if type ~= "current" and type ~= "previous" then
           tree.root:walk(function(node)
             if node.repo and not found_toplevels[node.repo.toplevel] then
               found_toplevels[node.repo.toplevel] = true
@@ -65,7 +65,7 @@ end
 function M.for_each_tree(callback)
   for _, trees in pairs(M._tabpage_trees) do
     for type, tree in pairs(trees) do
-      if type ~= "current" then
+      if type ~= "current" and type ~= "previous" then
         callback(tree)
       end
     end
@@ -81,6 +81,7 @@ function M.get_tree(tabpage, name, set_current)
   if trees then
     local tree = trees[name]
     if tree and set_current then
+      trees.previous = trees.current
       trees.current = tree
     end
     return tree
@@ -107,9 +108,23 @@ function M.new_tree(tabpage, name, set_current, ...)
   local tree = class:new(tabpage, ...)
   trees[name] = tree
   if set_current then
+    trees.previous = trees.current
     trees.current = tree
   end
   return tree
+end
+
+---@param tabpage integer
+---@param set_current? boolean
+---@return Yat.Tree? tree
+function M.previous_tree(tabpage, set_current)
+  local tree = M._tabpage_trees[tabpage]
+  local previous = tree and tree.previous
+  if previous and set_current then
+    tree.previous = tree.current
+    tree.current = previous
+  end
+  return previous
 end
 
 ---@param tabpage integer
@@ -127,6 +142,7 @@ function M.set_current_tree(tabpage, tree)
     trees = {}
     M._tabpage_trees[tabpage] = trees
   end
+  trees.previous = trees.current
   trees.current = tree
 end
 
