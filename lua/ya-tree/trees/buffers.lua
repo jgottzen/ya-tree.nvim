@@ -76,7 +76,9 @@ function BuffersTree:new(tabpage, path)
     log.debug("created new tree %s", tostring(singleton))
   else
     log.debug("a buffers tree already exists, reusing it")
-    singleton._tabpage[#singleton._tabpage + 1] = tabpage
+    if not vim.tbl_contains(singleton._tabpage, tabpage) then
+      singleton._tabpage[#singleton._tabpage + 1] = tabpage
+    end
   end
   return singleton
 end

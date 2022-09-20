@@ -93,7 +93,7 @@ end
 ---@param name Yat.Trees.Type|string
 ---@param set_current boolean
 ---@param ... any tree arguments
----@return Yat.Tree tree
+---@return Yat.Tree? tree
 function M.new_tree(tabpage, name, set_current, ...)
   local trees = M._tabpage_trees[tabpage]
   if not trees then
@@ -105,13 +105,17 @@ function M.new_tree(tabpage, name, set_current, ...)
     trees[name] = nil
   end
   local class = M._registered_trees[name]
-  local tree = class:new(tabpage, ...)
-  trees[name] = tree
-  if set_current then
-    trees.previous = trees.current
-    trees.current = tree
+  if class then
+    local tree = class:new(tabpage, ...)
+    if tree then
+      trees[name] = tree
+      if set_current then
+        trees.previous = trees.current
+        trees.current = tree
+      end
+    end
+    return tree
   end
-  return tree
 end
 
 ---@param tabpage integer
