@@ -7,9 +7,10 @@ local job = require("ya-tree.job")
 local log = require("ya-tree.log")
 local utils = require("ya-tree.utils")
 
----@class YaTreeSearchNode : YaTreeNode
----@field public parent? YaTreeSearchNode
----@field public children? YaTreeSearchNode[]
+---@class Yat.Nodes.Search : Yat.Node
+---@field private __node_type "Search"
+---@field public parent? Yat.Nodes.Search
+---@field public children? Yat.Nodes.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
 local SearchNode = { __node_type = "Search" }
@@ -19,9 +20,9 @@ SearchNode.__eq = Node.__eq
 setmetatable(SearchNode, { __index = Node })
 
 ---Creates a new search node.
----@param fs_node FsNode filesystem data.
----@param parent? YaTreeSearchNode the parent node.
----@return YaTreeSearchNode node
+---@param fs_node Yat.Fs.Node filesystem data.
+---@param parent? Yat.Nodes.Search the parent node.
+---@return Yat.Nodes.Search node
 function SearchNode:new(fs_node, parent)
   local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
@@ -58,7 +59,7 @@ do
 
   ---@async
   ---@param term? string
-  ---@return YaTreeSearchNode|nil first_leaf_node
+  ---@return Yat.Nodes.Search|nil first_leaf_node
   ---@return number|string nr_of_matches_or_error
   function SearchNode:search(term)
     if self.parent then

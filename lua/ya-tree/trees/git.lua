@@ -9,11 +9,11 @@ local log = require("ya-tree.log")
 
 local api = vim.api
 
----@class YaGitTree : YaTree
+---@class Yat.Trees.Git : Yat.Tree
 ---@field TYPE "git"
 ---@field private _singleton false
----@field root YaTreeGitNode
----@field current_node? YaTreeGitNode
+---@field root Yat.Nodes.Git
+---@field current_node? Yat.Nodes.Git
 local GitTree = { TYPE = "git", _singleton = false }
 GitTree.__index = GitTree
 GitTree.__eq = Tree.__eq
@@ -22,11 +22,11 @@ setmetatable(GitTree, { __index = Tree })
 
 ---@async
 ---@param tabpage integer
----@param repo_or_toplevel GitRepo|string
----@return YaGitTree tree
+---@param repo_or_toplevel Yat.Git.Repo|string
+---@return Yat.Trees.Git tree
 function GitTree:new(tabpage, repo_or_toplevel)
   local this = Tree.new(self, tabpage)
-  local repo = type(repo_or_toplevel) == "string" and git.get_repo_for_path(repo_or_toplevel) or repo_or_toplevel --[[@as GitRepo]]
+  local repo = type(repo_or_toplevel) == "string" and git.get_repo_for_path(repo_or_toplevel) or repo_or_toplevel --[[@as Yat.Git.Repo]]
   this:_init(repo)
 
   log.debug("created new tree %s", tostring(this))
@@ -35,16 +35,16 @@ end
 
 ---@async
 ---@private
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 function GitTree:_init(repo)
-  local fs_node = fs.node_for(repo.toplevel) --[[@as FsNode]]
+  local fs_node = fs.node_for(repo.toplevel) --[[@as Yat.Fs.Node]]
   self.root = GitNode:new(fs_node)
   self.root.repo = repo
   self.current_node = self.root:refresh()
 end
 
 ---@async
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 function GitTree:on_git_event(repo)
   if vim.v.exiting ~= vim.NIL or self.root.repo ~= repo then
     return
@@ -86,7 +86,7 @@ function GitTree:on_buffer_saved(_, file)
 end
 
 ---@async
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 function GitTree:change_root_node(repo)
   local old_root = self.root
   self:_init(repo)

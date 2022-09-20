@@ -14,10 +14,10 @@ local api = vim.api
 
 local M = {}
 
----@alias cmd_mode "edit" | "vsplit" | "split" | "tabnew"
+---@alias Yat.Action.Files.Open.Mode "edit" | "vsplit" | "split" | "tabnew"
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.open(tree)
   local nodes = ui.get_selected_nodes()
   if #nodes == 1 then
@@ -27,7 +27,7 @@ function M.open(tree)
     elseif node:is_file() then
       ui.open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
-      ---@cast node YaTreeBufferNode
+      ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
         for _, win in ipairs(api.nvim_list_wins()) do
           if api.nvim_win_get_buf(win) == node.bufnr then
@@ -51,8 +51,8 @@ function M.open(tree)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.vsplit(_, node)
   if node:is_file() then
     ui.open_file(node.path, "vsplit")
@@ -60,8 +60,8 @@ function M.vsplit(_, node)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.split(_, node)
   if node:is_file() then
     ui.open_file(node.path, "split")
@@ -69,7 +69,7 @@ function M.split(_, node)
 end
 
 ---@async
----@param node YaTreeNode
+---@param node Yat.Node
 ---@param focus boolean
 local function preview(node, focus)
   if node:is_file() then
@@ -100,22 +100,22 @@ local function preview(node, focus)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.preview(_, node)
   preview(node, false)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.preview_and_focus(_, node)
   preview(node, true)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.tabnew(_, node)
   if node:is_file() then
     ui.open_file(node.path, "tabnew")
@@ -123,11 +123,11 @@ function M.tabnew(_, node)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.add(tree, node)
   if node:is_file() then
-    node = node.parent --[[@as YaTreeNode]]
+    node = node.parent --[[@as Yat.Node]]
   end
 
   local border = require("ya-tree.config").config.view.popups.border
@@ -162,8 +162,8 @@ function M.add(tree, node)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.rename(tree, node)
   -- prohibit renaming the root node
   if tree.root == node then
@@ -190,7 +190,7 @@ function M.rename(tree, node)
 end
 
 ---@param root_path string
----@return YaTreeNode[] nodes, string common_parent
+---@return Yat.Node[] nodes, string common_parent
 local function get_nodes_to_delete(root_path)
   local nodes = ui.get_selected_nodes()
 
@@ -213,7 +213,7 @@ local function get_nodes_to_delete(root_path)
 end
 
 ---@async
----@param node YaTreeNode
+---@param node Yat.Node
 ---@return boolean
 local function delete_node(node)
   local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Delete " .. node.path .. "?" })
@@ -233,7 +233,7 @@ local function delete_node(node)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.delete(tree)
   local nodes, common_parent = get_nodes_to_delete(tree.root.path)
   if #nodes == 0 then
@@ -252,7 +252,7 @@ function M.delete(tree)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.trash(tree)
   local config = require("ya-tree.config").config
   if not config.trash.enable then
@@ -274,7 +274,7 @@ function M.trash(tree)
       end
     end
   else
-    ---@param n YaTreeNode
+    ---@param n Yat.Node
     files = vim.tbl_map(function(n)
       return n.path
     end, nodes) --[=[@as string[]]=]
@@ -294,8 +294,8 @@ function M.trash(tree)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.system_open(_, node)
   local config = require("ya-tree.config").config
   if not config.system_open.cmd then

@@ -1,5 +1,5 @@
 local M = {
-  ---@enum YaTreeEvents.AutocmdEvent
+  ---@enum Yat.Events.AutocmdEvent
   autocmd = {
     TAB_NEW = 1,
     TAB_ENTERED = 2,
@@ -25,12 +25,12 @@ local M = {
     LEAVE_PRE = 601,
   },
 
-  ---@enum YaTreeEvents.GitEvent
+  ---@enum Yat.Events.GitEvent
   git = {
     DOT_GIT_DIR_CHANGED = 10001, -- fun(repo: GitRepo, fs_changes: boolean)
   },
 
-  ---@enum YaTreeEvents.YaTreeEvent
+  ---@enum Yat.Events.YaTreeEvent
   ya_tree = {
     YA_TREE_WINDOW_OPENED = 20001, -- fun({ winid: integer })
     YA_TREE_WINDOW_CLOSED = 20002, -- fun({ winid: integer })

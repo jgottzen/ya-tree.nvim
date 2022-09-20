@@ -6,8 +6,8 @@ local api = vim.api
 local M = {}
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.toggle_node(tree, node)
   if not node:is_container() or tree.root == node then
     return
@@ -21,8 +21,8 @@ function M.toggle_node(tree, node)
   ui.update(tree, node)
 end
 
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.close_node(tree, node)
   -- bail if the node is the root node
   if tree.root == node then
@@ -42,15 +42,15 @@ function M.close_node(tree, node)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.close_all_nodes(tree)
   tree.root:collapse({ recursive = true, children_only = true })
   ui.update(tree, tree.root)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.close_all_child_nodes(tree, node)
   if node:is_container() then
     node:collapse({ recursive = true, children_only = true })
@@ -60,9 +60,9 @@ end
 
 do
   ---@async
-  ---@param node YaTreeNode
+  ---@param node Yat.Node
   ---@param depth number
-  ---@param config YaTreeConfig
+  ---@param config Yat.Config
   local function expand(node, depth, config)
     node:expand()
     if depth < config.expand_all_nodes_max_depth then
@@ -75,16 +75,16 @@ do
   end
 
   ---@async
-  ---@param tree YaTree
-  ---@param node YaTreeNode
+  ---@param tree Yat.Tree
+  ---@param node Yat.Node
   function M.expand_all_nodes(tree, node)
     expand(tree.root, 1, require("ya-tree.config").config)
     ui.update(tree, node)
   end
 
   ---@async
-  ---@param tree YaTree
-  ---@param node YaTreeNode
+  ---@param tree Yat.Tree
+  ---@param node Yat.Node
   function M.expand_all_child_nodes(tree, node)
     if node:is_container() then
       expand(node, 1, require("ya-tree.config").config)
@@ -94,8 +94,8 @@ do
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.goto_node_in_tree(_, node)
   local tabpage = api.nvim_get_current_tabpage()
   local tree = Trees.filesystem_or_new(tabpage, true)

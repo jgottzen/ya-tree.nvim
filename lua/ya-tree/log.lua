@@ -4,8 +4,8 @@ local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
 
----@class YaTreeLogger
----@field config YaTreeLoggerConfig
+---@class Yat.Logger
+---@field config Yat.Logger.Config
 local logger = {}
 
 -- selene: allow(unused_variable)
@@ -39,11 +39,11 @@ function logger.warn(msg, ...) end
 ---@overload fun(...)
 function logger.error(msg, ...) end
 
----@alias LogLevel "trace" | "debug" | "info" | "warn" | "error"
+---@alias Yat.Logger.Level "trace" | "debug" | "info" | "warn" | "error"
 
----@class YaTreeLoggerConfig
----@field level LogLevel
----@field levels {level: LogLevel, highlight: string}[]
+---@class Yat.Logger.Config
+---@field level Yat.Logger.Level
+---@field levels {level: Yat.Logger.Level, highlight: string}[]
 local default = {
   name = "ya-tree",
   to_console = false,
@@ -65,21 +65,21 @@ local fmt = string.format
 local tbl_concat = table.concat
 local tbl_insert = table.insert
 
----@param opts? YaTreeLoggerConfig
----@return YaTreeLogger
+---@param opts? Yat.Logger.Config
+---@return Yat.Logger
 function logger.new(opts)
-  local config = vim.tbl_deep_extend("force", default, opts or {}) --[[@as YaTreeLoggerConfig]]
+  local config = vim.tbl_deep_extend("force", default, opts or {}) --[[@as Yat.Logger.Config]]
 
   local log_file = fmt("%s/%s.log", fn.stdpath("cache"), config.name)
   local dir = Path:new(log_file):parent()
   if not dir:exists() then
     dir:mkdir({ parents = true })
   end
-  ---@type YaTreeLogger
+  ---@type Yat.Logger
   local self = {
     config = config,
   }
-  ---@type table<LogLevel, number>
+  ---@type table<Yat.Logger.Level, number>
   local levels = {}
   for k, v in ipairs(self.config.levels) do
     levels[v.level] = k

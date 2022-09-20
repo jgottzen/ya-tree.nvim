@@ -12,7 +12,7 @@ local api = vim.api
 local M = {}
 
 do
-  ---@type table<file_type, string>
+  ---@type table<Luv.FileType, string>
   local node_type_map = {
     directory = "Directory",
     file = "File",
@@ -114,12 +114,12 @@ do
 
   local augroup = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true }) --[[@as integer]]
 
-  ---@class NodeInfoPopup
+  ---@class Yat.Action.Popup.NodeInfo
   ---@field winid integer
   ---@field bufnr integer
   ---@field path string
 
-  ---@type NodeInfoPopup?
+  ---@type Yat.Action.Popup.NodeInfo?
   local popup = nil
 
   local function close_popup()
@@ -130,10 +130,10 @@ do
   end
 
   ---@async
-  ---@param node YaTreeNode
+  ---@param node Yat.Node
   ---@param stat uv_fs_stat
   ---@return string[] lines
-  ---@return highlight_group[][] highlights
+  ---@return Yat.Ui.HighlightGroup[][] highlights
   local function create_fs_info(node, stat)
     local format_string = "%13s: %s "
     local left_column_end = 13
@@ -148,7 +148,7 @@ do
       string.format(format_string, "Size", utils.format_size(stat.size)),
       "",
     }
-    ---@type highlight_group[][]
+    ---@type Yat.Ui.HighlightGroup[][]
     local highlights = {
       { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
       {},
@@ -202,9 +202,9 @@ do
     return lines, highlights
   end
 
-  ---@param node YaTreeBufferNode
+  ---@param node Yat.Nodes.Buffer
   ---@return string[] lines
-  ---@return highlight_group[][] highlights
+  ---@return Yat.Ui.HighlightGroup[][] highlights
   local function create_terminal_info(node)
     local format_string = "%5s: %s "
     local left_column_end = 5
@@ -217,7 +217,7 @@ do
       string.format(format_string, "Type", "Terminal"),
       string.format(format_string, "Buf#", node.bufnr),
     }
-    ---@type highlight_group[][]
+    ---@type Yat.Ui.HighlightGroup[][]
     local highlights = {
       { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
       {},
@@ -229,8 +229,8 @@ do
   end
 
   ---@async
-  ---@param _ YaTree
-  ---@param node YaTreeNode
+  ---@param _ Yat.Tree
+  ---@param node Yat.Node
   function M.show_node_info(_, node)
     if popup ~= nil then
       if node.path == popup.path then
@@ -244,7 +244,7 @@ do
 
     local lines, highlight_groups
     if node:node_type() == "Buffer" and node.extension == "terminal" then
-      ---@cast node YaTreeBufferNode
+      ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
         lines, highlight_groups = create_terminal_info(node)
       else
@@ -260,7 +260,7 @@ do
       lines, highlight_groups = create_fs_info(node, stat)
     end
 
-    ---@type NodeInfoPopup
+    ---@type Yat.Action.Popup.NodeInfo
     popup = { path = node.path }
     popup.winid, popup.bufnr = Popup.new(lines, highlight_groups)
       :close_with({ "q", "<ESC>" })

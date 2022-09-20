@@ -1,5 +1,4 @@
 local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async").void
 
 local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
@@ -13,17 +12,17 @@ local utils = require("ya-tree.utils")
 local api = vim.api
 local uv = vim.loop
 
----@class YaBuffersTree : YaTree
+---@class Yat.Trees.Buffers : Yat.Tree
 ---@field TYPE "buffers"
 ---@field private _singleton true
 ---@field private _tabpage integer[]
----@field root YaTreeBufferNode
----@field current_node? YaTreeBufferNode
+---@field root Yat.Nodes.Buffer
+---@field current_node? Yat.Nodes.Buffer
 local BuffersTree = { TYPE = "buffers", _singleton = true }
 BuffersTree.__index = BuffersTree
 
----@param self YaBuffersTree
----@param other YaTree
+---@param self Yat.Trees.Buffers
+---@param other Yat.Tree
 ---@return boolean
 BuffersTree.__eq = function(self, other)
   return self.TYPE == other.TYPE
@@ -32,17 +31,17 @@ end
 BuffersTree.__tostring = Tree.__tostring
 setmetatable(BuffersTree, { __index = Tree })
 
----@type YaBuffersTree?
+---@type Yat.Trees.Buffers?
 local singleton = nil
 
 ---@async
 ---@param tabpage integer
 ---@param path string
----@return YaBuffersTree tree
+---@return Yat.Trees.Buffers tree
 function BuffersTree:new(tabpage, path)
   if not singleton then
     singleton = Tree.new(self, tabpage)
-    local fs_node = fs.node_for(path) --[[@as FsNode]]
+    local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
     singleton._tabpage = { tabpage }
     singleton.root = BufferNode:new(fs_node)
     singleton.root.repo = git.get_repo_for_path(fs_node.path)

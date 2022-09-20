@@ -7,14 +7,14 @@ local fn = vim.fn
 
 local M = {}
 
----@class YaTree.OpenWindow
+---@class Yat.OpenWindowArgs
 ---@field path? string
 ---@field switch_root? boolean
 ---@field focus? boolean
----@field tree_type? YaTreeType|string
----@field position? YaTreeCanvas.Position
+---@field tree_type? Yat.Trees.Type|string
+---@field position? Yat.Ui.Canvas.Position
 
----@param opts YaTree.OpenWindow
+---@param opts Yat.OpenWindowArgs
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
@@ -36,7 +36,7 @@ function M.focus()
   void(require("ya-tree.lib").open_window)({ focus = true })
 end
 
----@param level LogLevel
+---@param level Yat.Logger.Level
 function M.set_log_level(level)
   require("ya-tree.config").config.log.level = level
   log.config.level = level
@@ -111,14 +111,14 @@ end
 ---@return string|nil path
 ---@return boolean focus
 ---@return string|nil tree_type
----@return YaTreeCanvas.Position? position
+---@return Yat.Ui.Canvas.Position? position
 local function parse_open_command_input(fargs)
   ---@type string|nil
   local path = nil
   local focus = false
   ---@type string|nil
   local tree_type = nil
-  ---@type YaTreeCanvas.Position?
+  ---@type Yat.Ui.Canvas.Position?
   local position = nil
   for _, arg in ipairs(fargs) do
     if vim.startswith(arg, "path=") then
@@ -135,7 +135,7 @@ local function parse_open_command_input(fargs)
   return path, focus, tree_type, position
 end
 
----@param opts? YaTreeConfig
+---@param opts? Yat.Config
 function M.setup(opts)
   local config = require("ya-tree.config").setup(opts)
 

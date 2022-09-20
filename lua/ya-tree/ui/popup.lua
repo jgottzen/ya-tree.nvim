@@ -56,7 +56,7 @@ local function compute_width_and_height(content_height, content_width, size, max
 end
 
 ---@param lines string[]
----@param highlight_groups? highlight_group[][]
+---@param highlight_groups? Yat.Ui.HighlightGroup[][]
 ---@param relative string
 ---@param row number
 ---@param col number
@@ -93,14 +93,14 @@ local function create_window(lines, highlight_groups, relative, row, col, width,
   return winid, bufnr
 end
 
----@class YaTreePopupKeyMap
+---@class Yat.Ui.Popup.KeyMap
 ---@field mode string
 ---@field key string
 ---@field rhs string|function
 
----@class YaTreePopupBuilder
+---@class Yat.Ui.Popup.Builder
 ---@field private _lines string[]
----@field private _highlight_groups highlight_group[][]
+---@field private _highlight_groups Yat.Ui.HighlightGroup[][]
 ---@field private _relative string
 ---@field private _width? string|integer
 ---@field private _height? string|integer
@@ -108,13 +108,13 @@ end
 ---@field private _close_keys? string[]
 ---@field private _on_close? fun()
 ---@field private _close_on_focus_loss boolean
----@field private _keymaps? YaTreePopupKeyMap[]
+---@field private _keymaps? Yat.Ui.Popup.KeyMap[]
 local PopupBuilder = {}
 PopupBuilder.__index = PopupBuilder
 
 ---@param lines string[]
----@param highlight_groups highlight_group[][]
----@return YaTreePopupBuilder builder
+---@param highlight_groups Yat.Ui.HighlightGroup[][]
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:new(lines, highlight_groups)
   local this = setmetatable({
     _lines = lines,
@@ -126,7 +126,7 @@ function PopupBuilder:new(lines, highlight_groups)
   return this
 end
 
----@return YaTreePopupBuilder builder
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:centered()
   self._relative = "editor"
   return self
@@ -135,7 +135,7 @@ end
 ---@param width? string|integer
 ---@param height? string|integer
 ---@param grow_width? boolean
----@return YaTreePopupBuilder builder
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:size(width, height, grow_width)
   self._width = width
   self._height = height
@@ -144,20 +144,20 @@ function PopupBuilder:size(width, height, grow_width)
 end
 
 ---@param close_keys string[]
----@return YaTreePopupBuilder builder
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:close_with(close_keys)
   self._close_keys = close_keys
   return self
 end
 
 ---@param on_close fun()
----@return YaTreePopupBuilder builder
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:on_close(on_close)
   self._on_close = on_close
   return self
 end
 
----@return YaTreePopupBuilder builder
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:close_on_focus_loss()
   self._close_on_focus_loss = true
   return self
@@ -166,7 +166,7 @@ end
 ---@param mode string
 ---@param keys string|string[]
 ---@param rhs string|function
----@return YaTreePopupBuilder builder
+---@return Yat.Ui.Popup.Builder builder
 function PopupBuilder:map_keys(mode, keys, rhs)
   if not self._keymaps then
     self._keymaps = {}
@@ -241,8 +241,8 @@ function PopupBuilder:open(enter)
 end
 
 ---@param lines string[]
----@param highlight_groups highlight_group[][]
----@return YaTreePopupBuilder
+---@param highlight_groups Yat.Ui.HighlightGroup[][]
+---@return Yat.Ui.Popup.Builder
 function M.new(lines, highlight_groups)
   return PopupBuilder:new(lines, highlight_groups)
 end

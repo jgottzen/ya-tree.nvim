@@ -25,13 +25,7 @@ local M = {
   helpers = {},
 }
 
----@class RenderingContext
----@field tree_type YaTreeType|string
----@field config YaTreeConfig
----@field depth integer
----@field last_child boolean
-
----@class RenderResult
+---@class Yat.Ui.RenderResult
 ---@field padding string
 ---@field text string
 ---@field highlight string
@@ -40,10 +34,10 @@ do
   ---@type table<number, boolean>
   local marker_at = {}
 
-  ---@param node YaTreeNode
-  ---@param context RenderingContext
-  ---@param renderer YaTreeConfig.Renderers.Indentation
-  ---@return RenderResult|nil result
+  ---@param node Yat.Node
+  ---@param context Yat.Ui.RenderContext
+  ---@param renderer Yat.Config.Renderers.Indentation
+  ---@return Yat.Ui.RenderResult|nil result
   function M.indentation(node, context, renderer)
     if context.depth == 0 then
       return
@@ -85,10 +79,10 @@ do
   end
 end
 
----@param node YaTreeNode
----@param context RenderingContext
----@param renderer YaTreeConfig.Renderers.Icon
----@return RenderResult|nil result
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Icon
+---@return Yat.Ui.RenderResult|nil result
 function M.icon(node, context, renderer)
   if context.depth == 0 then
     return
@@ -154,10 +148,10 @@ function M.icon(node, context, renderer)
   }
 end
 
----@param node YaTreeNode
----@param context RenderingContext
----@param renderer YaTreeConfig.Renderers.Name
----@return RenderResult[] results
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Name
+---@return Yat.Ui.RenderResult[] results
 function M.name(node, context, renderer)
   if context.depth == 0 then
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
@@ -165,10 +159,10 @@ function M.name(node, context, renderer)
       text = text .. utils.os_sep
     end
 
-    ---@type RenderResult[]
+    ---@type Yat.Ui.RenderResult[]
     local results
     if context.tree_type == "search" then
-      ---@cast node YaTreeSearchNode
+      ---@cast node Yat.Nodes.Search
       results = {
         {
           padding = "",
@@ -242,7 +236,7 @@ function M.name(node, context, renderer)
     elseif node:is_block_device() then
       highlight = hl.BLOCK_DEVICE_FILE_NAME
     elseif node:node_type() == "Buffer" then
-      ---@cast node YaTreeBufferNode
+      ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
         highlight = node.hidden and hl.GIT_IGNORED or hl.FILE_NAME
       end
@@ -267,10 +261,10 @@ function M.name(node, context, renderer)
   } }
 end
 
----@param node YaTreeNode
----@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.Modified
----@return RenderResult|nil result
+---@param node Yat.Node
+---@param _ Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Modified
+---@return Yat.Ui.RenderResult|nil result
 function M.modified(node, _, renderer)
   if node.modified then
     return {
@@ -281,13 +275,13 @@ function M.modified(node, _, renderer)
   end
 end
 
----@param node YaTreeNode
----@param context RenderingContext
----@param renderer YaTreeConfig.Renderers.Repository
----@return RenderResult[]|nil results
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Repository
+---@return Yat.Ui.RenderResult[]|nil results
 function M.repository(node, context, renderer)
   if node:is_git_repository_root() or (context.depth == 0 and node.repo) then
-    local repo = node.repo --[[@as GitRepo]]
+    local repo = node.repo --[[@as Yat.Git.Repo]]
     local icon = renderer.icons.remote.default
     if repo.remote_url then
       for k, v in pairs(renderer.icons.remote) do
@@ -363,10 +357,10 @@ function M.repository(node, context, renderer)
   end
 end
 
----@param node YaTreeNode
----@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.SymlinkTarget
----@return RenderResult|nil result
+---@param node Yat.Node
+---@param _ Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.SymlinkTarget
+---@return Yat.Ui.RenderResult|nil result
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
     if node.link_orphan then
@@ -392,10 +386,10 @@ function M.symlink_target(node, _, renderer)
   end
 end
 
----@param node YaTreeNode
----@param context RenderingContext
----@param renderer YaTreeConfig.Renderers.GitStatus
----@return RenderResult[]|nil results
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.GitStatus
+---@return Yat.Ui.RenderResult[]|nil results
 function M.git_status(node, context, renderer)
   if context.config.git.enable then
     local git_status = node:git_status()
@@ -417,10 +411,10 @@ function M.git_status(node, context, renderer)
   end
 end
 
----@param node YaTreeNode
----@param context RenderingContext
----@param renderer YaTreeConfig.Renderers.Diagnostics
----@return RenderResult|nil result
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Diagnostics
+---@return Yat.Ui.RenderResult|nil result
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
     local severity = node:diagnostics_severity()
@@ -437,10 +431,10 @@ function M.diagnostics(node, context, renderer)
   end
 end
 
----@param node YaTreeNode|YaTreeBufferNode
----@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.BufferInfo
----@return RenderResult[]|nil results
+---@param node Yat.Node|Yat.Nodes.Buffer
+---@param _ Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.BufferInfo
+---@return Yat.Ui.RenderResult[]|nil results
 function M.buffer_info(node, _, renderer)
   local bufnr = -1
   local hidden = false
@@ -472,10 +466,10 @@ function M.buffer_info(node, _, renderer)
   end
 end
 
----@param node YaTreeNode
----@param _ RenderingContext
----@param renderer YaTreeConfig.Renderers.Clipboard
----@return RenderResult|nil result
+---@param node Yat.Node
+---@param _ Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Clipboard
+---@return Yat.Ui.RenderResult|nil result
 function M.clipboard(node, _, renderer)
   if node.clipboard_status then
     return {
@@ -496,29 +490,29 @@ do
     return git_staus_to_hl[status]
   end
 
-  ---@class IconAndHighlight
+  ---@class Yat.Ui.IconAndHighlight
   ---@field icon string
   ---@field highlight string
 
-  ---@type table<string, IconAndHighlight[]>
+  ---@type table<string, Yat.Ui.IconAndHighlight[]>
   local git_icons_and_hl = {}
 
   ---@param status string
-  ---@return IconAndHighlight[]
+  ---@return Yat.Ui.IconAndHighlight[]
   function M.helpers.get_git_icons_and_highlights(status)
     return git_icons_and_hl[status] or git_icons_and_hl.dirty
   end
 
-  ---@type table<number, IconAndHighlight>
+  ---@type table<number, Yat.Ui.IconAndHighlight>
   local diagnostic_icon_and_hl = {}
 
   ---@param severity number
-  ---@return IconAndHighlight
+  ---@return Yat.Ui.IconAndHighlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
     return diagnostic_icon_and_hl[severity]
   end
 
-  ---@param config YaTreeConfig
+  ---@param config Yat.Config
   function M.setup(config)
     local icons = config.renderers.git_status.icons
     git_icons_and_hl = {}

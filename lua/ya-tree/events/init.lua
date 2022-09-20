@@ -5,15 +5,15 @@ local log = require("ya-tree.log")
 
 local api = vim.api
 
----@class YaTreeEvent.AutoCmdEventHandler
+---@class Yat.Events.Handler.AutoCmd
 ---@field id string
 ---@field callback fun(bufnr: integer, file: string, match: string)
 
----@class YaTreeEvent.GitEventHandler
+---@class Yat.Events.Handler.Git
 ---@field id string
----@field callback async fun(repo: GitRepo, fs_changes: boolean)
+---@field callback async fun(repo: Yat.Git.Repo, fs_changes: boolean)
 
----@class YaTreeEvent.YaTreeEventHandler
+---@class Yat.Events.Handler.YaTree
 ---@field id string
 ---@field callback fun(...)
 
@@ -36,13 +36,13 @@ do
   ---@type { [integer]: string, [string]: integer }
   M._autocmd_ids_and_event_names = {}
   ---@private
-  ---@type table<string, YaTreeEvent.AutoCmdEventHandler[]>
+  ---@type table<string, Yat.Events.Handler.AutoCmd[]>
   M._autocmd_event_listeners = setmetatable({}, mt)
   ---@private
-  ---@type table<string, YaTreeEvent.GitEventHandler[]>
+  ---@type table<string, Yat.Events.Handler.Git[]>
   M._git_event_listeners = setmetatable({}, mt)
   ---@private
-  ---@type table<string, YaTreeEvent.YaTreeEventHandler[]>
+  ---@type table<string, Yat.Events.Handler.YaTree[]>
   M._yatree_event_listeners = setmetatable({}, mt)
 
   ---@type table<integer, string>
@@ -64,7 +64,7 @@ do
   end
   M.get_event_name = get_event_name
 
-  ---@type table<YaTreeEvents.AutocmdEvent, string|string[]>
+  ---@type table<Yat.Events.AutocmdEvent, string|string[]>
   local event_to_autocmds = {
     [events.autocmd.TAB_NEW] = "TabNewEntered",
     [events.autocmd.TAB_ENTERED] = "TabEnter",
@@ -90,14 +90,14 @@ do
     [events.autocmd.LEAVE_PRE] = "VimLeavePre",
   }
 
-  ---@class NvimAutocmdInput
+  ---@class Nvim.AutocmdArgs
   ---@field id integer
   ---@field event string
   ---@field buf integer
   ---@field match string
   ---@field file string
 
-  ---@param input NvimAutocmdInput
+  ---@param input Nvim.AutocmdArgs
   local function autocmd_callback(input)
     local event_name = M._autocmd_ids_and_event_names[input.id]
     local handlers = M._autocmd_event_listeners[event_name]
@@ -111,7 +111,7 @@ do
     end
   end
 
-  ---@param event YaTreeEvents.AutocmdEvent
+  ---@param event Yat.Events.AutocmdEvent
   ---@param event_name string
   create_autocmd = function(event, event_name)
     local autocmd = event_to_autocmds[event]
@@ -149,11 +149,11 @@ local function add_listener(event_name, listeners, id, callback)
   log.debug("added handler %q for event %q", id, event_name)
 end
 
----@param event YaTreeEvents.AutocmdEvent
+---@param event Yat.Events.AutocmdEvent
 ---@param id string
 ---@param async boolean
 ---@param callback fun(bufnr: integer, file: string, match: string)
----@overload fun(event: YaTreeEvents.AutocmdEvent, id: string, callback: fun(bufnr: integer, file: string, match: string))
+---@overload fun(event: Yat.Events.AutocmdEvent, id: string, callback: fun(bufnr: integer, file: string, match: string))
 function M.on_autocmd_event(event, id, async, callback)
   if type(async) == "function" then
     callback = async
@@ -178,22 +178,22 @@ local function remove_listener(event_name, listeners, id)
   end
 end
 
----@param event YaTreeEvents.AutocmdEvent
+---@param event Yat.Events.AutocmdEvent
 ---@param id string
 function M.remove_autocmd_event(event, id)
   local event_name = get_event_name(event)
   remove_listener(event_name, M._autocmd_event_listeners[event_name], id)
 end
 
----@param event YaTreeEvents.GitEvent
+---@param event Yat.Events.GitEvent
 ---@param id string
----@param callback async fun(repo: GitRepo, fs_changes: boolean)
+---@param callback async fun(repo: Yat.Git.Repo, fs_changes: boolean)
 function M.on_git_event(event, id, callback)
   local event_name = get_event_name(event)
   add_listener(event_name, M._git_event_listeners[event_name], id, callback)
 end
 
----@param event YaTreeEvents.GitEvent
+---@param event Yat.Events.GitEvent
 ---@param id string
 function M.remove_git_event(event, id)
   local event_name = get_event_name(event)
@@ -201,8 +201,8 @@ function M.remove_git_event(event, id)
 end
 
 ---@async
----@param event YaTreeEvents.GitEvent
----@param repo GitRepo
+---@param event Yat.Events.GitEvent
+---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 function M.fire_git_event(event, repo, fs_changes)
   local event_name = get_event_name(event)
@@ -214,7 +214,7 @@ function M.fire_git_event(event, repo, fs_changes)
   end
 end
 
----@param event YaTreeEvents.YaTreeEvent
+---@param event Yat.Events.YaTreeEvent
 ---@param id string
 ---@param callback fun(...)
 function M.on_yatree_event(event, id, callback)
@@ -222,14 +222,14 @@ function M.on_yatree_event(event, id, callback)
   add_listener(event_name, M._yatree_event_listeners[event_name], id, callback)
 end
 
----@param event YaTreeEvents.YaTreeEvent
+---@param event Yat.Events.YaTreeEvent
 ---@param id string
 function M.remove_yatree_event(event, id)
   local event_name = get_event_name(event)
   remove_listener(event_name, M._yatree_event_listeners[event_name], id)
 end
 
----@param event YaTreeEvents.YaTreeEvent
+---@param event Yat.Events.YaTreeEvent
 ---@param ... any
 function M.fire_yatree_event(event, ...)
   local event_name = get_event_name(event)

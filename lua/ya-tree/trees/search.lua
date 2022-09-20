@@ -4,11 +4,11 @@ local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
 local log = require("ya-tree.log")
 
----@class YaSearchTree : YaTree
+---@class Yat.Trees.Search : Yat.Tree
 ---@field TYPE "search"
 ---@field private _singleton false
----@field root YaTreeSearchNode
----@field current_node? YaTreeSearchNode
+---@field root Yat.Nodes.Search
+---@field current_node? Yat.Nodes.Search
 local SearchTree = { TYPE = "search", _singleton = false }
 SearchTree.__index = SearchTree
 SearchTree.__eq = Tree.__eq
@@ -18,7 +18,7 @@ setmetatable(SearchTree, { __index = Tree })
 ---@async
 ---@param tabpage integer
 ---@param path string
----@return YaSearchTree tree
+---@return Yat.Trees.Search tree
 function SearchTree:new(tabpage, path)
   local this = Tree.new(self, tabpage)
   this:_init(path)
@@ -29,10 +29,10 @@ end
 
 ---@async
 ---@private
----@param self YaSearchTree
+---@param self Yat.Trees.Search
 ---@param path string
 function SearchTree:_init(path)
-  local fs_node = fs.node_for(path) --[[@as FsNode]]
+  local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   self.root = SearchNode:new(fs_node)
   self.root.repo = git.get_repo_for_path(self.root.path)
 end

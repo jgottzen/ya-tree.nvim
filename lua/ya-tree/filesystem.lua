@@ -40,7 +40,7 @@ end
 -- file, directory, link, fifo, socket, char, block and unknown
 -- see: https://github.com/luvit/luv/blob/d2e235503f6cb5c86121cd70cdb5d17e368bab03/src/fs.c#L107=
 
----@alias file_type "directory" | "file" | "fifo" | "socket" | "char" | "block"
+---@alias Luv.FileType "directory" | "file" | "fifo" | "socket" | "char" | "block"
 
 ---@class uv_timespec
 ---@field sec integer
@@ -63,21 +63,21 @@ end
 ---@field mtime uv_timespec
 ---@field ctime uv_timespec
 ---@field birthtime uv_timespec
----@field type file_type|"unknown"
+---@field type Luv.FileType|"unknown"
 
----@class FsNode
+---@class Yat.Fs.Node
 ---@field public name string
----@field public type file_type
+---@field public type Luv.FileType
 ---@field public path string
 
----@class FsDirectoryNode : FsNode
+---@class Yat.Fs.DirectoryNode : Yat.Fs.Node
 ---@field public empty boolean
 
 ---Creates a directory node
 ---@async
 ---@param dir string the directory containing the directory
 ---@param name string the name of the directory
----@return FsDirectoryNode node
+---@return Yat.Fs.DirectoryNode node
 local function directory_node(dir, name)
   local path = utils.join_path(dir, name)
   local empty = is_empty(path)
@@ -95,7 +95,7 @@ M.st_mode_masks = {
   permissions_mask = 0x7, -- octal 7, corresponding to S_IRWX
 }
 
----@class FsFileNode : FsNode
+---@class Yat.Fs.FileNode : Yat.Fs.Node
 ---@field public extension string
 ---@field public executable boolean
 
@@ -104,7 +104,7 @@ M.st_mode_masks = {
 ---@param dir string the directory containing the file
 ---@param name string the name of the file
 ---@param stat? uv_fs_stat
----@return FsFileNode node
+---@return Yat.Fs.FileNode node
 local function file_node(dir, name, stat)
   local path = utils.join_path(dir, name)
   local extension = name:match(".?[^.]+%.(.*)") or ""
@@ -139,67 +139,67 @@ function M.get_file_name(path)
   return splits[#splits]
 end
 
----@class FsFifoNode : FsFileNode, FsNode
+---@class Yat.Fs.FifoNode : Yat.Fs.FileNode, Yat.Fs.Node
 
 ---@async
 ---@param dir string the directory containing the fifo
 ---@param name string name of the fifo
 ---@param stat? uv_fs_stat
----@return FsFifoNode node
+---@return Yat.Fs.FifoNode node
 local function fifo_node(dir, name, stat)
   local node = file_node(dir, name, stat)
   node.type = "fifo"
-  return node --[[@as FsFifoNode]]
+  return node --[[@as Yat.Fs.FifoNode]]
 end
 
----@class FsSocketNode : FsFileNode, FsNode
+---@class Yat.Fs.SocketNode : Yat.Fs.FileNode, Yat.Fs.Node
 
 ---@async
 ---@param dir string the directory containing the socket
 ---@param name string name of the socket
 ---@param stat? uv_fs_stat
----@return FsSocketNode node
+---@return Yat.Fs.SocketNode node
 local function socket_node(dir, name, stat)
   local node = file_node(dir, name, stat)
   node.type = "socket"
-  return node --[[@as FsSocketNode]]
+  return node --[[@as Yat.Fs.SocketNode]]
 end
 
----@class FsCharNode : FsFileNode, FsNode
+---@class Yat.Fs.CharNode : Yat.Fs.FileNode, Yat.Fs.Node
 
 ---@async
 ---@param dir string the directory containing the char device file
 ---@param name string name of the char device file
 ---@param stat? uv_fs_stat
----@return FsCharNode node
+---@return Yat.Fs.CharNode node
 local function char_node(dir, name, stat)
   local node = file_node(dir, name, stat)
   node.type = "char"
-  return node --[[@as FsCharNode]]
+  return node --[[@as Yat.Fs.CharNode]]
 end
 
----@class FsBlockNode : FsFileNode, FsNode
+---@class Yat.Fs.BlockNode : Yat.Fs.FileNode, Yat.Fs.Node
 
 ---@async
 ---@param dir string the directory containing the block device file
 ---@param name string name of the block device file
 ---@param stat? uv_fs_stat
----@return FsBlockNode node
+---@return Yat.Fs.BlockNode node
 local function block_node(dir, name, stat)
   local node = file_node(dir, name, stat)
   node.type = "block"
-  return node --[[@as FsBlockNode]]
+  return node --[[@as Yat.Fs.BlockNode]]
 end
 
----@class FsLinkNodeMixin
+---@class Yat.Fs.LinkNodeMixin
 ---@field public link boolean
 ---@field public absolute_link_to string
 ---@field public relative_link_to string
 ---@field public link_orphan boolean
 
----@class FsDirectoryLinkNode : FsDirectoryNode, FsLinkNodeMixin, FsNode
+---@class Yat.Fs.DirectoryLinkNode : Yat.Fs.DirectoryNode, Yat.Fs.LinkNodeMixin, Yat.Fs.Node
 
----@class FsFileLinkNode : FsFileNode, FsLinkNodeMixin, FsNode
+---@class Yat.Fs.FileLinkNode : Yat.Fs.FileNode, Yat.Fs.LinkNodeMixin, Yat.Fs.Node
 ---@field public link_name string
 ---@field public link_extension string
 
@@ -207,7 +207,7 @@ end
 ---@param dir string the directory containing the link
 ---@param name string name of the link
 ---@param lstat? uv_fs_stat
----@return FsDirectoryLinkNode|FsFileLinkNode|nil node
+---@return Yat.Fs.DirectoryLinkNode|Yat.Fs.FileLinkNode|nil node
 local function link_node(dir, name, lstat)
   local path = utils.join_path(dir, name)
   local rel_link_to
@@ -248,7 +248,7 @@ local function link_node(dir, name, lstat)
     node.link_orphan = true
   end
 
-  ---@cast node FsDirectoryLinkNode|FsFileLinkNode
+  ---@cast node Yat.Fs.DirectoryLinkNode|Yat.Fs.FileLinkNode
   node.link = true
   node.absolute_link_to = abs_link_to
   node.relative_link_to = rel_link_to
@@ -257,7 +257,7 @@ end
 
 ---@async
 ---@param path string
----@return FsNode|nil node
+---@return Yat.Fs.Node|nil node
 function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type userdata, uv_fs_stat?
@@ -288,17 +288,17 @@ function M.node_for(path)
   end
 end
 
----Scans a directory and returns an array of items extending `FsNode`.
+---Scans a directory and returns an array of items extending `Yat.Fs.Node`.
 ---@async
 ---@param dir string the directory to scan.
----@return FsNode[] nodes
+---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
-  ---@type FsNode[]
+  ---@type Yat.Fs.Node[]
   local nodes = {}
   local _, fd = uv.fs_scandir(dir)
   if fd then
     while true do
-      ---@type string?, file_type?
+      ---@type string?, Luv.FileType?
       local name, _type = loop.fs_scandir_next(fd)
       if name == nil then
         break
@@ -362,7 +362,7 @@ function M.copy_dir(source, destination, replace)
   end
   if continue then
     while true do
-      ---@type string?, file_type
+      ---@type string?, Luv.FileType
       local name, _type = loop.fs_scandir_next(fd)
       if not name then
         break
@@ -473,7 +473,7 @@ function M.remove_dir(path)
   end
 
   while true do
-    ---@type string?, file_type
+    ---@type string?, Luv.FileType
     local name, _type = loop.fs_scandir_next(fd)
     if not name then
       break

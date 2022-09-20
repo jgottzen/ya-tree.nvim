@@ -10,7 +10,7 @@ local log = require("ya-tree.log")
 local api = vim.api
 local uv = vim.loop
 
----@class YaFsTree : YaTree
+---@class Yat.Trees.Fs : Yat.Tree
 ---@field TYPE "files"
 ---@field private _singleton false
 ---@field cwd string
@@ -18,7 +18,7 @@ local FilesystemTree = { TYPE = "files", _singleton = false }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
 
----@param self YaFsTree
+---@param self Yat.Trees.Fs
 ---@return string
 FilesystemTree.__tostring = function(self)
   return string.format("(%s, tabpage=%s, cwd=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), self.cwd, tostring(self.root))
@@ -29,10 +29,10 @@ setmetatable(FilesystemTree, { __index = Tree })
 ---Creates a new filesystem node tree root.
 ---@async
 ---@param path string the path
----@param old_root? YaTreeNode the previous root
----@return YaTreeNode root
+---@param old_root? Yat.Node the previous root
+---@return Yat.Node root
 local function create_root_node(path, old_root)
-  local fs_node = fs.node_for(path) --[[@as FsNode]]
+  local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   local root = Node:new(fs_node)
 
   -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree
@@ -53,8 +53,8 @@ end
 
 ---@async
 ---@param tabpage integer
----@param root? string|YaTreeNode
----@return YaFsTree tree
+---@param root? string|Yat.Node
+---@return Yat.Trees.Fs tree
 function FilesystemTree:new(tabpage, root)
   local this = Tree.new(self, tabpage)
   this.cwd = uv.cwd() --[[@as string]]
@@ -63,7 +63,7 @@ function FilesystemTree:new(tabpage, root)
   if type(root) == "string" then
     root_node = create_root_node(root)
   elseif type(root) == "table" then
-    root_node = root --[[@as YaTreeNode]]
+    root_node = root --[[@as Yat.Node]]
   else
     root_node = create_root_node(this.cwd)
   end
@@ -77,7 +77,7 @@ function FilesystemTree:new(tabpage, root)
 end
 
 ---@async
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 function FilesystemTree:on_git_event(repo, fs_changes)
   if vim.v.exiting ~= vim.NIL or not (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
@@ -104,7 +104,7 @@ function FilesystemTree:on_git_event(repo, fs_changes)
 end
 
 ---@async
----@param self YaFsTree
+---@param self Yat.Trees.Fs
 ---@param new_root string
 ---@return boolean `false` if the current tree cannot walk up or down to reach the specified directory.
 local function update_tree_root_node(self, new_root)
@@ -126,7 +126,7 @@ local function update_tree_root_node(self, new_root)
       -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
       root = self.root
       while root.parent do
-        root = root.parent --[[@as YaTreeNode]]
+        root = root.parent --[[@as Yat.Node]]
         root:refresh()
         if root.path == new_root then
           break
@@ -153,7 +153,7 @@ local function update_tree_root_node(self, new_root)
 end
 
 ---@async
----@param new_root string|YaTreeNode
+---@param new_root string|Yat.Node
 function FilesystemTree:change_root_node(new_root)
   local old_root = self.root
   if type(new_root) == "string" then
@@ -165,14 +165,14 @@ function FilesystemTree:change_root_node(new_root)
       self.root = create_root_node(new_root, self.root)
     end
   else
-    ---@cast new_root YaTreeNode
+    ---@cast new_root Yat.Node
     log.debug("setting new tree root to %s", tostring(new_root))
     self.root = new_root
     self.root:expand({ force_scan = true })
 
     local tree_root = new_root
     while tree_root.parent do
-      tree_root = tree_root.parent --[[@as YaTreeNode]]
+      tree_root = tree_root.parent --[[@as Yat.Node]]
     end
     ---@type table<string, boolean>
     local found_toplevels = {}

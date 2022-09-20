@@ -46,23 +46,23 @@ local win_options = {
 local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
 local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
 
----@alias YaTreeCanvas.Position "left"|"right"
+---@alias Yat.Ui.Canvas.Position "left"|"right"
 
----@class YaTreeCanvas
----@field public tree_type YaTreeType|string
----@field public position YaTreeCanvas.Position
+---@class Yat.Ui.Canvas
+---@field public tree_type Yat.Trees.Type|string
+---@field public position Yat.Ui.Canvas.Position
 ---@field private winid? number
 ---@field private edit_winid? number
 ---@field private bufnr? number
 ---@field private window_augroup? number
 ---@field private previous_row number
 ---@field private width number
----@field private nodes YaTreeNode[]
+---@field private nodes Yat.Node[]
 ---@field private node_path_to_index_lookup table<string, integer>
 local Canvas = {}
 Canvas.__index = Canvas
 
----@param self YaTreeCanvas
+---@param self Yat.Ui.Canvas
 ---@return string
 Canvas.__tostring = function(self)
   return string.format(
@@ -76,7 +76,7 @@ Canvas.__tostring = function(self)
   )
 end
 
----@return YaTreeCanvas canvas
+---@return Yat.Ui.Canvas canvas
 function Canvas:new()
   local this = setmetatable({}, self)
   this.position = config.view.position
@@ -243,7 +243,7 @@ function Canvas:_on_win_closed()
 end
 
 ---@private
----@param position? YaTreeCanvas.Position
+---@param position? Yat.Ui.Canvas.Position
 function Canvas:_create_window(position)
   local winid = api.nvim_get_current_win() --[[@as number]]
   if winid ~= self.edit_winid then
@@ -260,12 +260,12 @@ function Canvas:_create_window(position)
   self:_set_window_options()
 end
 
----@class YaTreeCanvas.Open
+---@class Yat.Ui.Canvas.OpenArgs
 ---@field hijack_buffer? boolean
----@field position? YaTreeCanvas.Position
+---@field position? Yat.Ui.Canvas.Position
 
----@param tree YaTree
----@param opts? YaTreeCanvas.Open
+---@param tree Yat.Tree
+---@param opts? Yat.Ui.Canvas.OpenArgs
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.position?} `YaTreeCanvas.Position`
 function Canvas:open(tree, opts)
@@ -341,12 +341,12 @@ function Canvas:delete()
   end
 end
 
----@type YaTreeViewRenderer[]
+---@type Yat.Ui.Canvas.Renderer[]
 local all_container_renderers = {}
----@type YaTreeViewRenderer[]
+---@type Yat.Ui.Canvas.Renderer[]
 local all_file_renderers = {}
 
----@class highlight_group
+---@class Yat.Ui.HighlightGroup
 ---@field name string
 ---@field from integer
 ---@field to integer
@@ -355,7 +355,7 @@ local all_file_renderers = {}
 ---@param padding string
 ---@param text string
 ---@param highlight string
----@return number end_position, string content, highlight_group highlight
+---@return number end_position, string content, Yat.Ui.HighlightGroup highlight
 local function line_part(pos, padding, text, highlight)
   local from = pos + #padding
   local size = #text
@@ -367,14 +367,14 @@ local function line_part(pos, padding, text, highlight)
   return group.to, string.format("%s%s", padding, text), group
 end
 
----@param node YaTreeNode
----@param context RenderingContext
----@param renderers YaTreeViewRenderer[]
----@return string text, highlight_group[] highlights
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderers Yat.Ui.Canvas.Renderer[]
+---@return string text, Yat.Ui.HighlightGroup[] highlights
 local function render_node(node, context, renderers)
   ---@type string[]
   local content = {}
-  ---@type highlight_group[]
+  ---@type Yat.Ui.HighlightGroup[]
   local highlights = {}
 
   local pos = 0
@@ -396,32 +396,38 @@ local function render_node(node, context, renderers)
   return table.concat(content), highlights
 end
 
+---@class Yat.Ui.RenderContext
+---@field tree_type Yat.Trees.Type|string
+---@field config Yat.Config
+---@field depth integer
+---@field last_child boolean
+
 ---@private
----@param tree YaTree
----@return string[] lines, highlight_group[][] highlights
+---@param tree Yat.Tree
+---@return string[] lines, Yat.Ui.HighlightGroup[][] highlights
 function Canvas:_render_tree(tree)
   log.debug("creating %q canvas tree with root node %s", self.tree_type, tree.root.path)
   self.nodes, self.node_path_to_index_lookup = {}, {}
   ---@type string[]
   local lines = {}
-  ---@type highlight_group[][]
+  ---@type Yat.Ui.HighlightGroup[][]
   local highlights = {}
   local linenr = 0
-  ---@type RenderingContext
+  ---@type Yat.Ui.RenderContext
   local context = {
     tree_type = self.tree_type,
     config = config,
   }
-  ---@param renderer YaTreeViewRenderer
+  ---@param renderer Yat.Ui.Canvas.Renderer
   local container_renderers = vim.tbl_filter(function(renderer)
     return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
-  end, all_container_renderers) --[=[@as YaTreeViewRenderer[]]=]
-  ---@param renderer YaTreeViewRenderer
+  end, all_container_renderers) --[=[@asYat.Ui.Canvas.Rendererr[]]=]
+  ---@param renderer Yat.Ui.Canvas.Renderer
   local file_renderers = vim.tbl_filter(function(renderer)
     return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
-  end, all_file_renderers) --[=[@as YaTreeViewRenderer[]]=]
+  end, all_file_renderers) --[=[@asYat.Ui.Canvas.Rendererr[]]=]
 
-  ---@param node YaTreeNode
+  ---@param node Yat.Node
   ---@param depth integer
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
@@ -447,7 +453,7 @@ function Canvas:_render_tree(tree)
   return lines, highlights
 end
 
----@param tree YaTree
+---@param tree Yat.Tree
 function Canvas:render(tree)
   self.tree_type = tree.TYPE
   local lines, highlights = self:_render_tree(tree)
@@ -471,14 +477,14 @@ function Canvas:render(tree)
   api.nvim_buf_set_option(self.bufnr, "modifiable", false)
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 ---@return boolean visible
 function Canvas:is_node_rendered(node)
   return self.node_path_to_index_lookup[node.path] ~= nil
 end
 
 ---@private
----@return YaTreeNode|nil node, number row, number column
+---@return Yat.Node|nil node, number row, number column
 function Canvas:_get_current_node_and_position()
   if not self.winid then
     return nil, 1, 0
@@ -489,7 +495,7 @@ function Canvas:_get_current_node_and_position()
   return node, row, column
 end
 
----@return YaTreeNode|nil node
+---@return Yat.Node|nil node
 function Canvas:get_current_node()
   local node = self:_get_current_node_and_position()
   return node
@@ -498,7 +504,7 @@ end
 do
   local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true) --[[@as string]]
 
-  ---@return YaTreeNode[] nodes
+  ---@return Yat.Node[] nodes
   function Canvas:get_selected_nodes()
     local mode = api.nvim_get_mode().mode --[[@as string]]
     if mode == "v" or mode == "V" then
@@ -508,7 +514,7 @@ do
         from, to = to, from
       end
 
-      ---@type YaTreeNode[]
+      ---@type Yat.Node[]
       local nodes = {}
       for index = from, to do
         local node = self.nodes[index]
@@ -564,7 +570,7 @@ local function set_cursor_position(winid, row, col)
   end
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function Canvas:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
@@ -595,7 +601,7 @@ function Canvas:focus_node(node)
   end
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function Canvas:focus_parent(node)
   if not node or node == self.nodes[1] or not node.parent then
     return
@@ -608,7 +614,7 @@ function Canvas:focus_parent(node)
   end
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function Canvas:focus_prev_sibling(node)
   if not node or not node.parent or not node.parent.children then
     return
@@ -626,7 +632,7 @@ function Canvas:focus_prev_sibling(node)
   end
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function Canvas:focus_next_sibling(node)
   if not node or not node.parent or not node.parent.children then
     return
@@ -644,7 +650,7 @@ function Canvas:focus_next_sibling(node)
   end
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function Canvas:focus_first_sibling(node)
   if not node or not node.parent or not node.parent.children then
     return
@@ -662,7 +668,7 @@ function Canvas:focus_first_sibling(node)
   end
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function Canvas:focus_last_sibling(node)
   if not node or not node.parent or not node.parent.children then
     return
@@ -730,20 +736,20 @@ function Canvas:focus_next_diagnostic_item()
   end
 end
 
----@class YaTreeViewRenderer
+---@class Yat.Ui.Canvas.Renderer
 ---@field name string
----@field fn fun(node: YaTreeNode, context: RenderingContext, renderer: YaTreeRendererConfig): RenderResult|RenderResult[]|nil
----@field config? YaTreeRendererConfig
+---@field fn fun(node: Yat.Node, context: Yat.Ui.RenderContext, renderer: Yat.Config.BaseRenderer): Yat.Ui.RenderResult|Yat.Ui.RenderResult[]|nil
+---@field config? Yat.Config.BaseRenderer
 
 do
   local renderers = require("ya-tree.ui.renderers")
 
-  ---@param view_renderer YaTreeConfig.View.Renderers.DirectoryRenderer|YaTreeConfig.View.Renderers.FileRenderer
-  ---@return YaTreeViewRenderer|nil renderer
+  ---@param view_renderer Yat.Config.View.Renderers.DirectoryRenderer|Yat.Config.View.Renderers.FileRenderer
+  ---@return Yat.Ui.Canvas.Renderer|nil renderer
   local function create_renderer(view_renderer)
     local name = view_renderer[1]
     if type(name) == "string" then
-      ---@type YaTreeViewRenderer
+      ---@type Yat.Ui.Canvas.Renderer
       local renderer = { name = name }
 
       local fn = renderers[name]
@@ -774,9 +780,9 @@ do
     renderers.setup(config)
 
     -- reset the renderer arrays, since the setup can be called repeatedly
-    ---@type YaTreeViewRenderer[]
+    ---@type Yat.Ui.Canvas.Renderer[]
     all_container_renderers = {}
-    ---@type YaTreeViewRenderer[]
+    ---@type Yat.Ui.Canvas.Renderer[]
     all_file_renderers = {}
 
     for _, directory_renderer in ipairs(config.view.renderers.directory) do
@@ -791,7 +797,7 @@ do
         all_container_renderers[#all_container_renderers + 1] = renderer
 
         if renderer.name == "diagnostics" then
-          local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Diagnostics]]
+          local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Diagnostics]]
           directory_min_diagnstic_severrity = renderer_config.min_severity or config.renderers.diagnostics.min_severity
         end
       end
@@ -810,10 +816,10 @@ do
         all_file_renderers[#all_file_renderers + 1] = renderer
 
         if renderer.name == "name" then
-          local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Name]]
+          local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Name]]
           highlight_open_file = renderer_config.highlight_open_file
         elseif renderer.name == "diagnostics" then
-          local renderer_config = renderer.config --[[@as YaTreeConfig.Renderers.Diagnostics]]
+          local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Diagnostics]]
           file_min_diagnostic_severity = renderer_config.min_severity or config.renderers.diagnostics.min_severity
         end
       end

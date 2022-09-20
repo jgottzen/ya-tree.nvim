@@ -6,13 +6,13 @@ local fs = require("ya-tree.filesystem")
 local log = require("ya-tree.log")
 local utils = require("ya-tree.utils")
 
----@alias YaTreeNodeType "FileSystem" | "Search" | "Buffer" | "Git"
+---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git"
 
----@class YaTreeNode : FsNode
----@field private __node_type YaTreeNodeType
----@field public parent? YaTreeNode
----@field private type file_type
----@field public children? YaTreeNode[]
+---@class Yat.Node : Yat.Fs.Node
+---@field private __node_type "FileSystem"
+---@field public parent? Yat.Node
+---@field private type Luv.FileType
+---@field public children? Yat.Node[]
 ---@field public empty? boolean
 ---@field public extension? string
 ---@field public executable? boolean
@@ -23,35 +23,35 @@ local utils = require("ya-tree.utils")
 ---@field public link_name? string
 ---@field public link_extension? string
 ---@field public modified boolean
----@field public repo? GitRepo
----@field public clipboard_status clipboard_action|nil
+---@field public repo? Yat.Git.Repo
+---@field public clipboard_status Yat.Actions.Clipboard.Action|nil
 ---@field private scanned? boolean
 ---@field public expanded? boolean
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
 
----@param self YaTreeNode
----@param other YaTreeNode
+---@param self Yat.Node
+---@param other Yat.Node
 ---@return boolean
 Node.__eq = function(self, other)
   return self.path == other.path
 end
 
----@param self YaTreeNode
+---@param self Yat.Node
 ---@return string
 Node.__tostring = function(self)
   return string.format("(%s, %s)", self.__node_type, self.path)
 end
 
 ---Creates a new node.
----@generic T : YaTreeNode
+---@generic T : Yat.Node
 ---@param class T
----@param fs_node FsNode filesystem data.
+---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? T the parent node.
 ---@return T node
 function Node.new(class, fs_node, parent)
-  local this = setmetatable(fs_node, class) --[[@as YaTreeNode]]
-  ---@cast parent YaTreeNode?
+  local this = setmetatable(fs_node, class) --[[@as Yat.Node]]
+  ---@cast parent Yat.Node?
   this.parent = parent
   this.modified = false
   if this:is_container() then
@@ -70,7 +70,7 @@ end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` skips
 ---any children of that node, but continues with the next child, if any.
----@param visitor fun(node: YaTreeNode):boolean
+---@param visitor fun(node: Yat.Node):boolean
 function Node:walk(visitor)
   if visitor(self) then
     return
@@ -86,7 +86,8 @@ end
 ---@param output_to_log? boolean
 ---@return table<string, any>
 function Node:get_debug_info(output_to_log)
-  local t = { __node_type = self.__node_type }
+  local t = {}
+  t.__node_type = self.__node_type
   for k, v in pairs(self) do
     if type(v) == "table" then
       if k == "parent" or k == "repo" then
@@ -111,7 +112,7 @@ function Node:get_debug_info(output_to_log)
 end
 
 ---@private
----@param fs_node FsNode filesystem data.
+---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
   for k, v in pairs(fs_node) do
     if type(self[k]) ~= "function" then
@@ -122,8 +123,8 @@ function Node:_merge_new_data(fs_node)
   end
 end
 
----@param a YaTreeNode
----@param b YaTreeNode
+---@param a Yat.Node
+---@param b Yat.Node
 ---@return boolean
 function Node.node_comparator(a, b)
   local ac = a:is_container()
@@ -141,13 +142,13 @@ end
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
   -- keep track of the current children
-  ---@type table<string, YaTreeNode>
+  ---@type table<string, Yat.Node>
   local children = {}
   for _, child in ipairs(self.children) do
     children[child.path] = child
   end
 
-  ---@param fs_node FsNode
+  ---@param fs_node Yat.Fs.Node
   self.children = vim.tbl_map(function(fs_node)
     local child = children[fs_node.path]
     if child then
@@ -167,8 +168,8 @@ function Node:_scandir()
   scheduler()
 end
 
----@param repo GitRepo
----@param node YaTreeNode
+---@param repo Yat.Git.Repo
+---@param node Yat.Node
 local function set_git_repo_on_node_and_children(repo, node)
   node.repo = repo
   if node.children then
@@ -180,7 +181,7 @@ local function set_git_repo_on_node_and_children(repo, node)
   end
 end
 
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 function Node:set_git_repo(repo)
   local toplevel = repo.toplevel
   if toplevel == self.path then
@@ -194,7 +195,7 @@ function Node:set_git_repo(repo)
       -- walk the tree upwards until we hit the topmost node
       local node = self
       while node.parent and #toplevel <= #node.parent.path do
-        node = node.parent --[[@as YaTreeNode]]
+        node = node.parent --[[@as Yat.Node]]
       end
       log.debug("node %q is the top of the tree, setting repo on node and all child nodes", node.path, tostring(repo))
       set_git_repo_on_node_and_children(repo, node)
@@ -206,7 +207,7 @@ function Node:set_git_repo(repo)
   end
 end
 
----@return YaTreeNodeType node_type
+---@return Yat.Nodes.Type node_type
 function Node:node_type()
   return self.__node_type
 end
@@ -288,7 +289,7 @@ function Node:is_git_repository_root()
   return self.repo and self.repo.toplevel == self.path or false
 end
 
----@param status clipboard_action
+---@param status Yat.Actions.Clipboard.Action
 function Node:set_clipboard_status(status)
   self.clipboard_status = status
   if self:is_directory() then
@@ -308,10 +309,10 @@ function Node:diagnostics_severity()
 end
 
 ---@async
----@generic T : YaTreeNode
+---@generic T : Yat.Node
 ---@param self T
 ---@param file string
----@param node_creator fun(fs_node: FsNode, parent: T): T
+---@param node_creator fun(fs_node: Yat.Fs.Node, parent: T): T
 ---@return T|nil node
 function Node.add_node(self, file, node_creator)
   if not fs.exists(file) then
@@ -319,7 +320,7 @@ function Node.add_node(self, file, node_creator)
     return nil
   end
 
-  ---@cast self YaTreeNode
+  ---@cast self Yat.Node
   local rest = file:sub(#self.path + 1)
   local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true }) --[=[@as string[]]=]
   local node = self
@@ -376,18 +377,18 @@ function Node:remove_node(file)
 end
 
 ---@async
----@generic T : YaTreeNode
+---@generic T : Yat.Node
 ---@param self T
 ---@param paths string[]
 ---@param node_creator async fun(path: string, parent: T, directory: boolean): T|nil
 ---@return T first_leaf_node
 function Node.populate_from_paths(self, paths, node_creator)
-  ---@cast self YaTreeNode
-  ---@type table<string, YaTreeNode>
+  ---@cast self Yat.Node
+  ---@type table<string, Yat.Node>
   local node_map = { [self.path] = self }
 
   ---@param path string
-  ---@param parent YaTreeNode
+  ---@param parent Yat.Node
   ---@param directory boolean
   local function add_node(path, parent, directory)
     local node = node_creator(path, parent, directory)
@@ -431,11 +432,11 @@ function Node.populate_from_paths(self, paths, node_creator)
   return first_leaf_node
 end
 
----@alias hidden_reason "filter" | "git"
+---@alias Yat.Nodes.HiddenReason "filter" | "git"
 
----@param config YaTreeConfig
+---@param config Yat.Config
 ---@return boolean hidden
----@return hidden_reason? reason
+---@return Yat.Nodes.HiddenReason? reason
 function Node:is_hidden(config)
   if config.filters.enable then
     if config.filters.dotfiles and self:is_dotfile() then
@@ -454,14 +455,14 @@ end
 
 ---Returns an iterator function for this `node`s children.
 --
----@generic T : YaTreeNode
+---@generic T : Yat.Node
 ---@param self T
 ---@param opts? { reverse?: boolean, from?: T }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} T
 ---@return fun():T iterator
 function Node.iterate_children(self, opts)
-  ---@cast self YaTreeNode
+  ---@cast self Yat.Node
   if not self.children or #self.children == 0 then
     return function() end
   end
@@ -521,14 +522,14 @@ end
 ---Expands the node, if it is a container. If the node hasn't been scanned before, will scan the directory.
 --
 ---@async
----@generic T : YaTreeNode
+---@generic T : Yat.Node
 ---@param self T
 ---@param opts? {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return T|nil node if {opts.to} is specified, and found.
 function Node.expand(self, opts)
-  ---@cast self YaTreeNode
+  ---@cast self Yat.Node
   log.debug("expanding %q", self.path)
   opts = opts or {}
   if self:is_container() then
@@ -561,12 +562,12 @@ function Node.expand(self, opts)
 end
 
 ---Returns the child node specified by `path` if it has been loaded.
----@generic T :YaTreeNode
+---@generic T :Yat.Node
 ---@param self T
 ---@param path string
 ---@return T|nil
 function Node.get_child_if_loaded(self, path)
-  ---@cast self YaTreeNode
+  ---@cast self Yat.Node
   if self.path == path then
     return self
   end
@@ -587,7 +588,7 @@ end
 
 do
   ---@async
-  ---@param node YaTreeNode
+  ---@param node Yat.Node
   ---@param recurse boolean
   ---@param refresh_git boolean
   ---@param refreshed_git_repos table<string, boolean>

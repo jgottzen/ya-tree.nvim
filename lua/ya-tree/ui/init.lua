@@ -8,7 +8,7 @@ local api = vim.api
 
 local M = {
   ---@private
-  ---@type table<string, YaTreeCanvas>
+  ---@type table<string, Yat.Ui.Canvas>
   _canvases = {},
 }
 
@@ -23,12 +23,12 @@ function M.delete_ui_after_tab_closed()
   end
 end
 
----@return YaTreeCanvas canvas
+---@return Yat.Ui.Canvas canvas
 local function get_canvas()
   return M._canvases[tostring(api.nvim_get_current_tabpage())]
 end
 
----@param tree_type? YaTreeType|string
+---@param tree_type? Yat.Trees.Type|string
 ---@return boolean is_open
 function M.is_open(tree_type)
   local canvas = get_canvas()
@@ -39,22 +39,22 @@ function M.is_open(tree_type)
   return is_open
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 ---@return boolean
 function M.is_node_rendered(node)
   local canvas = get_canvas()
   return canvas and canvas:is_node_rendered(node) or false
 end
 
----@class YaTreeUi.Open
+---@class Yat.Ui.OpenArgs
 ---@field hijack_buffer? boolean
 ---@field focus? boolean
 ---@field focus_edit_window? boolean
----@field position? YaTreeCanvas.Position
+---@field position? Yat.Ui.Canvas.Position
 
----@param tree YaTree
----@param node? YaTreeNode
----@param opts YaTreeUi.Open
+---@param tree Yat.Tree
+---@param node? Yat.Node
+---@param opts Yat.Ui.OpenArgs
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
 ---  - {opts.focus_edit_window?} `boolean`
@@ -100,8 +100,8 @@ function M.close()
   end
 end
 
----@param tree YaTree
----@param node? YaTreeNode
+---@param tree Yat.Tree
+---@param node? Yat.Node
 ---@param opts? {focus_node?: boolean}
 ---  - {opts.focus_node?} `boolean` focuse `node`
 function M.update(tree, node, opts)
@@ -117,47 +117,47 @@ function M.update(tree, node, opts)
   end
 end
 
----@return YaTreeNode|nil current_node
+---@return Yat.Node|nil current_node
 function M.get_current_node()
   return get_canvas():get_current_node()
 end
 
----@return YaTreeNode[] selected_nodes
+---@return Yat.Node[] selected_nodes
 function M.get_selected_nodes()
   return get_canvas():get_selected_nodes()
 end
 
----@param node YaTreeNode
+---@param node Yat.Node
 function M.focus_node(node)
   get_canvas():focus_node(node)
 end
 
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.focus_parent(_, node)
   get_canvas():focus_parent(node)
 end
 
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.focus_prev_sibling(_, node)
   get_canvas():focus_prev_sibling(node)
 end
 
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.focus_next_sibling(_, node)
   get_canvas():focus_next_sibling(node)
 end
 
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.focus_first_sibling(_, node)
   get_canvas():focus_first_sibling(node)
 end
 
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.focus_last_sibling(_, node)
   get_canvas():focus_last_sibling(node)
 end
@@ -196,7 +196,7 @@ function M.get_size()
   return get_canvas():get_size()
 end
 
----@return YaTreeType|string|nil tree_type
+---@return Yat.Trees.Type|string|nil tree_type
 function M.get_tree_type()
   local canvas = get_canvas()
   return canvas and canvas.tree_type
@@ -216,7 +216,7 @@ function M.move_buffer_to_edit_window(bufnr)
 end
 
 ---@param file string the file path to open
----@param cmd cmd_mode
+---@param cmd Yat.Action.Files.Open.Mode
 function M.open_file(file, cmd)
   local canvas = get_canvas()
   local winid = canvas:get_edit_winid()

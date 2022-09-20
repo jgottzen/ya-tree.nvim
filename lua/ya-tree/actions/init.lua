@@ -16,7 +16,7 @@ local api = vim.api
 
 local M = {}
 
----@alias YaTreeActionName
+---@alias Yat.Action.Name
 ---| "open"
 ---| "vsplit"
 ---| "split"
@@ -67,19 +67,19 @@ local M = {}
 ---| "open_help"
 ---| "show_node_info"
 
----@alias YaTreeActionMode "n" | "v" | "V"
+---@alias Yat.Action.Mode "n" | "v" | "V"
 
----@class YaTreeAction
----@field fn async fun(tree: YaTree, node: YaTreeNode)
+---@class Yat.Action
+---@field fn async fun(tree: Yat.Tree, node: Yat.Node)
 ---@field desc string
----@field tree_types YaTreeType[]|string[]
----@field modes YaTreeActionMode[]
+---@field tree_types Yat.Trees.Type[]|string[]
+---@field modes Yat.Action.Mode[]
 
----@param fn async fun(tree: YaTree, node: YaTreeNode)
+---@param fn async fun(tree: Yat.Tree, node: Yat.Node)
 ---@param desc string
----@param tree_types YaTreeType[]|string[]
----@param modes YaTreeActionMode[]
----@return YaTreeAction
+---@param tree_types Yat.Trees.Type[]|string[]
+---@param modes Yat.Action.Mode[]
+---@return Yat.Action
 local function create_action(fn, desc, tree_types, modes)
   return {
     fn = fn,
@@ -89,7 +89,7 @@ local function create_action(fn, desc, tree_types, modes)
   }
 end
 
----@type table<YaTreeActionName, YaTreeAction>
+---@type table<Yat.Action.Name, Yat.Action>
 local actions = {
   open = create_action(files.open, "Open file or directory", { "files", "search", "buffers", "git" }, { "n", "v" }),
   vsplit = create_action(files.vsplit, "Open file in a vertical split", { "files", "search", "git" }, { "n" }),
@@ -219,20 +219,20 @@ local actions = {
   open_help = create_action(help.open, "Open keybindings help", { "files", "search", "buffers", "git" }, { "n" }),
 }
 
----@param mapping YaTreeActionMapping
+---@param mapping Yat.Action.Mapping
 ---@return function|nil handler
 local function create_keymap_function(mapping)
   local fn
   if mapping.action then
-    local action = actions[mapping.action] --[[@as YaTreeAction]]
+    local action = actions[mapping.action] --[[@as Yat.Action]]
     if action and action.fn then
-      fn = void(action.fn) --[[@as fun(tree: YaTree, node: YaTreeNode)]]
+      fn = void(action.fn) --[[@as fun(tree: Yat.Tree, node: Yat.Node)]]
     else
       log.error("action %q has no mapping", mapping.action)
       return nil
     end
   elseif mapping.fn then
-    fn = void(mapping.fn) --[[@as fun(tree: YaTree, node: YaTreeNode)]]
+    fn = void(mapping.fn) --[[@as fun(tree: Yat.Tree, node: Yat.Node)]]
   else
     log.error("cannot create keymap function for mappings %s", mapping)
     return nil
@@ -242,8 +242,8 @@ local function create_keymap_function(mapping)
   return function()
     if vim.tbl_contains(tree_types, ui.get_tree_type()) then
       local tabpage = api.nvim_get_current_tabpage()
-      local node = ui.get_current_node() --[[@as YaTreeNode]]
-      local tree = Trees.current_tree(tabpage) --[[@as YaTree]]
+      local node = ui.get_current_node() --[[@as Yat.Node]]
+      local tree = Trees.current_tree(tabpage) --[[@as Yat.Tree]]
       tree.current_node = node
       fn(tree, node)
     end
@@ -262,23 +262,23 @@ function M.apply_mappings(bufnr)
   end
 end
 
----@class YaTreeActionMapping
----@field tree_types YaTreeType[]|string[]
----@field mode YaTreeActionMode
+---@class Yat.Action.Mapping
+---@field tree_types Yat.Trees.Type[]|string[]
+---@field mode Yat.Action.Mode
 ---@field key string
 ---@field desc string
----@field action? YaTreeActionName
----@field fn? async fun(tree: YaTree, node: YaTreeNode)
+---@field action? Yat.Action.Name
+---@field fn? async fun(tree: Yat.Tree, node: Yat.Node)
 
----@param mappings YaTreeConfig.Mappings
----@return YaTreeActionMapping[]
+---@param mappings Yat.Config.Mappings
+---@return Yat.Action.Mapping[]
 local function validate_and_create_mappings(mappings)
-  ---@type YaTreeActionMapping[]
+  ---@type Yat.Action.Mapping[]
   local action_mappings = {}
 
   for key, mapping in pairs(mappings.list) do
     if type(mapping) == "string" then
-      local name = mapping --[[@as YaTreeActionName]]
+      local name = mapping --[[@as Yat.Action.Name]]
       if #name == 0 then
         log.debug("key %s is disabled by user config", key)
       elseif not actions[name] then
@@ -297,7 +297,7 @@ local function validate_and_create_mappings(mappings)
         end
       end
     elseif type(mapping) == "table" then
-      ---@cast mapping YaTreeConfig.CustomMapping
+      ---@cast mapping Yat.Config.Mapping.Custom
       local fn = mapping.fn
       if type(fn) == "function" then
         for _, mode in ipairs(mapping.modes) do

@@ -3,7 +3,7 @@ local log = require("ya-tree.log")
 local api = vim.api
 local fn = vim.fn
 
----@class Input
+---@class Yat.Ui.Input
 ---@field private prompt string
 ---@field private default string
 ---@field private completion string
@@ -65,7 +65,7 @@ local win_options = {
 ---  - {callbacks.on_submit?} `function(text: string): void`
 ---  - {callbacks.on_close?} `function(): void`
 ---  - {callbacks.on_change?} `function(text: string): void`
----@return Input input
+---@return Yat.Ui.Input input
 function Input:new(opts, callbacks)
   local this = setmetatable({
     prompt = opts.prompt or "",

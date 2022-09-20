@@ -10,18 +10,16 @@ local log = require("ya-tree.log")
 
 local api = vim.api
 
----@alias YaTreeTabpageTreesMap  { [string|YaTreeType|"current"]: YaTree }
-
 local M = {
   ---@private
-  ---@type table<YaTreeType|string, YaTree>
+  ---@type table<Yat.Trees.Type|string, Yat.Tree>
   _registered_trees = {},
   ---@private
-  ---@type table<integer, YaTreeTabpageTreesMap>
+  ---@type table<integer, { [string|Yat.Trees.Type|"current"]: Yat.Tree }>
   _tabpage_trees = {},
 }
 
----@param tree YaTree
+---@param tree Yat.Tree
 function M.register_tree(tree)
   M._registered_trees[tree.TYPE] = tree
 end
@@ -63,7 +61,7 @@ function M.delete_trees_after_tab_closed()
   end
 end
 
----@param callback fun(tree: YaTree)
+---@param callback fun(tree: Yat.Tree)
 function M.for_each_tree(callback)
   for _, trees in pairs(M._tabpage_trees) do
     for type, tree in pairs(trees) do
@@ -75,9 +73,9 @@ function M.for_each_tree(callback)
 end
 
 ---@param tabpage integer
----@param name YaTreeType|string
+---@param name Yat.Trees.Type|string
 ---@param set_current? boolean
----@return YaTree? tree
+---@return Yat.Tree? tree
 function M.get_tree(tabpage, name, set_current)
   local trees = M._tabpage_trees[tabpage]
   if trees then
@@ -91,10 +89,10 @@ end
 
 ---@async
 ---@param tabpage integer
----@param name YaTreeType|string
+---@param name Yat.Trees.Type|string
 ---@param set_current boolean
 ---@param ... any tree arguments
----@return YaTree tree
+---@return Yat.Tree tree
 function M.new_tree(tabpage, name, set_current, ...)
   local trees = M._tabpage_trees[tabpage]
   if not trees then
@@ -115,14 +113,14 @@ function M.new_tree(tabpage, name, set_current, ...)
 end
 
 ---@param tabpage integer
----@return YaTree? tree
+---@return Yat.Tree? tree
 function M.current_tree(tabpage)
   local tree = M._tabpage_trees[tabpage]
   return tree and tree.current
 end
 
 ---@param tabpage integer
----@param tree YaTree
+---@param tree Yat.Tree
 function M.set_current_tree(tabpage, tree)
   local trees = M._tabpage_trees[tabpage]
   if not trees then
@@ -134,25 +132,25 @@ end
 
 ---@param tabpage integer
 ---@param set_current? boolean
----@return YaFsTree? tree
+---@return Yat.Trees.Fs? tree
 function M.filesystem(tabpage, set_current)
-  return M.get_tree(tabpage, "files", set_current) --[[@as YaFsTree?]]
+  return M.get_tree(tabpage, "files", set_current) --[[@as Yat.Trees.Fs?]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
----@param root? string|YaTreeNode
----@return YaFsTree tree
+---@param root? string|Yat.Node
+---@return Yat.Trees.Fs tree
 function M.new_filesystem(tabpage, set_current, root)
-  return M.new_tree(tabpage, "files", set_current or false, root) --[[@as YaFsTree]]
+  return M.new_tree(tabpage, "files", set_current or false, root) --[[@as Yat.Trees.Fs]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
----@param root? string|YaTreeNode
----@return YaFsTree tree
+---@param root? string|Yat.Node
+---@return Yat.Trees.Fs tree
 function M.filesystem_or_new(tabpage, set_current, root)
   local tree = M.filesystem(tabpage, set_current)
   if not tree then
@@ -163,50 +161,50 @@ end
 
 ---@param tabpage integer
 ---@param set_current? boolean
----@return YaBuffersTree? tree
+---@return Yat.Trees.Buffers? tree
 function M.buffers(tabpage, set_current)
-  return M.get_tree(tabpage, "buffers", set_current) --[[@as YaBuffersTree?]]
+  return M.get_tree(tabpage, "buffers", set_current) --[[@as Yat.Trees.Buffers?]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
 ---@param path string
----@return YaBuffersTree tree
+---@return Yat.Trees.Buffers tree
 function M.new_buffers(tabpage, set_current, path)
-  return M.new_tree(tabpage, "buffers", set_current or false, path) --[[@as YaBuffersTree]]
+  return M.new_tree(tabpage, "buffers", set_current or false, path) --[[@as Yat.Trees.Buffers]]
 end
 
 ---@param tabpage integer
 ---@param set_current? boolean
----@return YaGitTree? tree
+---@return Yat.Trees.Git? tree
 function M.git(tabpage, set_current)
-  return M.get_tree(tabpage, "git", set_current) --[[@as YaGitTree?]]
+  return M.get_tree(tabpage, "git", set_current) --[[@as Yat.Trees.Git?]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
----@param repo GitRepo
----@return YaGitTree tree
+---@param repo Yat.Git.Repo
+---@return Yat.Trees.Git tree
 function M.new_git(tabpage, set_current, repo)
-  return M.new_tree(tabpage, "git", set_current or false, repo) --[[@as YaGitTree]]
+  return M.new_tree(tabpage, "git", set_current or false, repo) --[[@as Yat.Trees.Git]]
 end
 
 ---@param tabpage integer
 ---@param set_current? boolean
----@return YaSearchTree? tree
+---@return Yat.Trees.Search? tree
 function M.search(tabpage, set_current)
-  return M.get_tree(tabpage, "search", set_current) --[[@as YaSearchTree?]]
+  return M.get_tree(tabpage, "search", set_current) --[[@as Yat.Trees.Search?]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
 ---@param path string
----@return YaSearchTree
+---@return Yat.Trees.Search
 function M.new_search(tabpage, set_current, path)
-  return M.new_tree(tabpage, "search", set_current or false, path) --[[@as YaSearchTree]]
+  return M.new_tree(tabpage, "search", set_current or false, path) --[[@as Yat.Trees.Search]]
 end
 
 ---@async

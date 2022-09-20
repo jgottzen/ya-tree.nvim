@@ -32,7 +32,7 @@ local function resolve_path(path)
 end
 
 ---@async
----@param opts? YaTree.OpenWindow
+---@param opts? Yat.OpenWindowArgs
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
@@ -193,7 +193,7 @@ end
 
 ---@async
 ---@param tabpage integer
----@param new_root YaTreeNode|string
+---@param new_root Yat.Node|string
 local function change_cwd(tabpage, new_root)
   local tree = Trees.filesystem_or_new(tabpage, true, new_root)
   local new_cwd = type(new_root) == "string" and new_root or new_root.path
@@ -209,8 +209,8 @@ local function change_cwd(tabpage, new_root)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.cd_to(tree, node)
   local tabpage = api.nvim_get_current_tabpage()
   if node == tree.root then
@@ -220,14 +220,14 @@ function M.cd_to(tree, node)
     if not node.parent or node.parent == tree.root then
       return
     end
-    node = node.parent --[[@as YaTreeNode]]
+    node = node.parent --[[@as Yat.Node]]
   end
   log.debug("cd to %q", node.path)
   change_cwd(tabpage, node)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.cd_up(tree)
   local tabpage = api.nvim_get_current_tabpage()
   if utils.is_root_directory(tree.root.path) then
@@ -240,16 +240,16 @@ function M.cd_up(tree)
   change_cwd(tabpage, tree.root.parent or new_cwd)
 end
 
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.toggle_ignored(tree, node)
   config.git.show_ignored = not config.git.show_ignored
   log.debug("toggling git ignored to %s", config.git.show_ignored)
   ui.update(tree, node)
 end
 
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.toggle_filter(tree, node)
   config.filters.enable = not config.filters.enable
   log.debug("toggling filter to %s", config.filters.enable)
@@ -257,15 +257,15 @@ function M.toggle_filter(tree, node)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 ---@return boolean found
 local function rescan_node_for_git(tree, node)
   tree.refreshing = true
   log.debug("checking if %s is in a git repository", node.path)
 
   if not node:is_directory() then
-    node = node.parent --[[@as YaTreeNode]]
+    node = node.parent --[[@as Yat.Node]]
   end
   local found = false
   if not node.repo or node.repo:is_yadm() then
@@ -287,8 +287,8 @@ local function rescan_node_for_git(tree, node)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.rescan_dir_for_git(tree, node)
   if not config.git.enable then
     utils.notify("Git is not enabled.")
@@ -305,7 +305,7 @@ function M.rescan_dir_for_git(tree, node)
 end
 
 ---@async
----@param node YaTreeNode
+---@param node Yat.Node
 ---@param term string
 function M.search(node, term)
   scheduler()
@@ -325,7 +325,7 @@ function M.search(node, term)
   end
 end
 
----@param tree YaTree
+---@param tree Yat.Tree
 ---@param path string
 function M.search_for_node_in_tree(tree, path)
   local cmd, args = utils.build_search_arguments(path, tree.root.path, false)
@@ -371,8 +371,8 @@ function M.show_last_search()
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.refresh_tree(tree, node)
   if tree.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
@@ -387,7 +387,7 @@ function M.refresh_tree(tree, node)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 ---@param path string
 function M.refresh_tree_and_goto_path(tree, path)
   tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
@@ -396,8 +396,8 @@ function M.refresh_tree_and_goto_path(tree, path)
 end
 
 ---@async
----@param current_tree YaTree
----@param node YaTreeNode
+---@param current_tree Yat.Tree
+---@param node Yat.Node
 function M.toggle_git_view(current_tree, node)
   local tabpage = api.nvim_get_current_tabpage()
 
@@ -405,7 +405,7 @@ function M.toggle_git_view(current_tree, node)
     local tree = Trees.filesystem_or_new(tabpage, true)
     ui.update(tree, tree.current_node)
   elseif current_tree.TYPE == "files" then
-    ---@cast current_tree YaFsTree
+    ---@cast current_tree Yat.Trees.Fs
     if not node.repo or node.repo:is_yadm() then
       rescan_node_for_git(current_tree, node)
     end
@@ -422,8 +422,8 @@ function M.toggle_git_view(current_tree, node)
 end
 
 ---@async
----@param current_tree YaTree
----@param node YaTreeNode
+---@param current_tree Yat.Tree
+---@param node Yat.Node
 function M.toggle_buffers_view(current_tree, node)
   local tabpage = api.nvim_get_current_tabpage()
 
@@ -503,7 +503,7 @@ local function on_buf_enter(bufnr, file)
     log.debug("deleting buffer %s with file %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
-    ---@type YaTree.OpenWindow
+    ---@type Yat.OpenWindowArgs
     local opts = { path = file, focus = true, tree_type = "files" }
     if not tree then
       log.debug("no tree for current tab")

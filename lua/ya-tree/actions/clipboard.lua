@@ -10,14 +10,14 @@ local fn = vim.fn
 
 local M = {
   ---@private
-  ---@type YaTreeNode[]
+  ---@type Yat.Node[]
   queue = {},
 }
 
----@alias clipboard_action "copy" | "cut"
+---@alias Yat.Actions.Clipboard.Action "copy" | "cut"
 
----@param tree YaTree
----@param action clipboard_action
+---@param tree Yat.Tree
+---@param action Yat.Actions.Clipboard.Action
 local function cut_or_copy_nodes(tree, action)
   for _, node in ipairs(ui.get_selected_nodes()) do
     -- copying the root node will not work
@@ -46,20 +46,20 @@ local function cut_or_copy_nodes(tree, action)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.copy_node(tree)
   cut_or_copy_nodes(tree, "copy")
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.cut_node(tree)
   cut_or_copy_nodes(tree, "cut")
 end
 
 ---@async
----@param dest_node YaTreeNode
----@param node YaTreeNode
+---@param dest_node Yat.Node
+---@param node Yat.Node
 ---@return string|nil destination_path
 local function paste_node(dest_node, node)
   if not fs.exists(node.path) then
@@ -118,8 +118,8 @@ local function clear_clipboard()
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.paste_nodes(tree, node)
   -- paste can only be done into directories
   if not node:is_directory() then
@@ -147,7 +147,7 @@ function M.paste_nodes(tree, node)
 end
 
 ---@async
----@param tree YaTree
+---@param tree Yat.Tree
 function M.clear_clipboard(tree)
   clear_clipboard()
   ui.update(tree)
@@ -162,15 +162,15 @@ local function copy_to_system_clipboard(content)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.copy_name_to_clipboard(_, node)
   copy_to_system_clipboard(node.name)
 end
 
 ---@async
----@param tree YaTree
----@param node YaTreeNode
+---@param tree Yat.Tree
+---@param node Yat.Node
 function M.copy_root_relative_path_to_clipboard(tree, node)
   local relative = utils.relative_path_for(node.path, tree.root.path)
   if node:is_directory() then
@@ -180,8 +180,8 @@ function M.copy_root_relative_path_to_clipboard(tree, node)
 end
 
 ---@async
----@param _ YaTree
----@param node YaTreeNode
+---@param _ Yat.Tree
+---@param node Yat.Node
 function M.copy_absolute_path_to_clipboard(_, node)
   copy_to_system_clipboard(node.path)
 end

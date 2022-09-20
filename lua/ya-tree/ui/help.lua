@@ -6,8 +6,8 @@ local api = vim.api
 local M = {}
 
 --Sort by description, with user functions first.
----@param a YaTreeActionMapping
----@param b YaTreeActionMapping
+---@param a Yat.Action.Mapping
+---@param b Yat.Action.Mapping
 ---@return boolean
 local function mapping_sorter(a, b)
   if a.fn and not b.fn then
@@ -21,14 +21,14 @@ end
 function M.open()
   local mappings = require("ya-tree.actions").mappings
 
-  ---@param mapping YaTreeActionMapping
+  ---@param mapping Yat.Action.Mapping
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
-  end, mappings) --[=[@as YaTreeActionMapping[]]=]
-  ---@param mapping YaTreeActionMapping
+  end, mappings) --[=[@asYat.Action.Mappingg[]]=]
+  ---@param mapping Yat.Action.Mapping
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
-  end, mappings) --[=[@as YaTreeActionMapping[]]=]
+  end, mappings) --[=[@asYat.Action.Mappingg[]]=]
   table.sort(insert, mapping_sorter)
   table.sort(visual, mapping_sorter)
 
@@ -50,7 +50,7 @@ function M.open()
   local header = string.format(format_string, "Key", "Mapping", "View")
   ---@type string[]
   local lines = { "", header, "", " Normal Mode:" }
-  ---@type highlight_group[][]
+  ---@type Yat.Ui.HighlightGroup[][]
   local highlight_groups = {
     { { name = hl.ROOT_NAME, from = 0, to = -1 } },
     { { name = hl.SEARCH_TERM, from = 0, to = -1 } },

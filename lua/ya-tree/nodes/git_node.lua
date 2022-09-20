@@ -2,10 +2,11 @@ local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.filesystem")
 local log = require("ya-tree.log")
 
----@class YaTreeGitNode : YaTreeNode
----@field public parent? YaTreeGitNode
----@field public children? YaTreeGitNode[]
----@field public repo GitRepo
+---@class Yat.Nodes.Git : Yat.Node
+---@field private __node_type "Git"
+---@field public parent? Yat.Nodes.Git
+---@field public children? Yat.Nodes.Git[]
+---@field public repo Yat.Git.Repo
 local GitNode = { __node_type = "Git" }
 GitNode.__index = GitNode
 GitNode.__eq = Node.__eq
@@ -13,9 +14,9 @@ GitNode.__tostring = Node.__tostring
 setmetatable(GitNode, { __index = Node })
 
 ---Creates a new git status node.
----@param fs_node FsNode filesystem data.
----@param parent? YaTreeGitNode the parent node.
----@return YaTreeGitNode node
+---@param fs_node Yat.Fs.Node filesystem data.
+---@param parent? Yat.Nodes.Git the parent node.
+---@return Yat.Nodes.Git node
 function GitNode:new(fs_node, parent)
   local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
@@ -26,7 +27,7 @@ function GitNode:new(fs_node, parent)
   return this
 end
 
----@param node YaTreeGitNode
+---@param node Yat.Nodes.Git
 ---@return boolean displayable
 local function is_any_child_displayable(node)
   for _, child in ipairs(node.children) do
@@ -41,9 +42,9 @@ local function is_any_child_displayable(node)
   return false
 end
 
----@param config YaTreeConfig
+---@param config Yat.Config
 ---@return boolean hidden
----@return hidden_reason? reason
+---@return Yat.Nodes.HiddenReason? reason
 function GitNode:is_hidden(config)
   if not config.git.show_ignored then
     if self:is_git_ignored() or (self:is_directory() and not is_any_child_displayable(self)) then
@@ -59,7 +60,7 @@ function GitNode:_scandir() end
 ---@async
 ---@param opts? { refresh_git?: boolean }
 ---  - {opts.refresh_git?} `boolean` whether to refresh the git status, default: `true`
----@return YaTreeGitNode first_leaf_node
+---@return Yat.Nodes.Git first_leaf_node
 function GitNode:refresh(opts)
   if self.parent then
     return self.parent:refresh(opts)
@@ -89,7 +90,7 @@ end
 
 ---@async
 ---@param file string
----@return YaTreeGitNode|nil node
+---@return Yat.Nodes.Git|nil node
 function GitNode:add_file(file)
   if self.parent then
     return self.parent:add_file(file)

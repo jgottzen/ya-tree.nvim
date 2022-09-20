@@ -15,7 +15,7 @@ local os_sep = Path.path.sep
 local uv = vim.loop
 
 local M = {
-  ---@type table<string, GitRepo>
+  ---@type table<string, Yat.Git.Repo>
   repos = setmetatable({}, { __mode = "kv" }),
 }
 
@@ -82,7 +82,7 @@ end
 ---@field stop fun(self: uv_fs_poll_t):0|nil, string?
 ---@field close fun(self: uv_fs_poll_t)
 
----@class GitRepoMetaStatus
+---@class Yat.Git.Repo.MetaStatus
 ---@field public unmerged number
 ---@field public stashed number
 ---@field public behind number
@@ -91,30 +91,30 @@ end
 ---@field public unstaged number
 ---@field public untracked number
 
----@class GitRepoStatus : GitRepoMetaStatus
+---@class Yat.Git.Repo.Status : Yat.Git.Repo.MetaStatus
 ---@field private _changed_entries table<string, string>
 ---@field private _propagated_changed_entries table<string, string>
 ---@field private _ignored string[]
 
----@class GitRepo
+---@class Yat.Git.Repo
 ---@field public toplevel string
 ---@field public remote_url string
 ---@field public branch string
----@field private _status GitRepoStatus
+---@field private _status Yat.Git.Repo.Status
 ---@field private _is_yadm boolean
 ---@field private _git_dir string
 ---@field private _git_dir_watcher? uv_fs_poll_t
 local Repo = {}
 Repo.__index = Repo
 
----@param self GitRepo
+---@param self Yat.Git.Repo
 ---@return string
 Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
----@param self GitRepo
----@param other GitRepo
+---@param self Yat.Git.Repo
+---@param other Yat.Git.Repo
 ---@return boolean
 Repo.__eq = function(self, other)
   return self._git_dir == other._git_dir
@@ -122,7 +122,7 @@ end
 
 ---@async
 ---@param path string
----@return GitRepo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
+---@return Yat.Git.Repo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function Repo:new(path)
   -- check if it's already cached
   local cached = M.repos[path]
@@ -200,7 +200,7 @@ function Repo:working_tree_changed_paths()
   return vim.tbl_keys(self._status._changed_entries) --[=[@as string[]]=]
 end
 
----@return GitRepoMetaStatus status
+---@return Yat.Git.Repo.MetaStatus status
 function Repo:meta_status()
   return self._status
 end
@@ -603,7 +603,7 @@ function Repo:status_of(path)
 end
 
 ---@param path string
----@param _type file_type
+---@param _type Luv.FileType
 ---@return boolean ignored
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path
@@ -625,12 +625,12 @@ end
 
 ---@async
 ---@param path string
----@return GitRepo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
+---@return Yat.Git.Repo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function M.create_repo(path)
   return Repo:new(path)
 end
 
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 function M.remove_repo(repo)
   repo:remove_git_watcher()
   M.repos[repo.toplevel] = nil
@@ -638,9 +638,9 @@ function M.remove_repo(repo)
 end
 
 ---@param path string
----@return GitRepo|nil repo
+---@return Yat.Git.Repo|nil repo
 function M.get_repo_for_path(path)
-  ---@type table<string, GitRepo>
+  ---@type table<string, Yat.Git.Repo>
   local yadm_repos = {}
   for toplevel, repo in pairs(M.repos) do
     if not repo._is_yadm then

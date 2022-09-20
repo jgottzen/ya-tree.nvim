@@ -8,37 +8,37 @@ local log = require("ya-tree.log")
 
 local api = vim.api
 
----@alias YaTreeType "files" | "buffers" | "git" | "search"
+---@alias Yat.Trees.Type "files" | "buffers" | "git" | "search"
 
----@class YaTree
----@field TYPE YaTreeType|string
+---@class Yat.Tree
+---@field TYPE Yat.Trees.Type|string
 ---@field private _singleton boolean
 ---@field private _tabpage integer
 ---@field refreshing boolean
----@field root YaTreeNode
----@field current_node? YaTreeNode
+---@field root Yat.Node
+---@field current_node? Yat.Node
 local Tree = {}
 Tree.__index = Tree
 
----@param self YaTree
----@param other YaTree
+---@param self Yat.Tree
+---@param other Yat.Tree
 ---@return boolean equal
 Tree.__eq = function(self, other)
   return self.TYPE == other.TYPE and self._tabpage == other._tabpage
 end
 
----@param self YaTree
+---@param self Yat.Tree
 ---@return string
 Tree.__tostring = function(self)
   return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), tostring(self.root))
 end
 
----@generic T : YaTree
+---@generic T : Yat.Tree
 ---@param self T
 ---@param tabpage integer
 ---@return T tree
 function Tree.new(self, tabpage)
-  ---@type YaTree
+  ---@type Yat.Tree
   local this = {
     _tabpage = tabpage,
     refreshing = false,
@@ -132,7 +132,7 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
----@param repo GitRepo
+---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 ---@diagnostic disable-next-line:unused-local
 function Tree:on_git_event(repo, fs_changes)
@@ -147,7 +147,7 @@ function Tree:on_git_event(repo, fs_changes)
 end
 
 ---@async
----@param node YaTreeNode
+---@param node Yat.Node
 ---@return boolean
 function Tree:check_node_for_repo(node)
   if require("ya-tree.config").config.git.enable then
