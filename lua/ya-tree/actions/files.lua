@@ -196,11 +196,12 @@ local function get_nodes_to_delete(root_path)
 
   ---@type string[]
   local parents = {}
-  for index, node in ipairs(nodes) do
+  for i = #nodes, 1 -1 do
+    local node = nodes[i]
     -- prohibit deleting the root node
     if node.path == root_path then
       utils.warn(string.format("Path %q is the root of the tree, skipping it.", node.path))
-      table.remove(nodes, index)
+      table.remove(nodes, i)
     else
       if node.parent then
         parents[#parents + 1] = node.parent.path

@@ -23,7 +23,8 @@ local function cut_or_copy_nodes(tree, action)
     -- copying the root node will not work
     if tree.root ~= node then
       local skip = false
-      for i, item in ipairs(M.queue) do
+      for i = #M.queue, 1, -1 do
+        local item = M.queue[i]
         if item.path == node.path then
           if item.clipboard_status == action then
             table.remove(M.queue, i)

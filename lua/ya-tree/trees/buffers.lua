@@ -84,11 +84,7 @@ end
 
 ---@param tabpage integer
 function BuffersTree:delete(tabpage)
-  for index, value in ipairs(self._tabpage) do
-    if value == tabpage then
-      table.remove(self._tabpage, index)
-    end
-  end
+  utils.tbl_remove(self._tabpage, tabpage)
 end
 
 ---@param event integer

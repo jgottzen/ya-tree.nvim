@@ -139,10 +139,10 @@ end
 ---@param id string
 ---@param callback fun(...)
 local function add_listener(event_name, listeners, id, callback)
-  for index, handler in ipairs(listeners) do
-    if handler.id == id then
+  for i = #listeners, 1, -1 do
+    if listeners[i].id == id then
       log.warn("event %q already has a handler with id %q registered, removing old handler from list", event_name, id)
-      table.remove(listeners, index)
+      table.remove(listeners, i)
     end
   end
   listeners[#listeners + 1] = { id = id, callback = callback }
@@ -170,10 +170,10 @@ end
 ---@param listeners { id: string, handler: fun(...) }[]
 ---@param id string
 local function remove_listener(event_name, listeners, id)
-  for index, handler in ipairs(listeners) do
-    if handler.id == id then
+  for i = #listeners, 1, -1 do
+    if listeners[i].id == id then
       log.debug("removing event handler %q for event %q", id, event_name)
-      table.remove(listeners, index)
+      table.remove(listeners, i)
     end
   end
 end

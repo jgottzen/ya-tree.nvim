@@ -359,10 +359,11 @@ function Node:remove_node(file)
   local node = self:get_child_if_loaded(file)
   while node and node.parent and node ~= self do
     if node.parent and node.parent.children then
-      for index, child in ipairs(node.parent.children) do
+      for i = #node.parent.children, 1, -1 do
+        local child = node.parent.children[i]
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
-          table.remove(node.parent.children, index)
+          table.remove(node.parent.children, i)
           break
         end
       end

@@ -330,9 +330,10 @@ function BufferNode:remove_buffer(file, bufnr, is_terminal)
   if is_terminal then
     local container = self.children[#self.children]
     if is_terminals_container(container) then
-      for index, child in ipairs(container.children) do
+      for i = #container.children, 1 -1 do
+        local child = container[i]
         if child.bufname == file and child.bufnr == bufnr then
-          table.remove(container.children, index)
+          table.remove(container.children, i)
           log.debug("removed terminal buffer %s (%q)", child.bufnr, child.bufname)
           break
         end

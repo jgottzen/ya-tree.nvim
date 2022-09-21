@@ -7,6 +7,16 @@ local os_sep = Path.path.sep
 
 local M = {}
 
+---@param tbl table
+---@param value any
+function M.tbl_remove(tbl, value)
+  for i = #tbl, 1, -1 do
+    if tbl[i] == value then
+      table.remove(tbl, i)
+    end
+  end
+end
+
 M.os_sep = os_sep
 M.is_windows = fn.has("win32") == 1 or fn.has("win32unix") == 1
 M.is_macos = fn.has("mac") == 1 or fn.has("macunix") == 1
