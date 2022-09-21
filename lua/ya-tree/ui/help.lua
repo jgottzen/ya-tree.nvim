@@ -24,17 +24,16 @@ function M.open()
   ---@param mapping Yat.Action.Mapping
   local insert = vim.tbl_filter(function(mapping)
     return mapping.mode == "n"
-  end, mappings) --[=[@asYat.Action.Mappingg[]]=]
+  end, mappings) --[=[@as Yat.Action.Mapping[]]=]
   ---@param mapping Yat.Action.Mapping
   local visual = vim.tbl_filter(function(mapping)
     return mapping.mode == "v" or mapping.mode == "V"
-  end, mappings) --[=[@asYat.Action.Mappingg[]]=]
+  end, mappings) --[=[@as Yat.Action.Mapping[]]=]
   table.sort(insert, mapping_sorter)
   table.sort(visual, mapping_sorter)
 
   local max_key_width = 0
   local max_mapping_width = 0
-  ---@type string[]
   local close_keys = { "q", "<ESC>" }
   for _, mapping in ipairs(mappings) do
     max_key_width = math.max(max_key_width, api.nvim_strwidth(mapping.key))
@@ -45,10 +44,9 @@ function M.open()
   end
   max_key_width = max_key_width + 1 -- add 1 so we get 1 character space to the left of the key
   local mapping_col_start = max_key_width + 3 + max_mapping_width
-  local format_string = "%" .. max_key_width .. "s : %-" .. max_mapping_width .. "s : %s"
+  local format_string = "%" .. max_key_width .. "s : %-" .. max_mapping_width .. "s : %s " -- with trailing space to match the left side
 
-  local header = string.format(format_string, "Key", "Mapping", "View")
-  ---@type string[]
+  local header = string.format(format_string, "Key", "Action", "Tree")
   local lines = { "", header, "", " Normal Mode:" }
   ---@type Yat.Ui.HighlightGroup[][]
   local highlight_groups = {

@@ -421,11 +421,11 @@ function Canvas:_render_tree(tree)
   ---@param renderer Yat.Ui.Canvas.Renderer
   local container_renderers = vim.tbl_filter(function(renderer)
     return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
-  end, all_container_renderers) --[=[@asYat.Ui.Canvas.Rendererr[]]=]
+  end, all_container_renderers) --[=[@as Yat.Ui.Canvas.Renderer[]]=]
   ---@param renderer Yat.Ui.Canvas.Renderer
   local file_renderers = vim.tbl_filter(function(renderer)
     return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
-  end, all_file_renderers) --[=[@asYat.Ui.Canvas.Rendererr[]]=]
+  end, all_file_renderers) --[=[@as Yat.Ui.Canvas.Renderer[]]=]
 
   ---@param node Yat.Node
   ---@param depth integer

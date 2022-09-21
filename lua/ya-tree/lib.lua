@@ -132,8 +132,8 @@ function M.open_window(opts)
         log.error("cannot expand to file %q in with root %s", path, tostring(tree.root))
         utils.warn(string.format("Path %q is not a file or directory", opts.path))
       else
-        log.debug("cannot expand to node %q in view %q", path, opts.tree_type)
-        utils.notify(string.format("Path %q is not available in the %s view", path, opts.tree_type or "current"))
+        log.debug("cannot expand to node %q in tree type %q", path, opts.tree_type)
+        utils.notify(string.format("Path %q is not available in the %q tree", path, opts.tree_type or "current"))
       end
     end
   elseif config.follow_focused_file then
