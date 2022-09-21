@@ -356,13 +356,6 @@ function M.search_for_node_in_tree(tree, path)
   end)
 end
 
----@async
-function M.close_search()
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.filesystem_or_new(tabpage, true)
-  ui.update(tree, tree.current_node)
-end
-
 function M.show_last_search()
   local tabpage = api.nvim_get_current_tabpage()
   local tree = Trees.search(tabpage, true)

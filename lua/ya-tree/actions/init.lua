@@ -39,7 +39,6 @@ local M = {}
 ---| "search_once"
 ---| "search_for_path_in_tree"
 ---| "goto_node_in_tree"
----| "close_search"
 ---| "show_last_search"
 ---| "close_window"
 ---| "close_node"
@@ -169,7 +168,6 @@ local actions = {
     { "files", "search", "buffers", "git" },
     { "n" }
   ),
-  close_search = create_action(lib.close_search, "Close the search result", { "search" }, { "n" }),
   show_last_search = create_action(lib.show_last_search, "Show last search result", { "files" }, { "n" }),
 
   close_window = create_action(lib.close_window, "Close the tree window", { "files", "search", "buffers", "git" }, { "n" }),

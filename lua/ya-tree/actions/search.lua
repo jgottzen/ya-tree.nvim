@@ -45,7 +45,7 @@ function M.search_interactively(_, node)
         term = text
         timer:stop()
         scheduler()
-        lib.close_search()
+        lib.show_file_tree()
       else
         term = text
         local length = #term
@@ -79,7 +79,7 @@ function M.search_interactively(_, node)
     on_close = void(function()
       timer:stop()
       timer:close()
-      lib.close_search()
+      lib.show_file_tree()
     end),
   })
   input:open()

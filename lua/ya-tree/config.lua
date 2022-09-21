@@ -449,7 +449,6 @@ local M = {
         ["f"] = "search_once",
         ["S"] = "search_for_path_in_tree",
         ["gn"] = "goto_node_in_tree",
-        ["<C-x>"] = "close_search",
         ["F"] = "show_last_search",
         ["<C-r>"] = "rescan_dir_for_git",
         ["a"] = "add",
