@@ -1,4 +1,4 @@
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("ui")
 
 local api = vim.api
 local fn = vim.fn

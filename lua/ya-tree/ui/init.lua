@@ -2,7 +2,7 @@ local wrap = require("plenary.async").wrap
 
 local Canvas = require("ya-tree.ui.canvas")
 local hl = require("ya-tree.ui.highlights")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("ui")
 
 local api = vim.api
 

@@ -4,7 +4,7 @@ local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local job = require("ya-tree.job")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
 ---@class Yat.Nodes.Search : Yat.Node

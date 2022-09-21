@@ -2,7 +2,7 @@ local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("trees")
 
 ---@class Yat.Trees.Search : Yat.Tree
 ---@field TYPE "search"

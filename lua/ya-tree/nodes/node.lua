@@ -3,7 +3,7 @@ local Path = require("plenary.path")
 
 local diagnostics = require("ya-tree.diagnostics")
 local fs = require("ya-tree.filesystem")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git"

@@ -6,7 +6,7 @@ local GitTree = require("ya-tree.trees.git")
 local SearchTree = require("ya-tree.trees.search")
 local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 

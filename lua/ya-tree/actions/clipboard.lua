@@ -4,7 +4,7 @@ local lib = require("ya-tree.lib")
 local fs = require("ya-tree.filesystem")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("actions")
 
 local fn = vim.fn
 

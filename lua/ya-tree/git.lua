@@ -8,7 +8,7 @@ local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
 local job = require("ya-tree.job")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("git")
 
 local os_sep = Path.path.sep
 

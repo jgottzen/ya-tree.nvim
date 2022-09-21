@@ -6,7 +6,7 @@ local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("trees")
 local utils = require("ya-tree.utils")
 
 local api = vim.api

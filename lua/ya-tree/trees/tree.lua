@@ -4,7 +4,7 @@ local Path = require("plenary.path")
 local events = require("ya-tree.events")
 local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 

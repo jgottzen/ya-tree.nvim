@@ -10,7 +10,7 @@ local popups = require("ya-tree.actions.popups")
 local search = require("ya-tree.actions.search")
 local Trees = require("ya-tree.trees")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("actions")
 
 local api = vim.api
 

@@ -1,6 +1,7 @@
 local void = require("plenary.async").void
 
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("ya-tree")
+local utils = require("ya-tree.utils")
 
 local api = vim.api
 local fn = vim.fn
@@ -40,6 +41,20 @@ end
 function M.set_log_level(level)
   require("ya-tree.config").config.log.level = level
   log.config.level = level
+end
+
+---@param namespace string
+function M.add_logged_namespace(namespace)
+  if not vim.tbl_contains(require("ya-tree.config").config.log.namespaces, namespace) then
+    require("ya-tree.config").config.log.namespaces[#require("ya-tree.config").config.log.namespaces + 1] = namespace
+    log.config.namespaces = require("ya-tree.config").config.log.namespaces
+  end
+end
+
+---@param namespace string
+function M.remove_logged_namespace(namespace)
+  utils.tbl_remove(require("ya-tree.config").config.log.namespaces, namespace)
+  log.config.namespaces = require("ya-tree.config").config.log.namespaces
 end
 
 ---@param to_console boolean
@@ -142,6 +157,7 @@ function M.setup(opts)
   log.config.level = config.log.level
   log.config.to_console = config.log.to_console
   log.config.to_file = config.log.to_file
+  log.config.namespaces = config.log.namespaces
 
   log.trace("using config=%s", config)
 

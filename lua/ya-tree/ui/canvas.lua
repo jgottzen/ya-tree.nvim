@@ -2,7 +2,7 @@ local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local event = require("ya-tree.events.event").ya_tree
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("ui")
 
 local api = vim.api
 

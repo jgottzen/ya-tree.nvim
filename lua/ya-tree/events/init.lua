@@ -1,7 +1,7 @@
 local void = require("plenary.async").void
 
 local events = require("ya-tree.events.event")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("events")
 
 local api = vim.api
 

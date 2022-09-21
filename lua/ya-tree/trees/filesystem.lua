@@ -5,7 +5,7 @@ local fs = require("ya-tree.filesystem")
 local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 local uv = vim.loop

@@ -1,6 +1,6 @@
 local void = require("plenary.async").void
 
-local log = require("ya-tree.log")
+local log = require("ya-tree.log")("job")
 
 local uv = vim.loop
 
