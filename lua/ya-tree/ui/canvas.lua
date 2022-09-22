@@ -49,7 +49,7 @@ local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_sever
 ---@alias Yat.Ui.Canvas.Position "left"|"right"
 
 ---@class Yat.Ui.Canvas
----@field public tree_type Yat.Trees.Type|string
+---@field public tree_type Yat.Trees.Type
 ---@field public position Yat.Ui.Canvas.Position
 ---@field private winid? number
 ---@field private edit_winid? number
@@ -397,7 +397,7 @@ local function render_node(node, context, renderers)
 end
 
 ---@class Yat.Ui.RenderContext
----@field tree_type Yat.Trees.Type|string
+---@field tree_type Yat.Trees.Type
 ---@field config Yat.Config
 ---@field depth integer
 ---@field last_child boolean

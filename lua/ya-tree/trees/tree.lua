@@ -8,16 +8,90 @@ local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 
----@alias Yat.Trees.Type "files" | "buffers" | "git" | "search"
+---@alias Yat.Trees.Type "files" | "buffers" | "git" | "search" | string
 
 ---@class Yat.Tree
----@field TYPE Yat.Trees.Type|string
+---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
 ---@field refreshing boolean
 ---@field root Yat.Node
 ---@field current_node? Yat.Node
+---@field supported_actions Yat.Trees.Tree.SupportedActions[]
 local Tree = {}
 Tree.__index = Tree
+
+---@alias Yat.Trees.Tree.SupportedActions
+---| "close_window"
+---| "system_open"
+---| "open_help"
+---| "show_node_info"
+---
+---| "toggle_git_tree"
+---| "toggle_buffers_tree"
+---
+---| "open"
+---| "vsplit"
+---| "split"
+---| "tabnew"
+---| "preview"
+---| "preview_and_focus"
+---
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---
+---| "close_node"
+---| "close_all_nodes"
+---| "close_all_child_nodes"
+---| "expand_all_nodes"
+---| "expand_all_child_nodes"
+---
+---| "refresh_tree"
+---
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+
+do
+  local builtin = require("ya-tree.actions.builtin")
+
+  Tree.supported_actions = {
+    builtin.general.close_window,
+    builtin.general.system_open,
+    builtin.general.open_help,
+    builtin.general.show_node_info,
+
+    builtin.general.toggle_git_tree,
+    builtin.general.toggle_buffers_tree,
+
+    builtin.general.open,
+    builtin.general.vsplit,
+    builtin.general.split,
+    builtin.general.tabnew,
+    builtin.general.preview,
+    builtin.general.preview_and_focus,
+
+    builtin.general.copy_name_to_clipboard,
+    builtin.general.copy_root_relative_path_to_clipboard,
+    builtin.general.copy_absolute_path_to_clipboard,
+
+    builtin.general.close_node,
+    builtin.general.close_all_nodes,
+    builtin.general.close_all_child_nodes,
+    builtin.general.expand_all_nodes,
+    builtin.general.expand_all_child_nodes,
+
+    builtin.general.refresh_tree,
+
+    builtin.general.focus_parent,
+    builtin.general.focus_prev_sibling,
+    builtin.general.focus_next_sibling,
+    builtin.general.focus_first_sibling,
+    builtin.general.focus_last_sibling,
+  }
+end
 
 ---@param self Yat.Tree
 ---@param other Yat.Tree

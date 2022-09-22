@@ -28,7 +28,7 @@ local function get_canvas()
   return M._canvases[tostring(api.nvim_get_current_tabpage())]
 end
 
----@param tree_type? Yat.Trees.Type|string
+---@param tree_type? Yat.Trees.Type
 ---@return boolean is_open
 function M.is_open(tree_type)
   local canvas = get_canvas()
@@ -196,7 +196,7 @@ function M.get_size()
   return get_canvas():get_size()
 end
 
----@return Yat.Trees.Type|string|nil tree_type
+---@return Yat.Trees.Type|nil tree_type
 function M.get_tree_type()
   local canvas = get_canvas()
   return canvas and canvas.tree_type

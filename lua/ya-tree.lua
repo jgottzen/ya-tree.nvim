@@ -12,15 +12,15 @@ local M = {}
 ---@field path? string
 ---@field switch_root? boolean
 ---@field focus? boolean
----@field tree_type? Yat.Trees.Type|string
+---@field tree_type? Yat.Trees.Type
 ---@field position? Yat.Ui.Canvas.Position
 
 ---@param opts Yat.OpenWindowArgs
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
----  - {opts.tree_type?} `YaTreeName|string`
----  - {opts.position?} `YaTreeCanvas.Position`
+---  - {opts.tree_type?} `Yat.Trees.Type`
+---  - {opts.position?} `Yat.Ui.Canvas.Position`
 function M.open(opts)
   void(require("ya-tree.lib").open_window)(opts)
 end

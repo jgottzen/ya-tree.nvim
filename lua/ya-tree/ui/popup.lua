@@ -3,7 +3,9 @@ local api = vim.api
 local ns = api.nvim_create_namespace("YaTreePopUp") --[[@as integer]]
 local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true }) --[[@as integer]]
 
-local M = {}
+local M = {
+  ns = ns,
+}
 
 ---@param lines string[]
 ---@return integer max_width
@@ -55,8 +57,6 @@ local function compute_width_and_height(content_height, content_width, size, max
   return width, height
 end
 
----@param lines string[]
----@param highlight_groups? Yat.Ui.HighlightGroup[][]
 ---@param relative string
 ---@param row number
 ---@param col number
@@ -65,16 +65,8 @@ end
 ---@param enter boolean
 ---@return integer winid
 ---@return integer bufnr
-local function create_window(lines, highlight_groups, relative, row, col, width, height, enter)
+local function create_window(relative, row, col, width, height, enter)
   local bufnr = api.nvim_create_buf(false, true) --[[@as integer]]
-  api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  if highlight_groups then
-    for line, highlight_group in ipairs(highlight_groups) do
-      for _, highlight in ipairs(highlight_group) do
-        api.nvim_buf_add_highlight(bufnr, ns, highlight.name, line - 1, highlight.from, highlight.to)
-      end
-    end
-  end
   local border = require("ya-tree.config").config.view.popups.border
   local winid = api.nvim_open_win(bufnr, enter, {
     relative = relative,
@@ -86,11 +78,26 @@ local function create_window(lines, highlight_groups, relative, row, col, width,
     style = "minimal",
     border = border or "rounded",
   }) --[[@as integer]]
-  api.nvim_buf_set_option(bufnr, "modifiable", false)
   api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   api.nvim_buf_set_option(bufnr, "filetype", "YaTreePopup")
 
   return winid, bufnr
+end
+
+---@param bufnr integer
+---@param lines string[]
+---@param highlight_groups? Yat.Ui.HighlightGroup[][]
+local function render(bufnr, lines, highlight_groups)
+  api.nvim_buf_set_option(bufnr, "modifiable", true)
+  api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  if highlight_groups then
+    for line, highlight_group in ipairs(highlight_groups) do
+      for _, highlight in ipairs(highlight_group) do
+        api.nvim_buf_add_highlight(bufnr, ns, highlight.name, line - 1, highlight.from, highlight.to)
+      end
+    end
+  end
+  api.nvim_buf_set_option(bufnr, "modifiable", false)
 end
 
 ---@class Yat.Ui.Popup.KeyMap
@@ -180,9 +187,30 @@ function PopupBuilder:map_keys(mode, keys, rhs)
   return self
 end
 
+---@class Yat.Ui.Popup
+---@field winid integer
+---@field bufnr integer
+local Popup = {}
+Popup.__index = Popup
+
+---@param winid integer
+---@param bufnr integer
+---@return Yat.Ui.Popup popup
+function Popup:new(winid, bufnr)
+  local this = setmetatable({}, self)
+  this.winid = winid
+  this.bufnr = bufnr
+  return this
+end
+
+---@param lines string[]
+---@param highlight_groups? Yat.Ui.HighlightGroup[][]
+function Popup:set_content(lines, highlight_groups)
+  render(self.bufnr, lines, highlight_groups)
+end
+
 ---@param enter? boolean
----@return integer winid
----@return integer bufnr
+---@return Yat.Ui.Popup popup
 function PopupBuilder:open(enter)
   enter = enter or false
   -- have to take into account if the statusline is shown, and the two border lines - top and bottom
@@ -199,7 +227,8 @@ function PopupBuilder:open(enter)
   local row = is_relative and 1 or math.max(0, (win_height - height + 1) / 2)
   local col = is_relative and 1 or math.max(0, (win_width - width + 1) / 2)
 
-  local winid, bufnr = create_window(self._lines, self._highlight_groups, self._relative, row, col, width, height, enter)
+  local winid, bufnr = create_window(self._relative, row, col, width, height, enter)
+  render(bufnr, self._lines, self._highlight_groups)
 
   local keymap_opts = { buffer = bufnr, silent = true, nowait = true }
   if self._close_keys then
@@ -237,7 +266,7 @@ function PopupBuilder:open(enter)
     }) --[[@as integer]]
   end
 
-  return winid, bufnr
+  return Popup:new(winid, bufnr)
 end
 
 ---@param lines string[]

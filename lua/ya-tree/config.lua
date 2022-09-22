@@ -17,9 +17,9 @@ local M = {
   ---@field diagnostics Yat.Config.Diagnostics Lsp diagnostics configuration.
   ---@field system_open Yat.Config.SystemOpen Open file with system command configuration.
   ---@field trash Yat.Config.Trash `trash-cli` configuration.
+  ---@field trees Yat.Config.Trees Trees configuration.
   ---@field view Yat.Config.View Tree view configuration.
   ---@field renderers Yat.Config.Renderers Renderer configurations.
-  ---@field mappings Yat.Config.Mappings Key mapping configuration.
   default = {
     close_if_last_window = false,
     auto_reload_on_write = true,
@@ -127,6 +127,176 @@ local M = {
       require_confirm = false,
     },
 
+    ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
+    ---@field modes Yat.Actions.Mode[] The mode(s) for the keybinding.
+    ---@field tree_types Yat.Trees.Type[] The tree types the mapping is available for.
+    ---@field fn async fun(tree: Yat.Tree, node: Yat.Node) User function.
+    ---@field desc? string Description of what the mapping does.
+
+    ---@class Yat.Config.Trees.Mappings
+    ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+    ---@field list table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings.
+
+    ---@class Yat.Config.Trees.GlobalMappings
+    ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+    ---@field list table<string, Yat.Trees.Tree.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+
+    ---@class Yat.Config.Trees.Tree
+    ---@field mappings Yat.Config.Trees.Mappings
+
+    ---@class Yat.Config.Trees
+    ---@field global_mappings Yat.Config.Trees.GlobalMappings
+    ---@field files Yat.Config.Trees.Files Files tree configuration.
+    ---@field search Yat.Config.Trees.Search Search tree configuration.
+    ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
+    ---@field git Yat.Config.Trees.Git Git tree configuration.
+    ---@field [Yat.Trees.Type] Yat.Config.Trees.Tree Tree specific configuration.
+    trees = {
+      global_mappings = {
+        disable_defaults = false,
+        list = {
+          ["q"] = "close_window",
+          ["gx"] = "system_open",
+          ["?"] = "open_help",
+          ["<C-i>"] = "show_node_info",
+          ["<C-g>"] = "toggle_git_tree",
+          ["b"] = "toggle_buffers_tree",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["t"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_tree",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
+        },
+      },
+      ---@class Yat.Config.Trees.Files : Yat.Config.Trees.Tree
+      ---@field mappings Yat.Config.Trees.Files.Mappings
+      files = {
+        ---@class Yat.Config.Trees.Files.Mappings : Yat.Config.Trees.Mappings
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field list table<string, Yat.Trees.Fs.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        mappings = {
+          disable_defaults = false,
+          list = {
+            ["a"] = "add",
+            ["r"] = "rename",
+            ["d"] = "delete",
+            ["D"] = "trash",
+            ["c"] = "copy_node",
+            ["x"] = "cut_node",
+            ["p"] = "paste_nodes",
+            ["<C-c>"] = "clear_clipboard",
+            ["<2-RightMouse>"] = "cd_to",
+            ["<C-]>"] = "cd_to",
+            ["."] = "cd_to",
+            ["-"] = "cd_up",
+            ["I"] = "toggle_ignored",
+            ["H"] = "toggle_filter",
+            ["S"] = "search_for_node_in_tree",
+            ["/"] = "search_interactively",
+            ["f"] = "search_once",
+            ["F"] = "show_last_search",
+            ["<C-r>"] = "rescan_dir_for_git",
+            ["[c"] = "focus_prev_git_item",
+            ["]c"] = "focus_next_git_item",
+            ["[e"] = "focus_prev_diagnostic_item",
+            ["]e"] = "focus_next_diagnostic_item",
+          },
+        },
+      },
+      ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
+      ---@field mappings Yat.Config.Trees.Search.Mappings
+      search = {
+        ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field list table<string, Yat.Trees.Search.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        mappings = {
+          disable_defaults = false,
+          list = {
+            ["<C-]>"] = "cd_to",
+            ["."] = "cd_to",
+            ["I"] = "toggle_ignored",
+            ["H"] = "toggle_filter",
+            ["S"] = "search_for_node_in_tree",
+            ["/"] = "search_interactively",
+            ["f"] = "search_once",
+            ["gn"] = "goto_node_in_files_tree",
+            ["<C-f>"] = "show_files_tree",
+            ["<C-r>"] = "rescan_dir_for_git",
+            ["[c"] = "focus_prev_git_item",
+            ["]c"] = "focus_next_git_item",
+            ["[e"] = "focus_prev_diagnostic_item",
+            ["]e"] = "focus_next_diagnostic_item",
+          },
+        },
+      },
+      ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
+      ---@field mappings Yat.Config.Trees.Buffers.Mappings
+      buffers = {
+        ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        mappings = {
+          disable_defaults = false,
+          list = {
+            ["<C-]>"] = "cd_to",
+            ["."] = "cd_to",
+            ["I"] = "toggle_ignored",
+            ["H"] = "toggle_filter",
+            ["S"] = "search_for_node_in_tree",
+            ["F"] = "show_last_search",
+            ["gn"] = "goto_node_in_files_tree",
+            ["<C-f>"] = "show_files_tree",
+            ["<C-r>"] = "rescan_dir_for_git",
+            ["[c"] = "focus_prev_git_item",
+            ["]c"] = "focus_next_git_item",
+            ["[e"] = "focus_prev_diagnostic_item",
+            ["]e"] = "focus_next_diagnostic_item",
+          },
+        },
+      },
+      ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
+      ---@field mappings Yat.Config.Trees.Git.Mappings
+      git = {
+        ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field list table<string, Yat.Trees.Git.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        mappings = {
+          disable_defaults = false,
+          list = {
+            ["<C-]>"] = "cd_to",
+            ["."] = "cd_to",
+            ["I"] = "toggle_ignored",
+            ["H"] = "toggle_filter",
+            ["S"] = "search_for_node_in_tree",
+            ["F"] = "show_last_search",
+            ["gn"] = "goto_node_in_files_tree",
+            ["<C-f>"] = "show_files_tree",
+            ["[c"] = "focus_prev_git_item",
+            ["]c"] = "focus_next_git_item",
+            ["[e"] = "focus_prev_diagnostic_item",
+            ["]e"] = "focus_next_diagnostic_item",
+          },
+        },
+      },
+    },
+
     ---@class Yat.Config.View
     ---@field width number Widht of the tree panel, default: `40`.
     ---@field position Yat.Ui.Canvas.Position Where the tree panel is placed, default: `"left"`.
@@ -181,7 +351,7 @@ local M = {
 
     ---@class Yat.Config.BaseRenderer
     ---@field padding string The padding to use to the left of the renderer.
-    ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in.
+    ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in.
 
     ---@class Yat.Config.Renderers
     ---@field indentation Yat.Config.Renderers.Indentation Indentation rendering configuration.
@@ -197,7 +367,7 @@ local M = {
     renderers = {
       ---@class Yat.Config.Renderers.Indentation : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field use_indent_marker boolean Wether to show indent markers, default: `false`.
       ---@field indent_marker string The icon for the indentation marker, default: `"│"`.
       ---@field last_indent_marker string The icon for the last indentation marker, default: `"└"`.
@@ -217,7 +387,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.Icon : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `""`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field directory Yat.Config.Renderers.Icon.Directory Directory icon rendering configuration.
       ---@field file Yat.Config.Renderers.Icon.File File icon rendering configuration.
       icon = {
@@ -261,7 +431,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.Name : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
       ---@field trailing_slash boolean Wether to show a trailing os directory separator after directory names, default: `false`.
       ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
@@ -277,7 +447,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.Modified : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field icon string The icon for modified files.
       modified = {
         padding = " ",
@@ -287,7 +457,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.Repository : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field show_status boolean Whether to show repository status on the repository toplevel directory, default: `true`.
       ---@field icons Yat.Config.Renderers.Repository.Icons Repository icons, setting an icon to an empty string will disabled that particular status information.
       repository = {
@@ -325,7 +495,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.SymlinkTarget : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
       symlink_target = {
         padding = " ",
@@ -335,7 +505,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.GitStatus : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field icons Yat.Config.Renderers.GitStatus.Icons Git status icon configuration.
       git_status = {
         padding = " ",
@@ -379,7 +549,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.Diagnostics : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files", "search", "buffers", "git" }`.
       ---@field min_severity number The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
       diagnostics = {
         padding = " ",
@@ -389,7 +559,7 @@ local M = {
 
       ---@class Yat.Config.Renderers.BufferInfo : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "buffers" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "buffers" }`.
       buffer_info = {
         padding = " ",
         tree_types = { "buffers" },
@@ -398,78 +568,10 @@ local M = {
 
       ---@class Yat.Config.Renderers.Clipboard : Yat.Config.BaseRenderer
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field tree_types Yat.Trees.Type[]|string[] Which tree types the renderer should display in, default: `{ "files" }`.
+      ---@field tree_types Yat.Trees.Type[] Which tree types the renderer should display in, default: `{ "files" }`.
       clipboard = {
         padding = " ",
         tree_types = { "files" },
-      },
-    },
-
-    ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
-    ---@field modes Yat.Action.Mode[] The mode(s) for the keybinding.
-    ---@field tree_types Yat.Trees.Type[]|string[] The tree types the mapping is available for.
-    ---@field fn async fun(tree: Yat.Tree, node: Yat.Node) User function.
-    ---@field desc? string Description of what the mapping does.
-
-    ---@class Yat.Config.Mappings
-    ---@field disable_defaults boolean Whether to diasble all default mappigns, default `true`.
-    ---@field list table<string, Yat.Action.Name|""|Yat.Config.Mapping.Custom> Map of key mappings.
-    mappings = {
-      disable_defaults = false,
-      list = {
-        ["q"] = "close_window",
-        ["<CR>"] = "open",
-        ["o"] = "open",
-        ["<2-LeftMouse>"] = "open",
-        ["<C-v>"] = "vsplit",
-        ["<C-s>"] = "split",
-        ["t"] = "tabnew",
-        ["<Tab>"] = "preview",
-        ["<C-Tab>"] = "preview_and_focus",
-        ["<BS>"] = "close_node",
-        ["Z"] = "close_all_nodes",
-        ["z"] = "close_all_child_nodes",
-        ["E"] = "expand_all_nodes",
-        ["e"] = "expand_all_child_nodes",
-        ["<2-RightMouse>"] = "cd_to",
-        ["<C-]>"] = "cd_to",
-        ["."] = "cd_to",
-        ["-"] = "cd_up",
-        ["P"] = "focus_parent",
-        ["<"] = "focus_prev_sibling",
-        [">"] = "focus_next_sibling",
-        ["K"] = "focus_first_sibling",
-        ["J"] = "focus_last_sibling",
-        ["[c"] = "focus_prev_git_item",
-        ["]c"] = "focus_next_git_item",
-        ["[e"] = "focus_prev_diagnostic_item",
-        ["]e"] = "focus_next_diagnostic_item",
-        ["I"] = "toggle_ignored",
-        ["H"] = "toggle_filter",
-        ["R"] = "refresh_tree",
-        ["/"] = "search_interactively",
-        ["f"] = "search_once",
-        ["S"] = "search_for_path_in_tree",
-        ["gn"] = "goto_node_in_tree",
-        ["F"] = "show_last_search",
-        ["<C-r>"] = "rescan_dir_for_git",
-        ["a"] = "add",
-        ["r"] = "rename",
-        ["d"] = "delete",
-        ["D"] = "trash",
-        ["c"] = "copy_node",
-        ["x"] = "cut_node",
-        ["p"] = "paste_nodes",
-        ["<C-c>"] = "clear_clipboard",
-        ["y"] = "copy_name_to_clipboard",
-        ["Y"] = "copy_root_relative_path_to_clipboard",
-        ["gy"] = "copy_absolute_path_to_clipboard",
-        ["?"] = "open_help",
-        ["gx"] = "system_open",
-        ["b"] = "toggle_buffers_tree",
-        ["<C-g>"] = "toggle_git_tree",
-        ["<C-f>"] = "show_file_tree",
-        ["<C-i>"] = "show_node_info",
       },
     },
   },
@@ -486,11 +588,30 @@ function M.setup(opts)
 
   local utils = require("ya-tree.utils")
 
-  if opts.mappings and opts.mappings.disable_defaults then
-    if not opts.mappings.list then
-      utils.warn("Default mappings has been disabled, but there are not configured mappings in 'mappings.list.\nUsing default mappings!")
+  if opts.trees.global_mappings and opts.trees.global_mappings.disable_defaults then
+    if not opts.trees.global_mappings.list then
+      utils.warn(
+        "Globla default mappings has been disabled, but there are no configured mappings in 'trees.global_mappings.list.\nUsing default mappings!"
+      )
     else
-      M.config.mappings.list = opts.mappings.list
+      M.config.trees.global_mappings.list = opts.trees.global_mappings.list
+    end
+  end
+  for tree_type, tree in pairs(opts.trees or {}) do
+    ---@cast tree_type Yat.Trees.Type
+    ---@cast tree Yat.Config.Trees.Tree
+    if tree.mappings and tree.mappings.disable_defaults then
+      if not tree.mappings.list then
+        utils.warn(
+          string.format(
+            "Default mappings tree %q has been disabled, but there are no configured mappings in '%s.mappings.list.\nUsing default mappings!",
+            tree_type,
+            tree_type
+          )
+        )
+      else
+        M.config.trees[tree_type].mappings.list = opts.trees[tree_type].mappings.list
+      end
     end
   end
 

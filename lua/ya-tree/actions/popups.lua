@@ -114,9 +114,7 @@ do
 
   local augroup = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true }) --[[@as integer]]
 
-  ---@class Yat.Action.Popup.NodeInfo
-  ---@field winid integer
-  ---@field bufnr integer
+  ---@class Yat.Action.Popup.NodeInfo : Yat.Ui.Popup
   ---@field path string
 
   ---@type Yat.Action.Popup.NodeInfo?
@@ -260,15 +258,14 @@ do
       lines, highlight_groups = create_fs_info(node, stat)
     end
 
-    ---@type Yat.Action.Popup.NodeInfo
-    popup = { path = node.path }
-    popup.winid, popup.bufnr = Popup.new(lines, highlight_groups)
+    popup = Popup.new(lines, highlight_groups)
       :close_with({ "q", "<ESC>" })
       :close_on_focus_loss()
       :on_close(function()
         popup = nil
       end)
-      :open()
+      :open() --[[@as Yat.Action.Popup.NodeInfo]]
+    popup.path = node.path
 
     api.nvim_create_autocmd("CursorMoved", {
       group = augroup,

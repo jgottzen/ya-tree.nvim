@@ -1,70 +1,132 @@
 local Popup = require("ya-tree.ui.popup")
 local hl = require("ya-tree.ui.highlights")
+local utils = require("ya-tree.utils")
 
 local api = vim.api
 
 local M = {}
 
+local keys_section_width = 15
+
 --Sort by description, with user functions first.
----@param a Yat.Action.Mapping
----@param b Yat.Action.Mapping
+---@param a { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }
+---@param b { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }
 ---@return boolean
 local function mapping_sorter(a, b)
-  if a.fn and not b.fn then
-    return true
-  elseif b.fn then
+  local atype = type(a.action)
+  local btype = type(b.action)
+  if atype == "string" and btype == "table" then
     return false
+  elseif atype == "table" and btype == "string" then
+    return true
   end
   return a.desc < b.desc
 end
 
-function M.open()
-  local mappings = require("ya-tree.actions").mappings
+---@param mappings table<string, Yat.Actions.Name|Yat.Config.Mapping.Custom>
+---@return { key: string, action: Yat.Actions.Name|""|Yat.Config.Mapping.Custom, desc: string }[] insert_mappings
+---@return { key: string, action: Yat.Actions.Name|""|Yat.Config.Mapping.Custom, desc: string }[] visual_mappings
+---@return integer max_mapping_width
+---@return string[] close_keys
+local function parse_mappings(mappings)
+  local registered_actions = require("ya-tree.actions").registered_actions
+  local max_mapping_width = 0
+  local close_keys = { "q", "<ESC>" }
 
-  ---@param mapping Yat.Action.Mapping
-  local insert = vim.tbl_filter(function(mapping)
-    return mapping.mode == "n"
-  end, mappings) --[=[@as Yat.Action.Mapping[]]=]
-  ---@param mapping Yat.Action.Mapping
-  local visual = vim.tbl_filter(function(mapping)
-    return mapping.mode == "v" or mapping.mode == "V"
-  end, mappings) --[=[@as Yat.Action.Mapping[]]=]
+  ---@type { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }[], { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }[]
+  local insert, visual = {}, {}
+  for key, mapping in pairs(mappings) do
+    if mapping ~= "" then
+      local modes, desc
+      if type(mapping) == "string" then
+        local action = registered_actions[mapping]
+        modes = action and action.modes or {}
+        desc = registered_actions[mapping].desc or mapping
+      else
+        ---@cast mapping Yat.Config.Mapping.Custom
+        modes = mapping.modes or {}
+        desc = mapping.desc or "User '<function>'"
+      end
+      if vim.tbl_contains(modes, "n") then
+        insert[#insert + 1] = { key = key, action = mapping, desc = desc }
+      end
+      if vim.tbl_contains(modes, "v") or vim.tbl_contains(modes, "V") then
+        visual[#visual + 1] = { key = key, action = mapping, desc = desc }
+      end
+
+      max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(desc))
+      if mapping == "open_help" then
+        close_keys[#close_keys + 1] = key
+      end
+    end
+  end
+
   table.sort(insert, mapping_sorter)
   table.sort(visual, mapping_sorter)
 
-  local max_key_width = 0
-  local max_mapping_width = 0
-  local close_keys = { "q", "<ESC>" }
-  for _, mapping in ipairs(mappings) do
-    max_key_width = math.max(max_key_width, api.nvim_strwidth(mapping.key))
-    max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(mapping.desc))
-    if mapping.action == "open_help" then
-      close_keys[#close_keys + 1] = mapping.key
-    end
-  end
-  max_key_width = max_key_width + 1 -- add 1 so we get 1 character space to the left of the key
-  local mapping_col_start = max_key_width + 3 + max_mapping_width
-  local format_string = "%" .. max_key_width .. "s : %-" .. max_mapping_width .. "s : %s " -- with trailing space to match the left side
+  return insert, visual, max_mapping_width, close_keys
+end
 
+---@param format_string string
+---@param current_tab integer
+---@param all_tree_type Yat.Trees.Type[]
+---@return string[] lines
+---@return Yat.Ui.HighlightGroup[][] highlight_groups
+---@return integer max_line_width
+local function create_header(format_string, current_tab, all_tree_type)
   local header = string.format(format_string, "Key", "Action", "Tree")
-  local lines = { "", header, "", " Normal Mode:" }
+  local tabs = {}
+  local index = 1
+  for _, tree_type in ipairs(all_tree_type) do
+    tabs[#tabs + 1] = string.format(" (%s) %s ", index, tree_type)
+    index = index + 1
+  end
+  local tabs_line = table.concat(tabs, " ")
+  local lines = { "", "", tabs_line, "", header, "", " Normal Mode:" }
+
+  ---@type Yat.Ui.HighlightGroup[]
+  local tabs_highligt_group = {}
+  local current_endpos = 0
+  for i, tab in ipairs(tabs) do
+    local hl_name
+    if i == current_tab then
+      hl_name = hl.UI_CURRENT_TAB
+    else
+      hl_name = hl.UI_OTHER_TAB
+    end
+    tabs_highligt_group[#tabs_highligt_group + 1] = { name = hl_name, from = current_endpos, to = current_endpos + #tab }
+    current_endpos = current_endpos + #tab + 1
+  end
+
   ---@type Yat.Ui.HighlightGroup[][]
   local highlight_groups = {
     { { name = hl.ROOT_NAME, from = 0, to = -1 } },
+    {},
+    tabs_highligt_group,
+    {},
     { { name = hl.SEARCH_TERM, from = 0, to = -1 } },
     {},
     { { name = hl.ROOT_NAME, from = 0, to = -1 } },
   }
-  local max_line_width = api.nvim_strwidth(header) --[[@as number]]
+  local max_line_width = math.max(api.nvim_strwidth(tabs_line), api.nvim_strwidth(header)) --[[@as integer]]
 
-  for _, mapping in ipairs(insert) do
-    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(mapping.tree_types, ", "))
+  return lines, highlight_groups, max_line_width
+end
+
+---@param lines string[]
+---@param highlight_groups Yat.Ui.HighlightGroup[][]
+---@param format_string string
+---@param max_line_width integer
+---@param insert { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }[]
+---@param visual { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }[]
+local function create_mappings_section(lines, highlight_groups, format_string, max_line_width, insert, visual)
+  for _, v in ipairs(insert) do
+    local line = string.format(format_string, v.key, v.desc)
     lines[#lines + 1] = line
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
     highlight_groups[#highlight_groups + 1] = {
-      { name = hl.GIT_DIRTY, from = 0, to = max_key_width },
-      { name = hl.SYMBOLIC_LINK, from = max_key_width, to = mapping_col_start },
-      { name = hl.GIT_NEW, from = mapping_col_start, to = -1 },
+      { name = hl.GIT_DIRTY, from = 0, to = keys_section_width },
+      { name = hl.SYMBOLIC_LINK, from = keys_section_width, to = -1 },
     }
   end
 
@@ -73,20 +135,59 @@ function M.open()
   highlight_groups[#highlight_groups + 1] = {}
   highlight_groups[#highlight_groups + 1] = { { name = hl.ROOT_NAME, from = 0, to = -1 } }
 
-  for _, mapping in ipairs(visual) do
-    local line = string.format(format_string, mapping.key, mapping.desc, table.concat(mapping.tree_types, ", "))
+  for _, v in ipairs(visual) do
+    local line = string.format(format_string, v.key, v.desc)
     lines[#lines + 1] = line
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
     highlight_groups[#highlight_groups + 1] = {
-      { name = hl.GIT_DIRTY, from = 0, to = max_key_width },
-      { name = hl.SYMBOLIC_LINK, from = max_key_width, to = mapping_col_start },
-      { name = hl.GIT_NEW, from = mapping_col_start, to = -1 },
+      { name = hl.GIT_DIRTY, from = 0, to = keys_section_width },
+      { name = hl.SYMBOLIC_LINK, from = keys_section_width, to = -1 },
     }
   end
 
   lines[1] = string.format("%" .. math.floor(max_line_width / 2) + 6 .. "s", "KEY MAPPINGS")
+end
 
-  Popup.new(lines, highlight_groups):centered():close_with(close_keys):close_on_focus_loss():open(true)
+---@param tree_types Yat.Trees.Type[]
+---@param mappings table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
+---@param current_tab integer
+---@return string[] lines
+---@return Yat.Ui.HighlightGroup[][] highlight_groups
+---@return string[] close_keys
+local function mappings_for_for_tree(current_tab, tree_types, mappings)
+  local tree_type = tree_types[current_tab]
+  local current_mappings = mappings[tree_type]
+  local insert, visual, max_mapping_width, close_keys = parse_mappings(current_mappings)
+
+  local format_string = "%" .. keys_section_width .. "s : %-" .. max_mapping_width .. "s " -- with trailing space to match the left side
+
+  local lines, highlight_groups, max_line_width = create_header(format_string, current_tab, tree_types)
+  create_mappings_section(lines, highlight_groups, format_string, max_line_width, insert, visual)
+
+  return lines, highlight_groups, close_keys
+end
+
+---@param tree Yat.Tree
+function M.open(tree)
+  local mappings = require("ya-tree.actions").tree_mappings
+
+  local tree_types = vim.tbl_keys(mappings) --[=[@as Yat.Trees.Type[]]=]
+  table.sort(tree_types)
+  utils.tbl_remove(tree_types, tree.TYPE)
+  table.insert(tree_types, 1, tree.TYPE)
+
+  local lines, highlight_groups, close_keys = mappings_for_for_tree(1, tree_types, mappings)
+
+  ---@type Yat.Ui.Popup
+  local popup
+  local builder = Popup.new(lines, highlight_groups):size(100, "90%"):centered():close_with(close_keys):close_on_focus_loss()
+  for i in ipairs(tree_types) do
+    builder:map_keys("n", tostring(i), function()
+      lines, highlight_groups = mappings_for_for_tree(i, tree_types, mappings)
+      popup:set_content(lines, highlight_groups)
+    end)
+  end
+  popup = builder:open(true)
 end
 
 return M

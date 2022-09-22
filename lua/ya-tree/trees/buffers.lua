@@ -30,6 +30,55 @@ end
 BuffersTree.__tostring = Tree.__tostring
 setmetatable(BuffersTree, { __index = Tree })
 
+---@alias Yat.Trees.Buffers.SupportedActions
+---| "cd_to"
+---| "toggle_ignored"
+---| "toggle_filter"
+---
+---| "search_for_node_in_tree"
+---| "show_last_search"
+---
+---| "goto_node_in_files_tree"
+---| "show_files_tree"
+---
+---| "rescan_dir_for_git"
+---| "focus_prev_git_item"
+---| "focus_prev_git_item"
+---
+---| "focus_prev_diagnostic_item"
+---| "focus_next_diagnostic_item"
+---
+---| Yat.Trees.Tree.SupportedActions
+
+do
+  local builtin = require("ya-tree.actions.builtin")
+
+  BuffersTree.supported_actions = {
+    builtin.files.cd_to,
+    builtin.files.toggle_ignored,
+    builtin.files.toggle_filter,
+
+    builtin.search.search_for_node_in_tree,
+    builtin.search.show_last_search,
+
+    builtin.tree_specific.goto_node_in_files_tree,
+    builtin.tree_specific.show_files_tree,
+
+    builtin.git.rescan_dir_for_git,
+    builtin.git.focus_prev_git_item,
+    builtin.git.focus_next_git_item,
+
+    builtin.diagnostics.focus_prev_diagnostic_item,
+    builtin.diagnostics.focus_next_diagnostic_item,
+  }
+
+  for _, name in ipairs(Tree.supported_actions) do
+    if not vim.tbl_contains(BuffersTree.supported_actions, name) then
+      BuffersTree.supported_actions[#BuffersTree.supported_actions + 1] = name
+    end
+  end
+end
+
 ---@type Yat.Trees.Buffers?
 local singleton = nil
 

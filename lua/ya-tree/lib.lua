@@ -36,8 +36,8 @@ end
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
----  - {opts.tree_type?} `YaTreeName|string`
----  - {opts.location?} `YaTreeCanvas.Location`
+---  - {opts.tree_type?} `Yat.Trees.Type`
+---  - {opts.location?} `Yat.Ui.Canvas.Position`
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")

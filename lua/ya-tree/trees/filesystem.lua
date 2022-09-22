@@ -25,6 +25,77 @@ end
 
 setmetatable(FilesystemTree, { __index = Tree })
 
+---@alias Yat.Trees.Fs.SupportedActions
+---| "add"
+---| "rename"
+---| "delete"
+---| "trash"
+---
+---| "copy_node"
+---| "cut_node"
+---| "paste_nodes"
+---| "clear_clipboard"
+---
+---| "cd_to"
+---| "cd_up"
+---
+---| "toggle_ignored"
+---| "toggle_filter"
+---
+---| "search_for_node_in_tree"
+---| "search_interactively"
+---| "search_once"
+---| "show_last_search"
+---
+---| "rescan_dir_for_git"
+---| "focus_prev_git_item"
+---| "focus_prev_git_item"
+---
+---| "focus_prev_diagnostic_item"
+---| "focus_next_diagnostic_item"
+---
+---| Yat.Trees.Tree.SupportedActions
+
+do
+  local builtin = require("ya-tree.actions.builtin")
+
+  FilesystemTree.supported_actions = {
+    builtin.files.add,
+    builtin.files.rename,
+    builtin.files.delete,
+    builtin.files.trash,
+
+    builtin.files.copy_node,
+    builtin.files.cut_node,
+    builtin.files.paste_nodes,
+    builtin.files.clear_clipboard,
+
+    builtin.files.cd_to,
+    builtin.files.cd_up,
+
+    builtin.files.toggle_ignored,
+    builtin.files.toggle_filter,
+
+    builtin.search.search_for_node_in_tree,
+    builtin.search.search_interactively,
+    builtin.search.search_once,
+    builtin.search.show_last_search,
+
+    builtin.git.rescan_dir_for_git,
+    builtin.git.focus_prev_git_item,
+    builtin.git.focus_next_git_item,
+
+    builtin.diagnostics.focus_prev_diagnostic_item,
+    builtin.diagnostics.focus_next_diagnostic_item,
+  }
+
+  for _, name in ipairs(Tree.supported_actions) do
+    if not vim.tbl_contains(FilesystemTree.supported_actions, name) then
+      FilesystemTree.supported_actions[#FilesystemTree.supported_actions + 1] = name
+    end
+  end
+end
+
 ---Creates a new filesystem node tree root.
 ---@async
 ---@param path string the path

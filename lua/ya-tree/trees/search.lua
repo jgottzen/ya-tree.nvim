@@ -8,11 +8,63 @@ local log = require("ya-tree.log")("trees")
 ---@field TYPE "search"
 ---@field root Yat.Nodes.Search
 ---@field current_node? Yat.Nodes.Search
+---@field supported_actions Yat.Trees.Search.SupportedActions[]
 local SearchTree = { TYPE = "search" }
 SearchTree.__index = SearchTree
 SearchTree.__eq = Tree.__eq
 SearchTree.__tostring = Tree.__tostring
 setmetatable(SearchTree, { __index = Tree })
+
+---@alias Yat.Trees.Search.SupportedActions
+---| "cd_to"
+---| "toggle_ignored"
+---| "toggle_filter"
+---
+---| "search_for_node_in_tree"
+---| "search_interactively"
+---| "search_once"
+---
+---| "goto_node_in_files_tree"
+---| "show_files_tree"
+---
+---| "rescan_dir_for_git"
+---| "focus_prev_git_item"
+---| "focus_prev_git_item"
+---
+---| "focus_prev_diagnostic_item"
+---| "focus_next_diagnostic_item"
+---
+---| Yat.Trees.Tree.SupportedActions
+
+do
+  local builtin = require("ya-tree.actions.builtin")
+
+  SearchTree.supported_actions = {
+    builtin.files.cd_to,
+    builtin.files.toggle_ignored,
+    builtin.files.toggle_filter,
+
+    builtin.search.search_for_node_in_tree,
+    builtin.search.search_interactively,
+    builtin.search.search_once,
+
+    builtin.tree_specific.goto_node_in_files_tree,
+    builtin.tree_specific.show_files_tree,
+
+    builtin.git.rescan_dir_for_git,
+    builtin.git.focus_prev_git_item,
+    builtin.git.focus_next_git_item,
+
+    builtin.diagnostics.focus_prev_diagnostic_item,
+    builtin.diagnostics.focus_next_diagnostic_item,
+  }
+
+  for _, name in ipairs(Tree.supported_actions) do
+    if not vim.tbl_contains(SearchTree.supported_actions, name) then
+      SearchTree.supported_actions[#SearchTree.supported_actions + 1] = name
+    end
+  end
+end
 
 ---@async
 ---@param tabpage integer

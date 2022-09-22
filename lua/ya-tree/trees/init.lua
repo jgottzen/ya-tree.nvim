@@ -1,6 +1,6 @@
 local scheduler = require("plenary.async.util").scheduler
 
-local FsTree = require("ya-tree.trees.filesystem")
+local FilesystemTree = require("ya-tree.trees.filesystem")
 local BuffersTree = require("ya-tree.trees.buffers")
 local GitTree = require("ya-tree.trees.git")
 local SearchTree = require("ya-tree.trees.search")
@@ -12,16 +12,33 @@ local api = vim.api
 
 local M = {
   ---@private
-  ---@type table<Yat.Trees.Type|string, Yat.Tree>
+  ---@type table<Yat.Trees.Type, Yat.Tree>
   _registered_trees = {},
   ---@private
-  ---@type table<integer, { [string|Yat.Trees.Type|"current"|"previous"]: Yat.Tree }>
+  ---@type table<integer, { [Yat.Trees.Type|"current"|"previous"]: Yat.Tree }>
   _tabpage_trees = {},
 }
 
 ---@param tree Yat.Tree
 function M.register_tree(tree)
   M._registered_trees[tree.TYPE] = tree
+end
+
+---@return table<Yat.Actions.Name, Yat.Trees.Type[]>
+function M.actions_supported_by_trees()
+  ---@type table<Yat.Actions.Name, Yat.Trees.Type[]>
+  local supported_actions = {}
+  for type, tree in pairs(M._registered_trees) do
+    for _, name in ipairs(tree.supported_actions) do
+      local trees = supported_actions[name]
+      if not trees then
+        trees = {}
+        supported_actions[name] = trees
+      end
+      trees[#trees + 1] = type
+    end
+  end
+  return supported_actions
 end
 
 function M.delete_trees_after_tab_closed()
@@ -73,7 +90,7 @@ function M.for_each_tree(callback)
 end
 
 ---@param tabpage integer
----@param name Yat.Trees.Type|string
+---@param name Yat.Trees.Type
 ---@param set_current? boolean
 ---@return Yat.Tree? tree
 function M.get_tree(tabpage, name, set_current)
@@ -90,7 +107,7 @@ end
 
 ---@async
 ---@param tabpage integer
----@param name Yat.Trees.Type|string
+---@param name Yat.Trees.Type
 ---@param set_current boolean
 ---@param ... any tree arguments
 ---@return Yat.Tree? tree
@@ -283,7 +300,7 @@ function M.setup()
 end
 
 do
-  M.register_tree(FsTree)
+  M.register_tree(FilesystemTree)
   M.register_tree(BuffersTree)
   M.register_tree(GitTree)
   M.register_tree(SearchTree)

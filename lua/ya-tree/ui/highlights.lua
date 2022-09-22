@@ -76,6 +76,9 @@ local M = {
   INFO_PERMISSION_WRITE = "YaTreeInfoPermissionWrite",
   INFO_PERMISSION_EXECUTE = "YaTreeInfoPermissionExecute",
   INFO_DATE = "YaTreeInfoDate",
+
+  UI_CURRENT_TAB = "YaTreeUiCurrentTab",
+  UI_OTHER_TAB = "YaTreeUiOhterTab"
 }
 
 ---@param number number
@@ -199,6 +202,9 @@ function M.setup()
   create_highlight(M.INFO_PERMISSION_WRITE, { "TelescopePreviewWrite" })
   create_highlight(M.INFO_PERMISSION_EXECUTE, { "TelescopePreviewExecute" })
   create_highlight(M.INFO_DATE, { "TelescopePreviewDate" })
+
+  create_highlight(M.UI_CURRENT_TAB, nil, { fg = "#080808", bg = "#5f87d7" })
+  create_highlight(M.UI_OTHER_TAB, nil, { fg = "#080808", bg = "#5a524c" })
 end
 
 return M

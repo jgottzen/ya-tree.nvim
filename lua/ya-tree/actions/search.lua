@@ -102,8 +102,9 @@ end
 
 ---@async
 ---@param tree Yat.Tree
-function M.search_for_path_in_tree(tree)
+function M.search_for_node_in_tree(tree)
   local border = require("ya-tree.config").config.view.popups.border
+  -- FIXME: tree-denpendent completion
   local input = Input:new({ prompt = "Path:", completion = "file_in_path", border = border }, {
     on_submit = void(function(path)
       if path then

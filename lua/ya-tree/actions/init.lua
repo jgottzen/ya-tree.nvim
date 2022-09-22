@@ -16,327 +16,242 @@ local api = vim.api
 
 local M = {}
 
----@alias Yat.Action.Name
----| "open"
----| "vsplit"
----| "split"
----| "tabnew"
----| "preview"
----| "preview_and_focus"
----| "add"
----| "rename"
----| "delete"
----| "trash"
----| "system_open"
----| "copy_node"
----| "cut_node"
----| "paste_nodes"
----| "clear_clipboard"
----| "copy_name_to_clipboard"
----| "copy_root_relative_path_to_clipboard"
----| "copy_absolute_path_to_clipboard"
----| "search_interactively"
----| "search_once"
----| "search_for_path_in_tree"
----| "goto_node_in_tree"
----| "show_last_search"
----| "close_window"
----| "close_node"
----| "close_all_nodes"
----| "close_all_child_nodes"
----| "expand_all_nodes"
----| "expand_all_child_nodes"
----| "cd_to"
----| "cd_up"
----| "toggle_ignored"
----| "toggle_filter"
----| "refresh_tree"
----| "rescan_dir_for_git"
----| "toggle_git_tree"
----| "toggle_buffers_tree"
----| "show_file_tree"
----| "focus_parent"
----| "focus_prev_sibling"
----| "focus_next_sibling"
----| "focus_first_sibling"
----| "focus_last_sibling"
----| "focus_prev_git_item"
----| "focus_next_git_item"
----| "focus_prev_diagnostic_item"
----| "focus_next_diagnostic_item"
----| "open_help"
----| "show_node_info"
-
----@alias Yat.Action.Mode "n" | "v" | "V"
+---@alias Yat.Actions.Mode "n" | "v" | "V"
 
 ---@class Yat.Action
 ---@field fn async fun(tree: Yat.Tree, node: Yat.Node)
 ---@field desc string
----@field tree_types Yat.Trees.Type[]|string[]
----@field modes Yat.Action.Mode[]
+---@field tree_types Yat.Trees.Type[]
+---@field modes Yat.Actions.Mode[]
 
----@param fn async fun(tree: Yat.Tree, node: Yat.Node)
----@param desc string
----@param tree_types Yat.Trees.Type[]|string[]
----@param modes Yat.Action.Mode[]
----@return Yat.Action
-local function create_action(fn, desc, tree_types, modes)
-  return {
-    fn = fn,
-    desc = desc,
-    tree_types = tree_types,
-    modes = modes,
-  }
-end
+---@type table<Yat.Actions.Name, Yat.Action>
+M.registered_actions = {}
+do
+  local supported = Trees.actions_supported_by_trees()
+  local builtin = require("ya-tree.actions.builtin")
 
----@type table<Yat.Action.Name, Yat.Action>
-local actions = {
-  open = create_action(files.open, "Open file or directory", { "files", "search", "buffers", "git" }, { "n", "v" }),
-  vsplit = create_action(files.vsplit, "Open file in a vertical split", { "files", "search", "git" }, { "n" }),
-  split = create_action(files.split, "Open file in a split", { "files", "search", "git" }, { "n" }),
-  tabnew = create_action(files.tabnew, "Open file in a new tabpage", { "files", "search", "git" }, { "n" }),
-  preview = create_action(files.preview, "Open file (keep cursor in tree)", { "files", "search", "git" }, { "n" }),
-  preview_and_focus = create_action(files.preview_and_focus, "Open file (keep cursor in tree)", { "files", "search", "git" }, { "n" }),
-  add = create_action(files.add, "Add file or directory", { "files" }, { "n" }),
-  rename = create_action(files.rename, "Rename file or directory", { "files" }, { "n" }),
-  delete = create_action(files.delete, "Delete files and directories", { "files" }, { "n", "v" }),
-  trash = create_action(files.trash, "Trash files and directories", { "files" }, { "n", "v" }),
-  system_open = create_action(
-    files.system_open,
-    "Open the node with the default system application",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-
-  copy_node = create_action(clipboard.copy_node, "Select files and directories for copy", { "files" }, { "n", "v" }),
-  cut_node = create_action(clipboard.cut_node, "Select files and directories for cut", { "files" }, { "n", "v" }),
-  paste_nodes = create_action(clipboard.paste_nodes, "Paste files and directories", { "files" }, { "n" }),
-  clear_clipboard = create_action(clipboard.clear_clipboard, "Clear selected files and directories", { "files" }, { "n" }),
-  copy_name_to_clipboard = create_action(
-    clipboard.copy_name_to_clipboard,
-    "Copy node name to system clipboard",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  copy_root_relative_path_to_clipboard = create_action(
-    clipboard.copy_root_relative_path_to_clipboard,
-    "Copy root-relative path to system clipboard",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  copy_absolute_path_to_clipboard = create_action(
-    clipboard.copy_absolute_path_to_clipboard,
-    "Copy absolute path to system clipboard",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-
-  close_node = create_action(nodes.close_node, "Close directory", { "files", "search", "buffers", "git" }, { "n" }),
-  close_all_nodes = create_action(nodes.close_all_nodes, "Close all directories", { "files", "search", "buffers", "git" }, { "n" }),
-  close_all_child_nodes = create_action(
-    nodes.close_all_child_nodes,
-    "Close all child directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  expand_all_nodes = create_action(
-    nodes.expand_all_nodes,
-    "Recursively expand all directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  expand_all_child_nodes = create_action(
-    nodes.expand_all_child_nodes,
-    "Recursively expand all child directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  goto_node_in_tree = create_action(
-    nodes.goto_node_in_tree,
-    "Close current tree and go to node in the file tree",
-    { "search", "buffers", "git" },
-    { "n" }
-  ),
-
-  show_node_info = create_action(popups.show_node_info, "Show node info in popup", { "files", "search", "buffers", "git" }, { "n" }),
-
-  search_interactively = create_action(search.search_interactively, "Search as you type", { "files", "search" }, { "n" }),
-  search_once = create_action(search.search_once, "Search", { "files", "search" }, { "n" }),
-  search_for_path_in_tree = create_action(
-    search.search_for_path_in_tree,
-    "Go to entered path in tree",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  show_last_search = create_action(lib.show_last_search, "Show last search result", { "files" }, { "n" }),
-
-  close_window = create_action(lib.close_window, "Close the tree window", { "files", "search", "buffers", "git" }, { "n" }),
-  cd_to = create_action(lib.cd_to, "Set tree root to directory", { "files", "search", "buffers", "git" }, { "n" }),
-  cd_up = create_action(lib.cd_up, "Set tree root one level up", { "files" }, { "n" }),
-  toggle_ignored = create_action(
-    lib.toggle_ignored,
-    "Toggle git ignored files and directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  toggle_filter = create_action(
-    lib.toggle_filter,
-    "Toggle filtered files and directories",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  refresh_tree = create_action(lib.refresh_tree, "Refresh the tree", { "files", "search", "buffers", "git" }, { "n" }),
-  rescan_dir_for_git = create_action(lib.rescan_dir_for_git, "Rescan directory for git repo", { "files", "search", "buffers" }, { "n" }),
-
-  toggle_git_tree = create_action(
-    lib.toggle_git_tree,
-    "Open or close the current git status tree",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  toggle_buffers_tree = create_action(
-    lib.toggle_buffers_tree,
-    "Open or close the current buffers tree",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  show_file_tree = create_action(lib.show_file_tree, "Show the file tree", { "search", "buffers", "git" }, { "n" }),
-
-  focus_parent = create_action(ui.focus_parent, "Go to parent directory", { "files", "search", "buffers", "git" }, { "n" }),
-  focus_prev_sibling = create_action(
-    ui.focus_prev_sibling,
-    "Go to previous sibling node",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  focus_next_sibling = create_action(ui.focus_next_sibling, "Go to next sibling node", { "files", "search", "buffers", "git" }, { "n" }),
-  focus_first_sibling = create_action(ui.focus_first_sibling, "Go to first sibling node", { "files", "search", "buffers", "git" }, { "n" }),
-  focus_last_sibling = create_action(ui.focus_last_sibling, "Go to last sibling node", { "files", "search", "buffers", "git" }, { "n" }),
-  focus_prev_git_item = create_action(ui.focus_prev_git_item, "Go to previous git item", { "files", "search", "buffers", "git" }, { "n" }),
-  focus_next_git_item = create_action(ui.focus_next_git_item, "Go to next git item", { "files", "search", "buffers", "git" }, { "n" }),
-  focus_prev_diagnostic_item = create_action(
-    ui.focus_prev_diagnostic_item,
-    "Go to the previous diagnostic item",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  focus_next_diagnostic_item = create_action(
-    ui.focus_next_diagnostic_item,
-    "Go to the next diagnostic item",
-    { "files", "search", "buffers", "git" },
-    { "n" }
-  ),
-  open_help = create_action(help.open, "Open keybindings help", { "files", "search", "buffers", "git" }, { "n" }),
-}
-
----@param mapping Yat.Action.Mapping
----@return function|nil handler
-local function create_keymap_function(mapping)
-  local fn
-  if mapping.action then
-    local action = actions[mapping.action] --[[@as Yat.Action]]
-    if action and action.fn then
-      fn = void(action.fn) --[[@as fun(tree: Yat.Tree, node: Yat.Node)]]
-    else
-      log.error("action %q has no mapping", mapping.action)
-      return nil
-    end
-  elseif mapping.fn then
-    fn = void(mapping.fn) --[[@as fun(tree: Yat.Tree, node: Yat.Node)]]
-  else
-    log.error("cannot create keymap function for mappings %s", mapping)
-    return nil
+  ---@param name Yat.Actions.Name
+  ---@param fn async fun(tree: Yat.Tree, node: Yat.Node)
+  ---@param desc string
+  ---@param modes Yat.Actions.Mode[]
+  ---@param trees? Yat.Trees.Type[]
+  function M.create_action(name, fn, desc, modes, trees)
+    M.registered_actions[name] = {
+      fn = fn,
+      desc = desc,
+      modes = modes,
+      tree_types = trees or supported[name] or {},
+    }
   end
 
-  local tree_types = mapping.tree_types
+  M.create_action(builtin.general.close_window, lib.close_window, "Close the tree window", { "n" })
+  M.create_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
+  M.create_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
+  M.create_action(builtin.general.open_help, help.open, "Open keybindings help", { "n" })
+
+  M.create_action(builtin.general.toggle_git_tree, lib.toggle_git_tree, "Open or close the current git status tree", { "n" })
+  M.create_action(builtin.general.toggle_buffers_tree, lib.toggle_buffers_tree, "Open or close the current buffers tree", { "n" })
+
+  M.create_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
+  M.create_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
+  M.create_action(builtin.general.split, files.split, "Open file in a split", { "n" })
+  M.create_action(builtin.general.tabnew, files.tabnew, "Open file in a new tabpage", { "n" })
+  M.create_action(builtin.general.preview, files.preview, "Open file (keep cursor in tree)", { "n" })
+  M.create_action(builtin.general.preview_and_focus, files.preview_and_focus, "Open file (keep cursor in tree)", { "n" })
+
+  M.create_action(builtin.general.copy_name_to_clipboard, clipboard.copy_name_to_clipboard, "Copy node name to system clipboard", { "n" })
+  M.create_action(
+    builtin.general.copy_root_relative_path_to_clipboard,
+    clipboard.copy_root_relative_path_to_clipboard,
+    "Copy root-relative path to system clipboard",
+    { "n" }
+  )
+  M.create_action(
+    builtin.general.copy_absolute_path_to_clipboard,
+    clipboard.copy_absolute_path_to_clipboard,
+    "Copy absolute path to system clipboard",
+    { "n" }
+  )
+
+  M.create_action(builtin.general.close_node, nodes.close_node, "Close directory", { "n" })
+  M.create_action(builtin.general.close_all_nodes, nodes.close_all_nodes, "Close all directories", { "n" })
+  M.create_action(builtin.general.close_all_child_nodes, nodes.close_all_child_nodes, "Close all child directories", { "n" })
+  M.create_action(builtin.general.expand_all_nodes, nodes.expand_all_nodes, "Recursively expand all directories", { "n" })
+  M.create_action(builtin.general.expand_all_child_nodes, nodes.expand_all_child_nodes, "Recursively expand all child directories", { "n" })
+
+  M.create_action(builtin.general.refresh_tree, lib.refresh_tree, "Refresh the tree", { "n" })
+
+  M.create_action(builtin.general.focus_parent, ui.focus_parent, "Go to parent directory", { "n" })
+  M.create_action(builtin.general.focus_prev_sibling, ui.focus_prev_sibling, "Go to previous sibling node", { "n" })
+  M.create_action(builtin.general.focus_next_sibling, ui.focus_next_sibling, "Go to next sibling node", { "n" })
+  M.create_action(builtin.general.focus_first_sibling, ui.focus_first_sibling, "Go to first sibling node", { "n" })
+  M.create_action(builtin.general.focus_last_sibling, ui.focus_last_sibling, "Go to last sibling node", { "n" })
+
+  M.create_action(builtin.files.add, files.add, "Add file or directory", { "n" })
+  M.create_action(builtin.files.rename, files.rename, "Rename file or directory", { "n" })
+  M.create_action(builtin.files.delete, files.delete, "Delete files and directories", { "n", "v" })
+  M.create_action(builtin.files.trash, files.trash, "Trash files and directories", { "n", "v" })
+
+  M.create_action(builtin.files.copy_node, clipboard.copy_node, "Select files and directories for copy", { "n", "v" })
+  M.create_action(builtin.files.cut_node, clipboard.cut_node, "Select files and directories for cut", { "n", "v" })
+  M.create_action(builtin.files.paste_nodes, clipboard.paste_nodes, "Paste files and directories", { "n" })
+  M.create_action(builtin.files.clear_clipboard, clipboard.clear_clipboard, "Clear selected files and directories", { "n" })
+
+  M.create_action(builtin.files.cd_to, lib.cd_to, "Set tree root to directory", { "n" })
+  M.create_action(builtin.files.cd_up, lib.cd_up, "Set tree root one level up", { "n" })
+
+  M.create_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" })
+  M.create_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" })
+
+  M.create_action(builtin.search.search_for_node_in_tree, search.search_for_node_in_tree, "Go to entered path in tree", { "n" })
+  M.create_action(builtin.search.search_interactively, search.search_interactively, "Search as you type", { "n" })
+  M.create_action(builtin.search.search_once, search.search_once, "Search", { "n" })
+  M.create_action(builtin.search.show_last_search, lib.show_last_search, "Show last search result", { "n" })
+
+  M.create_action(
+    builtin.tree_specific.goto_node_in_files_tree,
+    nodes.goto_node_in_files_tree,
+    "Close current tree and go to node in the file tree",
+    { "n" }
+  )
+  M.create_action(builtin.tree_specific.show_files_tree, lib.show_file_tree, "Show the file tree", { "n" })
+
+  M.create_action(builtin.git.rescan_dir_for_git, lib.rescan_dir_for_git, "Rescan directory for git repo", { "n" })
+  M.create_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous git item", { "n" })
+  M.create_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next git item", { "n" })
+
+  M.create_action(
+    builtin.diagnostics.focus_prev_diagnostic_item,
+    ui.focus_prev_diagnostic_item,
+    "Go to the previous diagnostic item",
+    { "n" }
+  )
+  M.create_action(builtin.diagnostics.focus_next_diagnostic_item, ui.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
+end
+
+---@param mapping table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
+---@return function handler
+local function create_keymap_function(mapping)
   return function()
-    if vim.tbl_contains(tree_types, ui.get_tree_type()) then
+    local action = mapping[ui.get_tree_type()]
+    if action then
       local tabpage = api.nvim_get_current_tabpage()
       local node = ui.get_current_node() --[[@as Yat.Node]]
       local tree = Trees.current_tree(tabpage) --[[@as Yat.Tree]]
       tree.current_node = node
-      fn(tree, node)
+      if type(action) == "string" then
+        void(M.registered_actions[action].fn)(tree, node)
+      else
+        ---@cast action Yat.Config.Mapping.Custom
+        void(action.fn)(tree, node)
+      end
     end
   end
 end
 
 ---@param bufnr number
 function M.apply_mappings(bufnr)
-  for _, mapping in pairs(M.mappings) do
+  for key, mapping in pairs(M.mappings) do
     local opts = { buffer = bufnr, silent = true, nowait = true, desc = mapping.desc }
     local rhs = create_keymap_function(mapping)
 
-    if not rhs or not pcall(vim.keymap.set, mapping.mode, mapping.key, rhs, opts) then
-      utils.warn(string.format("Cannot construct mapping for key %q!", mapping.key))
+    ---@type table<string, boolean>
+    local modes = {}
+    for _, action in pairs(mapping) do
+      if type(action) == "string" then
+        for _, mode in ipairs(M.registered_actions[action].modes) do
+          modes[mode] = true
+        end
+      else
+        ---@cast action Yat.Config.Mapping.Custom
+        for _, mode in ipairs(action.modes) do
+          modes[mode] = true
+        end
+      end
+    end
+    for mode in pairs(modes) do
+      if not pcall(vim.keymap.set, mode, key, rhs, opts) then
+        utils.warn(string.format("Cannot construct mapping for key %q!", key))
+      end
     end
   end
 end
 
----@class Yat.Action.Mapping
----@field tree_types Yat.Trees.Type[]|string[]
----@field mode Yat.Action.Mode
----@field key string
----@field desc string
----@field action? Yat.Action.Name
----@field fn? async fun(tree: Yat.Tree, node: Yat.Node)
-
----@param mappings Yat.Config.Mappings
----@return Yat.Action.Mapping[]
-local function validate_and_create_mappings(mappings)
-  ---@type Yat.Action.Mapping[]
-  local action_mappings = {}
-
-  for key, mapping in pairs(mappings.list) do
-    if type(mapping) == "string" then
-      local name = mapping --[[@as Yat.Action.Name]]
-      if name == "" then
-        log.debug("key %q is disabled by user config", key)
-      elseif not actions[name] then
-        log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, name)
-        utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, name))
-      elseif actions[name].tree_types == nil or #actions[name].tree_types == 0 then
-        log.error("key %q is mapped to 'action' %q, which has no trees associanted with it, mapping %s ignored", key, name, actions[name])
-        utils.warn(string.format("Key %q is mapped to 'action' %q, which has no trees associanted with it, mapping ignored!", key, name))
-      else
-        local action = actions[name]
-        for _, mode in ipairs(action.modes) do
-          action_mappings[#action_mappings + 1] = {
-            tree_types = action.tree_types,
-            mode = mode,
-            key = key,
-            desc = action.desc,
-            action = name,
-          }
+---@param keys table<string, boolean>
+---@return table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
+local function validate_and_create_mappings(keys)
+  ---@type table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
+  local mappings = {}
+  for key in pairs(keys) do
+    ---@type table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
+    local entry = {}
+    for tree_type, list in pairs(M.tree_mappings) do
+      local mapping = list[key]
+      if type(mapping) == "string" then
+        if mapping == "" then
+          log.debug("key %q is disabled by user config", key)
+        elseif not M.registered_actions[mapping] then
+          log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, mapping)
+          utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, mapping))
+        elseif not vim.tbl_contains(M.registered_actions[mapping].tree_types, tree_type) then
+          log.error(
+            "key %q is mapped to 'action' %q, which does not support tree type %q, mapping %s ignored",
+            key,
+            tree_type,
+            mapping,
+            M.registered_actions[mapping]
+          )
+          utils.warn(
+            string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, tree_type, mapping)
+          )
+        else
+          entry[tree_type] = mapping
         end
-      end
-    elseif type(mapping) == "table" then
-      ---@cast mapping Yat.Config.Mapping.Custom
-      local fn = mapping.fn
-      if type(fn) ~= "function" then
-        log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, fn, mapping)
-        utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, fn))
-      elseif mapping.tree_types == nil or #mapping.tree_types == 0 then
-        log.error("key %q has no trees associanted with it, mapping %s ignored", key, mapping)
-        utils.warn(string.format("Key %q has no trees associanted with it, mapping ignored!", key))
-      else
-        for _, mode in ipairs(mapping.modes) do
-          action_mappings[#action_mappings + 1] = {
-            tree_types = mapping.tree_types,
-            mode = mode,
-            key = key,
-            desc = mapping.desc or "User '<function>'",
-            fn = fn,
-          }
+      elseif type(mapping) == "table" then
+        ---@cast mapping Yat.Config.Mapping.Custom
+        if type(mapping.fn) ~= "function" then
+          log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, mapping.fn, mapping)
+          utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, mapping.fn))
+        elseif mapping.tree_types == nil or #mapping.tree_types == 0 then
+          log.error("key %q has no trees associanted with it, mapping %s ignored", key, mapping)
+          utils.warn(string.format("Key %q has no trees associanted with it, mapping ignored!", key))
+        else
+          entry[tree_type] = mapping
         end
       end
     end
+    mappings[key] = entry
   end
 
-  return action_mappings
+  return mappings
 end
 
 function M.setup()
-  M.mappings = validate_and_create_mappings(require("ya-tree.config").config.mappings)
+  local config = require("ya-tree.config").config
+  ---@type table<string, boolean>
+  local keys = {}
+  for key, value in pairs(config.trees.global_mappings.list) do
+    if value ~= "" then
+      keys[key] = true
+    end
+  end
+
+  ---@type table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
+  M.tree_mappings = {}
+  for name, tree in pairs(config.trees) do
+    ---@cast tree Yat.Config.Trees.Tree
+    if name ~= "global_mappings" then
+      ---@cast name Yat.Trees.Type
+      M.tree_mappings[name] = vim.tbl_deep_extend("force", config.trees.global_mappings.list, tree.mappings.list)
+      for key, value in pairs(tree.mappings.list) do
+        if value ~= "" then
+          keys[key] = true
+        end
+      end
+    end
+  end
+
+  M.mappings = validate_and_create_mappings(keys)
 end
 
 return M

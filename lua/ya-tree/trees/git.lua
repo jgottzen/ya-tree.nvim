@@ -14,11 +14,59 @@ local api = vim.api
 ---@field TYPE "git"
 ---@field root Yat.Nodes.Git
 ---@field current_node? Yat.Nodes.Git
+---@field supported_actions Yat.Trees.Git.SupportedActions[]
 local GitTree = { TYPE = "git" }
 GitTree.__index = GitTree
 GitTree.__eq = Tree.__eq
 GitTree.__tostring = Tree.__tostring
 setmetatable(GitTree, { __index = Tree })
+
+---@alias Yat.Trees.Git.SupportedActions
+---| "cd_to"
+---| "toggle_ignored"
+---| "toggle_filter"
+---
+---| "search_for_node_in_tree"
+---| "show_last_search"
+---
+---| "goto_node_in_files_tree"
+---| "show_files_tree"
+---
+---| "focus_prev_git_item"
+---| "focus_prev_git_item"
+---
+---| "focus_prev_diagnostic_item"
+---| "focus_next_diagnostic_item"
+---
+---| Yat.Trees.Tree.SupportedActions
+
+do
+  local builtin = require("ya-tree.actions.builtin")
+
+  GitTree.supported_actions = {
+    builtin.files.cd_to,
+    builtin.files.toggle_ignored,
+    builtin.files.toggle_filter,
+
+    builtin.search.search_for_node_in_tree,
+    builtin.search.show_last_search,
+
+    builtin.tree_specific.goto_node_in_files_tree,
+    builtin.tree_specific.show_files_tree,
+
+    builtin.git.focus_prev_git_item,
+    builtin.git.focus_next_git_item,
+
+    builtin.diagnostics.focus_prev_diagnostic_item,
+    builtin.diagnostics.focus_next_diagnostic_item,
+  }
+
+  for _, name in ipairs(Tree.supported_actions) do
+    if not vim.tbl_contains(GitTree.supported_actions, name) then
+      GitTree.supported_actions[#GitTree.supported_actions + 1] = name
+    end
+  end
+end
 
 ---@async
 ---@param tabpage integer
