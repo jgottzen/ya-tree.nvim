@@ -413,7 +413,7 @@ local M = {
 
     ---@class Yat.Config.Mappings
     ---@field disable_defaults boolean Whether to diasble all default mappigns, default `true`.
-    ---@field list table<string, Yat.Action.Name|Yat.Config.Mapping.Custom> Map of key mappings.
+    ---@field list table<string, Yat.Action.Name|""|Yat.Config.Mapping.Custom> Map of key mappings.
     mappings = {
       disable_defaults = false,
       list = {

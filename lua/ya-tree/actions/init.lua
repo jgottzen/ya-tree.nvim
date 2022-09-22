@@ -289,11 +289,14 @@ local function validate_and_create_mappings(mappings)
   for key, mapping in pairs(mappings.list) do
     if type(mapping) == "string" then
       local name = mapping --[[@as Yat.Action.Name]]
-      if #name == 0 then
-        log.debug("key %s is disabled by user config", key)
+      if name == "" then
+        log.debug("key %q is disabled by user config", key)
       elseif not actions[name] then
-        log.error("Key %s is mapped to 'action' %q, which does not exist, mapping ignored!", vim.inspect(key), name)
-        utils.warn(string.format("Key %s is mapped to 'action' %q, which does not exist, mapping ignored!", vim.inspect(key), name))
+        log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, name)
+        utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, name))
+      elseif actions[name].tree_types == nil or #actions[name].tree_types == 0 then
+        log.error("key %q is mapped to 'action' %q, which has no trees associanted with it, mapping %s ignored", key, name, actions[name])
+        utils.warn(string.format("Key %q is mapped to 'action' %q, which has no trees associanted with it, mapping ignored!", key, name))
       else
         local action = actions[name]
         for _, mode in ipairs(action.modes) do
@@ -309,7 +312,13 @@ local function validate_and_create_mappings(mappings)
     elseif type(mapping) == "table" then
       ---@cast mapping Yat.Config.Mapping.Custom
       local fn = mapping.fn
-      if type(fn) == "function" then
+      if type(fn) ~= "function" then
+        log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, fn, mapping)
+        utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, fn))
+      elseif mapping.tree_types == nil or #mapping.tree_types == 0 then
+        log.error("key %q has no trees associanted with it, mapping %s ignored", key, mapping)
+        utils.warn(string.format("Key %q has no trees associanted with it, mapping ignored!", key))
+      else
         for _, mode in ipairs(mapping.modes) do
           action_mappings[#action_mappings + 1] = {
             tree_types = mapping.tree_types,
@@ -319,8 +328,6 @@ local function validate_and_create_mappings(mappings)
             fn = fn,
           }
         end
-      else
-        utils.warn(string.format("Key %s is mapped to 'fn' %s, which is not a function, mapping ignored!", vim.inspect(key), fn))
       end
     end
   end
