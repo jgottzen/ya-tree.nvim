@@ -84,7 +84,7 @@ function M.open()
     }
   end
 
-  lines[1] = string.format("%" .. (max_line_width / 2) + 6 .. "s", "KEY MAPPINGS")
+  lines[1] = string.format("%" .. math.floor(max_line_width / 2) + 6 .. "s", "KEY MAPPINGS")
 
   Popup.new(lines, highlight_groups):centered():close_with(close_keys):close_on_focus_loss():open(true)
 end
