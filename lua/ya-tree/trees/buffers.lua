@@ -1,4 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
+local void = require("plenary.async").void
 
 local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
@@ -96,12 +97,12 @@ function BuffersTree:new(tabpage, path)
     singleton.current_node = singleton.root:refresh()
 
     local event = require("ya-tree.events.event").autocmd
-    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), true, function(bufnr, file)
+    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), function(bufnr, file)
       if file ~= "" then
         -- The autocmds are fired before buftypes are set or in the case of BufFilePost before the file is available on the file system,
         -- causing the node creation to fail, by deferring the call for a short time, we should be able to find the file
         vim.defer_fn(function()
-          singleton:on_buffer_new(bufnr, file)
+          void(BuffersTree.on_buffer_new)(singleton, bufnr, file)
         end, 100)
       end
     end)
