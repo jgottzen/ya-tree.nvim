@@ -559,15 +559,19 @@ end
 ---@param row number
 ---@param col number
 local function set_cursor_position(winid, row, col)
-  local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
-  if ok then
-    local win_height = api.nvim_win_get_height(winid) --[[@as number]]
-    if win_height > row then
-      pcall(vim.cmd, "normal! zb")
-    elseif row < (win_height / 2) then
-      pcall(vim.cmd, "normal! zz")
+  -- avoids the cursor moving left when switching to the canvas window and then back,
+  -- happens with floating windows
+  api.nvim_win_call(winid, function()
+    local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
+    if ok then
+      local win_height = api.nvim_win_get_height(winid) --[[@as number]]
+      if win_height > row then
+        pcall(vim.cmd, "normal! zb")
+      elseif row < (win_height / 2) then
+        pcall(vim.cmd, "normal! zz")
+      end
     end
-  end
+  end)
 end
 
 ---@param node Yat.Node
@@ -592,11 +596,7 @@ function Canvas:focus_node(node)
       if not column or column == -1 then
         column = api.nvim_win_get_cursor(self.winid)[2]
       end
-      -- avoids the cursor moving left when switching to the canvas window and then back,
-      -- happens with floating windows
-      api.nvim_win_call(self.winid, function()
-        set_cursor_position(0, row, column)
-      end)
+      set_cursor_position(self.winid, row, column)
     end
   end
 end
