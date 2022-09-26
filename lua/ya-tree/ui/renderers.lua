@@ -39,36 +39,36 @@ do
   ---@param renderer Yat.Config.Renderers.Indentation
   ---@return Yat.Ui.RenderResult|nil result
   function M.indentation(node, context, renderer)
-    if context.depth == 0 then
-      return
-    end
-
     local text
-    if renderer.use_indent_marker then
+    if context.depth == 0 then
       text = ""
-      marker_at[context.depth] = not context.last_child
-      for i = 1, context.depth do
-        local marker
-        if i == context.depth and renderer.use_expander_marker and node:is_container() then
-          marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
-        else
-          marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
-        end
+    else
+      if renderer.use_indent_marker then
+        text = ""
+        marker_at[context.depth] = not context.last_child
+        for i = 1, context.depth do
+          local marker
+          if i == context.depth and renderer.use_expander_marker and node:is_container() then
+            marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
+          else
+            marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
+          end
 
-        if marker_at[i] or i == context.depth then
-          text = text .. marker .. " "
-        else
-          text = text .. "  "
+          if marker_at[i] or i == context.depth then
+            text = text .. marker .. " "
+          else
+            text = text .. "  "
+          end
         end
-      end
-    elseif renderer.use_expander_marker then
-      if node:is_container() then
-        text = string.rep("  ", context.depth - 1) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
+      elseif renderer.use_expander_marker then
+        if node:is_container() then
+          text = string.rep("  ", context.depth - 1) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
+        else
+          text = string.rep("  ", context.depth)
+        end
       else
         text = string.rep("  ", context.depth)
       end
-    else
-      text = string.rep("  ", context.depth)
     end
 
     return {
