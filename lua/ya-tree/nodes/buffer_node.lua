@@ -183,7 +183,7 @@ local function add_terminal_buffer_to_container(container, terminal)
     type = "terminal",
     path = path,
     extension = "terminal",
-  }, container, terminal.name, terminal.bufnr, hidden)
+  }, container, terminal.name, terminal.bufnr, false, hidden)
   container.children[#container.children + 1] = node
   container.empty = false
   log.debug("adding terminal buffer %s (%q)", node.bufnr, node.bufname)
