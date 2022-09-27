@@ -221,9 +221,7 @@ function M.name(node, context, renderer)
   end
 
   if not highlight then
-    if node:is_link() then
-      highlight = hl.SYMBOLIC_LINK
-    elseif node:is_container() then
+    if node:is_container() then
       highlight = hl.DIRECTORY_NAME
     elseif node:is_file() then
       highlight = hl.FILE_NAME
@@ -368,7 +366,7 @@ function M.symlink_target(node, _, renderer)
         {
           padding = renderer.padding,
           text = renderer.arrow_icon .. " ",
-          highlight = hl.SYMBOLIC_LINK,
+          highlight = hl.SYMBOLIC_LINK_TARGET,
         },
         {
           padding = "",
@@ -380,7 +378,7 @@ function M.symlink_target(node, _, renderer)
       return {
         padding = renderer.padding,
         text = renderer.arrow_icon .. " " .. node.relative_link_to,
-        highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK,
+        highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK_TARGET,
       }
     end
   end

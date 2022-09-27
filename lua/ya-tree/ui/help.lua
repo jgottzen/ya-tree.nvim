@@ -126,7 +126,7 @@ local function create_mappings_section(lines, highlight_groups, format_string, m
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
     highlight_groups[#highlight_groups + 1] = {
       { name = hl.GIT_DIRTY, from = 0, to = keys_section_width },
-      { name = hl.SYMBOLIC_LINK, from = keys_section_width, to = -1 },
+      { name = hl.SYMBOLIC_LINK_TARGET, from = keys_section_width, to = -1 },
     }
   end
 
@@ -141,7 +141,7 @@ local function create_mappings_section(lines, highlight_groups, format_string, m
     max_line_width = math.max(max_line_width, api.nvim_strwidth(line))
     highlight_groups[#highlight_groups + 1] = {
       { name = hl.GIT_DIRTY, from = 0, to = keys_section_width },
-      { name = hl.SYMBOLIC_LINK, from = keys_section_width, to = -1 },
+      { name = hl.SYMBOLIC_LINK_TARGET, from = keys_section_width, to = -1 },
     }
   end
 

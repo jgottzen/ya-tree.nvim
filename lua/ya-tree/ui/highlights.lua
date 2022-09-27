@@ -32,7 +32,7 @@ local M = {
 
   MODIFIED = "YaTreeFileModified",
 
-  SYMBOLIC_LINK = "YaTreeSymbolicLink",
+  SYMBOLIC_LINK_TARGET = "YaTreeSymbolicLinkTarget",
 
   BUFFER_NUMBER = "YaTreeBufferNumber",
   BUFFER_HIDDEN = "YaTreeBufferHidden",
@@ -158,7 +158,7 @@ function M.setup()
 
   create_highlight(M.MODIFIED, nil, { fg = normal_fg, bold = true })
 
-  create_highlight(M.SYMBOLIC_LINK, nil, { fg = "#7daea3", italic = true })
+  create_highlight(M.SYMBOLIC_LINK_TARGET, nil, { fg = "#7daea3", italic = true })
 
   create_highlight(M.BUFFER_NUMBER, { "SpecialChar" })
   create_highlight(M.BUFFER_HIDDEN, { "WarningMsg" })
