@@ -102,7 +102,7 @@ do
     local event_name = M._autocmd_ids_and_event_names[input.id]
     local handlers = M._autocmd_event_listeners[event_name]
     if #handlers > 0 then
-      if vim.v.exiting == nil then
+      if vim.v.exiting == vim.NIL then
         log.debug("calling handlers for autocmd %q", input.event)
       end
       for _, handler in ipairs(handlers) do
@@ -206,7 +206,7 @@ end
 ---@param fs_changes boolean
 function M.fire_git_event(event, repo, fs_changes)
   local event_name = get_event_name(event)
-  if vim.v.exiting == nil then
+  if vim.v.exiting == vim.NIL then
     log.debug("calling handlers for event %q", event_name)
   end
   for _, handler in pairs(M._git_event_listeners[event_name]) do
@@ -233,7 +233,7 @@ end
 ---@param ... any
 function M.fire_yatree_event(event, ...)
   local event_name = get_event_name(event)
-  if vim.v.exiting == nil then
+  if vim.v.exiting == vim.NIL then
     log.debug("calling handlers for event %q", event_name)
   end
   for _, handler in pairs(M._yatree_event_listeners[event_name]) do
