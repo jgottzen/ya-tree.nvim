@@ -196,7 +196,7 @@ local function get_nodes_to_delete(root_path)
 
   ---@type string[]
   local parents = {}
-  for i = #nodes, 1 -1 do
+  for i = #nodes, 1, -1 do
     local node = nodes[i]
     -- prohibit deleting the root node
     if node.path == root_path then

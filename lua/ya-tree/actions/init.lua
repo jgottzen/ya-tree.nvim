@@ -26,6 +26,7 @@ local M = {}
 
 ---@type table<Yat.Actions.Name, Yat.Action>
 M.registered_actions = {}
+
 do
   local supported = Trees.actions_supported_by_trees()
   local builtin = require("ya-tree.actions.builtin")
