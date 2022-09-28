@@ -152,13 +152,13 @@ function BuffersTree:on_buffer_new(bufnr, file)
   if (buftype == "" or buftype == "terminal") and not utils.is_directory_sync(file) then
     local node
     if buftype == "terminal" then
-      node = self.root:add_buffer(file, bufnr, true)
+      node = self.root:add_node(file, bufnr, true)
     else
       node = self.root:get_child_if_loaded(file)
       if not node then
         if self.root:is_ancestor_of(file) then
           log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
-          node = self.root:add_buffer(file, bufnr, false)
+          node = self.root:add_node(file, bufnr, false)
         else
           log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, self.root.path)
           self.root:refresh()
@@ -216,7 +216,7 @@ function BuffersTree:on_buffer_deleted(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "" or buftype == "terminal" then
     log.debug("removing buffer %q from buffer tree", file)
-    self.root:remove_buffer(file, bufnr, buftype == "terminal")
+    self.root:remove_node(file, bufnr, buftype == "terminal")
     if #self.root:children() == 0 and self.root.path ~= uv.cwd() then
       self.root:refresh({ root_path = uv.cwd() })
     end

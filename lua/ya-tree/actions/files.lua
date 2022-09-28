@@ -150,8 +150,13 @@ function M.add(tree, node)
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
         log.debug("created %s %q", is_directory and "directory" or "file", path)
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
+        local new_node = tree.root:add_node(path)
+        if new_node and new_node.repo then
+          new_node.repo:refresh_status({ ignored = true })
+        end
         scheduler()
-        lib.refresh_tree_and_goto_path(tree, path)
+        tree.root:expand({ to = path })
+        ui.update(tree, new_node)
       else
         log.error("failed to create %s %q", is_directory and "directory" or "file", path)
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
@@ -181,8 +186,19 @@ function M.rename(tree, node)
   if fs.rename(node.path, path) then
     log.debug("renamed %q to %q", node.path, path)
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
+    tree.root:remove_node(node.path)
+    local new_node = tree.root:add_node(path)
+    if node.repo then
+      node.repo:refresh_status({ ignored = true })
+      if new_node and new_node.repo and new_node.repo ~= node.repo then
+        new_node.repo:refresh_status({ ignored = true })
+      end
+    elseif new_node and new_node.repo then
+      new_node.repo:refresh_status({ ignored = true })
+    end
+    tree.root:expand({ to = path })
     scheduler()
-    lib.refresh_tree_and_goto_path(tree, path)
+    ui.update(tree, new_node)
   else
     log.error("failed to rename %q to %q", node.path, path)
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
@@ -214,41 +230,52 @@ local function get_nodes_to_delete(root_path)
 end
 
 ---@async
----@param node Yat.Node
----@return boolean
-local function delete_node(node)
-  local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Delete " .. node.path .. "?" })
-  if response == "Yes" then
-    local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
-    if ok then
-      log.debug("deleted %q", node.path)
-      utils.notify(string.format("Deleted %q.", node.path))
-    else
-      log.error("failed to delete %q", node.path)
-      utils.warn(string.format("Failed to delete %q!", node.path))
-    end
-    return true
-  else
-    return false
-  end
-end
-
----@async
 ---@param tree Yat.Tree
 function M.delete(tree)
+  ---@type table<Yat.Git.Repo, boolean>
+  local repos = {}
+
+  ---@async
+  ---@param node Yat.Node
+  ---@return boolean
+  local function delete_node(node)
+    local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Delete " .. node.path .. "?" })
+    if response == "Yes" then
+      local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
+      if ok then
+        log.debug("deleted %q", node.path)
+        tree.root:remove_node(node.path)
+        if node.repo then
+          repos[node.repo] = true
+        end
+        utils.notify(string.format("Deleted %q.", node.path))
+      else
+        log.error("failed to delete %q", node.path)
+        utils.warn(string.format("Failed to delete %q!", node.path))
+      end
+      return true
+    else
+      return false
+    end
+  end
+
   local nodes, common_parent = get_nodes_to_delete(tree.root.path)
   if #nodes == 0 then
     return
   end
 
-  local refresh = false
+  local was_deleted = false
   for _, node in ipairs(nodes) do
-    refresh = delete_node(node) or refresh
+    was_deleted = delete_node(node) or was_deleted
   end
-  -- let the event loop catch up if there were a very large amount of files deleted
-  scheduler()
-  if refresh then
-    lib.refresh_tree_and_goto_path(tree, common_parent)
+  if was_deleted then
+    local node = tree.root:expand({ to = common_parent })
+    for repo in pairs(repos) do
+      repo:refresh_status({ ignored = true })
+    end
+    -- let the event loop catch up if there were a very large amount of files deleted
+    scheduler()
+    ui.update(tree, node)
   end
 end
 

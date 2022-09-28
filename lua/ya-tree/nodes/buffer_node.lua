@@ -82,6 +82,26 @@ function BufferNode:is_terminals_container()
   return self.terminals_container or false
 end
 
+---@param file string
+---@param bufnr number
+---@param hidden boolean
+function BufferNode:set_terminal_hidden(file, bufnr, hidden)
+  if self.parent then
+    self.parent:set_terminal_hidden(file, bufnr, hidden)
+  end
+
+  local container = self._children[#self._children]
+  if container and container:is_terminals_container() then
+    for _, child in ipairs(container._children) do
+      if child.bufname == file and child.bufnr == bufnr then
+        child.bufhidden = hidden
+        log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
+        break
+      end
+    end
+  end
+end
+
 ---@param a Yat.Nodes.Buffer
 ---@param b Yat.Nodes.Buffer
 ---@return boolean
@@ -269,9 +289,9 @@ end
 ---@param bufnr number
 ---@param is_terminal boolean
 ---@return Yat.Nodes.Buffer|nil node
-function BufferNode:add_buffer(file, bufnr, is_terminal)
+function BufferNode:add_node(file, bufnr, is_terminal)
   if self.parent then
-    return self.parent:add_buffer(file, bufnr, is_terminal)
+    return self.parent:add_node(file, bufnr, is_terminal)
   end
 
   if is_terminal then
@@ -281,7 +301,7 @@ function BufferNode:add_buffer(file, bufnr, is_terminal)
     end
     return add_terminal_buffer_to_container(container, { name = file, bufnr = bufnr })
   else
-    return self:add_node(file, function(fs_node, parent)
+    return self:_add_node(file, function(fs_node, parent)
       local is_buffer_node = fs_node.path == file
       local node = BufferNode:new(fs_node, parent, is_buffer_node and file or nil, is_buffer_node and bufnr or nil, false, false)
       if not parent.repo or parent.repo:is_yadm() then
@@ -297,30 +317,10 @@ end
 
 ---@param file string
 ---@param bufnr number
----@param hidden boolean
-function BufferNode:set_terminal_hidden(file, bufnr, hidden)
-  if self.parent then
-    self.parent:set_terminal_hidden(file, bufnr, hidden)
-  end
-
-  local container = self._children[#self._children]
-  if container and container:is_terminals_container() then
-    for _, child in ipairs(container._children) do
-      if child.bufname == file and child.bufnr == bufnr then
-        child.bufhidden = hidden
-        log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
-        break
-      end
-    end
-  end
-end
-
----@param file string
----@param bufnr number
 ---@param is_terminal boolean
-function BufferNode:remove_buffer(file, bufnr, is_terminal)
+function BufferNode:remove_node(file, bufnr, is_terminal)
   if self.parent then
-    self.parent:remove_buffer(file, bufnr, is_terminal)
+    self.parent:remove_node(file, bufnr, is_terminal)
   end
 
   if is_terminal then
@@ -341,7 +341,7 @@ function BufferNode:remove_buffer(file, bufnr, is_terminal)
       end
     end
   else
-    self:remove_node(file)
+    self:_remove_node(file, true)
   end
 end
 

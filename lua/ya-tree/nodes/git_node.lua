@@ -88,26 +88,4 @@ function GitNode:refresh(opts)
   end)
 end
 
----@async
----@param file string
----@return Yat.Nodes.Git|nil node
-function GitNode:add_file(file)
-  if self.parent then
-    return self.parent:add_file(file)
-  end
-
-  return self:add_node(file, function(fs_node, parent)
-    return GitNode:new(fs_node, parent)
-  end)
-end
-
----@param file string
-function GitNode:remove_file(file)
-  if self.parent then
-    return self.parent:remove_file(file)
-  end
-
-  self:remove_node(file)
-end
-
 return GitNode

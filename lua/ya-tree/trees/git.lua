@@ -129,10 +129,10 @@ function GitTree:on_buffer_saved(_, file)
     end
     local git_status_changed = self.root.repo:refresh_status_for_path(file)
     if not node and git_status_changed then
-      self.root:add_file(file)
+      self.root:add_node(file)
     elseif node and git_status_changed then
       if not node:git_status() then
-        self.root:remove_file(file)
+        self.root:remove_node(file)
       end
     end
 

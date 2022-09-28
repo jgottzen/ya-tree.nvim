@@ -316,20 +316,32 @@ function Node:diagnostics_severity()
   return diagnostics.of(self.path)
 end
 
----@async
 ---@generic T : Yat.Node
 ---@param self T
----@param file string
+---@param path string
+---@return T? node
+function Node.add_node(self, path)
+  ---@cast self Yat.Node
+  return self:_add_node(path, function (fs_node, parent)
+    return self.__index.new(self.__index, fs_node, parent)
+  end)
+end
+
+---@async
+---@private
+---@generic T : Yat.Node
+---@param self T
+---@param path string
 ---@param node_creator fun(fs_node: Yat.Fs.Node, parent: T): T
 ---@return T|nil node
-function Node.add_node(self, file, node_creator)
-  if not fs.exists(file) then
-    log.error("no file node found for %q", file)
+function Node._add_node(self, path, node_creator)
+  if not fs.exists(path) then
+    log.error("no file node found for %q", path)
     return nil
   end
 
   ---@cast self Yat.Node
-  local rest = file:sub(#self.path + 1)
+  local rest = path:sub(#self.path + 1)
   local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true }) --[=[@as string[]]=]
   local node = self
   for i = 1, #splits do
@@ -362,9 +374,16 @@ function Node.add_node(self, file, node_creator)
   return node
 end
 
----@param file string
-function Node:remove_node(file)
-  local node = self:get_child_if_loaded(file)
+---@param path string
+function Node:remove_node(path)
+  return self:_remove_node(path, false)
+end
+
+---@private
+---@param path string
+---@param remove_empty_parents boolean
+function Node:_remove_node(path, remove_empty_parents)
+  local node = self:get_child_if_loaded(path)
   while node and node.parent and node ~= self do
     if node.parent and node.parent._children then
       for i = #node.parent._children, 1, -1 do
@@ -378,6 +397,9 @@ function Node:remove_node(file)
       if #node.parent._children == 0 then
         node.parent.empty = true
         node = node.parent
+        if not remove_empty_parents then
+          return
+        end
       else
         break
       end
