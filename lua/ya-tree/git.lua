@@ -324,19 +324,19 @@ local function create_status_arguments(opts)
 end
 
 ---@async
----@param file string
+---@param path string
 ---@return boolean changed
-function Repo:refresh_status_for_file(file)
-  if fs.is_directory(file) then
-    log.error("only individual files are supported by this method!")
+function Repo:refresh_status_for_path(path)
+  if fs.is_directory(path) then
+    log.error("only individual paths are supported by this method!")
     return true
   end
   local args = create_status_arguments({ header = false, ignored = false })
-  args[#args + 1] = file
-  log.debug("git status for file %q", file)
+  args[#args + 1] = path
+  log.debug("git status for path %q", path)
   local results = self:command(args, true)
 
-  local old_status = self._status._changed_entries[file]
+  local old_status = self._status._changed_entries[path]
   if old_status then
     if is_staged(old_status) then
       self._status.staged = self._status.staged - 1
@@ -346,7 +346,7 @@ function Repo:refresh_status_for_file(file)
     end
   end
 
-  local relative_path = utils.relative_path_for(file, self.toplevel)
+  local relative_path = utils.relative_path_for(path, self.toplevel)
   local i = 1
   local found = false
   while i <= #results do
@@ -357,25 +357,29 @@ function Repo:refresh_status_for_file(file)
       if line_type == "1" then
         self:_parse_porcelainv2_change_row(line)
       elseif line_type == "2" then
+        -- the new and original paths are separated by NUL,
+        -- the original path isn't currently used, so just step over it
         i = i + 1
         self:_parse_porcelainv2_rename_row(line)
+      elseif line_type == "?" then
+        self:_parse_porcelainv2_untracked_row(line)
       end
     end
     i = i + 1
   end
   if not found then
-    self._status._changed_entries[file] = nil
+    self._status._changed_entries[path] = nil
     self._status._propagated_changed_entries = {}
-    for path, status in pairs(self._status._changed_entries) do
+    for _path, status in pairs(self._status._changed_entries) do
       if status ~= "!" then
         local fully_staged = is_staged(status) and not is_unstaged(status)
-        self:_propagate_status_to_parents(path, fully_staged)
+        self:_propagate_status_to_parents(_path, fully_staged)
       end
     end
   end
 
   scheduler()
-  return old_status ~= self._status._changed_entries[file]
+  return old_status ~= self._status._changed_entries[path]
 end
 
 ---@async
@@ -597,9 +601,20 @@ function Repo:_parse_porcelainv2_ignored_row(line)
 end
 
 ---@param path string
+---@param _type Luv.FileType
 ---@return string|nil status
-function Repo:status_of(path)
-  return self._status._changed_entries[path] or self._status._propagated_changed_entries[path]
+function Repo:status_of(path, _type)
+  path = _type == "directory" and (path .. os_sep) or path
+  local status = self._status._changed_entries[path] or self._status._propagated_changed_entries[path]
+  if not status then
+    for _path, _status in pairs(self._status._changed_entries) do
+      if _status == "?" and _path:sub(-1) == os_sep and vim.startswith(path, _path) then
+        status = _status
+        break
+      end
+    end
+  end
+  return status
 end
 
 ---@param path string
@@ -608,7 +623,7 @@ end
 function Repo:is_ignored(path, _type)
   path = _type == "directory" and (path .. os_sep) or path
   for _, ignored in ipairs(self._status._ignored) do
-    if #ignored > 0 and ignored:sub(-1) == os_sep then
+    if ignored:sub(-1) == os_sep then
       -- directory ignore
       if vim.startswith(path, ignored) then
         return true

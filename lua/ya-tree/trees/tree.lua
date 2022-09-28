@@ -191,7 +191,7 @@ function Tree:on_buffer_saved(bufnr, file)
 
       if require("ya-tree.config").config.git.enable then
         if node and node.repo then
-          node.repo:refresh_status_for_file(file)
+          node.repo:refresh_status_for_path(file)
         end
       end
     end

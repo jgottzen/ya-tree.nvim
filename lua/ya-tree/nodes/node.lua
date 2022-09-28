@@ -289,7 +289,7 @@ end
 
 ---@return string|nil
 function Node:git_status()
-  return self.repo and self.repo:status_of(self.path)
+  return self.repo and self.repo:status_of(self.path, self.type)
 end
 
 ---@return boolean
@@ -636,7 +636,7 @@ do
       if fs_node then
         self:_merge_new_data(fs_node)
         if refresh_git and self.repo then
-          self.repo:refresh_status_for_file(self.path)
+          self.repo:refresh_status_for_path(self.path)
         end
       end
     end
