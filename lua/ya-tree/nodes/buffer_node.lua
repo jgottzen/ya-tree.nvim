@@ -20,7 +20,7 @@ local fn = vim.fn
 ---@field private terminals_container? boolean
 ---@field public bufname? string
 ---@field public bufnr? number
----@field public hidden? boolean
+---@field public bufhidden? boolean
 local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
 BufferNode.__tostring = Node.__tostring
@@ -51,7 +51,7 @@ function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
   this.bufname = bufname
   this.bufnr = bufnr
   this.modified = modified or false
-  this.hidden = hidden
+  this.bufhidden = hidden
   if this:is_directory() then
     this.empty = true
     this.scanned = true
@@ -307,7 +307,7 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   if container and container:is_terminals_container() then
     for _, child in ipairs(container._children) do
       if child.bufname == file and child.bufnr == bufnr then
-        child.hidden = hidden
+        child.bufhidden = hidden
         log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
         break
       end

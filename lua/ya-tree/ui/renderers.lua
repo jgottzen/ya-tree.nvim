@@ -236,7 +236,7 @@ function M.name(node, context, renderer)
     elseif node:node_type() == "Buffer" then
       ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
-        highlight = node.hidden and hl.GIT_IGNORED or hl.FILE_NAME
+        highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
       end
     end
 
@@ -438,7 +438,7 @@ function M.buffer_info(node, _, renderer)
   local hidden = false
   if node:node_type() == "Buffer" then
     bufnr = node.bufnr or -1
-    hidden = node.hidden or false
+    hidden = node.bufhidden or false
   elseif fn.bufloaded(node.path) > 0 then
     bufnr = fn.bufnr(node.path)
   end
