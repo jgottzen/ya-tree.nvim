@@ -217,7 +217,7 @@ function BuffersTree:on_buffer_deleted(bufnr, file)
   if buftype == "" or buftype == "terminal" then
     log.debug("removing buffer %q from buffer tree", file)
     self.root:remove_buffer(file, bufnr, buftype == "terminal")
-    if #self.root.children == 0 and self.root.path ~= uv.cwd() then
+    if #self.root:children() == 0 and self.root.path ~= uv.cwd() then
       self.root:refresh({ root_path = uv.cwd() })
     end
     if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then

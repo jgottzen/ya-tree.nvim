@@ -107,7 +107,7 @@ local function create_root_node(path, old_root)
 
   -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree
   if old_root and Path:new(old_root.path):parent().filename == root.path then
-    root.children = { old_root }
+    root._children = { old_root }
     old_root.parent = root
     local repo = old_root.repo
     if repo and root.path:find(repo.toplevel, 1, true) then

@@ -5,7 +5,7 @@ local log = require("ya-tree.log")("nodes")
 ---@class Yat.Nodes.Git : Yat.Node
 ---@field private __node_type "Git"
 ---@field public parent? Yat.Nodes.Git
----@field public children? Yat.Nodes.Git[]
+---@field private _children? Yat.Nodes.Git[]
 ---@field public repo Yat.Git.Repo
 local GitNode = { __node_type = "Git" }
 GitNode.__index = GitNode
@@ -30,7 +30,7 @@ end
 ---@param node Yat.Nodes.Git
 ---@return boolean displayable
 local function is_any_child_displayable(node)
-  for _, child in ipairs(node.children) do
+  for _, child in ipairs(node._children) do
     if not child:is_git_ignored() then
       if child:is_directory() and is_any_child_displayable(child) then
         return true
@@ -73,7 +73,7 @@ function GitNode:refresh(opts)
   end
   local paths = self.repo:working_tree_changed_paths()
 
-  self.children = {}
+  self._children = {}
   self.empty = true
   return self:populate_from_paths(paths, function(path, parent, directory)
     local fs_node = fs.node_for(path)

@@ -12,7 +12,7 @@ local utils = require("ya-tree.utils")
 ---@field private __node_type "FileSystem"
 ---@field public parent? Yat.Node
 ---@field private type Luv.FileType
----@field public children? Yat.Node[]
+---@field private _children? Yat.Node[]
 ---@field public empty? boolean
 ---@field public extension? string
 ---@field public executable? boolean
@@ -54,8 +54,8 @@ function Node.new(class, fs_node, parent)
   ---@cast parent Yat.Node?
   this.parent = parent
   this.modified = false
-  if this:is_container() then
-    this.children = {}
+  if this:is_directory() then
+    this._children = {}
   end
 
   -- inherit any git repo
@@ -76,8 +76,8 @@ function Node:walk(visitor)
     return
   end
 
-  if self:is_container() then
-    for _, child in ipairs(self.children) do
+  if self._children then
+    for _, child in ipairs(self._children) do
       child:walk(visitor)
     end
   end
@@ -92,7 +92,7 @@ function Node:get_debug_info(output_to_log)
     if type(v) == "table" then
       if k == "parent" or k == "repo" then
         t[k] = tostring(v)
-      elseif k == "children" then
+      elseif k == "_children" then
         local children = {}
         for _, child in ipairs(v) do
           children[#children + 1] = tostring(child)
@@ -127,8 +127,8 @@ end
 ---@param b Yat.Node
 ---@return boolean
 function Node.node_comparator(a, b)
-  local ac = a:is_container()
-  local bc = b:is_container()
+  local ac = a:is_directory()
+  local bc = b:is_directory()
   if ac and not bc then
     return true
   elseif not ac and bc then
@@ -144,12 +144,12 @@ function Node:_scandir()
   -- keep track of the current children
   ---@type table<string, Yat.Node>
   local children = {}
-  for _, child in ipairs(self.children) do
+  for _, child in ipairs(self._children) do
     children[child.path] = child
   end
 
   ---@param fs_node Yat.Fs.Node
-  self.children = vim.tbl_map(function(fs_node)
+  self._children = vim.tbl_map(function(fs_node)
     local child = children[fs_node.path]
     if child then
       log.trace("merging node %q with new data", fs_node.path)
@@ -161,8 +161,8 @@ function Node:_scandir()
     end
     return child
   end, fs.scan_dir(self.path))
-  table.sort(self.children, self.node_comparator)
-  self.empty = #self.children == 0
+  table.sort(self._children, self.node_comparator)
+  self.empty = #self._children == 0
   self.scanned = true
 
   scheduler()
@@ -172,8 +172,8 @@ end
 ---@param node Yat.Node
 local function set_git_repo_on_node_and_children(repo, node)
   node.repo = repo
-  if node.children then
-    for _, child in ipairs(node.children) do
+  if node._children then
+    for _, child in ipairs(node._children) do
       if not child.repo then
         set_git_repo_on_node_and_children(repo, child)
       end
@@ -210,11 +210,6 @@ end
 ---@return Yat.Nodes.Type node_type
 function Node:node_type()
   return self.__node_type
-end
-
----@return boolean is_container
-function Node:is_container()
-  return self.type == "directory"
 end
 
 ---@return boolean
@@ -270,6 +265,19 @@ function Node:is_empty()
 end
 
 ---@return boolean
+function Node:has_children()
+  return self._children ~= nil
+end
+
+---@generic T : Yat.Node
+---@param self T
+---@return T[] children
+function Node.children(self)
+  ---@cast self Yat.Node
+  return self._children
+end
+
+---@return boolean
 function Node:is_dotfile()
   return self.name:sub(1, 1) == "."
 end
@@ -293,7 +301,7 @@ end
 function Node:set_clipboard_status(status)
   self.clipboard_status = status
   if self:is_directory() then
-    for _, child in ipairs(self.children) do
+    for _, child in ipairs(self._children) do
       child:set_clipboard_status(status)
     end
   end
@@ -327,7 +335,7 @@ function Node.add_node(self, file, node_creator)
   for i = 1, #splits do
     local name = splits[i]
     local found = false
-    for _, child in ipairs(node.children) do
+    for _, child in ipairs(node._children) do
       if child.name == name then
         found = true
         node = child
@@ -339,9 +347,9 @@ function Node.add_node(self, file, node_creator)
       if fs_node then
         local child = node_creator(fs_node, node)
         log.debug("adding child %q to parent %q", child.path, node.path)
-        node.children[#node.children + 1] = child
+        node._children[#node._children + 1] = child
         node.empty = false
-        table.sort(node.children, self.node_comparator)
+        table.sort(node._children, self.node_comparator)
         node = child
       else
         log.error("cannot create fs node for %q", node.path .. utils.os_sep .. name)
@@ -358,16 +366,16 @@ end
 function Node:remove_node(file)
   local node = self:get_child_if_loaded(file)
   while node and node.parent and node ~= self do
-    if node.parent and node.parent.children then
-      for i = #node.parent.children, 1, -1 do
-        local child = node.parent.children[i]
+    if node.parent and node.parent._children then
+      for i = #node.parent._children, 1, -1 do
+        local child = node.parent._children[i]
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
-          table.remove(node.parent.children, i)
+          table.remove(node.parent._children, i)
           break
         end
       end
-      if #node.parent.children == 0 then
+      if #node.parent._children == 0 then
         node.parent.empty = true
         node = node.parent
       else
@@ -394,9 +402,9 @@ function Node.populate_from_paths(self, paths, node_creator)
   local function add_node(path, parent, directory)
     local node = node_creator(path, parent, directory)
     if node then
-      parent.children[#parent.children + 1] = node
+      parent._children[#parent._children + 1] = node
       parent.empty = false
-      table.sort(parent.children, self.node_comparator)
+      table.sort(parent._children, self.node_comparator)
       node_map[node.path] = node
     end
   end
@@ -421,9 +429,9 @@ function Node.populate_from_paths(self, paths, node_creator)
   end
 
   local first_leaf_node = self
-  while first_leaf_node and first_leaf_node:is_container() do
-    if first_leaf_node.children and first_leaf_node.children[1] then
-      first_leaf_node = first_leaf_node.children[1]
+  while first_leaf_node and first_leaf_node._children do
+    if first_leaf_node._children[1] then
+      first_leaf_node = first_leaf_node._children[1]
     else
       break
     end
@@ -461,20 +469,20 @@ end
 ---@param opts? { reverse?: boolean, from?: T }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} T
----@return fun():T iterator
+---@return fun():integer, T iterator
 function Node.iterate_children(self, opts)
   ---@cast self Yat.Node
-  if not self.children or #self.children == 0 then
+  if not self._children or #self._children == 0 then
     return function() end
   end
 
   opts = opts or {}
   local start = 0
   if opts.reverse then
-    start = #self.children + 1
+    start = #self._children + 1
   end
   if opts.from then
-    for i, child in ipairs(self.children) do
+    for i, child in ipairs(self._children) do
       if child == opts.from then
         start = i
         break
@@ -487,14 +495,14 @@ function Node.iterate_children(self, opts)
     return function()
       pos = pos - 1
       if pos >= 1 then
-        return self.children[pos]
+        return pos, self._children[pos]
       end
     end
   else
     return function()
       pos = pos + 1
-      if pos <= #self.children then
-        return self.children[pos]
+      if pos <= #self._children then
+        return pos, self._children[pos]
       end
     end
   end
@@ -507,13 +515,13 @@ end
 ---  - {opts.recursive?} `boolean`
 function Node:collapse(opts)
   opts = opts or {}
-  if self:is_container() then
+  if self._children then
     if not opts.children_only then
       self.expanded = false
     end
 
     if opts.recursive then
-      for _, child in ipairs(self.children) do
+      for _, child in ipairs(self._children) do
         child:collapse({ recursive = opts.recursive })
       end
     end
@@ -533,7 +541,7 @@ function Node.expand(self, opts)
   ---@cast self Yat.Node
   log.debug("expanding %q", self.path)
   opts = opts or {}
-  if self:is_container() then
+  if self:is_directory() then
     if not self.scanned or opts.force_scan then
       self:_scandir()
     end
@@ -544,13 +552,13 @@ function Node.expand(self, opts)
     if self.path == opts.to then
       log.debug("self %q is equal to path %q", self.path, opts.to)
       return self
-    elseif self:is_container() and self:is_ancestor_of(opts.to) then
-      for _, child in ipairs(self.children) do
+    elseif self:is_ancestor_of(opts.to) then
+      for _, child in ipairs(self._children) do
         if child:is_ancestor_of(opts.to) then
           log.debug("child node %q is parent of %q", child.path, opts.to)
           return child:expand(opts)
         elseif child.path == opts.to then
-          if child:is_container() then
+          if child:is_directory() then
             child:expand(opts)
           end
           return child
@@ -577,7 +585,7 @@ function Node.get_child_if_loaded(self, path)
   end
 
   if self:is_ancestor_of(path) then
-    for _, child in ipairs(self.children) do
+    for _, child in ipairs(self._children) do
       if child.path == path then
         return child
       elseif child:is_ancestor_of(path) then
@@ -602,7 +610,7 @@ do
       node:_scandir()
 
       if recurse then
-        for _, child in ipairs(node.children) do
+        for _, child in ipairs(node._children) do
           if child:is_directory() then
             refresh_directory_node(child, true, refresh_git, refreshed_git_repos)
           end

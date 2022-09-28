@@ -437,11 +437,11 @@ function Canvas:_render_tree(tree)
       context.last_child = last_child
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr], highlights[linenr] = render_node(node, context, node:is_container() and container_renderers or file_renderers)
+      lines[linenr], highlights[linenr] = render_node(node, context, node:has_children() and container_renderers or file_renderers)
 
-      if node:is_container() and node.expanded then
-        local nr_of_children = #node.children
-        for i, child in ipairs(node.children) do
+      if node:has_children() and node.expanded then
+        local nr_of_children = #node:children()
+        for i, child in node:iterate_children() do
           append_node(child, depth + 1, i == nr_of_children)
         end
       end
@@ -616,11 +616,11 @@ end
 
 ---@param node Yat.Node
 function Canvas:focus_prev_sibling(node)
-  if not node or not node.parent or not node.parent.children then
+  if not node or not node.parent or not node.parent:has_children() then
     return
   end
 
-  for prev in node.parent:iterate_children({ reverse = true, from = node }) do
+  for _, prev in node.parent:iterate_children({ reverse = true, from = node }) do
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[prev.path]
       if row then
@@ -634,11 +634,11 @@ end
 
 ---@param node Yat.Node
 function Canvas:focus_next_sibling(node)
-  if not node or not node.parent or not node.parent.children then
+  if not node or not node.parent or not node.parent:has_children() then
     return
   end
 
-  for next in node.parent:iterate_children({ from = node }) do
+  for _, next in node.parent:iterate_children({ from = node }) do
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[next.path]
       if row then
@@ -652,11 +652,11 @@ end
 
 ---@param node Yat.Node
 function Canvas:focus_first_sibling(node)
-  if not node or not node.parent or not node.parent.children then
+  if not node or not node.parent or not node.parent:has_children() then
     return
   end
 
-  for next in node.parent:iterate_children() do
+  for _, next in node.parent:iterate_children() do
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[next.path]
       if row then
@@ -670,11 +670,11 @@ end
 
 ---@param node Yat.Node
 function Canvas:focus_last_sibling(node)
-  if not node or not node.parent or not node.parent.children then
+  if not node or not node.parent or not node.parent:has_children() then
     return
   end
 
-  for prev in node.parent:iterate_children({ reverse = true }) do
+  for _, prev in node.parent:iterate_children({ reverse = true }) do
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[prev.path]
       if row then

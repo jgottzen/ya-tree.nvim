@@ -10,16 +10,17 @@ local utils = require("ya-tree.utils")
 local api = vim.api
 local fn = vim.fn
 
----@alias Yat.Nodes.Buffer.Type Luv.FileType | "terminal" | "container"
+---@alias Yat.Nodes.Buffer.Type Luv.FileType | "terminal"
 
 ---@class Yat.Nodes.Buffer : Yat.Node
 ---@field private __node_type "Buffer"
 ---@field public parent? Yat.Nodes.Buffer
 ---@field private type Yat.Nodes.Buffer.Type
+---@field private _children? Yat.Nodes.Buffer[]
+---@field private terminals_container? boolean
 ---@field public bufname? string
 ---@field public bufnr? number
 ---@field public hidden? boolean
----@field public children? Yat.Nodes.Buffer[]
 local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
 BufferNode.__tostring = Node.__tostring
@@ -51,7 +52,7 @@ function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
   this.bufnr = bufnr
   this.modified = modified or false
   this.hidden = hidden
-  if this:is_container() then
+  if this:is_directory() then
     this.empty = true
     this.scanned = true
     this.expanded = true
@@ -62,11 +63,6 @@ end
 ---@return boolean hidden
 function BufferNode:is_hidden()
   return false
-end
-
----@return boolean is_container
-function BufferNode:is_container()
-  return self.type == "container" or self.type == "directory"
 end
 
 ---@return boolean is_terminal
@@ -81,19 +77,18 @@ function BufferNode:toggleterm_id()
   end
 end
 
----@param node? Yat.Nodes.Buffer
----@return boolean is_container
-local function is_terminals_container(node)
-  return node and node.type == "container" and node.extension == "terminal" or false
+---@return boolean
+function BufferNode:is_terminals_container()
+  return self.terminals_container or false
 end
 
 ---@param a Yat.Nodes.Buffer
 ---@param b Yat.Nodes.Buffer
 ---@return boolean
 function BufferNode.node_comparator(a, b)
-  if is_terminals_container(a) then
+  if a:is_terminals_container() then
     return false
-  elseif is_terminals_container(b) then
+  elseif b:is_terminals_container() then
     return true
   end
   return Node.node_comparator(a, b)
@@ -161,11 +156,12 @@ end
 local function create_terminal_buffers_container(root)
   local container = BufferNode:new({
     name = "Terminals",
-    type = "container",
+    type = "directory",
     path = "Terminals",
     extension = "terminal",
   }, root)
-  root.children[#root.children + 1] = container
+  container.terminals_container = true
+  root._children[#root._children + 1] = container
   root.empty = false
   return container
 end
@@ -184,7 +180,7 @@ local function add_terminal_buffer_to_container(container, terminal)
     path = path,
     extension = "terminal",
   }, container, terminal.name, terminal.bufnr, false, hidden)
-  container.children[#container.children + 1] = node
+  container._children[#container._children + 1] = node
   container.empty = false
   log.debug("adding terminal buffer %s (%q)", node.bufnr, node.bufname)
   return node
@@ -213,7 +209,7 @@ function BufferNode:refresh(opts)
   end
 
   self.repo = git.get_repo_for_path(root_path)
-  self.children = {}
+  self._children = {}
   self.empty = true
   local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
     local fs_node = fs.node_for(path)
@@ -235,7 +231,7 @@ function BufferNode:refresh(opts)
       add_terminal_buffer_to_container(container, terminal)
     end
     if first_leaf_node == self then
-      first_leaf_node = container.children[1]
+      first_leaf_node = container._children[1]
     end
   end
 
@@ -252,10 +248,10 @@ end
 function BufferNode:expand(opts)
   opts = opts or {}
   if opts.to and vim.startswith(opts.to, "term://") then
-    if self.children then
-      local container = self.children[#self.children]
-      if is_terminals_container(container) then
-        for _, child in ipairs(container.children) do
+    if self._children then
+      local container = self._children[#self._children]
+      if container and container:is_terminals_container() then
+        for _, child in ipairs(container._children) do
           if child.bufname == opts.to then
             container.expanded = true
             return child
@@ -279,8 +275,8 @@ function BufferNode:add_buffer(file, bufnr, is_terminal)
   end
 
   if is_terminal then
-    local container = self.children[#self.children]
-    if not is_terminals_container(container) then
+    local container = self._children[#self._children]
+    if not container or not container:is_terminals_container() then
       container = create_terminal_buffers_container(self)
     end
     return add_terminal_buffer_to_container(container, { name = file, bufnr = bufnr })
@@ -307,9 +303,9 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
     self.parent:set_terminal_hidden(file, bufnr, hidden)
   end
 
-  local container = self.children[#self.children]
-  if is_terminals_container(container) then
-    for _, child in ipairs(container.children) do
+  local container = self._children[#self._children]
+  if container and container:is_terminals_container() then
+    for _, child in ipairs(container._children) do
       if child.bufname == file and child.bufnr == bufnr then
         child.hidden = hidden
         log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
@@ -328,19 +324,19 @@ function BufferNode:remove_buffer(file, bufnr, is_terminal)
   end
 
   if is_terminal then
-    local container = self.children[#self.children]
-    if is_terminals_container(container) then
-      for i = #container.children, 1, -1 do
-        local child = container.children[i]
+    local container = self._children[#self._children]
+    if container and container:is_terminals_container() then
+      for i = #container._children, 1, -1 do
+        local child = container._children[i]
         if child.bufname == file and child.bufnr == bufnr then
-          table.remove(container.children, i)
+          table.remove(container._children, i)
           log.debug("removed terminal buffer %s (%q)", child.bufnr, child.bufname)
           break
         end
       end
-      if #container.children == 0 then
-        table.remove(self.children, #self.children)
-        self.empty = #self.children == 0
+      if #container._children == 0 then
+        table.remove(self._children, #self._children)
+        self.empty = #self._children == 0
         log.debug("no more terminal buffers present, removed container item")
       end
     end

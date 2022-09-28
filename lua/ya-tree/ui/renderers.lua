@@ -48,7 +48,7 @@ do
         marker_at[context.depth] = not context.last_child
         for i = 1, context.depth do
           local marker
-          if i == context.depth and renderer.use_expander_marker and node:is_container() then
+          if i == context.depth and renderer.use_expander_marker and node:has_children() then
             marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
           else
             marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
@@ -61,7 +61,7 @@ do
           end
         end
       elseif renderer.use_expander_marker then
-        if node:is_container() then
+        if node:has_children() then
           text = string.rep("  ", context.depth - 1) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
         else
           text = string.rep("  ", context.depth)
@@ -89,25 +89,25 @@ function M.icon(node, context, renderer)
   end
 
   local icon, highlight
-  if node:is_container() then
-    if node:node_type() == "Buffer" and node.extension == "terminal" then
-      icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
-      highlight = hl.DIRECTORY_ICON
-    else
-      icon = renderer.directory.custom[node.name]
-      if not icon then
-        if node:is_link() then
-          icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
+  if
+    node:node_type() == "Buffer" and node--[[@as Yat.Nodes.Buffer]]:is_terminals_container()
+  then
+    icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
+    highlight = hl.DIRECTORY_ICON
+  elseif node:is_directory() then
+    icon = renderer.directory.custom[node.name]
+    if not icon then
+      if node:is_link() then
+        icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
+      else
+        if node.expanded then
+          icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
         else
-          if node.expanded then
-            icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
-          else
-            icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
-          end
+          icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
         end
       end
-      highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
     end
+    highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
   elseif node:is_fifo() then
     icon = renderer.file.fifo
     highlight = hl.FIFO_FILE_ICON
@@ -221,7 +221,7 @@ function M.name(node, context, renderer)
   end
 
   if not highlight then
-    if node:is_container() then
+    if node:is_directory() then
       highlight = hl.DIRECTORY_NAME
     elseif node:is_file() then
       highlight = hl.FILE_NAME

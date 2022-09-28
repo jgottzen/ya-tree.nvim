@@ -9,7 +9,7 @@ local M = {}
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 function M.toggle_node(tree, node)
-  if not node:is_container() or tree.root == node then
+  if not node:has_children() or tree.root == node then
     return
   end
 
@@ -29,7 +29,7 @@ function M.close_node(tree, node)
     return
   end
 
-  if node:is_container() and node.expanded then
+  if node:has_children() and node.expanded then
     node:collapse()
   else
     local parent = node.parent
@@ -52,7 +52,7 @@ end
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 function M.close_all_child_nodes(tree, node)
-  if node:is_container() then
+  if node:has_children() then
     node:collapse({ recursive = true, children_only = true })
     ui.update(tree, node)
   end
@@ -66,8 +66,8 @@ do
   local function expand(node, depth, config)
     node:expand()
     if depth < config.expand_all_nodes_max_depth then
-      for _, child in ipairs(node.children) do
-        if child:is_container() and not child:is_hidden(config) then
+      for _, child in node:iterate_children() do
+        if child:has_children() and not child:is_hidden(config) then
           expand(child, depth + 1, config)
         end
       end
@@ -86,7 +86,7 @@ do
   ---@param tree Yat.Tree
   ---@param node Yat.Node
   function M.expand_all_child_nodes(tree, node)
-    if node:is_container() then
+    if node:has_children() then
       expand(node, 1, require("ya-tree.config").config)
       ui.update(tree, node)
     end

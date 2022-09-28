@@ -10,7 +10,7 @@ local utils = require("ya-tree.utils")
 ---@class Yat.Nodes.Search : Yat.Node
 ---@field private __node_type "Search"
 ---@field public parent? Yat.Nodes.Search
----@field public children? Yat.Nodes.Search[]
+---@field private _children? Yat.Nodes.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
 local SearchNode = { __node_type = "Search" }
@@ -79,7 +79,7 @@ do
       return nil, "No search term or command supplied"
     end
 
-    self.children = {}
+    self._children = {}
     self.empty = true
     local paths, err = search(self.path, self._search_options.cmd, self._search_options.args)
     if paths then

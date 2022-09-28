@@ -4,7 +4,7 @@ local scheduler = require("plenary.async.util").scheduler
 local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
-local action_nodes = require("ya-tree.actions.nodes")
+local node_actions = require("ya-tree.actions.nodes")
 local ui = require("ya-tree.ui")
 local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
@@ -22,8 +22,8 @@ function M.open(tree)
   local nodes = ui.get_selected_nodes()
   if #nodes == 1 then
     local node = nodes[1]
-    if node:is_container() then
-      action_nodes.toggle_node(tree, node)
+    if node:has_children() then
+      node_actions.toggle_node(tree, node)
     elseif node:is_file() then
       ui.open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
