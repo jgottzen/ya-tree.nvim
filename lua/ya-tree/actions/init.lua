@@ -137,7 +137,7 @@ local function create_keymap_function(mapping)
     local action = mapping[ui.get_tree_type()]
     if action then
       local tabpage = api.nvim_get_current_tabpage()
-      local node = ui.get_current_node() --[[@as Yat.Node]]
+      local node = ui.get_current_node()
       local tree = Trees.current_tree(tabpage) --[[@as Yat.Tree]]
       tree.current_node = node
       if type(action) == "string" then

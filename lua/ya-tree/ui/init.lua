@@ -117,9 +117,9 @@ function M.update(tree, node, opts)
   end
 end
 
----@return Yat.Node|nil current_node
+---@return Yat.Node current_node
 function M.get_current_node()
-  return get_canvas():get_current_node()
+  return get_canvas():get_current_node() --[[@as Yat.Node]]
 end
 
 ---@return Yat.Node[] selected_nodes

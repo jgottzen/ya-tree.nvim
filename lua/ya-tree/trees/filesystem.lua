@@ -13,6 +13,7 @@ local uv = vim.loop
 ---@class Yat.Trees.Fs : Yat.Tree
 ---@field TYPE "files"
 ---@field cwd string
+---@field supported_actions Yat.Trees.Fs.SupportedActions[]
 local FilesystemTree = { TYPE = "files" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq

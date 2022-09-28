@@ -17,7 +17,7 @@ local uv = vim.loop
 ---@field TYPE "buffers"
 ---@field private _tabpage integer[]
 ---@field root Yat.Nodes.Buffer
----@field current_node? Yat.Nodes.Buffer
+---@field current_node Yat.Nodes.Buffer
 local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
 

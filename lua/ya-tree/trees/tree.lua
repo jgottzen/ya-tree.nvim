@@ -15,7 +15,7 @@ local api = vim.api
 ---@field private _tabpage integer
 ---@field refreshing boolean
 ---@field root Yat.Node
----@field current_node? Yat.Node
+---@field current_node Yat.Node
 ---@field supported_actions Yat.Trees.Tree.SupportedActions[]
 local Tree = {}
 Tree.__index = Tree

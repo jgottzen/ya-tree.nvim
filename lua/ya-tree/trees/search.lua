@@ -7,7 +7,7 @@ local log = require("ya-tree.log")("trees")
 ---@class Yat.Trees.Search : Yat.Tree
 ---@field TYPE "search"
 ---@field root Yat.Nodes.Search
----@field current_node? Yat.Nodes.Search
+---@field current_node Yat.Nodes.Search
 ---@field supported_actions Yat.Trees.Search.SupportedActions[]
 local SearchTree = { TYPE = "search" }
 SearchTree.__index = SearchTree
@@ -85,6 +85,7 @@ end
 function SearchTree:_init(path)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   self.root = SearchNode:new(fs_node)
+  self.current_node = self.root
   self.root.repo = git.get_repo_for_path(self.root.path)
 end
 

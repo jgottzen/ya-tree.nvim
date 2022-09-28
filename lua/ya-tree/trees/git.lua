@@ -13,7 +13,7 @@ local api = vim.api
 ---@class Yat.Trees.Git : Yat.Tree
 ---@field TYPE "git"
 ---@field root Yat.Nodes.Git
----@field current_node? Yat.Nodes.Git
+---@field current_node Yat.Nodes.Git
 ---@field supported_actions Yat.Trees.Git.SupportedActions[]
 local GitTree = { TYPE = "git" }
 GitTree.__index = GitTree
