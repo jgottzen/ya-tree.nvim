@@ -16,24 +16,24 @@ local M = {
     WINDOW_LEAVE = 201,
     WINDOW_CLOSED = 202,
 
-    CWD_CHANGED = 303,
+    CWD_CHANGED = 301,
 
-    DIAGNOSTICS_CHANGED = 401,
+    COLORSCHEME = 401,
 
-    COLORSCHEME = 501,
-
-    LEAVE_PRE = 601,
+    LEAVE_PRE = 501,
   },
 
   ---@enum Yat.Events.GitEvent
   git = {
-    DOT_GIT_DIR_CHANGED = 10001, -- fun(repo: GitRepo, fs_changes: boolean)
+    DOT_GIT_DIR_CHANGED = 10001, -- async fun(repo: GitRepo, fs_changes: boolean)
   },
 
   ---@enum Yat.Events.YaTreeEvent
   ya_tree = {
     YA_TREE_WINDOW_OPENED = 20001, -- fun({ winid: integer })
     YA_TREE_WINDOW_CLOSED = 20002, -- fun({ winid: integer })
+
+    DIAGNOSTICS_CHANGED = 20101, -- fun(severity_changed: boolean)
   },
 }
 

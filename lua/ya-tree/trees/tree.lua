@@ -119,19 +119,26 @@ function Tree.new(self, tabpage)
   }
   setmetatable(this, self)
 
+  local config = require("ya-tree.config").config
   local ae = require("ya-tree.events.event").autocmd
   events.on_autocmd_event(ae.BUFFER_MODIFIED, this:create_event_id(ae.BUFFER_MODIFIED), function(bufnr, file)
     this:on_buffer_modified(bufnr, file)
   end)
-  if require("ya-tree.config").config.auto_reload_on_write then
+  if config.auto_reload_on_write then
     events.on_autocmd_event(ae.BUFFER_SAVED, this:create_event_id(ae.BUFFER_SAVED), true, function(bufnr, _, match)
       this:on_buffer_saved(bufnr, match)
     end)
   end
-  if require("ya-tree.config").config.git.enable then
+  if config.git.enable then
     local ge = require("ya-tree.events.event").git
     events.on_git_event(ge.DOT_GIT_DIR_CHANGED, this:create_event_id(ge.DOT_GIT_DIR_CHANGED), function(event_repo, fs_changes)
       this:on_git_event(event_repo, fs_changes)
+    end)
+  end
+  if config.diagnostics.enable then
+    local ye = require("ya-tree.events.event").ya_tree
+    events.on_yatree_event(ye.DIAGNOSTICS_CHANGED, this:create_event_id(ye.DIAGNOSTICS_CHANGED), true, function(severity_changed)
+      this:on_diagnostics_event(severity_changed)
     end)
   end
 
@@ -216,6 +223,14 @@ function Tree:on_git_event(repo, fs_changes)
     and self:is_shown_in_ui(api.nvim_get_current_tabpage())
   then
     log.debug("git repo %s changed", tostring(repo))
+    ui.update(self)
+  end
+end
+
+---@async
+---@param severity_changed boolean
+function Tree:on_diagnostics_event(severity_changed)
+  if severity_changed and self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
     ui.update(self)
   end
 end

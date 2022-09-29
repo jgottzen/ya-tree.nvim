@@ -415,7 +415,7 @@ end
 ---@return Yat.Ui.RenderResult|nil result
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
-    local severity = node:diagnostics_severity()
+    local severity = node:diagnostic_severity()
     if severity and (renderer.min_severity == nil or severity <= renderer.min_severity) then
       local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
       if diagnostic then

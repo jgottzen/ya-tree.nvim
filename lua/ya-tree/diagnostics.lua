@@ -1,54 +1,75 @@
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
-local ui = require("ya-tree.ui")
+local events = require("ya-tree.events")
+local event = require("ya-tree.events.event").ya_tree
 
 local api = vim.api
 
-local M = {}
+---@class Nvim.DiagnosticStruct
+---@field bufnr integer
+---@field lnum integer
+---@field end_lnum? integer
+---@field col integer
+---@field end_col? integer
+---@field severity integer
+---@field message? string
+---@field source? string
+---@field code? string
+---@field user_data? table
 
----@type table<string, number>
-local diagnostics = {}
+local M = {
+  ---@type table<string, Nvim.DiagnosticStruct[]>
+  _current_diagnostics = {},
 
----@param new_diagnostics table<string, number>
----@return table<string, number> previous_diagnostics
-function M.set_diagnostics(new_diagnostics)
-  local previous_diagnostics = diagnostics
-  diagnostics = new_diagnostics
-  return previous_diagnostics
+  ---@type table<string, integer>
+  _current_diagnostic_severities = {},
+}
+
+---@param path string
+---@return Nvim.DiagnosticStruct[]|nil
+function M.diagnostics_of(path)
+  return M._current_diagnostics[path]
 end
 
 ---@param path string
 ---@return number|nil
-function M.of(path)
-  return diagnostics[path]
+function M.severity_of(path)
+  return M._current_diagnostic_severities[path]
 end
 
 local function on_diagnostics_changed()
-  local Trees = require("ya-tree.trees")
-
-  local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-  ---@type table<string, number>
+  ---@type table<string, Nvim.DiagnosticStruct[]>
   local new_diagnostics = {}
+  ---@type table<string, number>
+  local new_severity_diagnostics = {}
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
+    ---@cast diagnostic Nvim.DiagnosticStruct
     local bufnr = diagnostic.bufnr
     if api.nvim_buf_is_valid(bufnr) then
       local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
-      local severity = new_diagnostics[bufname]
+      local current = new_diagnostics[bufname]
+      if not current then
+        current = {}
+        new_diagnostics[bufname] = current
+      end
+      current[#current + 1] = diagnostic
+
+      local severity = new_severity_diagnostics[bufname]
       -- lower severity value is a higher severity...
       if not severity or diagnostic.severity < severity then
-        new_diagnostics[bufname] = diagnostic.severity
+        new_severity_diagnostics[bufname] = diagnostic.severity
       end
     end
   end
 
   if config.diagnostics.propagate_to_parents then
-    for path, severity in pairs(new_diagnostics) do
+    for path, severity in pairs(new_severity_diagnostics) do
       for _, parent in next, Path:new(path):parents() do
         ---@cast parent string
-        local parent_severity = new_diagnostics[parent]
+        local parent_severity = new_severity_diagnostics[parent]
         if not parent_severity or parent_severity > severity then
-          new_diagnostics[parent] = severity
+          new_severity_diagnostics[parent] = severity
         else
           break
         end
@@ -56,49 +77,43 @@ local function on_diagnostics_changed()
     end
   end
 
-  local previous_diagnostics = diagnostics
-  diagnostics = new_diagnostics
-  local tree = Trees.current_tree(tabpage)
-  if tree and ui.is_open() then
-    local new_diagnostics_count = vim.tbl_count(new_diagnostics) --[[@as number]]
-    local previous_diagnostics_count = vim.tbl_count(previous_diagnostics) --[[@as number]]
+  M._current_diagnostics = new_diagnostics
+  local previous_diagnostics_severities = M._current_diagnostic_severities
+  M._current_diagnostic_severities = new_severity_diagnostics
+  local new_severity_count = vim.tbl_count(new_severity_diagnostics)
+  local previous_severity_count = vim.tbl_count(previous_diagnostics_severities)
 
-    local changed = false
-    if new_diagnostics_count > 0 and previous_diagnostics_count > 0 then
-      if new_diagnostics_count ~= previous_diagnostics_count then
-        changed = true
-      else
-        for path, severity in pairs(new_diagnostics) do
-          if previous_diagnostics[path] ~= severity then
-            changed = true
-            break
-          end
+  local severity_changed = false
+  if new_severity_count > 0 and previous_severity_count > 0 then
+    if new_severity_count ~= previous_severity_count then
+      severity_changed = true
+    else
+      for path, severity in pairs(new_severity_diagnostics) do
+        if previous_diagnostics_severities[path] ~= severity then
+          severity_changed = true
+          break
         end
       end
-    else
-      changed = new_diagnostics_count ~= previous_diagnostics_count
     end
-
-    -- only update the ui if the diagnostics have changed
-    if changed then
-      ui.update(tree)
-    end
+  else
+    severity_changed = new_severity_count ~= previous_severity_count
   end
+
+  events.fire_yatree_event(event.DIAGNOSTICS_CHANGED, severity_changed)
 end
 
 function M.setup()
   config = require("ya-tree.config").config
 
   if config.diagnostics.enable then
-    local events = require("ya-tree.events")
-    local event = require("ya-tree.events.event").autocmd
-
-    local debounced_callback = require("ya-tree.debounce").debounce_trailing(function()
-      if require("ya-tree.config").config.diagnostics.enable then
-        on_diagnostics_changed()
-      end
-    end, config.diagnostics.debounce_time)
-    events.on_autocmd_event(event.DIAGNOSTICS_CHANGED, "YA_TREE_DIAGNOSTICS", debounced_callback)
+    local debounced_trailing = require("ya-tree.debounce").debounce_trailing
+    local group = api.nvim_create_augroup("YaTreeDiagnostics", { clear = true })
+    api.nvim_create_autocmd("DiagnosticChanged", {
+      group = group,
+      pattern = "*",
+      callback = debounced_trailing(on_diagnostics_changed, config.diagnostics.debounce_time),
+      desc = "YaTree diagnostics handler",
+    })
   end
 end
 

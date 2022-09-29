@@ -710,7 +710,7 @@ function Canvas:focus_prev_diagnostic_item()
   local current_row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
   for row = current_row - 1, 1, -1 do
     local node = self.nodes[row]
-    local severity = node:diagnostics_severity()
+    local severity = node:diagnostic_severity()
     if severity then
       local target_severity = node:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
       if severity <= target_severity then
@@ -725,7 +725,7 @@ function Canvas:focus_next_diagnostic_item()
   local current_row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
   for row = current_row + 1, #self.nodes do
     local node = self.nodes[row]
-    local severity = node:diagnostics_severity()
+    local severity = node:diagnostic_severity()
     if severity then
       local target_severity = node:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
       if severity <= target_severity then

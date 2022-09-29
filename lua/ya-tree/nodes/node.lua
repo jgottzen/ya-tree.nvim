@@ -312,8 +312,8 @@ function Node:clear_clipboard_status()
 end
 
 ---@return number|nil
-function Node:diagnostics_severity()
-  return diagnostics.of(self.path)
+function Node:diagnostic_severity()
+  return diagnostics.severity_of(self.path)
 end
 
 ---@generic T : Yat.Node

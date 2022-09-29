@@ -80,8 +80,6 @@ do
 
     [events.autocmd.CWD_CHANGED] = "DirChanged",
 
-    [events.autocmd.DIAGNOSTICS_CHANGED] = "DiagnosticChanged",
-
     [events.autocmd.WINDOW_LEAVE] = "WinLeave",
     [events.autocmd.WINDOW_CLOSED] = "WinClosed",
 
@@ -103,7 +101,7 @@ do
     local handlers = M._autocmd_event_listeners[event_name]
     if #handlers > 0 then
       if vim.v.exiting == vim.NIL then
-        log.debug("calling handlers for autocmd %q", input.event)
+        log.trace("calling handlers for autocmd %q", input.event)
       end
       for _, handler in ipairs(handlers) do
         handler.callback(input.buf, input.file, input.match)
@@ -207,7 +205,7 @@ end
 function M.fire_git_event(event, repo, fs_changes)
   local event_name = get_event_name(event)
   if vim.v.exiting == vim.NIL then
-    log.debug("calling handlers for event %q", event_name)
+    log.trace("calling handlers for event %q", event_name)
   end
   for _, handler in pairs(M._git_event_listeners[event_name]) do
     handler.callback(repo, fs_changes)
@@ -216,8 +214,14 @@ end
 
 ---@param event Yat.Events.YaTreeEvent
 ---@param id string
+---@param async boolean
 ---@param callback fun(...)
-function M.on_yatree_event(event, id, callback)
+---@overload fun(event: Yat.Events.YaTreeEvent, id: string, callback: fun(...))
+function M.on_yatree_event(event, id, async, callback)
+  if type(async) == "function" then
+    callback = async
+    async = false
+  end
   local event_name = get_event_name(event)
   add_listener(event_name, M._yatree_event_listeners[event_name], id, callback)
 end
