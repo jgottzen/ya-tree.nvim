@@ -151,7 +151,7 @@ local M = {
 
     ---@class Yat.Config.Trees
     ---@field global_mappings Yat.Config.Trees.GlobalMappings
-    ---@field files Yat.Config.Trees.Files Files tree configuration.
+    ---@field filesystem Yat.Config.Trees.Filesystem Filesystem tree configuration.
     ---@field search Yat.Config.Trees.Search Search tree configuration.
     ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
     ---@field git Yat.Config.Trees.Git Git tree configuration.
@@ -190,12 +190,12 @@ local M = {
           ["J"] = "focus_last_sibling",
         },
       },
-      ---@class Yat.Config.Trees.Files : Yat.Config.Trees.Tree
-      ---@field mappings Yat.Config.Trees.Files.Mappings
-      files = {
-        ---@class Yat.Config.Trees.Files.Mappings : Yat.Config.Trees.Mappings
+      ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
+      ---@field mappings Yat.Config.Trees.Filesystem.Mappings
+      filesystem = {
+        ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-        ---@field list table<string, Yat.Trees.Fs.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
         mappings = {
           disable_defaults = false,
           list = {
@@ -582,8 +582,7 @@ local M = {
   },
 }
 
----@type Yat.Config
-M.config = vim.deepcopy(M.default)
+M.config = vim.deepcopy(M.default) --[[@as Yat.Config]]
 
 ---@param opts? Yat.Config
 ---@return Yat.Config config

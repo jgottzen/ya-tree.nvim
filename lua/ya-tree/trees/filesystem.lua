@@ -10,15 +10,15 @@ local log = require("ya-tree.log")("trees")
 local api = vim.api
 local uv = vim.loop
 
----@class Yat.Trees.Fs : Yat.Tree
----@field TYPE "files"
+---@class Yat.Trees.Filesystem : Yat.Tree
+---@field TYPE "filesystem"
 ---@field cwd string
----@field supported_actions Yat.Trees.Fs.SupportedActions[]
-local FilesystemTree = { TYPE = "files" }
+---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
+local FilesystemTree = { TYPE = "filesystem" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
 
----@param self Yat.Trees.Fs
+---@param self Yat.Trees.Filesystem
 ---@return string
 FilesystemTree.__tostring = function(self)
   return string.format("(%s, tabpage=%s, cwd=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), self.cwd, tostring(self.root))
@@ -26,7 +26,7 @@ end
 
 setmetatable(FilesystemTree, { __index = Tree })
 
----@alias Yat.Trees.Fs.SupportedActions
+---@alias Yat.Trees.Filesystem.SupportedActions
 ---| "add"
 ---| "rename"
 ---| "delete"
@@ -125,7 +125,7 @@ end
 ---@async
 ---@param tabpage integer
 ---@param root? string|Yat.Node
----@return Yat.Trees.Fs tree
+---@return Yat.Trees.Filesystem tree
 function FilesystemTree:new(tabpage, root)
   local this = Tree.new(self, tabpage)
   this.cwd = uv.cwd() --[[@as string]]
@@ -175,7 +175,7 @@ function FilesystemTree:on_git_event(repo, fs_changes)
 end
 
 ---@async
----@param tree Yat.Trees.Fs
+---@param tree Yat.Trees.Filesystem
 ---@param new_root string
 ---@return boolean `false` if the current tree cannot walk up or down to reach the specified directory.
 local function update_tree_root_node(tree, new_root)

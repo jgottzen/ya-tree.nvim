@@ -127,8 +127,8 @@ function M.open_window(opts)
       end
       log.debug("navigating to %q", path)
     else
-      -- need to check if the `tree_type` is explicitly "files"
-      if opts.tree_type and opts.tree_type == "files" then
+      -- need to check if the `tree_type` is explicitly "filesystem"
+      if opts.tree_type and opts.tree_type == "filesystem" then
         log.error("cannot expand to file %q in with root %s", path, tostring(tree.root))
         utils.warn(string.format("Path %q is not a file or directory", opts.path))
       else
@@ -509,7 +509,7 @@ local function on_buf_enter(bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
     ---@type Yat.OpenWindowArgs
-    local opts = { path = file, focus = true, tree_type = "files" }
+    local opts = { path = file, focus = true, tree_type = "filesystem" }
     if not tree then
       log.debug("no tree for current tab")
       local cwd = uv.cwd() --[[@as string]]

@@ -8,7 +8,7 @@ local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 
----@alias Yat.Trees.Type "files" | "buffers" | "git" | "search" | string
+---@alias Yat.Trees.Type "filesystem" | "buffers" | "git" | "search" | string
 
 ---@class Yat.Tree
 ---@field TYPE Yat.Trees.Type
@@ -105,6 +105,11 @@ end
 Tree.__tostring = function(self)
   return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), tostring(self.root))
 end
+
+-- selene: allow(unused_variable)
+
+---@param config Yat.Config
+function Tree.setup(config) end
 
 ---@async
 ---@generic T : Yat.Tree

@@ -1,9 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
 
-local FilesystemTree = require("ya-tree.trees.filesystem")
-local BuffersTree = require("ya-tree.trees.buffers")
-local GitTree = require("ya-tree.trees.git")
-local SearchTree = require("ya-tree.trees.search")
 local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")("trees")
@@ -18,11 +14,6 @@ local M = {
   ---@type table<integer, { [Yat.Trees.Type|"current"|"previous"]: Yat.Tree }>
   _tabpage_trees = {},
 }
-
----@param tree Yat.Tree
-function M.register_tree(tree)
-  M._registered_trees[tree.TYPE] = tree
-end
 
 ---@return table<Yat.Actions.Name, Yat.Trees.Type[]>
 function M.actions_supported_by_trees()
@@ -169,25 +160,25 @@ end
 
 ---@param tabpage integer
 ---@param set_current? boolean
----@return Yat.Trees.Fs? tree
+---@return Yat.Trees.Filesystem? tree
 function M.filesystem(tabpage, set_current)
-  return M.get_tree(tabpage, "files", set_current) --[[@as Yat.Trees.Fs?]]
+  return M.get_tree(tabpage, "filesystem", set_current) --[[@as Yat.Trees.Filesystem?]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
 ---@param root? string|Yat.Node
----@return Yat.Trees.Fs tree
+---@return Yat.Trees.Filesystem tree
 function M.new_filesystem(tabpage, set_current, root)
-  return M.new_tree(tabpage, "files", set_current or false, root) --[[@as Yat.Trees.Fs]]
+  return M.new_tree(tabpage, "filesystem", set_current or false, root) --[[@as Yat.Trees.Filesystem]]
 end
 
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
 ---@param root? string|Yat.Node
----@return Yat.Trees.Fs tree
+---@return Yat.Trees.Filesystem tree
 function M.filesystem_or_new(tabpage, set_current, root)
   local tree = M.filesystem(tabpage, set_current)
   if not tree then
@@ -283,12 +274,28 @@ local function on_cwd_changed(scope, new_cwd)
 end
 
 ---@param config Yat.Config
+local function register_trees(config)
+  ---@type Yat.Trees.Type[]
+  for tree_name in pairs(config.trees) do
+    if tree_name ~= "global_mappings" then
+      local ok, tree = pcall(require, "ya-tree.trees." .. tree_name) --[[@as Yat.Tree]]
+      if ok and tree and type(tree.setup) == "function" and type(tree.TYPE) == "string" and type(tree.new) == "function" then
+        log.debug("registering tree %q", tree.TYPE)
+        tree.setup(config)
+        M._registered_trees[tree.TYPE] = tree
+      end
+    end
+  end
+end
+
 function M.setup(config)
+  register_trees(config)
+
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd
 
   events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_TREES_TAB_CLOSE_CLEANUP", M.delete_trees_after_tab_closed)
-  if require("ya-tree.config").config.cwd.follow then
+  if config.cwd.follow then
     events.on_autocmd_event(event.CWD_CHANGED, "YA_TREE_TREES_CWD_CHANGED", true, function(_, new_cwd, scope)
       -- currently not available in the table passed to the callback
       if not vim.v.event.changed_window then
@@ -298,13 +305,6 @@ function M.setup(config)
       end
     end)
   end
-end
-
-do
-  M.register_tree(FilesystemTree)
-  M.register_tree(BuffersTree)
-  M.register_tree(GitTree)
-  M.register_tree(SearchTree)
 end
 
 return M
