@@ -282,7 +282,8 @@ local function on_cwd_changed(scope, new_cwd)
   end
 end
 
-function M.setup()
+---@param config Yat.Config
+function M.setup(config)
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd
 

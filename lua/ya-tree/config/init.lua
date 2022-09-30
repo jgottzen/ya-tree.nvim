@@ -17,6 +17,7 @@ local M = {
   ---@field diagnostics Yat.Config.Diagnostics Lsp diagnostics configuration.
   ---@field system_open Yat.Config.SystemOpen Open file with system command configuration.
   ---@field trash Yat.Config.Trash `trash-cli` configuration.
+  ---@field actions Yat.Config.Actions User actions.
   ---@field trees Yat.Config.Trees Trees configuration.
   ---@field view Yat.Config.View Tree view configuration.
   ---@field renderers Yat.Config.Renderers Renderer configurations.
@@ -127,9 +128,13 @@ local M = {
       require_confirm = false,
     },
 
+    ---@class Yat.Config.Actions : { [Yat.Actions.Name]: Yat.Action }
+    actions = {
+    },
+
     ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
     ---@field modes Yat.Actions.Mode[] The mode(s) for the keybinding.
-    ---@field tree_types Yat.Trees.Type[] The tree types the mapping is available for.
+    ---@field trees Yat.Trees.Type[] The tree types the mapping is available for.
     ---@field fn async fun(tree: Yat.Tree, node: Yat.Node) User function.
     ---@field desc? string Description of what the mapping does.
 

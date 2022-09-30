@@ -161,8 +161,8 @@ function M.setup(opts)
 
   log.trace("using config=%s", config)
 
-  require("ya-tree.trees").setup()
-  require("ya-tree.actions").setup()
+  require("ya-tree.trees").setup(config)
+  require("ya-tree.actions").setup(config)
   require("ya-tree.git").setup()
   require("ya-tree.ui").setup()
   require("ya-tree.diagnostics").setup()
