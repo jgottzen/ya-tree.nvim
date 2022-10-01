@@ -17,7 +17,7 @@ local fn = vim.fn
 ---@field public parent? Yat.Nodes.Buffer
 ---@field private type Yat.Nodes.Buffer.Type
 ---@field private _children? Yat.Nodes.Buffer[]
----@field private terminals_container? boolean
+---@field private _terminals_container? boolean
 ---@field public bufname? string
 ---@field public bufnr? number
 ---@field public bufhidden? boolean
@@ -54,7 +54,7 @@ function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
   this.bufhidden = hidden
   if this:is_directory() then
     this.empty = true
-    this.scanned = true
+    this._scanned = true
     this.expanded = true
   end
   return this
@@ -79,7 +79,7 @@ end
 
 ---@return boolean
 function BufferNode:is_terminals_container()
-  return self.terminals_container or false
+  return self._terminals_container or false
 end
 
 ---@param file string
@@ -180,7 +180,7 @@ local function create_terminal_buffers_container(root)
     path = "Terminals",
     extension = "terminal",
   }, root)
-  container.terminals_container = true
+  container._terminals_container = true
   root._children[#root._children + 1] = container
   root.empty = false
   return container
@@ -224,7 +224,7 @@ function BufferNode:refresh(opts)
     log.debug("setting new root path to %q", root_path)
     local fs_node = fs.node_for(root_path) --[[@as Yat.Fs.Node]]
     self:_merge_new_data(fs_node)
-    self.scanned = true
+    self._scanned = true
     self.expanded = true
   end
 

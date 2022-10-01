@@ -31,7 +31,7 @@ local M = {
   helpers = {},
   ---@private
   ---@type table<Yat.Ui.Renderer.Name, Yat.Ui.Renderer.Renderer>
-  renderers = {},
+  _renderers = {},
 }
 
 ---@param name Yat.Ui.Renderer.Name
@@ -42,16 +42,16 @@ function M.define_renderer(name, fn, config)
     fn = fn,
     config = config,
   }
-  if M.renderers[name] then
+  if M._renderers[name] then
     log.info("overriding renderer %q with %s", name, renderer)
   end
-  M.renderers[name] = renderer
+  M._renderers[name] = renderer
 end
 
 ---@param name Yat.Ui.Renderer.Name
 ---@return Yat.Ui.Renderer.Renderer|nil
 function M.get_renderer(name)
-  return M.renderers[name]
+  return M._renderers[name]
 end
 
 local fn = vim.fn
@@ -503,11 +503,11 @@ end
 ---@param renderer Yat.Config.Renderers.Builtin.Clipboard
 ---@return Yat.Ui.RenderResult[]|nil result
 function M.clipboard(node, _, renderer)
-  if node.clipboard_status then
+  if node:clipboard_status() then
     return {
       {
         padding = renderer.padding,
-        text = "(" .. node.clipboard_status .. ")",
+        text = "(" .. node:clipboard_status() .. ")",
         highlight = hl.CLIPBOARD_STATUS,
       },
     }

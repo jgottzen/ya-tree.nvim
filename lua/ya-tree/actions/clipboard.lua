@@ -8,7 +8,6 @@ local log = require("ya-tree.log")("actions")
 local fn = vim.fn
 
 local M = {
-  ---@private
   ---@type Yat.Node[]
   queue = {},
 }
@@ -25,7 +24,7 @@ local function cut_or_copy_nodes(tree, action)
       for i = #M.queue, 1, -1 do
         local item = M.queue[i]
         if item.path == node.path then
-          if item.clipboard_status == action then
+          if item:clipboard_status() == action then
             table.remove(M.queue, i)
             node:clear_clipboard_status()
           else
@@ -77,7 +76,7 @@ function M.paste_nodes(tree, node)
   ---@return Yat.Node|nil new_node
   local function paste_node(dir, src_node)
     if not fs.exists(src_node.path) then
-      utils.warn(string.format("Item %q does not exist, cannot %s!", src_node.path, src_node.clipboard_status))
+      utils.warn(string.format("Item %q does not exist, cannot %s!", src_node.path, src_node:clipboard_status()))
       return
     end
 
@@ -106,13 +105,13 @@ function M.paste_nodes(tree, node)
 
     local new_node
     local ok = false
-    if src_node.clipboard_status == "copy" then
+    if src_node:clipboard_status() == "copy" then
       if src_node:is_directory() then
         ok = fs.copy_dir(src_node.path, destination, replace)
       elseif src_node:is_file() then
         ok = fs.copy_file(src_node.path, destination, replace)
       end
-    elseif src_node.clipboard_status == "cut" then
+    elseif src_node:clipboard_status() == "cut" then
       ok = fs.rename(src_node.path, destination)
       if ok then
         tree.root:remove_node(src_node.path)
@@ -123,14 +122,14 @@ function M.paste_nodes(tree, node)
     end
 
     if ok then
-      utils.notify(string.format("%s %q to %q.", src_node.clipboard_status == "copy" and "Copied" or "Moved", src_node.path, destination))
+      utils.notify(string.format("%s %q to %q.", src_node:clipboard_status() == "copy" and "Copied" or "Moved", src_node.path, destination))
       new_node = tree.root:add_node(destination)
       if new_node and new_node.repo then
         repos[new_node.repo] = true
       end
     else
       utils.warn(
-        string.format("Failed to %s %q to %q!", src_node.clipboard_status == "copy" and "copy" or "move", src_node.path, destination)
+        string.format("Failed to %s %q to %q!", src_node:clipboard_status() == "copy" and "copy" or "move", src_node.path, destination)
       )
     end
 

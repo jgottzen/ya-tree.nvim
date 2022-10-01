@@ -24,8 +24,8 @@ local utils = require("ya-tree.utils")
 ---@field public link_extension? string
 ---@field public modified boolean
 ---@field public repo? Yat.Git.Repo
----@field public clipboard_status Yat.Actions.Clipboard.Action|nil
----@field private scanned? boolean
+---@field private _clipboard_status Yat.Actions.Clipboard.Action|nil
+---@field private _scanned? boolean
 ---@field public expanded? boolean
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
@@ -68,7 +68,7 @@ function Node.new(class, fs_node, parent)
   return this
 end
 
----Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` skips
+---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` doens't recurse into
 ---any children of that node, but continues with the next child, if any.
 ---@param visitor fun(node: Yat.Node):boolean
 function Node:walk(visitor)
@@ -157,13 +157,13 @@ function Node:_scandir()
     else
       log.trace("creating new node for %q", fs_node.path)
       child = Node:new(fs_node, self)
-      child.clipboard_status = self.clipboard_status
+      child._clipboard_status = self._clipboard_status
     end
     return child
   end, fs.scan_dir(self.path))
   table.sort(self._children, self.node_comparator)
   self.empty = #self._children == 0
-  self.scanned = true
+  self._scanned = true
 
   scheduler()
 end
@@ -299,12 +299,17 @@ end
 
 ---@param status Yat.Actions.Clipboard.Action
 function Node:set_clipboard_status(status)
-  self.clipboard_status = status
+  self._clipboard_status = status
   if self:is_directory() then
     for _, child in ipairs(self._children) do
       child:set_clipboard_status(status)
     end
   end
+end
+
+---@return Yat.Actions.Clipboard.Action|nil status
+function Node:clipboard_status()
+  return self._clipboard_status
 end
 
 function Node:clear_clipboard_status()
@@ -322,7 +327,7 @@ end
 ---@return T? node
 function Node.add_node(self, path)
   ---@cast self Yat.Node
-  return self:_add_node(path, function (fs_node, parent)
+  return self:_add_node(path, function(fs_node, parent)
     return self.__index.new(self.__index, fs_node, parent)
   end)
 end
@@ -564,7 +569,7 @@ function Node.expand(self, opts)
   log.debug("expanding %q", self.path)
   opts = opts or {}
   if self:is_directory() then
-    if not self.scanned or opts.force_scan then
+    if not self._scanned or opts.force_scan then
       self:_scandir()
     end
     self.expanded = true
@@ -628,7 +633,7 @@ do
       node.repo:refresh_status({ ignored = true })
       refreshed_git_repos[node.repo.toplevel] = true
     end
-    if node.scanned then
+    if node._scanned then
       node:_scandir()
 
       if recurse then

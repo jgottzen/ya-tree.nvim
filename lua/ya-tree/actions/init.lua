@@ -18,7 +18,13 @@ local api = vim.api
 local M = {
   ---@private
   ---@type table<Yat.Actions.Name, Yat.Action>
-  actions = {},
+  _actions = {},
+  ---@private
+  ---@type table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
+  _mappings = {},
+  ---@private
+  ---@type table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
+  _tree_mappings = {},
 }
 
 ---@param name Yat.Actions.Name
@@ -33,10 +39,10 @@ function M.define_action(name, fn, desc, modes, trees)
     modes = modes,
     trees = trees or Trees.actions_supported_by_trees()[name] or {},
   }
-  if M.actions[name] then
+  if M._actions[name] then
     log.info("overriding action %q with %s", name, action)
   end
-  M.actions[name] = action
+  M._actions[name] = action
 end
 
 ---@param mapping table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
@@ -50,7 +56,7 @@ local function create_keymap_function(mapping)
       local tree = Trees.current_tree(tabpage) --[[@as Yat.Tree]]
       tree.current_node = node
       if type(action) == "string" then
-        void(M.actions[action].fn)(tree, node)
+        void(M._actions[action].fn)(tree, node)
       else
         ---@cast action Yat.Config.Mapping.Custom
         void(action.fn)(tree, node)
@@ -61,7 +67,7 @@ end
 
 ---@param bufnr number
 function M.apply_mappings(bufnr)
-  for key, mapping in pairs(M.mappings) do
+  for key, mapping in pairs(M._mappings) do
     local opts = { buffer = bufnr, silent = true, nowait = true, desc = mapping.desc }
     local rhs = create_keymap_function(mapping)
 
@@ -69,7 +75,7 @@ function M.apply_mappings(bufnr)
     local modes = {}
     for _, action in pairs(mapping) do
       if type(action) == "string" then
-        for _, mode in ipairs(M.actions[action].modes) do
+        for _, mode in ipairs(M._actions[action].modes) do
           modes[mode] = true
         end
       else
@@ -191,7 +197,6 @@ local function define_user_action(actions)
 end
 
 ---@param trees Yat.Config.Trees
----@return table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
 local function validate_and_create_mappings(trees)
   ---@type table<string, boolean>
   local keys = {}
@@ -202,10 +207,10 @@ local function validate_and_create_mappings(trees)
   end
 
   ---@type table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
-  M.tree_mappings = {}
+  M._tree_mappings = {}
   for name, tree in pairs(trees) do
     if name ~= "global_mappings" then
-      M.tree_mappings[name] = vim.tbl_deep_extend("force", trees.global_mappings.list, tree.mappings.list)
+      M._tree_mappings[name] = vim.tbl_deep_extend("force", trees.global_mappings.list, tree.mappings.list)
       for key, value in pairs(tree.mappings.list) do
         if value ~= "" then
           keys[key] = true
@@ -215,25 +220,25 @@ local function validate_and_create_mappings(trees)
   end
 
   ---@type table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
-  local mappings = {}
+  M._mappings = {}
   for key in pairs(keys) do
     ---@type table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
     local entry = {}
-    for tree_type, list in pairs(M.tree_mappings) do
+    for tree_type, list in pairs(M._tree_mappings) do
       local mapping = list[key]
       if type(mapping) == "string" then
         if mapping == "" then
           log.debug("key %q is disabled by user config", key)
-        elseif not M.actions[mapping] then
+        elseif not M._actions[mapping] then
           log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, mapping)
           utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, mapping))
-        elseif not vim.tbl_contains(M.actions[mapping].trees, tree_type) then
+        elseif not vim.tbl_contains(M._actions[mapping].trees, tree_type) then
           log.error(
             "key %q is mapped to 'action' %q, which does not support tree type %q, mapping %s ignored",
             key,
             tree_type,
             mapping,
-            M.actions[mapping]
+            M._actions[mapping]
           )
           utils.warn(
             string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, tree_type, mapping)
@@ -254,18 +259,15 @@ local function validate_and_create_mappings(trees)
         end
       end
     end
-    mappings[key] = entry
+    M._mappings[key] = entry
   end
-
-  return mappings
 end
 
 ---@param config Yat.Config
 function M.setup(config)
   define_builtin_actions()
   define_user_action(config.actions)
-
-  M.mappings = validate_and_create_mappings(config.trees)
+  validate_and_create_mappings(config.trees)
 end
 
 return M

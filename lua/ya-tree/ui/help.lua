@@ -29,7 +29,7 @@ end
 ---@return integer max_mapping_width
 ---@return string[] close_keys
 local function parse_mappings(mappings)
-  local actions = require("ya-tree.actions").actions
+  local actions = require("ya-tree.actions")._actions
   local max_mapping_width = 0
   local close_keys = { "q", "<ESC>" }
 
@@ -180,7 +180,7 @@ end
 
 ---@param tree Yat.Tree
 function M.open(tree)
-  local mappings = require("ya-tree.actions").tree_mappings
+  local mappings = require("ya-tree.actions")._tree_mappings
 
   local tree_types = vim.tbl_keys(mappings) --[=[@as Yat.Trees.Type[]]=]
   table.sort(tree_types)

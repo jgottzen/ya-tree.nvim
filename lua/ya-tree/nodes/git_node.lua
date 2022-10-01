@@ -21,7 +21,7 @@ function GitNode:new(fs_node, parent)
   local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
     this.empty = true
-    this.scanned = true
+    this._scanned = true
     this.expanded = true
   end
   return this

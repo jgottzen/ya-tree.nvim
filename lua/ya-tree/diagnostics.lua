@@ -20,22 +20,21 @@ local api = vim.api
 
 local M = {
   ---@type table<string, Nvim.DiagnosticStruct[]>
-  _current_diagnostics = {},
-
+  current_diagnostics = {},
   ---@type table<string, integer>
-  _current_diagnostic_severities = {},
+  current_diagnostic_severities = {},
 }
 
 ---@param path string
 ---@return Nvim.DiagnosticStruct[]|nil
 function M.diagnostics_of(path)
-  return M._current_diagnostics[path]
+  return M.current_diagnostics[path]
 end
 
 ---@param path string
 ---@return number|nil
 function M.severity_of(path)
-  return M._current_diagnostic_severities[path]
+  return M.current_diagnostic_severities[path]
 end
 
 local function on_diagnostics_changed()
@@ -77,9 +76,9 @@ local function on_diagnostics_changed()
     end
   end
 
-  M._current_diagnostics = new_diagnostics
-  local previous_diagnostics_severities = M._current_diagnostic_severities
-  M._current_diagnostic_severities = new_severity_diagnostics
+  M.current_diagnostics = new_diagnostics
+  local previous_diagnostics_severities = M.current_diagnostic_severities
+  M.current_diagnostic_severities = new_severity_diagnostics
   local new_severity_count = vim.tbl_count(new_severity_diagnostics)
   local previous_severity_count = vim.tbl_count(previous_diagnostics_severities)
 

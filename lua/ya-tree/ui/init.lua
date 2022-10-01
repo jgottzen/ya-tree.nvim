@@ -12,7 +12,7 @@ local M = {
   _canvases = {},
 }
 
-function M.delete_ui_after_tab_closed()
+function M.delete_ui_for_nonexisting_tabpages()
   local tabpages = api.nvim_list_tabpages()
   for tabpage, canvas in pairs(M._canvases) do
     if not vim.tbl_contains(tabpages, tonumber(tabpage)) then
@@ -273,7 +273,7 @@ function M.setup()
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd
 
-  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_UI_TAB_CLOSE_CLEANUP", M.delete_ui_after_tab_closed)
+  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_UI_TAB_CLOSE_CLEANUP", M.delete_ui_for_nonexisting_tabpages)
   events.on_autocmd_event(event.WINDOW_LEAVE, "YA_TREE_UI_SAVE_EDIT_WINDOW_ID", on_win_leave)
   events.on_autocmd_event(event.COLORSCHEME, "YA_TREE_UI_HIGHLIGHTS", hl.setup)
 end

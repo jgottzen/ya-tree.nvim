@@ -15,7 +15,7 @@ local M = {
   _tabpage_trees = {},
 }
 
-function M.delete_trees_after_tab_closed()
+function M.delete_trees_for_nonexisting_tabpages()
   ---@type table<string, boolean>
   local found_toplevels = {}
   local tabpages = api.nvim_list_tabpages()
@@ -294,7 +294,7 @@ function M.setup(config)
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd
 
-  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_TREES_TAB_CLOSE_CLEANUP", M.delete_trees_after_tab_closed)
+  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_TREES_TAB_CLOSE_CLEANUP", M.delete_trees_for_nonexisting_tabpages)
   if config.cwd.follow then
     events.on_autocmd_event(event.CWD_CHANGED, "YA_TREE_TREES_CWD_CHANGED", true, function(_, new_cwd, scope)
       -- currently not available in the table passed to the callback
