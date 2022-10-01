@@ -43,8 +43,8 @@ local win_options = {
   }, ","),
 }
 
-local file_min_diagnostic_severity = config.renderers.diagnostics.min_severity
-local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_severity
+local file_min_diagnostic_severity = config.renderers.builtin.diagnostics.min_severity
+local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.min_severity
 
 ---@alias Yat.Ui.Canvas.Position "left"|"right"
 
@@ -59,6 +59,8 @@ local directory_min_diagnstic_severrity = config.renderers.diagnostics.min_sever
 ---@field private width number
 ---@field private nodes Yat.Node[]
 ---@field private node_path_to_index_lookup table<string, integer>
+---@field private directory_renderers Yat.Ui.Canvas.Renderer[]
+---@field private file_renderers Yat.Ui.Canvas.Renderer[]
 local Canvas = {}
 Canvas.__index = Canvas
 
@@ -341,11 +343,6 @@ function Canvas:delete()
   end
 end
 
----@type Yat.Ui.Canvas.Renderer[]
-local all_container_renderers = {}
----@type Yat.Ui.Canvas.Renderer[]
-local all_file_renderers = {}
-
 ---@class Yat.Ui.HighlightGroup
 ---@field name string
 ---@field from integer
@@ -381,7 +378,6 @@ local function render_node(node, context, renderers)
   for _, renderer in ipairs(renderers) do
     local results = renderer.fn(node, context, renderer.config)
     if results then
-      results = results[1] and results or { results }
       for _, result in ipairs(results) do
         if result.text then
           if not result.highlight then
@@ -418,14 +414,6 @@ function Canvas:_render_tree(tree)
     tree_type = self.tree_type,
     config = config,
   }
-  ---@param renderer Yat.Ui.Canvas.Renderer
-  local container_renderers = vim.tbl_filter(function(renderer)
-    return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
-  end, all_container_renderers) --[=[@as Yat.Ui.Canvas.Renderer[]]=]
-  ---@param renderer Yat.Ui.Canvas.Renderer
-  local file_renderers = vim.tbl_filter(function(renderer)
-    return vim.tbl_contains(renderer.config.tree_types, self.tree_type)
-  end, all_file_renderers) --[=[@as Yat.Ui.Canvas.Renderer[]]=]
 
   ---@param node Yat.Node
   ---@param depth integer
@@ -437,9 +425,10 @@ function Canvas:_render_tree(tree)
       context.last_child = last_child
       self.nodes[linenr] = node
       self.node_path_to_index_lookup[node.path] = linenr
-      lines[linenr], highlights[linenr] = render_node(node, context, node:has_children() and container_renderers or file_renderers)
+      local has_children = node:has_children()
+      lines[linenr], highlights[linenr] = render_node(node, context, has_children and self.directory_renderers or self.file_renderers)
 
-      if node:has_children() and node.expanded then
+      if has_children and node.expanded then
         local nr_of_children = #node:children()
         for i, child in node:iterate_children() do
           append_node(child, depth + 1, i == nr_of_children)
@@ -455,6 +444,9 @@ end
 
 ---@param tree Yat.Tree
 function Canvas:render(tree)
+  if self.tree_type ~= tree.TYPE or not (self.directory_renderers and self.file_renderers) then
+    self:_set_renderers_for_tree(tree.TYPE)
+  end
   self.tree_type = tree.TYPE
   local lines, highlights = self:_render_tree(tree)
 
@@ -737,42 +729,101 @@ function Canvas:focus_next_diagnostic_item()
 end
 
 ---@class Yat.Ui.Canvas.Renderer
----@field name string
----@field fn fun(node: Yat.Node, context: Yat.Ui.RenderContext, renderer: Yat.Config.BaseRenderer): Yat.Ui.RenderResult|Yat.Ui.RenderResult[]|nil
----@field config? Yat.Config.BaseRenderer
+---@field name Yat.Ui.Renderer.Name
+---@field fn Yat.Ui.RendererFunction
+---@field config? Yat.Config.BaseRendererConfig
 
 do
   local renderers = require("ya-tree.ui.renderers")
 
-  ---@param view_renderer Yat.Config.View.Renderers.DirectoryRenderer|Yat.Config.View.Renderers.FileRenderer
+  ---@param renderer_type string
+  ---@param raw_renderer Yat.Config.Trees.Renderer
   ---@return Yat.Ui.Canvas.Renderer|nil renderer
-  local function create_renderer(view_renderer)
-    local name = view_renderer[1]
+  local function create_renderer(renderer_type, raw_renderer)
+    local name = raw_renderer.name
     if type(name) == "string" then
-      ---@type Yat.Ui.Canvas.Renderer
-      local renderer = { name = name }
-
-      local fn = renderers[name]
-      if type(fn) == "function" then
-        renderer.fn = fn
-        renderer.config = vim.deepcopy(config.renderers[name])
-        return renderer
-      else
-        fn = config.renderers[name]
-        if type(fn) == "function" then
-          renderer.fn = fn
-          return renderer
-        else
-          log.error("Renderer %q is not a function in the renderers table, renderer=%s", name, view_renderer)
-          utils.warn(string.format("Renderer %s is not a function in the renderers table, ignoring renderer!", name))
+      local renderer_info = renderers.get_renderer(name)
+      if renderer_info then
+        ---@type Yat.Ui.Canvas.Renderer
+        local renderer = {
+          name = name,
+          fn = renderer_info.fn,
+          config = vim.deepcopy(renderer_info.config),
+        }
+        if raw_renderer.override then
+          for k, v in pairs(raw_renderer.override) do
+            if type(k) == "string" then
+              log.debug("overriding %q renderer %q config value for %q with %s", renderer_type, renderer.name, k, v)
+              renderer.config[k] = v
+            end
+          end
         end
+
+        return renderer
       end
-    else
-      utils.warn("Invalid renderer:\n" .. vim.inspect(view_renderer))
     end
+    utils.warn("Invalid renderer:\n" .. vim.inspect(raw_renderer))
   end
 
+  ---@type Yat.Ui.Canvas.Renderer[], Yat.Ui.Canvas.Renderer[]
+  local default_directory_renderers, default_file_renderers = {}, {}
+  ---@type table<Yat.Trees.Type, { directory: Yat.Config.Trees.Renderer[], file: Yat.Config.Trees.Renderer[] }>
+  local tree_renderers = {}
   local highlight_open_file = false
+
+  ---@private
+  ---@param tree_type Yat.Trees.Type
+  function Canvas:_set_renderers_for_tree(tree_type)
+    local _renderers = tree_renderers[tree_type]
+    if not _renderers then
+      _renderers = {}
+      local tree_config = config.trees[tree_type]
+      if tree_config and tree_config.renderers and (tree_config.renderers.directory or tree_config.renderers.file) then
+        if tree_config.renderers.directory then
+          _renderers.directory = {}
+          for _, directory_renderer in ipairs(tree_config.renderers.directory) do
+            local renderer = create_renderer("directory", directory_renderer)
+            if renderer then
+              _renderers.directory[#_renderers.directory + 1] = renderer
+            end
+          end
+        end
+
+        if tree_config.renderers.file then
+          _renderers.file = {}
+          for _, file_renderer in ipairs(tree_config.renderers.file) do
+            local renderer = create_renderer("file", file_renderer)
+            if renderer then
+              _renderers.file[#_renderers.file + 1] = renderer
+            end
+          end
+        end
+      end
+
+      _renderers.directory = _renderers.directory or default_directory_renderers
+      _renderers.file = _renderers.file or default_file_renderers
+      tree_renderers[tree_type] = _renderers
+    end
+
+    self.directory_renderers = _renderers.directory
+    self.file_renderers = _renderers.file
+
+    for _, renderer in ipairs(self.directory_renderers) do
+      if renderer.name == "diagnostics" then
+        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
+        directory_min_diagnstic_severrity = renderer_config.min_severity or config.renderers.builtin.diagnostics.min_severity
+      end
+    end
+    for _, renderer in ipairs(self.file_renderers) do
+      if renderer.name == "name" then
+        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Name]]
+        highlight_open_file = renderer_config.highlight_open_file
+      elseif renderer.name == "diagnostics" then
+        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
+        file_min_diagnostic_severity = renderer_config.min_severity or config.renderers.builtin.diagnostics.min_severity
+      end
+    end
+  end
 
   function Canvas.setup()
     config = require("ya-tree.config").config
@@ -780,51 +831,24 @@ do
     renderers.setup(config)
 
     -- reset the renderer arrays, since the setup can be called repeatedly
-    ---@type Yat.Ui.Canvas.Renderer[]
-    all_container_renderers = {}
-    ---@type Yat.Ui.Canvas.Renderer[]
-    all_file_renderers = {}
+    ---@type Yat.Ui.Canvas.Renderer[], Yat.Ui.Canvas.Renderer[]
+    default_directory_renderers, default_file_renderers = {}, {}
 
-    for _, directory_renderer in ipairs(config.view.renderers.directory) do
-      local renderer = create_renderer(directory_renderer)
+    for _, directory_renderer in ipairs(config.view.default_renderers.directory) do
+      local renderer = create_renderer("directory", directory_renderer)
       if renderer then
-        for k, v in pairs(directory_renderer) do
-          if type(k) == "string" then
-            log.debug("overriding directory renderer %q config value for %q with %s", renderer.name, k, v)
-            renderer.config[k] = v
-          end
-        end
-        all_container_renderers[#all_container_renderers + 1] = renderer
-
-        if renderer.name == "diagnostics" then
-          local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Diagnostics]]
-          directory_min_diagnstic_severrity = renderer_config.min_severity or config.renderers.diagnostics.min_severity
-        end
+        default_directory_renderers[#default_directory_renderers + 1] = renderer
       end
     end
-    log.trace("directory renderers=%s", all_container_renderers)
+    log.trace("default directory renderers=%s", default_directory_renderers)
 
-    for _, file_renderer in ipairs(config.view.renderers.file) do
-      local renderer = create_renderer(file_renderer)
+    for _, file_renderer in ipairs(config.view.default_renderers.file) do
+      local renderer = create_renderer("file", file_renderer)
       if renderer then
-        for k, v in pairs(file_renderer) do
-          if type(k) == "string" then
-            log.debug("overriding file renderer %q config value for %q with %s", renderer.name, k, v)
-            renderer.config[k] = v
-          end
-        end
-        all_file_renderers[#all_file_renderers + 1] = renderer
-
-        if renderer.name == "name" then
-          local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Name]]
-          highlight_open_file = renderer_config.highlight_open_file
-        elseif renderer.name == "diagnostics" then
-          local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Diagnostics]]
-          file_min_diagnostic_severity = renderer_config.min_severity or config.renderers.diagnostics.min_severity
-        end
+        default_file_renderers[#default_file_renderers + 1] = renderer
       end
     end
-    log.trace("file renderers=%s", all_file_renderers)
+    log.trace("default file renderers=%s", default_file_renderers)
   end
 
   ---@return boolean enabled

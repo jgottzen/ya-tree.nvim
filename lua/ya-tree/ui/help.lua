@@ -29,7 +29,7 @@ end
 ---@return integer max_mapping_width
 ---@return string[] close_keys
 local function parse_mappings(mappings)
-  local registered_actions = require("ya-tree.actions").registered_actions
+  local actions = require("ya-tree.actions").actions
   local max_mapping_width = 0
   local close_keys = { "q", "<ESC>" }
 
@@ -39,9 +39,9 @@ local function parse_mappings(mappings)
     if mapping ~= "" then
       local modes, desc
       if type(mapping) == "string" then
-        local action = registered_actions[mapping]
+        local action = actions[mapping]
         modes = action and action.modes or {}
-        desc = registered_actions[mapping].desc or mapping
+        desc = actions[mapping].desc or mapping
       else
         ---@cast mapping Yat.Config.Mapping.Custom
         modes = mapping.modes or {}

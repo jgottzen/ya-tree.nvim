@@ -15,23 +15,6 @@ local M = {
   _tabpage_trees = {},
 }
 
----@return table<Yat.Actions.Name, Yat.Trees.Type[]>
-function M.actions_supported_by_trees()
-  ---@type table<Yat.Actions.Name, Yat.Trees.Type[]>
-  local supported_actions = {}
-  for type, tree in pairs(M._registered_trees) do
-    for _, name in ipairs(tree.supported_actions) do
-      local trees = supported_actions[name]
-      if not trees then
-        trees = {}
-        supported_actions[name] = trees
-      end
-      trees[#trees + 1] = type
-    end
-  end
-  return supported_actions
-end
-
 function M.delete_trees_after_tab_closed()
   ---@type table<string, boolean>
   local found_toplevels = {}
@@ -275,7 +258,6 @@ end
 
 ---@param config Yat.Config
 local function register_trees(config)
-  ---@type Yat.Trees.Type[]
   for tree_name in pairs(config.trees) do
     if tree_name ~= "global_mappings" then
       local ok, tree = pcall(require, "ya-tree.trees." .. tree_name) --[[@as Yat.Tree]]
@@ -285,6 +267,24 @@ local function register_trees(config)
         M._registered_trees[tree.TYPE] = tree
       end
     end
+  end
+
+  ---@type table<Yat.Actions.Name, Yat.Trees.Type[]>
+  local supported_actions = {}
+  for type, tree in pairs(M._registered_trees) do
+    for _, name in ipairs(tree.supported_actions) do
+      local trees = supported_actions[name]
+      if not trees then
+        trees = {}
+        supported_actions[name] = trees
+      end
+      trees[#trees + 1] = type
+    end
+  end
+
+  ---@return table<Yat.Actions.Name, Yat.Trees.Type[]>
+  function M.actions_supported_by_trees()
+    return supported_actions
   end
 end
 

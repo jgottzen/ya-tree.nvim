@@ -43,7 +43,8 @@ setmetatable(GitTree, { __index = Tree })
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  GitTree.supported_actions = {
+  ---@diagnostic disable-next-line:missing-parameter
+  GitTree.supported_actions = vim.fn.uniq({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
     builtin.files.toggle_filter,
@@ -59,13 +60,9 @@ do
 
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
-  }
 
-  for _, name in ipairs(Tree.supported_actions) do
-    if not vim.tbl_contains(GitTree.supported_actions, name) then
-      GitTree.supported_actions[#GitTree.supported_actions + 1] = name
-    end
-  end
+    unpack(Tree.supported_actions),
+  })
 end
 
 ---@async

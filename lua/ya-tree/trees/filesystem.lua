@@ -60,7 +60,8 @@ setmetatable(FilesystemTree, { __index = Tree })
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  FilesystemTree.supported_actions = {
+  ---@diagnostic disable-next-line:missing-parameter
+  FilesystemTree.supported_actions = vim.fn.uniq({
     builtin.files.add,
     builtin.files.rename,
     builtin.files.delete,
@@ -88,13 +89,9 @@ do
 
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
-  }
 
-  for _, name in ipairs(Tree.supported_actions) do
-    if not vim.tbl_contains(FilesystemTree.supported_actions, name) then
-      FilesystemTree.supported_actions[#FilesystemTree.supported_actions + 1] = name
-    end
-  end
+    unpack(Tree.supported_actions),
+  })
 end
 
 ---Creates a new filesystem node tree root.

@@ -18,12 +18,43 @@ end
 
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
+local log = require("ya-tree.log")("ui")
 
-local fn = vim.fn
+---@alias Yat.Ui.Renderer.Name "indentation" | "icon" | "name" | "modified" | "repository" | "symlink_target" | "git_status" | "diagnostics" | "buffer_info" | "clipboard" | string
+---@alias Yat.Ui.RendererFunction fun(node: Yat.Node, context: Yat.Ui.RenderContext, renderer: Yat.Config.BaseRendererConfig): Yat.Ui.RenderResult[]|nil
+
+---@class Yat.Ui.Renderer.Renderer
+---@field fn Yat.Ui.RendererFunction
+---@field config Yat.Config.BaseRendererConfig
 
 local M = {
   helpers = {},
+  ---@private
+  ---@type table<Yat.Ui.Renderer.Name, Yat.Ui.Renderer.Renderer>
+  renderers = {},
 }
+
+---@param name Yat.Ui.Renderer.Name
+---@param fn Yat.Ui.RendererFunction
+---@param config Yat.Config.BaseRendererConfig
+function M.define_renderer(name, fn, config)
+  local renderer = {
+    fn = fn,
+    config = config,
+  }
+  if M.renderers[name] then
+    log.info("overriding renderer %q with %s", name, renderer)
+  end
+  M.renderers[name] = renderer
+end
+
+---@param name Yat.Ui.Renderer.Name
+---@return Yat.Ui.Renderer.Renderer|nil
+function M.get_renderer(name)
+  return M.renderers[name]
+end
+
+local fn = vim.fn
 
 ---@class Yat.Ui.RenderResult
 ---@field padding string
@@ -36,8 +67,8 @@ do
 
   ---@param node Yat.Node
   ---@param context Yat.Ui.RenderContext
-  ---@param renderer Yat.Config.Renderers.Indentation
-  ---@return Yat.Ui.RenderResult|nil result
+  ---@param renderer Yat.Config.Renderers.Builtin.Indentation
+  ---@return Yat.Ui.RenderResult[] result
   function M.indentation(node, context, renderer)
     local text
     if context.depth == 0 then
@@ -71,18 +102,18 @@ do
       end
     end
 
-    return {
+    return { {
       padding = renderer.padding,
       text = text,
       highlight = hl.INDENT_MARKER,
-    }
+    } }
   end
 end
 
 ---@param node Yat.Node
 ---@param context Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.Icon
----@return Yat.Ui.RenderResult|nil result
+---@param renderer Yat.Config.Renderers.Builtin.Icon
+---@return Yat.Ui.RenderResult[]|nil result
 function M.icon(node, context, renderer)
   if context.depth == 0 then
     return
@@ -141,16 +172,16 @@ function M.icon(node, context, renderer)
     end
   end
 
-  return {
+  return { {
     padding = renderer.padding,
     text = icon,
     highlight = highlight,
-  }
+  } }
 end
 
 ---@param node Yat.Node
 ---@param context Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.Name
+---@param renderer Yat.Config.Renderers.Builtin.Name
 ---@return Yat.Ui.RenderResult[] results
 function M.name(node, context, renderer)
   if context.depth == 0 then
@@ -261,21 +292,21 @@ end
 
 ---@param node Yat.Node
 ---@param _ Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.Modified
----@return Yat.Ui.RenderResult|nil result
+---@param renderer Yat.Config.Renderers.Builtin.Modified
+---@return Yat.Ui.RenderResult[]|nil result
 function M.modified(node, _, renderer)
   if node.modified then
-    return {
+    return { {
       padding = renderer.padding,
       text = renderer.icon,
       highlight = hl.MODIFIED,
-    }
+    } }
   end
 end
 
 ---@param node Yat.Node
 ---@param context Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.Repository
+---@param renderer Yat.Config.Renderers.Builtin.Repository
 ---@return Yat.Ui.RenderResult[]|nil results
 function M.repository(node, context, renderer)
   if node:is_git_repository_root() or (context.depth == 0 and node.repo) then
@@ -357,8 +388,8 @@ end
 
 ---@param node Yat.Node
 ---@param _ Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.SymlinkTarget
----@return Yat.Ui.RenderResult|nil result
+---@param renderer Yat.Config.Renderers.Builtin.SymlinkTarget
+---@return Yat.Ui.RenderResult[]|nil result
 function M.symlink_target(node, _, renderer)
   if node:is_link() then
     if node.link_orphan then
@@ -376,9 +407,11 @@ function M.symlink_target(node, _, renderer)
       }
     else
       return {
-        padding = renderer.padding,
-        text = renderer.arrow_icon .. " " .. node.relative_link_to,
-        highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK_TARGET,
+        {
+          padding = renderer.padding,
+          text = renderer.arrow_icon .. " " .. node.relative_link_to,
+          highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK_TARGET,
+        },
       }
     end
   end
@@ -386,7 +419,7 @@ end
 
 ---@param node Yat.Node
 ---@param context Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.GitStatus
+---@param renderer Yat.Config.Renderers.Builtin.GitStatus
 ---@return Yat.Ui.RenderResult[]|nil results
 function M.git_status(node, context, renderer)
   if context.config.git.enable then
@@ -411,8 +444,8 @@ end
 
 ---@param node Yat.Node
 ---@param context Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.Diagnostics
----@return Yat.Ui.RenderResult|nil result
+---@param renderer Yat.Config.Renderers.Builtin.Diagnostics
+---@return Yat.Ui.RenderResult[]|nil result
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
     local severity = node:diagnostic_severity()
@@ -420,23 +453,26 @@ function M.diagnostics(node, context, renderer)
       local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
       if diagnostic then
         return {
-          padding = renderer.padding,
-          text = diagnostic.icon,
-          highlight = diagnostic.highlight,
+          {
+            padding = renderer.padding,
+            text = diagnostic.icon,
+            highlight = diagnostic.highlight,
+          },
         }
       end
     end
   end
 end
 
----@param node Yat.Node|Yat.Nodes.Buffer
+---@param node Yat.Node
 ---@param _ Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.BufferInfo
----@return Yat.Ui.RenderResult[]|nil results
+---@param renderer Yat.Config.Renderers.Builtin.BufferInfo
+---@return Yat.Ui.RenderResult[] results
 function M.buffer_info(node, _, renderer)
   local bufnr = -1
   local hidden = false
   if node:node_type() == "Buffer" then
+    ---@cast node Yat.Nodes.Buffer
     bufnr = node.bufnr or -1
     hidden = node.bufhidden or false
   elseif fn.bufloaded(node.path) > 0 then
@@ -459,21 +495,21 @@ function M.buffer_info(node, _, renderer)
     }
   end
 
-  if #results > 0 then
-    return results
-  end
+  return results
 end
 
 ---@param node Yat.Node
 ---@param _ Yat.Ui.RenderContext
----@param renderer Yat.Config.Renderers.Clipboard
----@return Yat.Ui.RenderResult|nil result
+---@param renderer Yat.Config.Renderers.Builtin.Clipboard
+---@return Yat.Ui.RenderResult[]|nil result
 function M.clipboard(node, _, renderer)
   if node.clipboard_status then
     return {
-      padding = renderer.padding,
-      text = "(" .. node.clipboard_status .. ")",
-      highlight = hl.CLIPBOARD_STATUS,
+      {
+        padding = renderer.padding,
+        text = "(" .. node.clipboard_status .. ")",
+        highlight = hl.CLIPBOARD_STATUS,
+      },
     }
   end
 end
@@ -510,9 +546,8 @@ do
     return diagnostic_icon_and_hl[severity]
   end
 
-  ---@param config Yat.Config
-  function M.setup(config)
-    local icons = config.renderers.git_status.icons
+  ---@param icons Yat.Config.Renderers.GitStatus.Icons
+  local function setup_highlights(icons)
     git_icons_and_hl = {}
 
     git_icons_and_hl["M."] = { { icon = icons.staged, highlight = hl.GIT_STAGED } }
@@ -614,6 +649,29 @@ do
         }
       end
     end
+  end
+
+  ---@param config Yat.Config
+  function M.setup(config)
+    M.define_renderer("indentation", M.indentation, config.renderers.builtin.indentation)
+    M.define_renderer("icon", M.icon, config.renderers.builtin.icon)
+    M.define_renderer("name", M.name, config.renderers.builtin.name)
+    M.define_renderer("modified", M.modified, config.renderers.builtin.modified)
+    M.define_renderer("repository", M.repository, config.renderers.builtin.repository)
+    M.define_renderer("symlink_target", M.symlink_target, config.renderers.builtin.symlink_target)
+    M.define_renderer("git_status", M.git_status, config.renderers.builtin.git_status)
+    M.define_renderer("diagnostics", M.diagnostics, config.renderers.builtin.diagnostics)
+    M.define_renderer("buffer_info", M.buffer_info, config.renderers.builtin.buffer_info)
+    M.define_renderer("clipboard", M.clipboard, config.renderers.builtin.clipboard)
+
+    for name, renderer in pairs(config.renderers) do
+      if name ~= "builtin" then
+        log.debug("creating renderer %q, %s", name, renderer)
+        M.define_renderer(name, renderer.fn, renderer.config)
+      end
+    end
+
+    setup_highlights(config.renderers.builtin.git_status.icons)
   end
 end
 

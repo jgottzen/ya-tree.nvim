@@ -57,7 +57,8 @@ Tree.__index = Tree
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  Tree.supported_actions = {
+  ---@diagnostic disable-next-line:missing-parameter
+  Tree.supported_actions = vim.fn.uniq({
     builtin.general.close_window,
     builtin.general.system_open,
     builtin.general.open_help,
@@ -90,7 +91,7 @@ do
     builtin.general.focus_next_sibling,
     builtin.general.focus_first_sibling,
     builtin.general.focus_last_sibling,
-  }
+  })
 end
 
 ---@param self Yat.Tree

@@ -14,4 +14,14 @@ function M.create_action(fn, desc, modes, trees)
   }
 end
 
+---@param fn Yat.Ui.RendererFunction
+---@param config Yat.Config.BaseRendererConfig
+---@return Yat.Ui.Renderer.Renderer renderer
+function M.create_renderer(fn, config)
+  return {
+    fn = fn,
+    config = config,
+  }
+end
+
 return M
