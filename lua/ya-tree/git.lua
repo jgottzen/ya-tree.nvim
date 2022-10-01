@@ -604,9 +604,9 @@ end
 ---@param _type Luv.FileType
 ---@return string|nil status
 function Repo:status_of(path, _type)
-  path = _type == "directory" and (path .. os_sep) or path
   local status = self._status._changed_entries[path] or self._status._propagated_changed_entries[path]
   if not status then
+    path = _type == "directory" and (path .. os_sep) or path
     for _path, _status in pairs(self._status._changed_entries) do
       if _status == "?" and _path:sub(-1) == os_sep and vim.startswith(path, _path) then
         status = _status
