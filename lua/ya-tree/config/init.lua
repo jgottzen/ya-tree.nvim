@@ -327,14 +327,14 @@ local M = {
     },
 
     ---@class Yat.Config.View
-    ---@field width number Widht of the tree panel, default: `40`.
+    ---@field size number Size of the tree panel, default: `40`.
     ---@field position Yat.Ui.Canvas.Position Where the tree panel is placed, default: `"left"`.
     ---@field number boolean Wether to show the number column, default: `false`.
     ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
     ---@field popups Yat.Config.View.Popups Popup window configuration.
     ---@field default_renderers Yat.Config.View.DefaultRenderers Default renderers to use in the tree view.
     view = {
-      width = 40,
+      size = 40,
       position = "left",
       number = false,
       relativenumber = false,

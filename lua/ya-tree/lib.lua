@@ -38,6 +38,7 @@ end
 ---  - {opts.focus?} `boolean`
 ---  - {opts.tree_type?} `Yat.Trees.Type`
 ---  - {opts.location?} `Yat.Ui.Canvas.Position`
+---  - {opts.size?} `integer`
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")
@@ -162,7 +163,7 @@ function M.open_window(opts)
     end
     ui.update(tree, node)
   else
-    ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position })
+    ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })
   end
 
   if issue_tcd then

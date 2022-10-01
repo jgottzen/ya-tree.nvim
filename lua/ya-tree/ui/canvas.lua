@@ -46,7 +46,7 @@ local win_options = {
 local file_min_diagnostic_severity = config.renderers.builtin.diagnostics.min_severity
 local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.min_severity
 
----@alias Yat.Ui.Canvas.Position "left"|"right"
+---@alias Yat.Ui.Canvas.Position "left" | "right" | "top" | "bottom"
 
 ---@class Yat.Ui.Canvas
 ---@field public tree_type Yat.Trees.Type
@@ -56,7 +56,7 @@ local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.m
 ---@field private bufnr? number
 ---@field private window_augroup? number
 ---@field private previous_row number
----@field private width number
+---@field private size number
 ---@field private nodes Yat.Node[]
 ---@field private node_path_to_index_lookup table<string, integer>
 ---@field private directory_renderers Yat.Ui.Canvas.Renderer[]
@@ -82,10 +82,15 @@ end
 function Canvas:new()
   local this = setmetatable({}, self)
   this.position = config.view.position
-  this.width = config.view.width
+  this.size = config.view.size
   this.nodes = {}
   this.node_path_to_index_lookup = {}
   return this
+end
+
+---@return boolean
+function Canvas:is_on_side()
+  return self.position == "left" or self.position == "right"
 end
 
 ---@return number height, number width
@@ -111,15 +116,6 @@ function Canvas:set_edit_winid(winid)
   if self.edit_winid and self.edit_winid == self.winid then
     log.error("setting edit_winid to %s, the same as winid", self.edit_winid)
   end
-end
-
-function Canvas:create_edit_window()
-  local position = self.position ~= "left" and "aboveleft" or "belowright"
-  local size = vim.o.columns - self.width - 1
-  vim.cmd("noautocmd " .. position .. " " .. size .. "vsplit")
-  self.edit_winid = api.nvim_get_current_win() --[[@as number]]
-
-  log.debug("created edit window %s", self.edit_winid)
 end
 
 ---@return boolean is_open
@@ -205,9 +201,11 @@ function Canvas:_set_window_options()
     group = self.window_augroup,
     buffer = self.bufnr,
     callback = function()
-      self.width = api.nvim_win_get_width(self.winid) --[[@as number]]
+      if self.edit_winid then
+        self.size = self:is_on_side() and api.nvim_win_get_width(self.winid) or api.nvim_win_get_height(self.winid) --[[@as number]]
+      end
     end,
-    desc = "Storing window width",
+    desc = "Storing window size",
   })
   api.nvim_create_autocmd("WinClosed", {
     group = self.window_augroup,
@@ -244,6 +242,16 @@ function Canvas:_on_win_closed()
   self.winid = nil
 end
 
+function Canvas:resize()
+  if self:is_on_side() then
+    api.nvim_win_set_width(self.winid, self.size)
+  else
+    api.nvim_win_set_height(self.winid, self.size)
+  end
+end
+
+local positions_to_wincmd = { left = "H", bottom = "J", top = "K", right = "L" }
+
 ---@private
 ---@param position? Yat.Ui.Canvas.Position
 function Canvas:_create_window(position)
@@ -255,21 +263,34 @@ function Canvas:_create_window(position)
   end
 
   self.position = position or self.position
-  local pos = self.position == "right" and "belowright" or "aboveleft"
-  vim.cmd("noautocmd " .. pos .. " " .. self.width .. "vsplit")
+  vim.cmd("noautocmd vsplit")
   self.winid = api.nvim_get_current_win() --[[@as number]]
+  vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
+  self:resize()
   log.debug("created window %s", self.winid)
   self:_set_window_options()
+end
+
+function Canvas:create_edit_window()
+  vim.cmd("noautocmd vsplit")
+  self.edit_winid = api.nvim_get_current_win() --[[@as number]]
+  api.nvim_win_call(self.winid, function()
+    vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
+    self:resize()
+  end)
+  log.debug("created edit window %s", self.edit_winid)
 end
 
 ---@class Yat.Ui.Canvas.OpenArgs
 ---@field hijack_buffer? boolean
 ---@field position? Yat.Ui.Canvas.Position
+---@field size? integer
 
 ---@param tree Yat.Tree
 ---@param opts? Yat.Ui.Canvas.OpenArgs
 ---  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.position?} `YaTreeCanvas.Position`
+---  - {opts.size?} `integer`
 function Canvas:open(tree, opts)
   if self:is_open() then
     return
@@ -280,6 +301,9 @@ function Canvas:open(tree, opts)
     self:_create_buffer(opts.hijack_buffer)
   end
 
+  if opts.size then
+    self.size = opts.size
+  end
   if opts.hijack_buffer then
     self.winid = api.nvim_get_current_win() --[[@as number]]
     log.debug("hijacking current window %s for canvas", self.winid)
