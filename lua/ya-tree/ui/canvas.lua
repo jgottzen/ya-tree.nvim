@@ -10,7 +10,7 @@ local ns = api.nvim_create_namespace("YaTreeHighlights") --[[@as integer]]
 
 ---@type {name: string, value: string|boolean}[]
 local buf_options = {
-  { name = "bufhidden", value = "hide" },
+  { name = "bufhidden", value = "hide" }, -- must be hide and not wipe for Canvas:restore and particularly Canvas:move_buffer_to_edit_window to work
   { name = "buflisted", value = false },
   { name = "filetype", value = "YaTree" },
   { name = "buftype", value = "nofile" },
