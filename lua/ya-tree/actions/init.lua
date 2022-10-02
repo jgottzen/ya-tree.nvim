@@ -93,7 +93,10 @@ function M.apply_mappings(bufnr)
   end
 end
 
-local function define_builtin_actions()
+---@param actions Yat.Config.Actions
+local function define_actions(actions)
+  M._actions = {}
+
   local builtin = require("ya-tree.actions.builtin")
   local lib = require("ya-tree.lib")
   local help = require("ya-tree.ui.help")
@@ -186,10 +189,7 @@ local function define_builtin_actions()
     { "n" }
   )
   M.define_action(builtin.diagnostics.focus_next_diagnostic_item, ui.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
-end
 
----@param actions Yat.Config.Actions
-local function define_user_action(actions)
   for name, action in pairs(actions) do
     log.debug("defining user action %q", name)
     M.define_action(name, action.fn, action.desc, action.modes, action.trees)
@@ -198,6 +198,7 @@ end
 
 ---@param trees Yat.Config.Trees
 local function validate_and_create_mappings(trees)
+  M._tree_mappings = {}
   ---@type table<string, boolean>
   local keys = {}
   for key, value in pairs(trees.global_mappings.list) do
@@ -206,8 +207,6 @@ local function validate_and_create_mappings(trees)
     end
   end
 
-  ---@type table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
-  M._tree_mappings = {}
   for name, tree in pairs(trees) do
     if name ~= "global_mappings" then
       M._tree_mappings[name] = vim.tbl_deep_extend("force", trees.global_mappings.list, tree.mappings.list)
@@ -219,7 +218,6 @@ local function validate_and_create_mappings(trees)
     end
   end
 
-  ---@type table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
   M._mappings = {}
   for key in pairs(keys) do
     ---@type table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
@@ -265,8 +263,7 @@ end
 
 ---@param config Yat.Config
 function M.setup(config)
-  define_builtin_actions()
-  define_user_action(config.actions)
+  define_actions(config.actions)
   validate_and_create_mappings(config.trees)
 end
 

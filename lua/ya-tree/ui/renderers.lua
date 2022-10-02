@@ -651,26 +651,32 @@ do
     end
   end
 
-  ---@param config Yat.Config
-  function M.setup(config)
-    M.define_renderer("indentation", M.indentation, config.renderers.builtin.indentation)
-    M.define_renderer("icon", M.icon, config.renderers.builtin.icon)
-    M.define_renderer("name", M.name, config.renderers.builtin.name)
-    M.define_renderer("modified", M.modified, config.renderers.builtin.modified)
-    M.define_renderer("repository", M.repository, config.renderers.builtin.repository)
-    M.define_renderer("symlink_target", M.symlink_target, config.renderers.builtin.symlink_target)
-    M.define_renderer("git_status", M.git_status, config.renderers.builtin.git_status)
-    M.define_renderer("diagnostics", M.diagnostics, config.renderers.builtin.diagnostics)
-    M.define_renderer("buffer_info", M.buffer_info, config.renderers.builtin.buffer_info)
-    M.define_renderer("clipboard", M.clipboard, config.renderers.builtin.clipboard)
+  ---@param renderers Yat.Config.Renderers
+  local function define_renderers(renderers)
+    M._renderers = {}
 
-    for name, renderer in pairs(config.renderers) do
+    M.define_renderer("indentation", M.indentation, renderers.builtin.indentation)
+    M.define_renderer("icon", M.icon, renderers.builtin.icon)
+    M.define_renderer("name", M.name, renderers.builtin.name)
+    M.define_renderer("modified", M.modified, renderers.builtin.modified)
+    M.define_renderer("repository", M.repository, renderers.builtin.repository)
+    M.define_renderer("symlink_target", M.symlink_target, renderers.builtin.symlink_target)
+    M.define_renderer("git_status", M.git_status, renderers.builtin.git_status)
+    M.define_renderer("diagnostics", M.diagnostics, renderers.builtin.diagnostics)
+    M.define_renderer("buffer_info", M.buffer_info, renderers.builtin.buffer_info)
+    M.define_renderer("clipboard", M.clipboard, renderers.builtin.clipboard)
+
+    for name, renderer in pairs(renderers) do
       if name ~= "builtin" then
         log.debug("creating renderer %q, %s", name, renderer)
         M.define_renderer(name, renderer.fn, renderer.config)
       end
     end
+  end
 
+  ---@param config Yat.Config
+  function M.setup(config)
+    define_renderers(config.renderers)
     setup_highlights(config.renderers.builtin.git_status.icons)
   end
 end
