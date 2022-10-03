@@ -36,7 +36,7 @@ end
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
----  - {opts.tree_type?} `Yat.Trees.Type`
+---  - {opts.tree?} `Yat.Trees.Type`
 ---  - {opts.location?} `Yat.Ui.Canvas.Position`
 ---  - {opts.size?} `integer`
 function M.open_window(opts)
@@ -60,14 +60,14 @@ function M.open_window(opts)
   local tabpage = api.nvim_get_current_tabpage() --[[@as number]]
 
   local tree
-  if opts.tree_type then
-    log.debug("opening tree of type %q", opts.tree_type)
-    tree = Trees.get_tree(tabpage, opts.tree_type, true)
+  if opts.tree then
+    log.debug("opening tree of type %q", opts.tree)
+    tree = Trees.get_tree(tabpage, opts.tree, true)
     if not tree then
       local path = opts.path and resolve_path(opts.path) or uv.cwd()
-      tree = Trees.new_tree(tabpage, opts.tree_type, true, path)
+      tree = Trees.new_tree(tabpage, opts.tree, true, path)
       if not tree then
-        utils.warn(string.format("Could not create tree of type %q for path %q", opts.tree_type, path))
+        utils.warn(string.format("Could not create tree of type %q for path %q", opts.tree, path))
       end
     end
   end
@@ -128,13 +128,13 @@ function M.open_window(opts)
       end
       log.debug("navigating to %q", path)
     else
-      -- need to check if the `tree_type` is explicitly "filesystem"
-      if opts.tree_type and opts.tree_type == "filesystem" then
+      -- need to check if the `tree` is explicitly "filesystem"
+      if opts.tree and opts.tree == "filesystem" then
         log.error("cannot expand to file %q in with root %s", path, tostring(tree.root))
         utils.warn(string.format("Path %q is not a file or directory", opts.path))
       else
-        log.debug("cannot expand to node %q in tree type %q", path, opts.tree_type)
-        utils.notify(string.format("Path %q is not available in the %q tree", path, opts.tree_type or "current"))
+        log.debug("cannot expand to node %q in tree type %q", path, opts.tree)
+        utils.notify(string.format("Path %q is not available in the %q tree", path, opts.tree or "current"))
       end
     end
   elseif config.follow_focused_file then
@@ -157,7 +157,7 @@ function M.open_window(opts)
       node = ui_node
     end
   end
-  if ui.is_open() and not opts.tree_type then
+  if ui.is_open() and not opts.tree then
     if opts.focus then
       ui.focus()
     end
@@ -511,7 +511,7 @@ local function on_buf_enter(bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
     ---@type Yat.OpenWindowArgs
-    local opts = { path = file, focus = true, tree_type = "filesystem" }
+    local opts = { path = file, focus = true, tree = "filesystem" }
     if not tree then
       log.debug("no tree for current tab")
       local cwd = uv.cwd() --[[@as string]]

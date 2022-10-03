@@ -12,7 +12,7 @@ local M = {}
 ---@field path? string
 ---@field switch_root? boolean
 ---@field focus? boolean
----@field tree_type? Yat.Trees.Type
+---@field tree? Yat.Trees.Type
 ---@field position? Yat.Ui.Canvas.Position
 ---@field size? integer
 
@@ -20,7 +20,7 @@ local M = {}
 ---  - {opts.path?} `string`
 ---  - {opts.switch_root?} `boolean`
 ---  - {opts.focus?} `boolean`
----  - {opts.tree_type?} `Yat.Trees.Type`
+---  - {opts.tree?} `Yat.Trees.Type`
 ---  - {opts.position?} `Yat.Ui.Canvas.Position`
 ---  - {opts.size?} `integer`
 function M.open(opts)
@@ -83,7 +83,7 @@ local function complete_open(arg_lead, cmdline)
 
   local focus_completed = false
   local path_completed = false
-  local tree_type_completed = false
+  local tree_completed = false
   local position_completed = false
   local size_completed = false
   for index = 2, i - 1 do
@@ -92,8 +92,8 @@ local function complete_open(arg_lead, cmdline)
       focus_completed = true
     elseif vim.startswith(split, "path=") then
       path_completed = true
-    elseif vim.startswith(split, "tree_type=") then
-      tree_type_completed = true
+    elseif vim.startswith(split, "tree=") then
+      tree_completed = true
     elseif vim.startswith(split, "position=") then
       position_completed = true
     elseif vim.startswith(split, "size=") then
@@ -105,8 +105,8 @@ local function complete_open(arg_lead, cmdline)
     return fn.getcompletion(arg_lead:sub(6), "file")
   elseif not focus_completed and vim.startswith(arg_lead, "focus=") then
     return { "focus=true", "focus=false" }
-  elseif not tree_type_completed and vim.startswith(arg_lead, "tree_type=") then
-    return { "tree_type=files", "tree_type=buffers", "tree_type=git" }
+  elseif not tree_completed and vim.startswith(arg_lead, "tree=") then
+    return { "tree=files", "tree=buffers", "tree=git" }
   elseif not position_completed and vim.startswith(arg_lead, "position=") then
     return { "position=left", "position=right", "position=top", "position=bottom" }
   elseif not size_completed and vim.startswith(arg_lead, "size=") then
@@ -119,8 +119,8 @@ local function complete_open(arg_lead, cmdline)
     if not path_completed then
       t[#t + 1] = "path=./"
     end
-    if not tree_type_completed then
-      t[#t + 1] = "tree_type="
+    if not tree_completed then
+      t[#t + 1] = "tree="
     end
     if not position_completed then
       t[#t + 1] = "position="
@@ -135,7 +135,7 @@ end
 ---@param fargs string[]
 ---@return string|nil path
 ---@return boolean focus
----@return string|nil tree_type
+---@return string|nil tree
 ---@return Yat.Ui.Canvas.Position? position
 ---@return integer|nil size
 local function parse_open_command_input(fargs)
@@ -143,7 +143,7 @@ local function parse_open_command_input(fargs)
   local path = nil
   local focus = false
   ---@type string|nil
-  local tree_type = nil
+  local tree = nil
   ---@type Yat.Ui.Canvas.Position?
   local position = nil
   local size = nil
@@ -152,8 +152,8 @@ local function parse_open_command_input(fargs)
       path = arg:sub(6)
     elseif vim.startswith(arg, "focus=") then
       focus = arg:sub(7) == "true"
-    elseif vim.startswith(arg, "tree_type=") then
-      tree_type = arg:sub(11)
+    elseif vim.startswith(arg, "tree=") then
+      tree = arg:sub(6)
     elseif vim.startswith(arg, "position=") then
       position = arg:sub(10)
     elseif vim.startswith(arg, "size=") then
@@ -161,7 +161,7 @@ local function parse_open_command_input(fargs)
     end
   end
 
-  return path, focus, tree_type, position, size
+  return path, focus, tree, position, size
 end
 
 ---@param opts? Yat.Config
@@ -183,8 +183,8 @@ function M.setup(opts)
   require("ya-tree.lib").setup()
 
   api.nvim_create_user_command("YaTreeOpen", function(input)
-    local path, focus, tree_type, position, size = parse_open_command_input(input.fargs)
-    M.open({ path = path, switch_root = input.bang, focus = focus, tree_type = tree_type, position = position, size = size })
+    local path, focus, tree, position, size = parse_open_command_input(input.fargs)
+    M.open({ path = path, switch_root = input.bang, focus = focus, tree = tree, position = position, size = size })
   end, { bang = true, nargs = "*", complete = complete_open, desc = "Open the tree window" })
   api.nvim_create_user_command("YaTreeClose", M.close, { desc = "Closes the tree window" })
   api.nvim_create_user_command("YaTreeToggle", M.toggle, { desc = "Toggles the tree window" })

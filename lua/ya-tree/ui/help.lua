@@ -69,14 +69,14 @@ end
 
 ---@param format_string string
 ---@param current_tab integer
----@param all_tree_type Yat.Trees.Type[]
+---@param all_tree_types Yat.Trees.Type[]
 ---@param width integer
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlight_groups
-local function create_header(format_string, current_tab, all_tree_type, width)
+local function create_header(format_string, current_tab, all_tree_types, width)
   local tabs = {}
   local index = 1
-  for _, tree_type in ipairs(all_tree_type) do
+  for _, tree_type in ipairs(all_tree_types) do
     tabs[#tabs + 1] = string.format(" (%s) %s ", index, tree_type)
     index = index + 1
   end
@@ -158,21 +158,21 @@ local function create_mappings_section(lines, highlight_groups, format_string, i
   end
 end
 
----@param tree_types Yat.Trees.Type[]
+---@param all_tree_types Yat.Trees.Type[]
 ---@param mappings table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
 ---@param current_tab integer
 ---@param width integer
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlight_groups
 ---@return string[] close_keys
-local function mappings_for_for_tree(current_tab, tree_types, mappings, width)
-  local tree_type = tree_types[current_tab]
+local function mappings_for_for_tree(current_tab, all_tree_types, mappings, width)
+  local tree_type = all_tree_types[current_tab]
   local current_mappings = mappings[tree_type]
   local insert, visual, max_mapping_width, close_keys = parse_mappings(current_mappings)
 
   local format_string = "%" .. keys_section_width .. "s : %-" .. max_mapping_width .. "s " -- with trailing space to match the left side
 
-  local lines, highlight_groups = create_header(format_string, current_tab, tree_types, width)
+  local lines, highlight_groups = create_header(format_string, current_tab, all_tree_types, width)
   create_mappings_section(lines, highlight_groups, format_string, insert, visual)
 
   return lines, highlight_groups, close_keys
