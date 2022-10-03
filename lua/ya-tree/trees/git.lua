@@ -15,6 +15,7 @@ local api = vim.api
 ---@field root Yat.Nodes.Git
 ---@field current_node Yat.Nodes.Git
 ---@field supported_actions Yat.Trees.Git.SupportedActions[]
+---@field complete_func fun(self: Yat.Trees.Git, bufnr: integer)
 local GitTree = { TYPE = "git" }
 GitTree.__index = GitTree
 GitTree.__eq = Tree.__eq
@@ -64,6 +65,8 @@ do
     unpack(Tree.supported_actions),
   })
 end
+
+GitTree.complete_func = Tree.complete_func_loaded_nodes
 
 ---@async
 ---@param tabpage integer

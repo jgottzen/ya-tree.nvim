@@ -18,6 +18,7 @@ local uv = vim.loop
 ---@field private _tabpage integer[]
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
+---@field complete_func "buffer"
 local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
 
@@ -76,6 +77,8 @@ do
     unpack(Tree.supported_actions),
   })
 end
+
+BuffersTree.complete_func = "buffer"
 
 ---@type Yat.Trees.Buffers?
 local singleton = nil

@@ -6,7 +6,7 @@ local fn = vim.fn
 ---@class Yat.Ui.Input
 ---@field private prompt string
 ---@field private default string
----@field private completion string
+---@field private completion? string|fun(bufnr: integer)
 ---@field private winid? number
 ---@field private bufnr? number
 ---@field private title_winid? number
@@ -46,13 +46,26 @@ local win_options = {
   }, ","),
 }
 
+---@class Yat.Ui.InputOpts
+---@field title string
+---@field prompt? string defaults to an empty string.
+---@field default? string defaults to an empty string.
+---@field completion? string|fun(bufnr: integer)
+---@field win? number
+---@field relative? string defaults to "cursor".
+---@field anchor? string defaults to "SW".
+---@field row? number defaults to 1.
+---@field col? number defaults to 1.
+---@field width? number defaults to 30.
+---@field border? string|string[] defaults to "rounded".
+
 --- Create a new `Input`.
 ---
----@param opts {prompt?: string, default?: string, completion?: string, win?: number, relative?: string, anchor?: string, row?: number, col?: number, width?: number, border?: string|string[]}
+---@param opts Yat.Ui.InputOpts
 ---  - {opts.title} `string`
 ---  - {opts.prompt?} `string` defaults to an empty string.
 ---  - {opts.default?} `string` defaults to an empty string.
----  - {opts.completion?} `string`
+---  - {opts.completion?} `string|fun(bufnr: intger)`
 ---  - {opts.win?} `number`
 ---  - {opts.relative?} `string` defaults to `"cursor"`.
 ---  - {opts.anchor?} `string` defaults to `"SW"`.
@@ -142,12 +155,16 @@ function Input:open()
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
   if self.completion then
-    api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
-    api.nvim_buf_set_option(self.bufnr, "omnifunc", "")
-    if self.completion == "file_in_path" then
-      api.nvim_buf_set_option(self.bufnr, "path", vim.loop.cwd() .. "/**")
+    if type(self.completion) == "string" then
+      api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
+      api.nvim_buf_set_option(self.bufnr, "omnifunc", "")
+      if self.completion == "file_in_path" then
+        api.nvim_buf_set_option(self.bufnr, "path", vim.loop.cwd() .. "/**")
+      end
+      current_completion = self.completion
+    elseif type(self.completion) == "function" then
+      self.completion(self.bufnr)
     end
-    current_completion = self.completion
   end
 
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as number]]

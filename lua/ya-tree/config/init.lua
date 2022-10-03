@@ -198,9 +198,17 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
+      ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
       ---@field mappings Yat.Config.Trees.Filesystem.Mappings
       ---@field renderers? Yat.Config.Trees.Renderers
       filesystem = {
+        ---@class Yat.Config.Trees.Filesystem.Completion
+        ---@field on "root" | "node" Wether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
+        ---@field setup? fun(self: Yat.Trees.Filesystem, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
+        completion = {
+          on = "root",
+          setup = nil,
+        },
         ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
         ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.

@@ -17,6 +17,7 @@ local api = vim.api
 ---@field root Yat.Node
 ---@field current_node Yat.Node
 ---@field supported_actions Yat.Trees.Tree.SupportedActions[]
+---@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
 local Tree = {}
 Tree.__index = Tree
 
@@ -149,6 +150,57 @@ function Tree.new(self, tabpage)
   end
 
   return this
+end
+
+do
+  ---@type string[]
+  local paths = {}
+
+  -- selene: allow(global_usage)
+  ---@param start number
+  ---@param base string
+  ---@return number|string[]
+  _G._ya_tree_trees_tree_loaded_nodes_complete = function(start, base)
+    if start == 1 then
+      return 0
+    end
+    ---@param item string
+    return vim.tbl_filter(function(item)
+      return item:find(base, 1, true) ~= nil
+    end, paths)
+  end
+
+  ---@param bufnr integer
+  function Tree:complete_func_loaded_nodes(bufnr)
+    local config = require("ya-tree.config").config
+    paths = {}
+    self.root:walk(function(node)
+      if node:is_file() and not node:is_hidden(config) then
+        paths[#paths + 1] = node.path:sub(#self.root.path + 2)
+      end
+    end)
+    api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_trees_tree_loaded_nodes_complete")
+    api.nvim_buf_set_option(bufnr, "omnifunc", "")
+  end
+end
+
+-- selene: allow(global_usage)
+---@param start number
+---@param base string
+---@return number|string[]
+_G._ya_tree_trees_tree_file_in_path_complete = function(start, base)
+  if start == 1 then
+    return 0
+  end
+  return vim.fn.getcompletion(base, "file_in_path")
+end
+
+---@param bufnr integer
+---@param node? Yat.Node
+function Tree:complete_func_file_in_path(bufnr, node)
+  api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_trees_tree_file_in_path_complete")
+  api.nvim_buf_set_option(bufnr, "omnifunc", "")
+  api.nvim_buf_set_option(bufnr, "path", (node and node.path or self.root.path) .. "/**")
 end
 
 -- selene: allow(unused_variable)

@@ -9,6 +9,7 @@ local log = require("ya-tree.log")("trees")
 ---@field root Yat.Nodes.Search
 ---@field current_node Yat.Nodes.Search
 ---@field supported_actions Yat.Trees.Search.SupportedActions[]
+---@field complete_func fun(self: Yat.Trees.Search, bufnr: integer)
 local SearchTree = { TYPE = "search" }
 SearchTree.__index = SearchTree
 SearchTree.__eq = Tree.__eq
@@ -62,6 +63,8 @@ do
     unpack(Tree.supported_actions),
   })
 end
+
+SearchTree.complete_func = Tree.complete_func_loaded_nodes
 
 ---@async
 ---@param tabpage integer

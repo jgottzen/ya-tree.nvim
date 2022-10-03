@@ -5,6 +5,7 @@ local fs = require("ya-tree.filesystem")
 local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
 local api = vim.api
@@ -14,6 +15,7 @@ local uv = vim.loop
 ---@field TYPE "filesystem"
 ---@field cwd string
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
+---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
 local FilesystemTree = { TYPE = "filesystem" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
@@ -92,6 +94,31 @@ do
 
     unpack(Tree.supported_actions),
   })
+end
+
+---@param config Yat.Config
+function FilesystemTree.setup(config)
+  local completion = config.trees.filesystem.completion
+  if type(completion.setup) == "function" then
+    function FilesystemTree:complete_func(bufnr, node)
+      local completefunc = completion.setup(self, node)
+      if completefunc then
+        api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
+        api.nvim_buf_set_option(bufnr, "omnifunc", "")
+      end
+    end
+  else
+    if completion.on == "node" then
+      FilesystemTree.complete_func = Tree.complete_func_file_in_path
+    else
+      if completion.on ~= "root" then
+        utils.warn(string.format("'trees.filesystem.completion.on' is not a recognized value (%q), using 'root'", completion.on))
+      end
+      function FilesystemTree:complete_func(bufnr)
+        return self:complete_func_file_in_path(bufnr)
+      end
+    end
+  end
 end
 
 ---Creates a new filesystem node tree root.
