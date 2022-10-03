@@ -113,12 +113,18 @@ end
 ---@param config Yat.Config
 function Tree.setup(config) end
 
----@async
 ---@generic T : Yat.Tree
 ---@param self T
 ---@param tabpage integer
+---@param enabled_events boolean | { buf_modified?: boolean, buf_saved?: boolean, dot_git_dir_changed?: boolean, diagnostics?: boolean }
 ---@return T tree
-function Tree.new(self, tabpage)
+function Tree.new(self, tabpage, enabled_events)
+  if enabled_events == true then
+    enabled_events = { buf_modified = true, buf_saved = true, dot_git_dir_changed = true, diagnostics = true }
+  end
+  if enabled_events == false or type(enabled_events) == "nil" then
+    enabled_events = {}
+  end
   ---@type Yat.Tree
   local this = {
     _tabpage = tabpage,
@@ -128,21 +134,23 @@ function Tree.new(self, tabpage)
 
   local config = require("ya-tree.config").config
   local ae = require("ya-tree.events.event").autocmd
-  events.on_autocmd_event(ae.BUFFER_MODIFIED, this:create_event_id(ae.BUFFER_MODIFIED), function(bufnr, file)
-    this:on_buffer_modified(bufnr, file)
-  end)
-  if config.auto_reload_on_write then
+  if enabled_events.buf_modified then
+    events.on_autocmd_event(ae.BUFFER_MODIFIED, this:create_event_id(ae.BUFFER_MODIFIED), function(bufnr, file)
+      this:on_buffer_modified(bufnr, file)
+    end)
+  end
+  if enabled_events.buf_saved and config.auto_reload_on_write then
     events.on_autocmd_event(ae.BUFFER_SAVED, this:create_event_id(ae.BUFFER_SAVED), true, function(bufnr, _, match)
       this:on_buffer_saved(bufnr, match)
     end)
   end
-  if config.git.enable then
+  if enabled_events.dot_git_dir_changed and config.git.enable then
     local ge = require("ya-tree.events.event").git
-    events.on_git_event(ge.DOT_GIT_DIR_CHANGED, this:create_event_id(ge.DOT_GIT_DIR_CHANGED), function(event_repo, fs_changes)
-      this:on_git_event(event_repo, fs_changes)
+    events.on_git_event(ge.DOT_GIT_DIR_CHANGED, this:create_event_id(ge.DOT_GIT_DIR_CHANGED), function(repo, fs_changes)
+      this:on_git_event(repo, fs_changes)
     end)
   end
-  if config.diagnostics.enable then
+  if enabled_events.diagnostics and config.diagnostics.enable then
     local ye = require("ya-tree.events.event").ya_tree
     events.on_yatree_event(ye.DIAGNOSTICS_CHANGED, this:create_event_id(ye.DIAGNOSTICS_CHANGED), true, function(severity_changed)
       this:on_diagnostics_event(severity_changed)

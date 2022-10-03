@@ -89,7 +89,7 @@ local singleton = nil
 ---@return Yat.Trees.Buffers tree
 function BuffersTree:new(tabpage, path)
   if not singleton then
-    singleton = Tree.new(self, tabpage)
+    singleton = Tree.new(self, tabpage, true)
     local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
     singleton._tabpage = { tabpage }
     singleton.root = BufferNode:new(fs_node)

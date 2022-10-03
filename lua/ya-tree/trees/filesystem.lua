@@ -151,7 +151,7 @@ end
 ---@param root? string|Yat.Node
 ---@return Yat.Trees.Filesystem tree
 function FilesystemTree:new(tabpage, root)
-  local this = Tree.new(self, tabpage)
+  local this = Tree.new(self, tabpage, true)
   this.cwd = uv.cwd() --[[@as string]]
 
   local root_node

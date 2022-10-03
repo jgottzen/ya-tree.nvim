@@ -71,7 +71,7 @@ SearchTree.complete_func = Tree.complete_func_loaded_nodes
 ---@param path string
 ---@return Yat.Trees.Search tree
 function SearchTree:new(tabpage, path)
-  local this = Tree.new(self, tabpage)
+  local this = Tree.new(self, tabpage, true)
   this:_init(path)
 
   log.debug("created new tree %s", tostring(this))

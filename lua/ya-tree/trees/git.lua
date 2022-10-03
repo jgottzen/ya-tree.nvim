@@ -73,7 +73,7 @@ GitTree.complete_func = Tree.complete_func_loaded_nodes
 ---@param repo_or_toplevel Yat.Git.Repo|string
 ---@return Yat.Trees.Git tree
 function GitTree:new(tabpage, repo_or_toplevel)
-  local this = Tree.new(self, tabpage)
+  local this = Tree.new(self, tabpage, true)
   local repo
   if type(repo_or_toplevel) == "string" then
     repo = git.create_repo(repo_or_toplevel)
