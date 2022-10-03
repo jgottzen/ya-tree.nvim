@@ -52,6 +52,11 @@ function M.delete_trees_for_nonexisting_tabpages()
   end
 end
 
+---@return Yat.Trees.Type[]
+function M.get_registered_tree_types()
+  return vim.tbl_keys(M._registered_trees)
+end
+
 ---@param callback fun(tree: Yat.Tree)
 function M.for_each_tree(callback)
   for _, trees in pairs(M._tabpage_trees) do

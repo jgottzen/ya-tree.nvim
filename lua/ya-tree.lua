@@ -106,7 +106,9 @@ local function complete_open(arg_lead, cmdline)
   elseif not focus_completed and vim.startswith(arg_lead, "focus=") then
     return { "focus=true", "focus=false" }
   elseif not tree_completed and vim.startswith(arg_lead, "tree=") then
-    return { "tree=files", "tree=buffers", "tree=git" }
+    return vim.tbl_map(function(tree_type)
+      return "tree=" .. tree_type
+    end, require("ya-tree.trees").get_registered_tree_types())
   elseif not position_completed and vim.startswith(arg_lead, "position=") then
     return { "position=left", "position=right", "position=top", "position=bottom" }
   elseif not size_completed and vim.startswith(arg_lead, "size=") then
