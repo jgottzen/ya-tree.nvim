@@ -139,7 +139,7 @@ function Tree.new(self, tabpage, enabled_events)
       this:on_buffer_modified(bufnr, file)
     end)
   end
-  if enabled_events.buf_saved and config.auto_reload_on_write then
+  if enabled_events.buf_saved and config.update_on_buffer_saved then
     events.on_autocmd_event(ae.BUFFER_SAVED, this:create_event_id(ae.BUFFER_SAVED), true, function(bufnr, _, match)
       this:on_buffer_saved(bufnr, match)
     end)

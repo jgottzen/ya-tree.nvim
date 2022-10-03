@@ -3,14 +3,14 @@ local fn = vim.fn
 local M = {
   ---@class Yat.Config
   ---@field close_if_last_window boolean Force closing Neovim when YaTree is the last window, default: `false`.
-  ---@field auto_reload_on_write boolean Reloads the tree and the directory of the file changed, default: `true`.
+  ---@field update_on_buffer_saved boolean Update the tree and the directory of the file changed, default: `true`.
   ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
   ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field replace_netrw boolean Replace `netrw` windows, default: `true`.
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
-  ---@field cwd Yat.Config.Cwd Cwd configuration.
+  ---@field cwd Yat.Config.Cwd Current working directory configuration.
   ---@field search Yat.Config.Search Search configuration.
   ---@field filters Yat.Config.Filters Filters configuration.
   ---@field git Yat.Config.Git Git configuration.
@@ -18,12 +18,12 @@ local M = {
   ---@field system_open Yat.Config.SystemOpen Open file with system command configuration.
   ---@field trash Yat.Config.Trash `trash-cli` configuration.
   ---@field actions Yat.Config.Actions User actions.
-  ---@field trees Yat.Config.Trees Trees configuration.
+  ---@field trees Yat.Config.Trees Tree configurations.
   ---@field view Yat.Config.View Tree view configuration.
   ---@field renderers Yat.Config.Renderers Renderer configurations.
   default = {
     close_if_last_window = false,
-    auto_reload_on_write = true,
+    update_on_buffer_saved = true,
 
     follow_focused_file = false,
     move_cursor_to_name = false,
@@ -57,7 +57,7 @@ local M = {
 
     ---@class Yat.Config.Cwd
     ---@field follow boolean Update the tree root directory on `DirChanged`, default: `false`.
-    ---@field update_from_tree boolean Update the tab cwd when changing root directory in the tree, default: `false`.
+    ---@field update_from_tree boolean Update the *tabpage* cwd when changing root directory in the tree, default: `false`.
     cwd = {
       follow = false,
       update_from_tree = false,
@@ -104,7 +104,7 @@ local M = {
 
     ---@class Yat.Config.Diagnostics
     ---@field enable boolean Show lsp diagnostics in the tree, default: `true`.
-    ---@field debounce_time number Debounce time in ms, for how often `DiagnosticChanged` are processed, default: `300`.
+    ---@field debounce_time number Debounce time in ms, for how often `DiagnosticChanged` is processed, default: `300`.
     ---@field propagate_to_parents boolean If the diagnostic status should be propagated to parents, default: `true`.
     diagnostics = {
       enable = true,
@@ -143,7 +143,7 @@ local M = {
 
     ---@class Yat.Config.Trees.GlobalMappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-    ---@field list table<string, Yat.Trees.Tree.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+    ---@field list table<string, Yat.Trees.Tree.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Renderer
     ---@field name Yat.Ui.Renderer.Name
@@ -158,7 +158,7 @@ local M = {
     ---@field renderers? Yat.Config.Trees.Renderers
 
     ---@class Yat.Config.Trees : { [Yat.Trees.Type] : Yat.Config.Trees.Tree }
-    ---@field global_mappings Yat.Config.Trees.GlobalMappings
+    ---@field global_mappings Yat.Config.Trees.GlobalMappings Mappings that applies to all trees.
     ---@field filesystem Yat.Config.Trees.Filesystem Filesystem tree configuration.
     ---@field search Yat.Config.Trees.Search Search tree configuration.
     ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
@@ -199,8 +199,8 @@ local M = {
       },
       ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
       ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
-      ---@field mappings Yat.Config.Trees.Filesystem.Mappings
-      ---@field renderers? Yat.Config.Trees.Renderers
+      ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
+      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       filesystem = {
         ---@class Yat.Config.Trees.Filesystem.Completion
         ---@field on "root" | "node" Wether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
@@ -211,7 +211,7 @@ local M = {
         },
         ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-        ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -242,12 +242,12 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-      ---@field mappings Yat.Config.Trees.Search.Mappings
-      ---@field renderers? Yat.Config.Trees.Renderers
+      ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
+      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       search = {
         ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-        ---@field list table<string, Yat.Trees.Search.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        ---@field list table<string, Yat.Trees.Search.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -269,12 +269,12 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
-      ---@field mappings Yat.Config.Trees.Buffers.Mappings
-      ---@field renderers? Yat.Config.Trees.Renderers
+      ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
+      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       buffers = {
         ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -308,12 +308,12 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-      ---@field mappings Yat.Config.Trees.Git.Mappings
-      ---@field renderers? Yat.Config.Trees.Renderers
+      ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
+      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       git = {
         ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-        ---@field list table<string, Yat.Trees.Git.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings.
+        ---@field list table<string, Yat.Trees.Git.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -384,7 +384,7 @@ local M = {
     ---@field padding string The padding to use to the left of the renderer.
 
     ---@class Yat.Config.Renderers : { [string] : Yat.Ui.Renderer.Renderer }
-    ---@field builtin Yat.Config.Renderers.Builtin
+    ---@field builtin Yat.Config.Renderers.Builtin Built-in renderers configuration.
     renderers = {
       ---@class Yat.Config.Renderers.Builtin
       ---@field indentation Yat.Config.Renderers.Builtin.Indentation Indentation rendering configuration.
@@ -461,7 +461,7 @@ local M = {
         ---@class Yat.Config.Renderers.Builtin.Name : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
         ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
-        ---@field trailing_slash boolean Wether to show a trailing os directory separator after directory names, default: `false`.
+        ---@field trailing_slash boolean Wether to show a trailing OS directory separator after directory names, default: `false`.
         ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
         ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `false`.
         name = {
@@ -474,7 +474,7 @@ local M = {
 
         ---@class Yat.Config.Renderers.Builtin.Modified : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-        ---@field icon string The icon for modified files.
+        ---@field icon string The icon for modified files, default: `"[+]"`.
         modified = {
           padding = " ",
           icon = "[+]",
@@ -534,7 +534,7 @@ local M = {
           ---@field staged string The icon for staged changes, default: `""`.
           ---@field type_changed string The icon for a type-changed file, default: `""`.
           ---@field added string The icon for an added file, default: `"✚"`.
-          ---@field deleted string The icon for a deleted file, default: `""`.
+          ---@field deleted string The icon for a deleted file, default: `"✖"`.
           ---@field renamed string The icon for a renamed file, default: `"➜"`.
           ---@field copied string The icon for a copied file, default: `""`.
           ---@field modified string The icon for modified changes, default: `""`.
