@@ -50,7 +50,7 @@ setmetatable(FilesystemTree, { __index = Tree })
 ---| "search_once"
 ---| "show_last_search"
 ---
----| "rescan_dir_for_git"
+---| "rescan_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_prev_git_item"
 ---
@@ -85,7 +85,7 @@ do
     builtin.search.search_once,
     builtin.search.show_last_search,
 
-    builtin.git.rescan_dir_for_git,
+    builtin.git.rescan_node_for_git,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
 

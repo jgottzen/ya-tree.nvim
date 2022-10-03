@@ -96,7 +96,7 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.goto_node_in_files_tree(_, node)
+function M.goto_node_in_filesystem_tree(_, node)
   local tabpage = api.nvim_get_current_tabpage()
   local tree = Trees.filesystem_or_new(tabpage, true)
   local target_node = tree.root:expand({ to = node.path })

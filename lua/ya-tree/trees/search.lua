@@ -25,10 +25,10 @@ setmetatable(SearchTree, { __index = Tree })
 ---| "search_interactively"
 ---| "search_once"
 ---
----| "goto_node_in_files_tree"
----| "show_files_tree"
+---| "goto_node_in_filesystem_tree"
+---| "show_filesystem_tree"
 ---
----| "rescan_dir_for_git"
+---| "rescan_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_prev_git_item"
 ---
@@ -50,10 +50,10 @@ do
     builtin.search.search_interactively,
     builtin.search.search_once,
 
-    builtin.tree_specific.goto_node_in_files_tree,
-    builtin.tree_specific.show_files_tree,
+    builtin.tree_specific.goto_node_in_filesystem_tree,
+    builtin.tree_specific.show_filesystem_tree,
 
-    builtin.git.rescan_dir_for_git,
+    builtin.git.rescan_node_for_git,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
 

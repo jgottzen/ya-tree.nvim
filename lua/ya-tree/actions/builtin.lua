@@ -44,10 +44,10 @@
 ---| "search_once"
 ---| "show_last_search"
 ---
----| "goto_node_in_files_tree"
----| "show_files_tree"
+---| "goto_node_in_filesystem_tree"
+---| "show_filesystem_tree"
 ---
----| "rescan_dir_for_git"
+---| "rescan_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---
@@ -117,12 +117,12 @@ local M = {
   },
   ---@class Yat.Actions.Action.TreeSpecific
   tree_specific = {
-    goto_node_in_files_tree = "goto_node_in_files_tree",
-    show_files_tree = "show_files_tree",
+    goto_node_in_filesystem_tree = "goto_node_in_filesystem_tree",
+    show_filesystem_tree = "show_filesystem_tree",
   },
   ---@class Yat.Actions.Action.Git
   git = {
-    rescan_dir_for_git = "rescan_dir_for_git",
+    rescan_node_for_git = "rescan_node_for_git",
     focus_prev_git_item = "focus_prev_git_item",
     focus_next_git_item = "focus_next_git_item",
   },

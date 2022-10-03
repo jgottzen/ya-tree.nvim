@@ -291,7 +291,7 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
-function M.rescan_dir_for_git(tree, node)
+function M.rescan_node_for_git(tree, node)
   if not config.git.enable then
     utils.notify("Git is not enabled.")
     return
@@ -355,14 +355,6 @@ function M.search_for_node_in_tree(tree, path)
       log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
     end
   end)
-end
-
-function M.show_last_search()
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.search(tabpage, true)
-  if tree then
-    ui.update(tree, tree.current_node)
-  end
 end
 
 ---@async
@@ -439,7 +431,7 @@ function M.toggle_buffers_tree(current_tree)
 end
 
 ---@async
-function M.show_file_tree()
+function M.show_filesystem_tree()
   local tabpage = api.nvim_get_current_tabpage()
   local tree = Trees.filesystem_or_new(tabpage, true)
   ui.update(tree, tree.current_node)

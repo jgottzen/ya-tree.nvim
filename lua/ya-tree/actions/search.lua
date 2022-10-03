@@ -45,7 +45,7 @@ function M.search_interactively(_, node)
         term = text
         timer:stop()
         scheduler()
-        lib.show_file_tree()
+        lib.show_filesystem_tree()
       else
         term = text
         local length = #term
@@ -79,7 +79,7 @@ function M.search_interactively(_, node)
     on_close = void(function()
       timer:stop()
       timer:close()
-      lib.show_file_tree()
+      lib.show_filesystem_tree()
     end),
   })
   input:open()
@@ -97,6 +97,14 @@ function M.search_once(_, node)
   local term = ui.input({ prompt = "Search:" })
   if term then
     lib.search(node, term)
+  end
+end
+
+function M.show_last_search()
+  local tabpage = api.nvim_get_current_tabpage()
+  local tree = Trees.search(tabpage, true)
+  if tree then
+    ui.update(tree, tree.current_node)
   end
 end
 

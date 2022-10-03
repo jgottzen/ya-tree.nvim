@@ -30,8 +30,8 @@ setmetatable(GitTree, { __index = Tree })
 ---| "search_for_node_in_tree"
 ---| "show_last_search"
 ---
----| "goto_node_in_files_tree"
----| "show_files_tree"
+---| "goto_node_in_filesystem_tree"
+---| "show_filesystem_tree"
 ---
 ---| "focus_prev_git_item"
 ---| "focus_prev_git_item"
@@ -53,8 +53,8 @@ do
     builtin.search.search_for_node_in_tree,
     builtin.search.show_last_search,
 
-    builtin.tree_specific.goto_node_in_files_tree,
-    builtin.tree_specific.show_files_tree,
+    builtin.tree_specific.goto_node_in_filesystem_tree,
+    builtin.tree_specific.show_filesystem_tree,
 
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
