@@ -260,7 +260,8 @@ end
 local function register_trees(config)
   for tree_name in pairs(config.trees) do
     if tree_name ~= "global_mappings" then
-      local ok, tree = pcall(require, "ya-tree.trees." .. tree_name) --[[@as Yat.Tree]]
+      ---@type boolean, Yat.Tree?
+      local ok, tree = pcall(require, "ya-tree.trees." .. tree_name)
       if ok and tree and type(tree.setup) == "function" and type(tree.TYPE) == "string" and type(tree.new) == "function" then
         log.debug("registering tree %q", tree.TYPE)
         tree.setup(config)
