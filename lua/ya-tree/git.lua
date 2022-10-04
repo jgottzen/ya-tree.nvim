@@ -250,7 +250,7 @@ function Repo:remove_git_watcher()
     self._git_dir_watcher:close()
     self._git_dir_watcher = nil
     if vim.v.exiting == vim.NIL then
-      log.debug("the last listener was removed, stopping fs_poll for repo %s", tostring(self))
+      log.debug("stopping fs_poll for repo %s", tostring(self))
     end
   end
 end
