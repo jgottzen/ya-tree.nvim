@@ -173,7 +173,11 @@ function M.open_window(opts)
 end
 
 function M.close_window()
-  ui.close()
+  local tree = Trees.current_tree(api.nvim_get_current_tabpage())
+  if tree and ui.is_open() then
+    tree.current_node = ui.get_current_node()
+    ui.close()
+  end
 end
 
 ---@async
