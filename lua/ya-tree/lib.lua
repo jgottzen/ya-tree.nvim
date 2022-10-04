@@ -29,12 +29,12 @@ end
 
 ---@async
 ---@param opts? Yat.OpenWindowArgs
----  - {opts.path?} `string`
----  - {opts.switch_root?} `boolean`
----  - {opts.focus?} `boolean`
----  - {opts.tree?} `Yat.Trees.Type`
----  - {opts.location?} `Yat.Ui.Canvas.Position`
----  - {opts.size?} `integer`
+---  - {opts.path?} `string`The path to open.
+---  - {opts.switch_root?} `boolean` Change the root path of the tree to `path`.
+---  - {opts.focus?} `boolean`Whether to focus the tree window.
+---  - {opts.tree?} `Yat.Trees.Type`Which type of tree to open, defaults to the current tree, or `"filesystem" if no current tree exists.`
+---  - {opts.position?} `Yat.Ui.Canvas.Position`Where the tree window should be positioned.
+---  - {opts.size?} `integer`The size of the tree window, either width or height depending on position.
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")

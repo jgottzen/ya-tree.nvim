@@ -9,20 +9,20 @@ local fn = vim.fn
 local M = {}
 
 ---@class Yat.OpenWindowArgs
----@field path? string
----@field switch_root? boolean
----@field focus? boolean
----@field tree? Yat.Trees.Type
----@field position? Yat.Ui.Canvas.Position
----@field size? integer
+---@field path? string The path to open.
+---@field switch_root? boolean Change the root path of the tree to `path`.
+---@field focus? boolean Whether to focus the tree window.
+---@field tree? Yat.Trees.Type Which type of tree to open, defaults to the current tree, or `"filesystem" if no current tree exists.`
+---@field position? Yat.Ui.Canvas.Position Where the tree window should be positioned.
+---@field size? integer The size of the tree window, either width or height depending on position.
 
 ---@param opts Yat.OpenWindowArgs
----  - {opts.path?} `string`
----  - {opts.switch_root?} `boolean`
----  - {opts.focus?} `boolean`
----  - {opts.tree?} `Yat.Trees.Type`
----  - {opts.position?} `Yat.Ui.Canvas.Position`
----  - {opts.size?} `integer`
+---  - {opts.path?} `string`The path to open.
+---  - {opts.switch_root?} `boolean` Change the root path of the tree to `path`.
+---  - {opts.focus?} `boolean`Whether to focus the tree window.
+---  - {opts.tree?} `Yat.Trees.Type`Which type of tree to open, defaults to the current tree, or `"filesystem" if no current tree exists.`
+---  - {opts.position?} `Yat.Ui.Canvas.Position`Where the tree window should be positioned.
+---  - {opts.size?} `integer`The size of the tree window, either width or height depending on position.
 function M.open(opts)
   void(require("ya-tree.lib").open_window)(opts)
 end
