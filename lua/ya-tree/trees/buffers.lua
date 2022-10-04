@@ -85,10 +85,11 @@ local singleton = nil
 
 ---@async
 ---@param tabpage integer
----@param path string
+---@param path? string
 ---@return Yat.Trees.Buffers tree
 function BuffersTree:new(tabpage, path)
   if not singleton then
+    path = path or uv.cwd()
     singleton = Tree.new(self, tabpage, true)
     local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
     singleton._tabpage = { tabpage }

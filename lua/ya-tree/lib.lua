@@ -23,12 +23,8 @@ local M = {}
 ---@param path string
 ---@return string|nil path the fully resolved path, or `nil`
 local function resolve_path(path)
-  if not utils.is_absolute_path(path) then
-    -- a relative path is relative to the current cwd
-    path = Path:new({ uv.cwd(), path }):absolute() --[[@as string]]
-    log.debug("expanded cwd relative path to %s", path)
-  end
-  return path
+  local p = Path:new(path)
+  return p:exists() and p:absolute() or nil
 end
 
 ---@async
@@ -64,37 +60,31 @@ function M.open_window(opts)
     log.debug("opening tree of type %q", opts.tree)
     tree = Trees.get_tree(tabpage, opts.tree, true)
     if not tree then
-      local path = opts.path and resolve_path(opts.path) or uv.cwd()
-      tree = Trees.new_tree(tabpage, opts.tree, true, path)
+      tree = Trees.new_tree(tabpage, opts.tree, true, opts.path)
       if not tree then
-        utils.warn(string.format("Could not create tree of type %q for path %q", opts.tree, path))
+        utils.warn(string.format("Could not create tree of type %q", opts.tree))
       end
     end
   end
 
+  local path = opts.path and resolve_path(opts.path)
   if opts.switch_root and opts.path then
     issue_tcd = config.cwd.update_from_tree
-    local path = Path:new(opts.path)
-    local cwd = path:absolute() --[[@as string]]
-    if not path:is_dir() then
-      path = path:parent()
-      cwd = path:absolute() --[[@as string]]
-    end
-    if path:exists() then
-      log.debug("switching cwd to %q", cwd)
-      tree = Trees.filesystem(tabpage, true)
-      if tree then
-        tree:change_root_node(cwd)
-      else
-        tree = Trees.new_filesystem(tabpage, true, cwd)
+    if path then
+      local p = Path:new(path)
+      if not p:is_dir() then
+        path = p:parent():absolute() --[[@as string]]
       end
-      if config.cwd.update_from_tree then
-        -- updating the root node doesn't change the cwd, so set it
-        tree.cwd = cwd
+      log.debug("switching cwd to %q", path)
+      tree = Trees.current_tree(tabpage)
+      if not tree then
+        tree = Trees.filesystem_or_new(tabpage, true, path)
       end
-      scheduler()
+      -- no-op if a new "filesystem" tree was created
+      tree:change_root_node(path)
     else
-      utils.warn(string.format("Path %q doesn't exist.\nUsing %q as tree root", opts.path, uv.cwd()))
+      issue_tcd = false
+      utils.warn(string.format("Path %q doesn't exist!", opts.path))
       tree = Trees.current_tree(tabpage)
     end
   end
@@ -106,12 +96,8 @@ function M.open_window(opts)
     end
   end
 
-  local path
-  if opts.path then
-    path = resolve_path(opts.path)
-    if not path then
-      log.info("%q cannot be resolved in relation to the current cwd %q", opts.path, uv.cwd())
-    end
+  if opts.path and not path then
+    utils.warn(string.format("Path %q doesn't exist!", opts.path))
   end
 
   local node
@@ -128,14 +114,8 @@ function M.open_window(opts)
       end
       log.debug("navigating to %q", path)
     else
-      -- need to check if the `tree` is explicitly "filesystem"
-      if opts.tree and opts.tree == "filesystem" then
-        log.error("cannot expand to file %q in with root %s", path, tostring(tree.root))
-        utils.warn(string.format("Path %q is not a file or directory", opts.path))
-      else
-        log.debug("cannot expand to node %q in tree type %q", path, opts.tree)
-        utils.notify(string.format("Path %q is not available in the %q tree", path, opts.tree or "current"))
-      end
+      log.info("cannot expand to node %q in tree type %q", path, opts.tree)
+      utils.warn(string.format("Path %q is not available in the %q tree", path, tree.TYPE))
     end
   elseif config.follow_focused_file then
     scheduler()
@@ -150,18 +130,11 @@ function M.open_window(opts)
 
   scheduler()
   if ui.is_open() then
-    local ui_node = ui.get_current_node()
-    tree.current_node = ui_node
-
-    if not node then
-      node = ui_node
+    local previous_tree = Trees.previous_tree(tabpage)
+    if previous_tree then
+      previous_tree.current_node = ui.get_current_node()
     end
-  end
-  if ui.is_open() and not opts.tree then
-    if opts.focus then
-      ui.focus()
-    end
-    ui.update(tree, node)
+    ui.update(tree, node, { focus_window = opts.focus })
   else
     ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })
   end

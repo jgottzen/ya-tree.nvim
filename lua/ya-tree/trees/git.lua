@@ -70,11 +70,12 @@ GitTree.complete_func = Tree.complete_func_loaded_nodes
 
 ---@async
 ---@param tabpage integer
----@param repo_or_toplevel Yat.Git.Repo|string
----@return Yat.Trees.Git tree
+---@param repo_or_toplevel? Yat.Git.Repo|string
+---@return Yat.Trees.Git|nil tree
 function GitTree:new(tabpage, repo_or_toplevel)
   local this = Tree.new(self, tabpage, true)
   local repo
+  repo_or_toplevel = repo_or_toplevel or vim.loop.cwd()
   if type(repo_or_toplevel) == "string" then
     repo = git.create_repo(repo_or_toplevel)
   else
@@ -82,7 +83,9 @@ function GitTree:new(tabpage, repo_or_toplevel)
   end
   if not repo then
     log.error("%q is either not a path to a git repo or a git repo object", tostring(repo_or_toplevel))
-    utils.warn(string.format("%q is either not a path to a git repo or a git repo object", tostring(repo_or_toplevel)))
+    local path = type(repo_or_toplevel) == "string" and repo_or_toplevel or repo_or_toplevel.toplevel
+    utils.warn(string.format("%q is not a path to a Git repo", path))
+    return nil
   else
     this:_init(repo)
   end

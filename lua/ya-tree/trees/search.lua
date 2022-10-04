@@ -68,9 +68,12 @@ SearchTree.complete_func = Tree.complete_func_loaded_nodes
 
 ---@async
 ---@param tabpage integer
----@param path string
----@return Yat.Trees.Search tree
+---@param path? string
+---@return Yat.Trees.Search|nil tree
 function SearchTree:new(tabpage, path)
+  if not path then
+    return nil
+  end
   local this = Tree.new(self, tabpage, true)
   this:_init(path)
 

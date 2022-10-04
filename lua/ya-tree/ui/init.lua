@@ -104,13 +104,17 @@ end
 
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
----@param opts? {focus_node?: boolean}
----  - {opts.focus_node?} `boolean` focuse `node`
+---@param opts? { focus_node?: boolean, focus_window?: boolean }
+---  - {opts.focus_node?} `boolean`
+---  - {opts.focus_window?} `boolean`
 function M.update(tree, node, opts)
   opts = opts or {}
   local canvas = get_canvas()
   if canvas and canvas:is_open() then
     canvas:render(tree)
+    if opts.focus_window then
+      canvas:focus()
+    end
     -- only update the focused node if the current window is the view window,
     -- or explicitly requested
     if node and (opts.focus_node or canvas:has_focus()) then
