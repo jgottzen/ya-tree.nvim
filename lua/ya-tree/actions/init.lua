@@ -106,7 +106,7 @@ local function define_actions(actions)
   local popups = require("ya-tree.actions.popups")
   local search = require("ya-tree.actions.search")
 
-  M.define_action(builtin.general.close_window, lib.close_window, "Close the tree window", { "n" })
+  M.define_action(builtin.general.close_window, ui.close, "Close the tree window", { "n" })
   M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
   M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
   M.define_action(builtin.general.open_help, help.open, "Open keybindings help", { "n" })
