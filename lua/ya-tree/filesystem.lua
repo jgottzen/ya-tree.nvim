@@ -259,6 +259,8 @@ end
 ---@param path string
 ---@return Yat.Fs.Node|nil node
 function M.node_for(path)
+  local p = Path:new(path)
+  path = p:absolute() --[[@as string]]
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type userdata, uv_fs_stat?
   local _, lstat = uv.fs_lstat(path)
@@ -266,7 +268,7 @@ function M.node_for(path)
     return nil
   end
 
-  local parent_path = Path:new(path):parent():absolute() --[[@as string]]
+  local parent_path = p:parent():absolute() --[[@as string]]
   local name = M.get_file_name(path)
   if lstat.type == "directory" then
     return directory_node(parent_path, name)
@@ -293,6 +295,7 @@ end
 ---@param dir string the directory to scan.
 ---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
+  dir = Path:new(dir):absolute() --[[@as string]]
   ---@type Yat.Fs.Node[]
   local nodes = {}
   local _, fd = uv.fs_scandir(dir)
