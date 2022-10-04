@@ -18,6 +18,7 @@ local uv = vim.loop
 local FilesystemTree = { TYPE = "filesystem" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
+FilesystemTree.__tostring = Tree.__tostring
 
 setmetatable(FilesystemTree, { __index = Tree })
 
