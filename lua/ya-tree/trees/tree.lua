@@ -301,6 +301,12 @@ function Tree:on_diagnostics_event(severity_changed)
   end
 end
 
+-- selene: allow(unused_variable)
+
+---@async
+---@param new_cwd string
+function Tree:on_cwd_changed(new_cwd) end
+
 ---@async
 ---@param node Yat.Node
 ---@return boolean

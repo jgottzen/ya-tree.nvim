@@ -194,52 +194,38 @@ function M.redraw()
 end
 
 ---@async
----@param tabpage integer
 ---@param new_root Yat.Node|string
-local function change_cwd(tabpage, new_root)
-  local tree = Trees.filesystem_or_new(tabpage, true, new_root)
+local function change_cwd(new_root)
   local new_cwd = type(new_root) == "string" and new_root or new_root.path
 
-  -- only issue a :tcd if the config is set, _and_ the path is different from the filesystem tree's cwd
-  if config.cwd.update_from_tree and new_cwd ~= tree.cwd then
+  if config.cwd.update_from_tree then
     vim.cmd("tcd " .. fn.fnameescape(new_cwd))
-  elseif new_cwd ~= tree.root.path then
-    tree:change_root_node(new_root)
-    scheduler()
-    ui.update(tree, type(new_root) == "table" and new_root or tree.current_node)
+  else
+    Trees.change_cwd_for_current_tabpage(new_cwd)
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.cd_to(tree, node)
-  local tabpage = api.nvim_get_current_tabpage()
-  if node == tree.root then
-    return
-  end
+function M.cd_to(_, node)
   if not node:is_directory() then
-    if not node.parent or node.parent == tree.root then
+    if not node.parent then
       return
     end
     node = node.parent --[[@as Yat.Node]]
   end
   log.debug("cd to %q", node.path)
-  change_cwd(tabpage, node)
+  change_cwd(node)
 end
 
 ---@async
 ---@param tree Yat.Tree
 function M.cd_up(tree)
-  local tabpage = api.nvim_get_current_tabpage()
-  if utils.is_root_directory(tree.root.path) then
-    return
-  end
-
   local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
   log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
-  change_cwd(tabpage, tree.root.parent or new_cwd)
+  change_cwd(tree.root.parent or new_cwd)
 end
 
 ---@param tree Yat.Tree

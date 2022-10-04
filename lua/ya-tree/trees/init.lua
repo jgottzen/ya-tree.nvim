@@ -1,7 +1,6 @@
-local scheduler = require("plenary.async.util").scheduler
+local void = require("plenary.async").void
 
 local git = require("ya-tree.git")
-local ui = require("ya-tree.ui")
 local log = require("ya-tree.log")("trees")
 
 local api = vim.api
@@ -15,6 +14,12 @@ local M = {
   _tabpage_trees = {},
 }
 
+---@param type Yat.Trees.Type
+---@return boolean
+local function is_not_special_tree_type(type)
+  return type ~= "current" and type ~= "previous"
+end
+
 function M.delete_trees_for_nonexisting_tabpages()
   ---@type table<string, boolean>
   local found_toplevels = {}
@@ -22,7 +27,7 @@ function M.delete_trees_for_nonexisting_tabpages()
   for tabpage, trees in pairs(M._tabpage_trees) do
     if not vim.tbl_contains(tabpages, tabpage) then
       for type, tree in pairs(trees) do
-        if type ~= "current" and type ~= "previous" then
+        if is_not_special_tree_type(type) then
           tree:delete(tabpage)
         end
         trees[type] = nil
@@ -31,7 +36,7 @@ function M.delete_trees_for_nonexisting_tabpages()
       M._tabpage_trees[tabpage] = nil
     else
       for type, tree in pairs(trees) do
-        if type ~= "current" and type ~= "previous" then
+        if is_not_special_tree_type(type) then
           tree.root:walk(function(node)
             if node.repo and not found_toplevels[node.repo.toplevel] then
               found_toplevels[node.repo.toplevel] = true
@@ -61,7 +66,7 @@ end
 function M.for_each_tree(callback)
   for _, trees in pairs(M._tabpage_trees) do
     for type, tree in pairs(trees) do
-      if type ~= "current" and type ~= "previous" then
+      if is_not_special_tree_type(type) then
         callback(tree)
       end
     end
@@ -230,35 +235,32 @@ local function on_cwd_changed(scope, new_cwd)
   log.debug("scope=%s, cwd=%s", scope, new_cwd)
 
   local current_tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-  local tree = M.filesystem(current_tabpage)
-  if (scope == "tabpage" or scope == "global") and tree then
-    if new_cwd == tree.cwd then
-      log.debug("the tabpage's new cwd %q is the same as the current tree's %s", new_cwd, tostring(tree))
-    else
-      local node = ui.is_open() and ui.get_current_node() or tree.current_node
-      -- since DirChanged is only subscribed to if config.cwd.follow is enabled, the tree.cwd is always bound to the tab cwd,
-      -- and the root path of the tree doesn't have to be checked
-      tree.cwd = new_cwd
-      tree:change_root_node(new_cwd)
-      scheduler()
-      if ui.is_open() then
-        ui.update(tree, node)
+  -- Do the current tabpage first
+  if scope == "tabpage" or scope == "global" then
+    local trees = M._tabpage_trees[current_tabpage] or {}
+    for type, tree in pairs(trees) do
+      if is_not_special_tree_type(type) then
+        tree:on_cwd_changed(new_cwd)
       end
     end
   end
   if scope == "global" then
-    for _, tabpage in ipairs(api.nvim_list_tabpages()) do
+    for tabpage, trees in ipairs(M._tabpage_trees) do
       if tabpage ~= current_tabpage then
-        tree = M.filesystem(tabpage)
-        if tree and tree.cwd ~= new_cwd then
-          -- since DirChanged is only subscribed to if config.cwd.follow is enabled, the tree.cwd is always bound to the tab cwd,
-          -- and the root path of the tree doesn't have to be checked
-          tree.cwd = new_cwd
-          tree:change_root_node(new_cwd)
+        for type, tree in pairs(trees) do
+          if is_not_special_tree_type(type) then
+            tree:on_cwd_changed(new_cwd)
+          end
         end
       end
     end
   end
+end
+
+---@async
+---@param new_cwd string
+function M.change_cwd_for_current_tabpage(new_cwd)
+  void(on_cwd_changed)("tabpage", new_cwd)
 end
 
 ---@param config Yat.Config
@@ -294,22 +296,25 @@ local function register_trees(config)
   end
 end
 
+---@param config Yat.Config
 function M.setup(config)
   register_trees(config)
 
-  local events = require("ya-tree.events")
-  local event = require("ya-tree.events.event").autocmd
-
-  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_TREES_TAB_CLOSE_CLEANUP", M.delete_trees_for_nonexisting_tabpages)
   if config.cwd.follow then
-    events.on_autocmd_event(event.CWD_CHANGED, "YA_TREE_TREES_CWD_CHANGED", true, function(_, new_cwd, scope)
-      -- currently not available in the table passed to the callback
-      if not vim.v.event.changed_window then
-        -- if the autocmd was fired because of a switch to a tab or window with a different
-        -- cwd than the previous tab/window, it can safely be ignored.
-        on_cwd_changed(scope, new_cwd)
-      end
-    end)
+    local group = api.nvim_create_augroup("YaTreeTrees", { clear = true })
+    api.nvim_create_autocmd("DirChanged", {
+      group = group,
+      pattern = "*",
+      callback = function(input)
+        -- currently not available in the table passed to the callback
+        if not vim.v.event.changed_window then
+          -- if the autocmd was fired because of a switch to a tab or window with a different
+          -- cwd than the previous tab/window, it can safely be ignored.
+          void(on_cwd_changed)(input.match, input.file)
+        end
+      end,
+      desc = "YaTree DirChanged handler",
+    })
   end
 end
 

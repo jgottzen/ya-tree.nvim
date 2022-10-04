@@ -78,8 +78,6 @@ do
     [events.autocmd.BUFFER_MODIFIED] = "BufModifiedSet",
     [events.autocmd.BUFFER_SAVED] = "BufWritePost",
 
-    [events.autocmd.CWD_CHANGED] = "DirChanged",
-
     [events.autocmd.WINDOW_LEAVE] = "WinLeave",
     [events.autocmd.WINDOW_CLOSED] = "WinClosed",
 

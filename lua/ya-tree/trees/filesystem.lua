@@ -13,18 +13,11 @@ local uv = vim.loop
 
 ---@class Yat.Trees.Filesystem : Yat.Tree
 ---@field TYPE "filesystem"
----@field cwd string
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
 ---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
 local FilesystemTree = { TYPE = "filesystem" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
-
----@param self Yat.Trees.Filesystem
----@return string
-FilesystemTree.__tostring = function(self)
-  return string.format("(%s, tabpage=%s, cwd=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), self.cwd, tostring(self.root))
-end
 
 setmetatable(FilesystemTree, { __index = Tree })
 
@@ -152,7 +145,6 @@ end
 ---@return Yat.Trees.Filesystem tree
 function FilesystemTree:new(tabpage, root)
   local this = Tree.new(self, tabpage, true)
-  this.cwd = uv.cwd() --[[@as string]]
 
   local root_node
   if type(root) == "string" then
@@ -160,7 +152,7 @@ function FilesystemTree:new(tabpage, root)
   elseif type(root) == "table" then
     root_node = root --[[@as Yat.Node]]
   else
-    root_node = create_root_node(this.cwd)
+    root_node = create_root_node(uv.cwd())
   end
 
   this.root = root_node
@@ -195,6 +187,20 @@ function FilesystemTree:on_git_event(repo, fs_changes)
   if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
     -- get the current node to keep the cursor on it
     ui.update(self, ui.get_current_node())
+  end
+end
+
+---@async
+---@param new_cwd string
+function FilesystemTree:on_cwd_changed(new_cwd)
+  if new_cwd ~= self.root.path then
+    local tabpage = api.nvim_get_current_tabpage()
+    self:change_root_node(new_cwd)
+
+    scheduler()
+    if self:is_shown_in_ui(tabpage) then
+      ui.update(self, ui.get_current_node())
+    end
   end
 end
 
@@ -252,15 +258,21 @@ end
 function FilesystemTree:change_root_node(new_root)
   local old_root = self.root
   if type(new_root) == "string" then
-    log.debug("setting new tree root to %q", new_root)
     if not fs.is_directory(new_root) then
       new_root = Path:new(new_root):parent():absolute() --[[@as string]]
     end
+    if new_root == self.root.path then
+      return
+    end
+    log.debug("setting new tree root to %q", new_root)
     if not update_tree_root_node(self, new_root) then
       self.root = create_root_node(new_root, self.root)
     end
   else
     ---@cast new_root Yat.Node
+    if new_root == self.root then
+      return
+    end
     log.debug("setting new tree root to %s", tostring(new_root))
     self.root = new_root
     self.root:expand({ force_scan = true })

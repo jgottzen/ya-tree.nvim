@@ -16,8 +16,6 @@ local M = {
     WINDOW_LEAVE = 201,
     WINDOW_CLOSED = 202,
 
-    CWD_CHANGED = 301,
-
     COLORSCHEME = 401,
 
     LEAVE_PRE = 501,
