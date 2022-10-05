@@ -67,24 +67,28 @@ end
 
 ---@param bufnr number
 function M.apply_mappings(bufnr)
+  local opts = { buffer = bufnr, silent = true, nowait = true }
   for key, mapping in pairs(M._mappings) do
-    local opts = { buffer = bufnr, silent = true, nowait = true, desc = mapping.desc }
     local rhs = create_keymap_function(mapping)
 
-    ---@type table<string, boolean>
-    local modes = {}
+    ---@type table<string, boolean>, string[]
+    local modes, descriptions = {}, {}
     for _, action in pairs(mapping) do
       if type(action) == "string" then
         for _, mode in ipairs(M._actions[action].modes) do
           modes[mode] = true
         end
+        descriptions[#descriptions + 1] = M._actions[action].desc
       else
         ---@cast action Yat.Config.Mapping.Custom
         for _, mode in ipairs(action.modes) do
           modes[mode] = true
         end
+        descriptions[#descriptions + 1] = action.desc
       end
     end
+    ---@diagnostic disable-next-line:missing-parameter
+    opts.desc = table.concat(vim.fn.uniq(descriptions), "/")
     for mode in pairs(modes) do
       if not pcall(vim.keymap.set, mode, key, rhs, opts) then
         utils.warn(string.format("Cannot construct mapping for key %q!", key))
