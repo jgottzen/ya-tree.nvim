@@ -148,18 +148,20 @@ function M.paste_nodes(tree, node)
     local first_node
     for _, item in ipairs(M.queue) do
       local destination_node = paste_node(node, item)
-      if destination_node and not first_node then
+      if not first_node then
         first_node = destination_node
       end
     end
-    for repo in pairs(repos) do
-      repo:refresh_status({ ignored = true })
+    if first_node then
+      for repo in pairs(repos) do
+        repo:refresh_status({ ignored = true })
+      end
+      clear_clipboard()
+      -- let the event loop catch up if there was a very large amount of files pasted
+      scheduler()
+      tree.root:expand({ to = first_node.path })
+      ui.update(tree, first_node)
     end
-    clear_clipboard()
-    -- let the event loop catch up if there was a very large amount of files pasted
-    scheduler()
-    tree.root:expand({ to = first_node.path })
-    ui.update(tree, first_node)
   else
     utils.notify("Nothing in clipboard")
   end
