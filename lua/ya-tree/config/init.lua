@@ -37,12 +37,12 @@ local M = {
     ---@field level Yat.Logger.Level The logging level used, default `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
     ---@field to_file boolean Whether to log the the log file, default: `false`.
-    ---@field namespaces string[] For which namespaces logging is enabled, default `{ "ya-tree", "actions", "events", "nodes", "trees", "ui", "git", "job", "lib" }`.
+    ---@field namespaces string[] For which namespaces logging is enabled, default `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "lib" }`.
     log = {
       level = "warn",
       to_console = false,
       to_file = false,
-      namespaces = { "ya-tree", "actions", "events", "nodes", "trees", "ui", "git", "job", "lib" },
+      namespaces = { "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "lib" },
     },
 
     ---@class Yat.Config.AutoOpen
