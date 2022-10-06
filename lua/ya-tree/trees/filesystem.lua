@@ -149,6 +149,9 @@ function FilesystemTree:new(tabpage, root)
 
   local root_node
   if type(root) == "string" then
+    if not fs.is_directory(root) then
+      root = Path:new(root):parent():absolute() --[[@as string]]
+    end
     root_node = create_root_node(root)
   elseif type(root) == "table" then
     root_node = root --[[@as Yat.Node]]
