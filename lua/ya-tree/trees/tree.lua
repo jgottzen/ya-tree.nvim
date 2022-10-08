@@ -13,6 +13,7 @@ local api = vim.api
 ---@class Yat.Tree
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
+---@field private _registered_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
 ---@field refreshing boolean
 ---@field root Yat.Node
 ---@field current_node Yat.Node
@@ -128,6 +129,7 @@ function Tree.new(self, tabpage, enabled_events)
   ---@type Yat.Tree
   local this = {
     _tabpage = tabpage,
+    _registered_events = { autcmd = {}, git = {}, yatree = {} },
     refreshing = false,
   }
   setmetatable(this, self)
@@ -135,29 +137,67 @@ function Tree.new(self, tabpage, enabled_events)
   local config = require("ya-tree.config").config
   local ae = require("ya-tree.events.event").autocmd
   if enabled_events.buf_modified then
-    events.on_autocmd_event(ae.BUFFER_MODIFIED, this:create_event_id(ae.BUFFER_MODIFIED), function(bufnr, file)
+    this:register_autocmd_event(ae.BUFFER_MODIFIED, false, function(bufnr, file)
       this:on_buffer_modified(bufnr, file)
     end)
   end
   if enabled_events.buf_saved and config.update_on_buffer_saved then
-    events.on_autocmd_event(ae.BUFFER_SAVED, this:create_event_id(ae.BUFFER_SAVED), true, function(bufnr, _, match)
+    this:register_autocmd_event(ae.BUFFER_SAVED, true, function(bufnr, _, match)
       this:on_buffer_saved(bufnr, match)
     end)
   end
   if enabled_events.dot_git_dir_changed and config.git.enable then
     local ge = require("ya-tree.events.event").git
-    events.on_git_event(ge.DOT_GIT_DIR_CHANGED, this:create_event_id(ge.DOT_GIT_DIR_CHANGED), function(repo, fs_changes)
+    this:register_git_event(ge.DOT_GIT_DIR_CHANGED, function(repo, fs_changes)
       this:on_git_event(repo, fs_changes)
     end)
   end
   if enabled_events.diagnostics and config.diagnostics.enable then
     local ye = require("ya-tree.events.event").ya_tree
-    events.on_yatree_event(ye.DIAGNOSTICS_CHANGED, this:create_event_id(ye.DIAGNOSTICS_CHANGED), true, function(severity_changed)
+    this:register_yatree_event(ye.DIAGNOSTICS_CHANGED, true, function(severity_changed)
       this:on_diagnostics_event(severity_changed)
     end)
   end
 
   return this
+end
+
+---@param event Yat.Events.AutocmdEvent
+---@param async boolean
+---@param callback fun(bufnr: integer, file: string, match: string)
+function Tree:register_autocmd_event(event, async, callback)
+  self._registered_events.autcmd[#self._registered_events.autcmd + 1] = event
+  events.on_autocmd_event(event, self:create_event_id(event), async, callback)
+end
+
+---@param event Yat.Events.AutocmdEvent
+function Tree:remove_autocmd_event(event)
+  events.remove_autocmd_event(event, self:create_event_id(event))
+end
+
+---@param event Yat.Events.GitEvent
+---@param callback fun(repo: Yat.Git.Repo, fs_changes: boolean)
+function Tree:register_git_event(event, callback)
+  self._registered_events.git[#self._registered_events.git + 1] = event
+  events.on_git_event(event, self:create_event_id(event), callback)
+end
+
+---@param event Yat.Events.GitEvent
+function Tree:remove_git_event(event)
+  events.remove_git_event(event, self:create_event_id(event))
+end
+
+---@param event Yat.Events.YaTreeEvent
+---@param async boolean
+---@param callback fun(...)
+function Tree:register_yatree_event(event, async, callback)
+  self._registered_events.yatree[#self._registered_events.yatree + 1] = event
+  events.on_yatree_event(event, self:create_event_id(event), async, callback)
+end
+
+---@param event Yat.Events.YaTreeEvent
+function Tree:remove_yatree_event(event)
+  events.remove_yatree_event(event, self:create_event_id(event))
 end
 
 do
@@ -216,11 +256,16 @@ end
 ---@param tabpage integer
 ---@diagnostic disable-next-line:unused-local
 function Tree:delete(tabpage)
-  local ae = require("ya-tree.events.event").autocmd
-  events.remove_autocmd_event(ae.BUFFER_MODIFIED, self:create_event_id(ae.BUFFER_MODIFIED))
-  events.remove_autocmd_event(ae.BUFFER_SAVED, self:create_event_id(ae.BUFFER_SAVED))
-  local ge = require("ya-tree.events.event").git
-  events.remove_git_event(ge.DOT_GIT_DIR_CHANGED, self:create_event_id(ge.DOT_GIT_DIR_CHANGED))
+  log.info("deleting tree %q for tabpage %s", self.TYPE, self._tabpage)
+  for _, event in ipairs(self._registered_events.autcmd) do
+    self:remove_autocmd_event(event)
+  end
+  for _, event in ipairs(self._registered_events.git) do
+    self:remove_git_event(event)
+  end
+  for _, event in ipairs(self._registered_events.yatree) do
+    self:remove_yatree_event(event)
+  end
 end
 
 ---@param event integer

@@ -1,7 +1,6 @@
 local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 
-local events = require("ya-tree.events")
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
@@ -98,7 +97,7 @@ function BuffersTree:new(tabpage, path)
     singleton.current_node = singleton.root:refresh()
 
     local event = require("ya-tree.events.event").autocmd
-    events.on_autocmd_event(event.BUFFER_NEW, singleton:create_event_id(event.BUFFER_NEW), function(bufnr, file)
+    singleton:register_autocmd_event(event.BUFFER_NEW, false, function(bufnr, file)
       if file ~= "" then
         -- The autocmds are fired before buftypes are set or in the case of BufFilePost before the file is available on the file system,
         -- causing the node creation to fail, by deferring the call for a short time, we should be able to find the file
@@ -107,17 +106,17 @@ function BuffersTree:new(tabpage, path)
         end, 100)
       end
     end)
-    events.on_autocmd_event(event.BUFFER_HIDDEN, singleton:create_event_id(event.BUFFER_HIDDEN), function(bufnr, file)
+    singleton:register_autocmd_event(event.BUFFER_HIDDEN, false, function(bufnr, file)
       if file ~= "" then
         singleton:on_buffer_hidden(bufnr, file)
       end
     end)
-    events.on_autocmd_event(event.BUFFER_DISPLAYED, singleton:create_event_id(event.BUFFER_DISPLAYED), function(bufnr, file)
+    singleton:register_autocmd_event(event.BUFFER_DISPLAYED, false, function(bufnr, file)
       if file ~= "" then
         singleton:on_buffer_displayed(bufnr, file)
       end
     end)
-    events.on_autocmd_event(event.BUFFER_DELETED, singleton:create_event_id(event.BUFFER_DELETED), true, function(bufnr, _, match)
+    singleton:register_autocmd_event(event.BUFFER_DELETED, true, function(bufnr, _, match)
       if match ~= "" then
         singleton:on_buffer_deleted(bufnr, match)
       end
