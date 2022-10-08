@@ -150,7 +150,7 @@ function Canvas:_create_buffer(hijack_buffer)
     self.bufnr = api.nvim_create_buf(false, false) --[[@as number]]
     log.debug("created buffer %s", self.bufnr)
   end
-  api.nvim_buf_set_name(self.bufnr, "YaTree" .. self.bufnr)
+  api.nvim_buf_set_name(self.bufnr, "YaTree://YaTree" .. self.bufnr)
 
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
