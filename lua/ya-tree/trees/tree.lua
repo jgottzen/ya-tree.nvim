@@ -251,11 +251,7 @@ function Tree:complete_func_file_in_path(bufnr, node)
   api.nvim_buf_set_option(bufnr, "path", (node and node.path or self.root.path) .. "/**")
 end
 
--- selene: allow(unused_variable)
-
----@param tabpage integer
----@diagnostic disable-next-line:unused-local
-function Tree:delete(tabpage)
+function Tree:delete()
   log.info("deleting tree %q for tabpage %s", self.TYPE, self._tabpage)
   for _, event in ipairs(self._registered_events.autcmd) do
     self:remove_autocmd_event(event)

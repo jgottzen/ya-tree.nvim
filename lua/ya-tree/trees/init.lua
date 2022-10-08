@@ -28,7 +28,7 @@ function M.delete_trees_for_nonexisting_tabpages()
     if not vim.tbl_contains(tabpages, tabpage) then
       for type, tree in pairs(trees) do
         if is_not_special_tree_type(type) then
-          tree:delete(tabpage)
+          tree:delete()
         end
         trees[type] = nil
       end

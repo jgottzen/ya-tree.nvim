@@ -14,20 +14,12 @@ local uv = vim.loop
 
 ---@class Yat.Trees.Buffers : Yat.Tree
 ---@field TYPE "buffers"
----@field private _tabpage integer[]
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
 ---@field complete_func "buffer"
 local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
-
----@param self Yat.Trees.Buffers
----@param other Yat.Tree
----@return boolean
-BuffersTree.__eq = function(self, other)
-  return self.TYPE == other.TYPE
-end
-
+BuffersTree.__eq = Tree.__eq
 BuffersTree.__tostring = Tree.__tostring
 setmetatable(BuffersTree, { __index = Tree })
 
@@ -79,68 +71,46 @@ end
 
 BuffersTree.complete_func = "buffer"
 
----@type Yat.Trees.Buffers?
-local singleton = nil
-
 ---@async
 ---@param tabpage integer
 ---@param path? string
 ---@return Yat.Trees.Buffers tree
 function BuffersTree:new(tabpage, path)
-  if not singleton then
-    path = path or uv.cwd()
-    singleton = Tree.new(self, tabpage, true)
-    local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
-    singleton._tabpage = { tabpage }
-    singleton.root = BufferNode:new(fs_node)
-    singleton.root.repo = git.get_repo_for_path(fs_node.path)
-    singleton.current_node = singleton.root:refresh()
+  path = path or uv.cwd()
+  local this = Tree.new(self, tabpage, true)
+  local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
+  this.root = BufferNode:new(fs_node)
+  this.root.repo = git.get_repo_for_path(fs_node.path)
+  this.current_node = this.root:refresh()
 
-    local event = require("ya-tree.events.event").autocmd
-    singleton:register_autocmd_event(event.BUFFER_NEW, false, function(bufnr, file)
-      if file ~= "" then
-        -- The autocmds are fired before buftypes are set or in the case of BufFilePost before the file is available on the file system,
-        -- causing the node creation to fail, by deferring the call for a short time, we should be able to find the file
-        vim.defer_fn(function()
-          void(BuffersTree.on_buffer_new)(singleton, bufnr, file)
-        end, 100)
-      end
-    end)
-    singleton:register_autocmd_event(event.BUFFER_HIDDEN, false, function(bufnr, file)
-      if file ~= "" then
-        singleton:on_buffer_hidden(bufnr, file)
-      end
-    end)
-    singleton:register_autocmd_event(event.BUFFER_DISPLAYED, false, function(bufnr, file)
-      if file ~= "" then
-        singleton:on_buffer_displayed(bufnr, file)
-      end
-    end)
-    singleton:register_autocmd_event(event.BUFFER_DELETED, true, function(bufnr, _, match)
-      if match ~= "" then
-        singleton:on_buffer_deleted(bufnr, match)
-      end
-    end)
-
-    log.debug("created new tree %s", tostring(singleton))
-  else
-    log.debug("a buffers tree already exists, reusing it")
-    if not vim.tbl_contains(singleton._tabpage, tabpage) then
-      singleton._tabpage[#singleton._tabpage + 1] = tabpage
+  local event = require("ya-tree.events.event").autocmd
+  this:register_autocmd_event(event.BUFFER_NEW, false, function(bufnr, file)
+    if file ~= "" then
+      -- The autocmds are fired before buftypes are set or in the case of BufFilePost before the file is available on the file system,
+      -- causing the node creation to fail, by deferring the call for a short time, we should be able to find the file
+      vim.defer_fn(function()
+        void(BuffersTree.on_buffer_new)(this, bufnr, file)
+      end, 100)
     end
-  end
-  return singleton
-end
+  end)
+  this:register_autocmd_event(event.BUFFER_HIDDEN, false, function(bufnr, file)
+    if file ~= "" then
+      this:on_buffer_hidden(bufnr, file)
+    end
+  end)
+  this:register_autocmd_event(event.BUFFER_DISPLAYED, false, function(bufnr, file)
+    if file ~= "" then
+      this:on_buffer_displayed(bufnr, file)
+    end
+  end)
+  this:register_autocmd_event(event.BUFFER_DELETED, true, function(bufnr, _, match)
+    if match ~= "" then
+      this:on_buffer_deleted(bufnr, match)
+    end
+  end)
 
----@param tabpage integer
-function BuffersTree:delete(tabpage)
-  utils.tbl_remove(self._tabpage, tabpage)
-end
-
----@param event integer
----@return string id
-function BuffersTree:create_event_id(event)
-  return string.format("YA_TREE_%s_TREE_%s", self.TYPE:upper(), events.get_event_name(event))
+  log.debug("created new tree %s", tostring(this))
+  return this
 end
 
 ---@async
@@ -224,12 +194,6 @@ function BuffersTree:on_buffer_deleted(bufnr, file)
       ui.update(self, ui.get_current_node())
     end
   end
-end
-
----@param tabpage integer
----@return true
-function BuffersTree:is_for_tabpage(tabpage)
-  return vim.tbl_contains(self._tabpage, tabpage)
 end
 
 return BuffersTree
