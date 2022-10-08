@@ -29,12 +29,10 @@ setmetatable(BuffersTree, { __index = Tree })
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_tree"
----| "show_last_search"
 ---
 ---| "goto_node_in_filesystem_tree"
----| "show_filesystem_tree"
 ---
----| "rescan_node_for_git"
+---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_prev_git_item"
 ---
@@ -53,12 +51,10 @@ do
     builtin.files.toggle_filter,
 
     builtin.search.search_for_node_in_tree,
-    builtin.search.show_last_search,
 
     builtin.tree_specific.goto_node_in_filesystem_tree,
-    builtin.tree_specific.show_filesystem_tree,
 
-    builtin.git.rescan_node_for_git,
+    builtin.git.check_node_for_git,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
 
@@ -187,7 +183,7 @@ function BuffersTree:on_buffer_deleted(bufnr, file)
   if buftype == "" or buftype == "terminal" then
     log.debug("removing buffer %q from buffer tree", file)
     self.root:remove_node(file, bufnr, buftype == "terminal")
-    if #self.root:children() == 0 and self.root.path ~= uv.cwd() then
+    if #self.root:children() <= 1 and self.root.path ~= uv.cwd() then
       self.root:refresh({ root_path = uv.cwd() })
     end
     if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then

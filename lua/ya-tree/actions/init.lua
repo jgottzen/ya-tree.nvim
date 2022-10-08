@@ -106,17 +106,20 @@ local function define_actions(actions)
   local help = require("ya-tree.ui.help")
   local clipboard = require("ya-tree.actions.clipboard")
   local files = require("ya-tree.actions.files")
+  local git = require("ya-tree.actions.git")
   local nodes = require("ya-tree.actions.nodes")
   local popups = require("ya-tree.actions.popups")
   local search = require("ya-tree.actions.search")
+  local tree_actions = require("ya-tree.actions.trees")
 
   M.define_action(builtin.general.close_window, ui.close, "Close the tree window", { "n" })
   M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
-  M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
   M.define_action(builtin.general.open_help, help.open, "Open keybindings help", { "n" })
+  M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
+  M.define_action(builtin.general.close_tree, tree_actions.close_tree, "Close the current tree", { "n" })
 
-  M.define_action(builtin.general.toggle_git_tree, lib.toggle_git_tree, "Open or close the current git status tree", { "n" })
-  M.define_action(builtin.general.toggle_buffers_tree, lib.toggle_buffers_tree, "Open or close the current buffers tree", { "n" })
+  M.define_action(builtin.general.open_git_tree, tree_actions.open_git_tree, "Open or close the current git status tree", { "n" })
+  M.define_action(builtin.general.open_buffers_tree, tree_actions.open_buffers_tree, "Open or close the current buffers tree", { "n" })
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
   M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
@@ -145,7 +148,7 @@ local function define_actions(actions)
   M.define_action(builtin.general.expand_all_nodes, nodes.expand_all_nodes, "Recursively expand all directories", { "n" })
   M.define_action(builtin.general.expand_all_child_nodes, nodes.expand_all_child_nodes, "Recursively expand all child directories", { "n" })
 
-  M.define_action(builtin.general.refresh_tree, lib.refresh_tree, "Refresh the tree", { "n" })
+  M.define_action(builtin.general.refresh_tree, tree_actions.refresh_tree, "Refresh the tree", { "n" })
 
   M.define_action(builtin.general.focus_parent, ui.focus_parent, "Go to parent directory", { "n" })
   M.define_action(builtin.general.focus_prev_sibling, ui.focus_prev_sibling, "Go to previous sibling node", { "n" })
@@ -172,7 +175,6 @@ local function define_actions(actions)
   M.define_action(builtin.search.search_for_node_in_tree, search.search_for_node_in_tree, "Go to entered path in tree", { "n" })
   M.define_action(builtin.search.search_interactively, search.search_interactively, "Search as you type", { "n" })
   M.define_action(builtin.search.search_once, search.search_once, "Search", { "n" })
-  M.define_action(builtin.search.show_last_search, search.show_last_search, "Show last search result", { "n" })
 
   M.define_action(
     builtin.tree_specific.goto_node_in_filesystem_tree,
@@ -180,11 +182,10 @@ local function define_actions(actions)
     "Close current tree and go to node in the filesystem tree",
     { "n" }
   )
-  M.define_action(builtin.tree_specific.show_filesystem_tree, lib.show_filesystem_tree, "Show the filesystem tree", { "n" })
 
-  M.define_action(builtin.git.rescan_node_for_git, lib.rescan_node_for_git, "Rescan node for git repo", { "n" })
-  M.define_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous git item", { "n" })
-  M.define_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next git item", { "n" })
+  M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
+  M.define_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous Git item", { "n" })
+  M.define_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next Git item", { "n" })
 
   M.define_action(
     builtin.diagnostics.focus_prev_diagnostic_item,

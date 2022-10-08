@@ -154,17 +154,15 @@ function Input:open()
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
-  if self.completion then
-    if type(self.completion) == "string" then
-      api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
-      api.nvim_buf_set_option(self.bufnr, "omnifunc", "")
-      if self.completion == "file_in_path" then
-        api.nvim_buf_set_option(self.bufnr, "path", vim.loop.cwd() .. "/**")
-      end
-      current_completion = self.completion
-    elseif type(self.completion) == "function" then
-      self.completion(self.bufnr)
+  if type(self.completion) == "string" then
+    api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
+    api.nvim_buf_set_option(self.bufnr, "omnifunc", "")
+    if self.completion == "file_in_path" then
+      api.nvim_buf_set_option(self.bufnr, "path", vim.loop.cwd() .. "/**")
     end
+    current_completion = self.completion
+  elseif type(self.completion) == "function" then
+    self.completion(self.bufnr)
   end
 
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as number]]

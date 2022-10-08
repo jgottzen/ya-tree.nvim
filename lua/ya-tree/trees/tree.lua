@@ -14,6 +14,7 @@ local api = vim.api
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
 ---@field private _registered_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
+---@field persistent boolean
 ---@field refreshing boolean
 ---@field root Yat.Node
 ---@field current_node Yat.Node
@@ -27,9 +28,10 @@ Tree.__index = Tree
 ---| "system_open"
 ---| "open_help"
 ---| "show_node_info"
+---| "close_tree"
 ---
----| "toggle_git_tree"
----| "toggle_buffers_tree"
+---| "open_git_tree"
+---| "open_buffers_tree"
 ---
 ---| "open"
 ---| "vsplit"
@@ -65,9 +67,10 @@ do
     builtin.general.system_open,
     builtin.general.open_help,
     builtin.general.show_node_info,
+    builtin.general.close_tree,
 
-    builtin.general.toggle_git_tree,
-    builtin.general.toggle_buffers_tree,
+    builtin.general.open_git_tree,
+    builtin.general.open_buffers_tree,
 
     builtin.general.open,
     builtin.general.vsplit,
@@ -130,6 +133,7 @@ function Tree.new(self, tabpage, enabled_events)
   local this = {
     _tabpage = tabpage,
     _registered_events = { autcmd = {}, git = {}, yatree = {} },
+    persistent = false,
     refreshing = false,
   }
   setmetatable(this, self)

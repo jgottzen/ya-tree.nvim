@@ -12,28 +12,31 @@ local uv = vim.loop
 local M = {}
 
 ---@async
----@param _ Yat.Tree
+---@param tree Yat.Tree
 ---@param node Yat.Node
-function M.search_interactively(_, node)
+function M.search_interactively(tree, node)
+  local tabpage = api.nvim_get_current_tabpage()
   -- if the node is a file, search in the directory
   if node:is_file() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
   ---@type uv_timer_t
   local timer = uv.new_timer()
-  ---@type fun(node: Yat.Node, term: string)
+  ---@type fun(tree?: Yat.Trees.Search, node: Yat.Node, term: string)
   local search = void(lib.search)
+  local search_tree = Trees.search(tabpage, node.path)
 
   ---@param ms number
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()
-      search(node, term)
+      search(search_tree, node, term)
     end)
   end
 
   local border = require("ya-tree.config").config.view.popups.border
   local term = ""
+  scheduler()
   local height, width = ui.get_size()
   local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2, border = border }, {
     ---@param text string
@@ -45,7 +48,7 @@ function M.search_interactively(_, node)
         term = text
         timer:stop()
         scheduler()
-        lib.show_filesystem_tree()
+        ui.update(tree, tree.current_node)
       else
         term = text
         local length = #term
@@ -65,21 +68,19 @@ function M.search_interactively(_, node)
     on_submit = void(function(text)
       if text ~= term or timer:is_active() then
         timer:stop()
-        lib.search(node, text)
+        lib.search(search_tree, node, text)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
         scheduler()
-        local tree = Trees.search(api.nvim_get_current_tabpage())
-        if tree and tree.current_node then
-          ui.focus_node(tree.current_node)
-        end
+        ui.focus_node(search_tree.current_node)
       end
       timer:close()
     end),
     on_close = void(function()
       timer:stop()
       timer:close()
-      lib.show_filesystem_tree()
+      Trees.set_current_tree(tabpage, tree)
+      ui.update(tree, tree.current_node)
     end),
   })
   input:open()
@@ -96,15 +97,7 @@ function M.search_once(_, node)
 
   local term = ui.input({ prompt = "Search:" })
   if term then
-    lib.search(node, term)
-  end
-end
-
-function M.show_last_search()
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.search(tabpage, true)
-  if tree then
-    ui.update(tree, tree.current_node)
+    lib.search(nil, node, term)
   end
 end
 

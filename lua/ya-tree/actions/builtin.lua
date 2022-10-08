@@ -3,8 +3,9 @@
 ---| "system_open"
 ---| "open_help"
 ---| "show_node_info"
----| "toggle_git_tree"
----| "toggle_buffers_tree"
+---| "close_tree"
+---| "open_git_tree"
+---| "open_buffers_tree"
 ---| "open"
 ---| "vsplit"
 ---| "split"
@@ -42,12 +43,10 @@
 ---| "search_for_node_in_tree"
 ---| "search_interactively"
 ---| "search_once"
----| "show_last_search"
 ---
 ---| "goto_node_in_filesystem_tree"
----| "show_filesystem_tree"
 ---
----| "rescan_node_for_git"
+---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---
@@ -61,9 +60,10 @@ local M = {
     system_open = "system_open",
     open_help = "open_help",
     show_node_info = "show_node_info",
+    close_tree = "close_tree",
 
-    toggle_git_tree = "toggle_git_tree",
-    toggle_buffers_tree = "toggle_buffers_tree",
+    open_git_tree = "open_git_tree",
+    open_buffers_tree = "open_buffers_tree",
 
     open = "open",
     vsplit = "vsplit",
@@ -113,16 +113,14 @@ local M = {
     search_for_node_in_tree = "search_for_node_in_tree",
     search_interactively = "search_interactively",
     search_once = "search_once",
-    show_last_search = "show_last_search",
   },
   ---@class Yat.Actions.Action.TreeSpecific
   tree_specific = {
     goto_node_in_filesystem_tree = "goto_node_in_filesystem_tree",
-    show_filesystem_tree = "show_filesystem_tree",
   },
   ---@class Yat.Actions.Action.Git
   git = {
-    rescan_node_for_git = "rescan_node_for_git",
+    check_node_for_git = "check_node_for_git",
     focus_prev_git_item = "focus_prev_git_item",
     focus_next_git_item = "focus_next_git_item",
   },

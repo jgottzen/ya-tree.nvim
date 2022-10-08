@@ -53,7 +53,11 @@ function M.open_window(opts)
   local issue_tcd = false
 
   scheduler()
-  local tabpage = api.nvim_get_current_tabpage() --[[@as number]]
+  local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
+  local previous_tree = Trees.current_tree(tabpage)
+  if previous_tree then
+    previous_tree.current_node = ui.get_current_node()
+  end
 
   local tree
   if opts.tree then
@@ -130,10 +134,6 @@ function M.open_window(opts)
 
   scheduler()
   if ui.is_open() then
-    local previous_tree = Trees.previous_tree(tabpage)
-    if previous_tree then
-      previous_tree.current_node = ui.get_current_node()
-    end
     ui.update(tree, node, { focus_window = opts.focus })
   else
     ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })
@@ -224,36 +224,7 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@return boolean found
-local function rescan_node_for_git(tree, node)
-  tree.refreshing = true
-  log.debug("checking if %s is in a git repository", node.path)
-
-  if not node:is_directory() then
-    node = node.parent --[[@as Yat.Node]]
-  end
-  local found = false
-  if not node.repo or node.repo:is_yadm() then
-    found = tree:check_node_for_repo(node)
-    Trees.for_each_tree(function(_tree)
-      local tree_node = _tree.root:get_child_if_loaded(node.path)
-      if tree_node then
-        tree_node:set_git_repo(node.repo)
-      end
-    end)
-    if not found then
-      utils.notify(string.format("No Git repository found in %q.", node.path))
-    end
-  elseif node.repo and not node.repo:is_yadm() then
-    utils.notify(string.format("%q is already detected as a Git repository.", node.path))
-  end
-  tree.refreshing = false
-  return found
-end
-
----@async
----@param tree Yat.Tree
----@param node Yat.Node
+---@return Yat.Git.Repo? repo
 function M.rescan_node_for_git(tree, node)
   if not config.git.enable then
     utils.notify("Git is not enabled.")
@@ -262,24 +233,37 @@ function M.rescan_node_for_git(tree, node)
 
   if tree.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
-    return false
+    return
   end
-  if rescan_node_for_git(tree, node) then
-    ui.update(tree, node)
+  tree.refreshing = true
+  log.debug("checking if %s is in a git repository", node.path)
+
+  if not node:is_directory() then
+    node = node.parent --[[@as Yat.Node]]
   end
+  if not node.repo or node.repo:is_yadm() then
+    if tree:check_node_for_repo(node) then
+      Trees.for_each_tree(function(_tree)
+        local tree_node = _tree.root:get_child_if_loaded(node.path)
+        if tree_node then
+          tree_node:set_git_repo(node.repo)
+        end
+      end)
+    end
+  end
+  tree.refreshing = false
+  return node.repo
 end
 
 ---@async
+---@param tree? Yat.Trees.Search
 ---@param node Yat.Node
 ---@param term string
-function M.search(node, term)
-  scheduler()
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.search(tabpage, true)
+function M.search(tree, node, term)
   if not tree then
-    tree = Trees.new_search(tabpage, true, node.path)
-  elseif tree.root.path ~= node.path then
-    tree:change_root_node(node.path)
+    scheduler()
+    local tabpage = api.nvim_get_current_tabpage()
+    tree = Trees.search(tabpage, node.path)
   end
   local matches_or_error = tree:search(term)
   if type(matches_or_error) == "number" then
@@ -318,86 +302,6 @@ function M.search_for_node_in_tree(tree, path)
       log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
     end
   end)
-end
-
----@async
----@param tree Yat.Tree
----@param node Yat.Node
-function M.refresh_tree(tree, node)
-  if tree.refreshing or vim.v.exiting ~= vim.NIL then
-    log.debug("refresh already in progress or vim is exiting, aborting refresh")
-    return
-  end
-  tree.refreshing = true
-  log.debug("refreshing current tree")
-
-  tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
-  ui.update(tree, node, { focus_node = true })
-  tree.refreshing = false
-end
-
----@async
----@param tree Yat.Tree
----@param path string
-function M.refresh_tree_and_goto_path(tree, path)
-  tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
-  local node = tree.root:expand({ to = path })
-  ui.update(tree, node, { focus_node = true })
-end
-
----@async
----@param current_tree Yat.Tree
----@param node Yat.Node
-function M.toggle_git_tree(current_tree, node)
-  local tabpage = api.nvim_get_current_tabpage()
-
-  if current_tree.TYPE == "git" then
-    local tree = Trees.previous_tree(tabpage, true)
-    if not tree then
-      tree = Trees.filesystem_or_new(tabpage, true)
-    end
-    ui.update(tree, tree.current_node)
-  else
-    if not node.repo or node.repo:is_yadm() then
-      rescan_node_for_git(current_tree, node)
-    end
-    if node.repo then
-      local tree = Trees.git(tabpage, true)
-      if not tree then
-        tree = Trees.new_git(tabpage, true, node.repo)
-      elseif tree.root.repo ~= node.repo then
-        tree:change_root_node(node.repo)
-      end
-      ui.update(tree, tree.current_node)
-    end
-  end
-end
-
----@async
----@param current_tree Yat.Tree
-function M.toggle_buffers_tree(current_tree)
-  local tabpage = api.nvim_get_current_tabpage()
-
-  if current_tree.TYPE == "buffers" then
-    local tree = Trees.previous_tree(tabpage, true)
-    if not tree then
-      tree = Trees.filesystem_or_new(tabpage, true)
-    end
-    ui.update(tree, tree.current_node)
-  else
-    local tree = Trees.buffers(tabpage, true)
-    if not tree then
-      tree = Trees.new_buffers(tabpage, true, uv.cwd())
-    end
-    ui.update(tree, tree.current_node)
-  end
-end
-
----@async
-function M.show_filesystem_tree()
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.filesystem_or_new(tabpage, true)
-  ui.update(tree, tree.current_node)
 end
 
 local function setup_netrw()

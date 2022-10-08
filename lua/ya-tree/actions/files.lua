@@ -1,7 +1,6 @@
 local void = require("plenary.async").void
 local scheduler = require("plenary.async.util").scheduler
 
-local lib = require("ya-tree.lib")
 local job = require("ya-tree.job")
 local fs = require("ya-tree.filesystem")
 local node_actions = require("ya-tree.actions.nodes")
@@ -312,7 +311,9 @@ function M.trash(tree)
     log.debug("trashing files %s", files)
     job.run({ cmd = "trash", args = files, async_callback = true }, function(code, _, stderr)
       if code == 0 then
-        lib.refresh_tree_and_goto_path(tree, common_parent)
+        tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
+        local node = tree.root:expand({ to = common_parent })
+        ui.update(tree, node, { focus_node = true })
       else
         log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
         utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))

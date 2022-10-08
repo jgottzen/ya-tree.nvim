@@ -41,9 +41,8 @@ setmetatable(FilesystemTree, { __index = Tree })
 ---| "search_for_node_in_tree"
 ---| "search_interactively"
 ---| "search_once"
----| "show_last_search"
 ---
----| "rescan_node_for_git"
+---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_prev_git_item"
 ---
@@ -76,9 +75,8 @@ do
     builtin.search.search_for_node_in_tree,
     builtin.search.search_interactively,
     builtin.search.search_once,
-    builtin.search.show_last_search,
 
-    builtin.git.rescan_node_for_git,
+    builtin.git.check_node_for_git,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
 
@@ -145,6 +143,7 @@ end
 ---@return Yat.Trees.Filesystem tree
 function FilesystemTree:new(tabpage, root)
   local this = Tree.new(self, tabpage, true)
+  this.persistent = true
 
   local root_node
   if type(root) == "string" then
