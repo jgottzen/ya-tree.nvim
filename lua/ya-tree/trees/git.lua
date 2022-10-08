@@ -5,8 +5,8 @@ local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
-local log = require("ya-tree.log")("trees")
 local utils = require("ya-tree.utils")
+local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 
@@ -42,8 +42,7 @@ setmetatable(GitTree, { __index = Tree })
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  ---@diagnostic disable-next-line:missing-parameter
-  GitTree.supported_actions = vim.fn.uniq({
+  GitTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
     builtin.files.toggle_filter,

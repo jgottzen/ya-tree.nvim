@@ -4,6 +4,7 @@ local Path = require("plenary.path")
 local events = require("ya-tree.events")
 local git = require("ya-tree.git")
 local ui = require("ya-tree.ui")
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
 local api = vim.api
@@ -61,8 +62,7 @@ Tree.__index = Tree
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  ---@diagnostic disable-next-line:missing-parameter
-  Tree.supported_actions = vim.fn.uniq({
+  Tree.supported_actions = utils.tbl_unique({
     builtin.general.close_window,
     builtin.general.system_open,
     builtin.general.open_help,

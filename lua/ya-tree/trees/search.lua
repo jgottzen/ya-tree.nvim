@@ -2,6 +2,7 @@ local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
 ---@class Yat.Trees.Search : Yat.Tree
@@ -39,8 +40,7 @@ setmetatable(SearchTree, { __index = Tree })
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  ---@diagnostic disable-next-line:missing-parameter
-  SearchTree.supported_actions = vim.fn.uniq({
+  SearchTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
     builtin.files.toggle_filter,

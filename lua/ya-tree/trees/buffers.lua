@@ -6,8 +6,8 @@ local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
-local log = require("ya-tree.log")("trees")
 local utils = require("ya-tree.utils")
+local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 local uv = vim.loop
@@ -16,6 +16,7 @@ local uv = vim.loop
 ---@field TYPE "buffers"
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
+---@field supported_actions Yat.Trees.Buffers.SupportedActions
 ---@field complete_func "buffer"
 local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
@@ -44,8 +45,7 @@ setmetatable(BuffersTree, { __index = Tree })
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  ---@diagnostic disable-next-line:missing-parameter
-  BuffersTree.supported_actions = vim.fn.uniq({
+  BuffersTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
     builtin.files.toggle_filter,

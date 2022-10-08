@@ -17,6 +17,19 @@ function M.tbl_remove(tbl, value)
   end
 end
 
+---@generic T
+---@param list T[]
+---@return T[] list
+function M.tbl_unique(list)
+  local uniques = {}
+  for _, v in pairs(list) do
+    if v ~= nil then
+      uniques[v] = true
+    end
+  end
+  return vim.tbl_keys(uniques)
+end
+
 M.os_sep = os_sep
 M.is_windows = fn.has("win32") == 1 or fn.has("win32unix") == 1
 M.is_macos = fn.has("mac") == 1 or fn.has("macunix") == 1

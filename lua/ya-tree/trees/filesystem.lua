@@ -54,8 +54,7 @@ setmetatable(FilesystemTree, { __index = Tree })
 do
   local builtin = require("ya-tree.actions.builtin")
 
-  ---@diagnostic disable-next-line:missing-parameter
-  FilesystemTree.supported_actions = vim.fn.uniq({
+  FilesystemTree.supported_actions = utils.tbl_unique({
     builtin.files.add,
     builtin.files.rename,
     builtin.files.delete,
