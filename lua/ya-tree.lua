@@ -35,10 +35,6 @@ function M.toggle()
   void(require("ya-tree.lib").toggle_window)()
 end
 
-function M.focus()
-  void(require("ya-tree.lib").open_window)({ focus = true })
-end
-
 ---@param level Yat.Logger.Level
 function M.set_log_level(level)
   require("ya-tree.config").config.log.level = level
@@ -75,7 +71,7 @@ end
 ---@param cmdline string
 ---@return string[] completions
 local function complete_open(arg_lead, cmdline)
-  local splits = vim.split(cmdline, "%s+") --[=[@as string[]]=]
+  local splits = vim.split(cmdline, "%s+", {}) --[=[@as string[]]=]
   local i = #splits
   if i > 6 then
     return {}
@@ -153,6 +149,10 @@ local function parse_open_command_input(fargs)
   for _, arg in ipairs(fargs) do
     if vim.startswith(arg, "path=") then
       path = arg:sub(6)
+      if path == "%" then
+        path = fn.expand(path)
+        path = fn.filereadable(path) == 1 and path or nil
+      end
     elseif vim.startswith(arg, "focus=") then
       focus = arg:sub(7) == "true"
     elseif vim.startswith(arg, "tree=") then
@@ -189,17 +189,8 @@ function M.setup(opts)
     local path, focus, tree, position, size = parse_open_command_input(input.fargs)
     M.open({ path = path, switch_root = input.bang, focus = focus, tree = tree, position = position, size = size })
   end, { bang = true, nargs = "*", complete = complete_open, desc = "Open the tree window" })
-  api.nvim_create_user_command("YaTreeClose", M.close, { desc = "Closes the tree window" })
-  api.nvim_create_user_command("YaTreeToggle", M.toggle, { desc = "Toggles the tree window" })
-  api.nvim_create_user_command("YaTreeFocus", M.focus, { desc = "Focuses the tree window, opens it if not open" })
-  api.nvim_create_user_command("YaTreeFindFile", function(input)
-    local file = input.args --[[@as string?]]
-    if not file or file == "" then
-      file = api.nvim_buf_get_name(0) --[[@as string]]
-      file = fn.filereadable(file) == 1 and file or nil
-    end
-    M.open({ path = file, switch_root = input.bang, focus = true })
-  end, { bang = true, nargs = "?", complete = "file", desc = "Focus on the current file, or the supplied file name" })
+  api.nvim_create_user_command("YaTreeClose", M.close, { desc = "Close the tree window" })
+  api.nvim_create_user_command("YaTreeToggle", M.toggle, { desc = "Toggle the tree window" })
 end
 
 return M
