@@ -42,6 +42,7 @@ local M = {
   TEXT = "YaTreeText",
   DIM_TEXT = "YaTreeDimText",
   SEARCH_TERM = "YaTreeSearchTerm",
+  TEXT_FLOAT = "YaTreeTextFloat",
 
   NORMAL = "YaTreeNormal",
   NORMAL_NC = "YaTreeNormalNC",
@@ -168,6 +169,7 @@ function M.setup()
   create_highlight(M.TEXT, { "Normal" })
   create_highlight(M.DIM_TEXT, { "Comment" })
   create_highlight(M.SEARCH_TERM, { "SpecialChar" })
+  create_highlight(M.TEXT_FLOAT, { "NormalFloat" })
 
   create_highlight(M.NORMAL, { "Normal" })
   create_highlight(M.NORMAL_NC, { "NormalNC" })

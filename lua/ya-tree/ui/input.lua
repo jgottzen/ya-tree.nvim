@@ -41,7 +41,7 @@ local win_options = {
   cursorlineopt = "line",
   wrap = false,
   winhl = table.concat({
-    "Normal:Normal",
+    "Normal:YaTreeTextFloat",
     "FloatBorder:FloatBorder",
   }, ","),
 }
@@ -167,7 +167,7 @@ function Input:open()
 
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as number]]
   for k, v in pairs(win_options) do
-    vim.opt_local[k] = v
+    vim.wo[k] = v
   end
 
   self:_create_title()
