@@ -211,19 +211,11 @@ function M.name(node, context, renderer)
           highlight = hl.DIM_TEXT,
         },
       }
-    elseif context.tree_type == "buffers" then
+    elseif context.tree_type ~= "filesystem" then
       results = {
         {
           padding = "",
-          text = "Buffers: ",
-          highlight = hl.DIM_TEXT,
-        },
-      }
-    elseif context.tree_type == "git" then
-      results = {
-        {
-          padding = "",
-          text = "Git: ",
+          text = context.tree_type:gsub("^%l", string.upper) .. ": ",
           highlight = hl.DIM_TEXT,
         },
       }
