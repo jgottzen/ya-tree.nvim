@@ -4,6 +4,7 @@
 ---| "open_help"
 ---| "show_node_info"
 ---| "close_tree"
+---| "delete_tree"
 ---| "open_git_tree"
 ---| "open_buffers_tree"
 ---| "open"
@@ -61,6 +62,7 @@ local M = {
     open_help = "open_help",
     show_node_info = "show_node_info",
     close_tree = "close_tree",
+    delete_tree = "delete_tree",
 
     open_git_tree = "open_git_tree",
     open_buffers_tree = "open_buffers_tree",

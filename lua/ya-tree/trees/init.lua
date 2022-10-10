@@ -59,8 +59,9 @@ end
 
 ---@param tabpage integer
 ---@param tree? Yat.Tree
-function M.delete_tree(tabpage, tree)
-  if tree and not tree.persistent then
+---@param force boolean
+local function delete_tree(tabpage, tree, force)
+  if tree and (not tree.persistent or force) then
     local trees = M._tabpage_trees[tabpage]
     if trees then
       tree:delete()
@@ -70,6 +71,18 @@ function M.delete_tree(tabpage, tree)
       end
     end
   end
+end
+
+---@param tabpage integer
+---@param tree? Yat.Tree
+function M.delete_tree(tabpage, tree)
+  delete_tree(tabpage, tree, false)
+end
+
+---@param tabpage integer
+---@param tree Yat.Tree
+function M.force_delete_tree(tabpage, tree)
+  delete_tree(tabpage, tree, true)
 end
 
 ---@return Yat.Trees.Type[]

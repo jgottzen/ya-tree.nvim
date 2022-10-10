@@ -30,6 +30,7 @@ Tree.__index = Tree
 ---| "open_help"
 ---| "show_node_info"
 ---| "close_tree"
+---| "delete_tree"
 ---
 ---| "open_git_tree"
 ---| "open_buffers_tree"
@@ -68,6 +69,7 @@ do
     builtin.general.open_help,
     builtin.general.show_node_info,
     builtin.general.close_tree,
+    builtin.general.delete_tree,
 
     builtin.general.open_git_tree,
     builtin.general.open_buffers_tree,

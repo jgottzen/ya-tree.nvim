@@ -117,6 +117,7 @@ local function define_actions(actions)
   M.define_action(builtin.general.open_help, help.open, "Open keybindings help", { "n" })
   M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
   M.define_action(builtin.general.close_tree, tree_actions.close_tree, "Close the current tree", { "n" })
+  M.define_action(builtin.general.delete_tree, tree_actions.delete_tree, "Delete the current tree", { "n" })
 
   M.define_action(builtin.general.open_git_tree, tree_actions.open_git_tree, "Open or close the current git status tree", { "n" })
   M.define_action(builtin.general.open_buffers_tree, tree_actions.open_buffers_tree, "Open or close the current buffers tree", { "n" })
