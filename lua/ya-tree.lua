@@ -83,24 +83,22 @@ local function complete_open(arg_lead, cmdline)
   local position_completed = false
   local size_completed = false
   for index = 2, i - 1 do
-    local split = splits[index]
-    if vim.startswith(split, "focus=") then
+    local item = splits[index]
+    if item == "focus" then
       focus_completed = true
-    elseif vim.startswith(split, "path=") then
+    elseif vim.startswith(item, "path=") then
       path_completed = true
-    elseif vim.startswith(split, "tree=") then
+    elseif vim.startswith(item, "tree=") then
       tree_completed = true
-    elseif vim.startswith(split, "position=") then
+    elseif vim.startswith(item, "position=") then
       position_completed = true
-    elseif vim.startswith(split, "size=") then
+    elseif vim.startswith(item, "size=") then
       size_completed = true
     end
   end
 
   if not path_completed and vim.startswith(arg_lead, "path=") then
     return fn.getcompletion(arg_lead:sub(6), "file")
-  elseif not focus_completed and vim.startswith(arg_lead, "focus=") then
-    return { "focus=true", "focus=false" }
   elseif not tree_completed and vim.startswith(arg_lead, "tree=") then
     return vim.tbl_map(function(tree_type)
       return "tree=" .. tree_type
@@ -112,19 +110,19 @@ local function complete_open(arg_lead, cmdline)
   else
     local t = {}
     if not focus_completed then
-      t[#t + 1] = "focus="
+      t[#t + 1] = "focus"
     end
     if not path_completed then
-      t[#t + 1] = "path=./"
+      t[#t + 1] = "path=."
     end
     if not tree_completed then
-      t[#t + 1] = "tree="
+      t[#t + 1] = "tree"
     end
     if not position_completed then
-      t[#t + 1] = "position="
+      t[#t + 1] = "position"
     end
     if not size_completed then
-      t[#t + 1] = "size="
+      t[#t + 1] = "size"
     end
     return t
   end
@@ -153,8 +151,8 @@ local function parse_open_command_input(fargs)
         path = fn.expand(path)
         path = fn.filereadable(path) == 1 and path or nil
       end
-    elseif vim.startswith(arg, "focus=") then
-      focus = arg:sub(7) == "true"
+    elseif arg == "focus" then
+      focus = true
     elseif vim.startswith(arg, "tree=") then
       tree = arg:sub(6)
     elseif vim.startswith(arg, "position=") then
