@@ -87,8 +87,7 @@ function M.apply_mappings(bufnr)
         descriptions[#descriptions + 1] = action.desc
       end
     end
-    ---@diagnostic disable-next-line:missing-parameter
-    opts.desc = table.concat(vim.fn.uniq(descriptions), "/")
+    opts.desc = table.concat(utils.tbl_unique(descriptions), "/")
     for mode in pairs(modes) do
       if not pcall(vim.keymap.set, mode, key, rhs, opts) then
         utils.warn(string.format("Cannot construct mapping for key %q!", key))
