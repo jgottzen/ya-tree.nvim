@@ -242,6 +242,7 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
+      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed.
       ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       search = {
@@ -305,6 +306,7 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
+      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed.
       ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       git = {

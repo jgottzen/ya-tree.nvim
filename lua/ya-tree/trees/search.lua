@@ -73,6 +73,8 @@ function SearchTree:new(tabpage, path)
     return nil
   end
   local this = Tree.new(self, tabpage, true)
+  local persistent = require("ya-tree.config").config.trees.search.persistent
+  this.persistent = persistent or false
   this:_init(path)
 
   log.debug("created new tree %s", tostring(this))

@@ -9,14 +9,10 @@ local api = vim.api
 local M = {}
 
 ---@async
----@param tree Yat.Tree
-function M.close_tree(tree)
-  if not tree.persistent then
-    local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-    local fs_tree = Trees.filesystem_or_new(tabpage, true)
-    Trees.delete_tree(tabpage, tree)
-    ui.update(fs_tree, fs_tree.current_node)
-  end
+function M.close_tree()
+  local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
+  local tree = Trees.filesystem_or_new(tabpage, true)
+  ui.update(tree, tree.current_node)
 end
 
 ---@async

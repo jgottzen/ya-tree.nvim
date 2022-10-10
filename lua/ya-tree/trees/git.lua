@@ -82,6 +82,8 @@ function GitTree:new(tabpage, repo_or_toplevel)
     utils.warn(string.format("%q is not a path to a Git repo", path))
     return nil
   end
+  local persistent = require("ya-tree.config").config.trees.git.persistent
+  this.persistent = persistent or false
   this:_init(repo)
 
   log.debug("created new tree %s", tostring(this))
