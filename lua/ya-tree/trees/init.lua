@@ -14,10 +14,10 @@ local M = {
   _tabpage_trees = {},
 }
 
----@param type Yat.Trees.Type
+---@param tree_type Yat.Trees.Type
 ---@return boolean
-local function is_not_special_tree_type(type)
-  return type ~= "current"
+local function is_not_special_tree_type(tree_type)
+  return tree_type ~= "current"
 end
 
 function M.delete_trees_for_nonexisting_tabpages()
@@ -26,17 +26,17 @@ function M.delete_trees_for_nonexisting_tabpages()
   local tabpages = api.nvim_list_tabpages()
   for tabpage, trees in pairs(M._tabpage_trees) do
     if not vim.tbl_contains(tabpages, tabpage) then
-      for type, tree in pairs(trees) do
-        if is_not_special_tree_type(type) then
+      for tree_type, tree in pairs(trees) do
+        if is_not_special_tree_type(tree_type) then
           tree:delete()
         end
-        trees[type] = nil
+        trees[tree_type] = nil
       end
       log.debug("Deleted trees for tabpage %s", tabpage)
       M._tabpage_trees[tabpage] = nil
     else
-      for type, tree in pairs(trees) do
-        if is_not_special_tree_type(type) then
+      for tree_type, tree in pairs(trees) do
+        if is_not_special_tree_type(tree_type) then
           tree.root:walk(function(node)
             if node.repo and not found_toplevels[node.repo.toplevel] then
               found_toplevels[node.repo.toplevel] = true
@@ -80,8 +80,8 @@ end
 ---@param callback fun(tree: Yat.Tree)
 function M.for_each_tree(callback)
   for _, trees in pairs(M._tabpage_trees) do
-    for type, tree in pairs(trees) do
-      if is_not_special_tree_type(type) then
+    for tree_type, tree in pairs(trees) do
+      if is_not_special_tree_type(tree_type) then
         callback(tree)
       end
     end
@@ -89,13 +89,13 @@ function M.for_each_tree(callback)
 end
 
 ---@param tabpage integer
----@param name Yat.Trees.Type
+---@param tree_type Yat.Trees.Type
 ---@param set_current? boolean
 ---@return Yat.Tree? tree
-function M.get_tree(tabpage, name, set_current)
+function M.get_tree(tabpage, tree_type, set_current)
   local trees = M._tabpage_trees[tabpage]
   if trees then
-    local tree = trees[name]
+    local tree = trees[tree_type]
     if tree and set_current then
       M.delete_tree(tabpage, trees.current)
       trees.current = tree
@@ -106,23 +106,23 @@ end
 
 ---@async
 ---@param tabpage integer
----@param name Yat.Trees.Type
+---@param tree_type Yat.Trees.Type
 ---@param set_current boolean
 ---@param ... any tree arguments
 ---@return Yat.Tree? tree
-function M.new_tree(tabpage, name, set_current, ...)
+function M.new_tree(tabpage, tree_type, set_current, ...)
   local trees = M._tabpage_trees[tabpage]
   if not trees then
     trees = {}
     M._tabpage_trees[tabpage] = trees
   end
-  local tree = trees[name]
+  local tree = trees[tree_type]
   if not tree then
-    local class = M._registered_trees[name]
+    local class = M._registered_trees[tree_type]
     if class then
       tree = class:new(tabpage, ...)
       if tree then
-        trees[name] = tree
+        trees[tree_type] = tree
       end
     end
   end
@@ -219,8 +219,8 @@ local function on_cwd_changed(scope, new_cwd)
   -- Do the current tabpage first
   if scope == "tabpage" or scope == "global" then
     local trees = M._tabpage_trees[current_tabpage] or {}
-    for type, tree in pairs(trees) do
-      if is_not_special_tree_type(type) then
+    for tree_type, tree in pairs(trees) do
+      if is_not_special_tree_type(tree_type) then
         tree:on_cwd_changed(new_cwd)
       end
     end
@@ -228,8 +228,8 @@ local function on_cwd_changed(scope, new_cwd)
   if scope == "global" then
     for tabpage, trees in ipairs(M._tabpage_trees) do
       if tabpage ~= current_tabpage then
-        for type, tree in pairs(trees) do
-          if is_not_special_tree_type(type) then
+        for tree_type, tree in pairs(trees) do
+          if is_not_special_tree_type(tree_type) then
             tree:on_cwd_changed(new_cwd)
           end
         end
@@ -246,6 +246,8 @@ end
 
 ---@param config Yat.Config
 local function register_trees(config)
+  ---@type table<Yat.Actions.Name, Yat.Trees.Type[]>
+  local supported_actions = {}
   for tree_name in pairs(config.trees) do
     if tree_name ~= "global_mappings" then
       ---@type boolean, Yat.Tree?
@@ -254,20 +256,16 @@ local function register_trees(config)
         log.debug("registering tree %q", tree.TYPE)
         tree.setup(config)
         M._registered_trees[tree.TYPE] = tree
-      end
-    end
-  end
 
-  ---@type table<Yat.Actions.Name, Yat.Trees.Type[]>
-  local supported_actions = {}
-  for type, tree in pairs(M._registered_trees) do
-    for _, name in ipairs(tree.supported_actions) do
-      local trees = supported_actions[name]
-      if not trees then
-        trees = {}
-        supported_actions[name] = trees
+        for _, name in ipairs(tree.supported_actions) do
+          local trees = supported_actions[name]
+          if not trees then
+            trees = {}
+            supported_actions[name] = trees
+          end
+          trees[#trees + 1] = tree.TYPE
+        end
       end
-      trees[#trees + 1] = type
     end
   end
 

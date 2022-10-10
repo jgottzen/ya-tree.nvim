@@ -126,7 +126,7 @@ function Tree.new(self, tabpage, enabled_events)
   if enabled_events == true then
     enabled_events = { buf_modified = true, buf_saved = true, dot_git_dir_changed = true, diagnostics = true }
   end
-  if enabled_events == false or type(enabled_events) == "nil" then
+  if not enabled_events then
     enabled_events = {}
   end
   ---@type Yat.Tree

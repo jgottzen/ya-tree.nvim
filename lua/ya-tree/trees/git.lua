@@ -81,9 +81,8 @@ function GitTree:new(tabpage, repo_or_toplevel)
     local path = type(repo_or_toplevel) == "string" and repo_or_toplevel or repo_or_toplevel.toplevel
     utils.warn(string.format("%q is not a path to a Git repo", path))
     return nil
-  else
-    this:_init(repo)
   end
+  this:_init(repo)
 
   log.debug("created new tree %s", tostring(this))
   return this
