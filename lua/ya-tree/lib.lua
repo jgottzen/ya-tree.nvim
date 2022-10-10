@@ -48,8 +48,8 @@ function M.open_window(opts)
   opts = opts or {}
   log.debug("opening window with %s", opts)
   -- If the switch_root flag is true and a file is given _and_ the appropriate config flag is set,
-  -- we need to update the filesystem tree with the new cwd and root _before_ issuing the `tcd` command, since
-  -- control passes to the handler. Issuing it after will be a no-op since since the tree cwd is already set.
+  -- we need to update the filesystem tree with the new root _before_ issuing the `tcd` command, since
+  -- control passes to the handler. Issuing it after will be a no-op.
   local issue_tcd = false
 
   scheduler()
@@ -67,6 +67,7 @@ function M.open_window(opts)
       tree = Trees.new_tree(tabpage, opts.tree, true, opts.path)
       if not tree then
         utils.warn(string.format("Could not create tree of type %q", opts.tree))
+        return
       end
     end
   end
@@ -79,7 +80,7 @@ function M.open_window(opts)
       if not p:is_dir() then
         path = p:parent():absolute() --[[@as string]]
       end
-      log.debug("switching cwd to %q", path)
+      log.debug("switching root to %q", path)
       tree = Trees.current_tree(tabpage)
       if not tree then
         tree = Trees.filesystem_or_new(tabpage, true, path)
@@ -130,6 +131,8 @@ function M.open_window(opts)
         node = tree.root:expand({ to = filename })
       end
     end
+  else
+    node = tree.current_node
   end
 
   scheduler()
