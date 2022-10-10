@@ -25,6 +25,8 @@ function M.search_interactively(tree, node)
   ---@type fun(tree?: Yat.Trees.Search, node: Yat.Node, term: string)
   local search = void(lib.search)
   local search_tree = Trees.search(tabpage, node.path)
+  -- necessary if the tree has been configured as persistent
+  search_tree:change_root_node(node.path)
 
   ---@param ms number
   ---@param term string

@@ -95,9 +95,11 @@ end
 ---@async
 ---@param path string
 function SearchTree:change_root_node(path)
-  local old_root = self.root
-  self:_init(path)
-  log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
+  if self.root.path ~= path then
+    local old_root = self.root
+    self:_init(path)
+    log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
+  end
 end
 
 ---@async

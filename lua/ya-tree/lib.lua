@@ -268,6 +268,8 @@ function M.search(tree, node, term)
     local tabpage = api.nvim_get_current_tabpage()
     tree = Trees.search(tabpage, node.path)
   end
+  -- necessary if the tree has been configured as persistent
+  tree:change_root_node(node.path)
   local matches_or_error = tree:search(term)
   if type(matches_or_error) == "number" then
     utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, node.path))
