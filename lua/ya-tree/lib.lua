@@ -55,7 +55,7 @@ function M.open_window(opts)
   scheduler()
   local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
   local previous_tree = Trees.current_tree(tabpage)
-  if previous_tree then
+  if previous_tree and ui.is_open(previous_tree.TYPE) then
     previous_tree.current_node = ui.get_current_node()
   end
 
