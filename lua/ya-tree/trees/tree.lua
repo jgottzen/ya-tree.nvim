@@ -119,18 +119,16 @@ end
 ---@param config Yat.Config
 function Tree.setup(config) end
 
+-- selene: allow(unused_variable)
+
 ---@generic T : Yat.Tree
 ---@param self T
 ---@param tabpage integer
----@param enabled_events boolean | { buf_modified?: boolean, buf_saved?: boolean, dot_git_dir_changed?: boolean, diagnostics?: boolean }
+---@param path string
+---@param kwargs? table<string, string>
 ---@return T tree
-function Tree.new(self, tabpage, enabled_events)
-  if enabled_events == true then
-    enabled_events = { buf_modified = true, buf_saved = true, dot_git_dir_changed = true, diagnostics = true }
-  end
-  if not enabled_events then
-    enabled_events = {}
-  end
+---@diagnostic disable-next-line:unused-local
+function Tree.new(self, tabpage, path, kwargs)
   ---@type Yat.Tree
   local this = {
     _tabpage = tabpage,
@@ -140,32 +138,41 @@ function Tree.new(self, tabpage, enabled_events)
   }
   setmetatable(this, self)
 
+  return this
+end
+
+---@param enabled_events boolean | { buf_modified?: boolean, buf_saved?: boolean, dot_git_dir_changed?: boolean, diagnostics?: boolean }
+function Tree:enable_events(enabled_events)
+  if enabled_events == true then
+    enabled_events = { buf_modified = true, buf_saved = true, dot_git_dir_changed = true, diagnostics = true }
+  end
+  if not enabled_events then
+    enabled_events = {}
+  end
   local config = require("ya-tree.config").config
   local ae = require("ya-tree.events.event").autocmd
   if enabled_events.buf_modified then
-    this:register_autocmd_event(ae.BUFFER_MODIFIED, false, function(bufnr, file)
-      this:on_buffer_modified(bufnr, file)
+    self:register_autocmd_event(ae.BUFFER_MODIFIED, false, function(bufnr, file)
+      self:on_buffer_modified(bufnr, file)
     end)
   end
   if enabled_events.buf_saved and config.update_on_buffer_saved then
-    this:register_autocmd_event(ae.BUFFER_SAVED, true, function(bufnr, _, match)
-      this:on_buffer_saved(bufnr, match)
+    self:register_autocmd_event(ae.BUFFER_SAVED, true, function(bufnr, _, match)
+      self:on_buffer_saved(bufnr, match)
     end)
   end
   if enabled_events.dot_git_dir_changed and config.git.enable then
     local ge = require("ya-tree.events.event").git
-    this:register_git_event(ge.DOT_GIT_DIR_CHANGED, function(repo, fs_changes)
-      this:on_git_event(repo, fs_changes)
+    self:register_git_event(ge.DOT_GIT_DIR_CHANGED, function(repo, fs_changes)
+      self:on_git_event(repo, fs_changes)
     end)
   end
   if enabled_events.diagnostics and config.diagnostics.enable then
     local ye = require("ya-tree.events.event").ya_tree
-    this:register_yatree_event(ye.DIAGNOSTICS_CHANGED, true, function(severity_changed)
-      this:on_diagnostics_event(severity_changed)
+    self:register_yatree_event(ye.DIAGNOSTICS_CHANGED, true, function(severity_changed)
+      self:on_diagnostics_event(severity_changed)
     end)
   end
-
-  return this
 end
 
 ---@param event Yat.Events.AutocmdEvent
@@ -211,6 +218,7 @@ do
   local paths = {}
 
   -- selene: allow(global_usage)
+
   ---@param start number
   ---@param base string
   ---@return number|string[]
@@ -239,6 +247,7 @@ do
 end
 
 -- selene: allow(global_usage)
+
 ---@param start number
 ---@param base string
 ---@return number|string[]

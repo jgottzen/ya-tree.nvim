@@ -19,7 +19,7 @@ end
 ---@param tree Yat.Tree
 function M.delete_tree(tree)
   local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-  Trees.force_delete_tree(tabpage, tree)
+  Trees.delete_tree(tabpage, tree)
   local fs_tree = Trees.filesystem_or_new(tabpage, true)
   ui.update(fs_tree, fs_tree.current_node)
 end

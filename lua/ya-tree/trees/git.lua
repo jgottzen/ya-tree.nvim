@@ -68,7 +68,6 @@ GitTree.complete_func = Tree.complete_func_loaded_nodes
 ---@param repo_or_toplevel? Yat.Git.Repo|string
 ---@return Yat.Trees.Git|nil tree
 function GitTree:new(tabpage, repo_or_toplevel)
-  local this = Tree.new(self, tabpage, true)
   local repo
   repo_or_toplevel = repo_or_toplevel or vim.loop.cwd()
   if type(repo_or_toplevel) == "string" then
@@ -82,6 +81,8 @@ function GitTree:new(tabpage, repo_or_toplevel)
     utils.warn(string.format("%q is not a path to a Git repo", path))
     return nil
   end
+  local this = Tree.new(self, tabpage, repo.toplevel)
+  this:enable_events(true)
   local persistent = require("ya-tree.config").config.trees.git.persistent
   this.persistent = persistent or false
   this:_init(repo)

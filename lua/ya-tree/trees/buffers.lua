@@ -73,7 +73,8 @@ BuffersTree.complete_func = "buffer"
 ---@return Yat.Trees.Buffers tree
 function BuffersTree:new(tabpage, path)
   path = path or uv.cwd()
-  local this = Tree.new(self, tabpage, true)
+  local this = Tree.new(self, tabpage, path)
+  this:enable_events(true)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   this.root = BufferNode:new(fs_node)
   this.root.repo = git.get_repo_for_path(fs_node.path)

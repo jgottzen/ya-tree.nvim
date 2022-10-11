@@ -66,13 +66,14 @@ SearchTree.complete_func = Tree.complete_func_loaded_nodes
 
 ---@async
 ---@param tabpage integer
----@param path? string
+---@param path string
 ---@return Yat.Trees.Search|nil tree
 function SearchTree:new(tabpage, path)
   if not path then
-    return nil
+    return
   end
-  local this = Tree.new(self, tabpage, true)
+  local this = Tree.new(self, tabpage, path)
+  this:enable_events(true)
   local persistent = require("ya-tree.config").config.trees.search.persistent
   this.persistent = persistent or false
   this:_init(path)

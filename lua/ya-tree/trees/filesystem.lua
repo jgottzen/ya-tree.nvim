@@ -13,6 +13,7 @@ local uv = vim.loop
 
 ---@class Yat.Trees.Filesystem : Yat.Tree
 ---@field TYPE "filesystem"
+---@field persistent true
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
 ---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
 local FilesystemTree = { TYPE = "filesystem" }
@@ -141,9 +142,6 @@ end
 ---@param root? string|Yat.Node
 ---@return Yat.Trees.Filesystem tree
 function FilesystemTree:new(tabpage, root)
-  local this = Tree.new(self, tabpage, true)
-  this.persistent = true
-
   local root_node
   if type(root) == "string" then
     if not fs.is_directory(root) then
@@ -155,6 +153,10 @@ function FilesystemTree:new(tabpage, root)
   else
     root_node = create_root_node(uv.cwd())
   end
+
+  local this = Tree.new(self, tabpage, root_node.path)
+  this:enable_events(true)
+  this.persistent = true
 
   this.root = root_node
   this.current_node = this.root
