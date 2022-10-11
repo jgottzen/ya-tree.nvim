@@ -35,6 +35,7 @@ end
 ---  - {opts.tree?} `Yat.Trees.Type` Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
 ---  - {opts.position?} `Yat.Ui.Canvas.Position` Where the tree window should be positioned.
 ---  - {opts.size?} `integer` The size of the tree window, either width or height depending on position.
+---  - {opts.tree_args?} `table<string, string>` Any tree specific arguments.
 function M.open_window(opts)
   if setting_up then
     log.debug("setup is in progress, deferring opening window...")
@@ -64,7 +65,7 @@ function M.open_window(opts)
     log.debug("opening tree of type %q", opts.tree)
     tree = Trees.get_tree(tabpage, opts.tree, true)
     if not tree then
-      tree = Trees.new_tree(tabpage, opts.tree, true, opts.path)
+      tree = Trees.new_tree(tabpage, opts.tree, true, opts.path, opts.tree_args)
       if not tree then
         utils.warn(string.format("Could not create tree of type %q", opts.tree))
         return

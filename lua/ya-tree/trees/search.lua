@@ -67,8 +67,9 @@ SearchTree.complete_func = Tree.complete_func_loaded_nodes
 ---@async
 ---@param tabpage integer
 ---@param path string
+---@param kwargs? table<string, string>
 ---@return Yat.Trees.Search|nil tree
-function SearchTree:new(tabpage, path)
+function SearchTree:new(tabpage, path, kwargs)
   if not path then
     return
   end
@@ -77,6 +78,13 @@ function SearchTree:new(tabpage, path)
   local persistent = require("ya-tree.config").config.trees.search.persistent
   this.persistent = persistent or false
   this:_init(path)
+  if kwargs and kwargs.term then
+    local matches_or_error = this:search(kwargs.term)
+    if type(matches_or_error) == "string" then
+      utils.warn(string.format("Failed with message:\n\n%s", matches_or_error))
+      return
+    end
+  end
 
   log.debug("created new tree %s", tostring(this))
   return this

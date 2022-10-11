@@ -15,6 +15,7 @@ local M = {}
 ---@field tree? Yat.Trees.Type Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
 ---@field position? Yat.Ui.Canvas.Position Where the tree window should be positioned.
 ---@field size? integer The size of the tree window, either width or height depending on position.
+---@field tree_args table<string, string> Any tree specific arguments.
 
 ---@param opts Yat.OpenWindowArgs
 ---  - {opts.path?} `string` The path to open.
@@ -23,6 +24,7 @@ local M = {}
 ---  - {opts.tree?} `Yat.Trees.Type` Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
 ---  - {opts.position?} `Yat.Ui.Canvas.Position` Where the tree window should be positioned.
 ---  - {opts.size?} `integer` The size of the tree window, either width or height depending on position.
+---  - {opts.tree_args?} `table<string, string>` Any tree specific arguments.
 function M.open(opts)
   void(require("ya-tree.lib").open_window)(opts)
 end
@@ -134,6 +136,7 @@ end
 ---@return string|nil tree
 ---@return Yat.Ui.Canvas.Position? position
 ---@return integer|nil size
+---@return table<string, string> tree_args
 local function parse_open_command_input(fargs)
   ---@type string|nil
   local path = nil
@@ -144,6 +147,8 @@ local function parse_open_command_input(fargs)
   local position = nil
   ---@type number?
   local size = nil
+  ---@type table<string, string>
+  local tree_args = {}
   for _, arg in ipairs(fargs) do
     if vim.startswith(arg, "path=") then
       path = arg:sub(6)
@@ -159,10 +164,15 @@ local function parse_open_command_input(fargs)
       position = arg:sub(10)
     elseif vim.startswith(arg, "size=") then
       size = tonumber(arg:sub(6))
+    else
+      local splits = vim.split(arg, "=", { plain = true })
+      if #splits == 2 then
+        tree_args[splits[1]] = splits[2]
+      end
     end
   end
 
-  return path, focus, tree, position, size
+  return path, focus, tree, position, size, tree_args
 end
 
 ---@param opts? Yat.Config
@@ -184,8 +194,8 @@ function M.setup(opts)
   require("ya-tree.lib").setup()
 
   api.nvim_create_user_command("YaTreeOpen", function(input)
-    local path, focus, tree, position, size = parse_open_command_input(input.fargs)
-    M.open({ path = path, switch_root = input.bang, focus = focus, tree = tree, position = position, size = size })
+    local path, focus, tree, position, size, tree_args = parse_open_command_input(input.fargs)
+    M.open({ path = path, switch_root = input.bang, focus = focus, tree = tree, position = position, size = size, tree_args = tree_args })
   end, { bang = true, nargs = "*", complete = complete_open, desc = "Open the tree window" })
   api.nvim_create_user_command("YaTreeClose", M.close, { desc = "Close the tree window" })
   api.nvim_create_user_command("YaTreeToggle", M.toggle, { desc = "Toggle the tree window" })
