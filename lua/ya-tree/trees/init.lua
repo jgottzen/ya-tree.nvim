@@ -312,6 +312,10 @@ end
 function M.setup(config)
   register_trees(config)
 
+  local events = require("ya-tree.events")
+  local event = require("ya-tree.events.event").autocmd
+  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_TREES_TAB_CLOSE_CLEANUP", M.delete_trees_for_nonexisting_tabpages)
+
   if config.cwd.follow then
     local group = api.nvim_create_augroup("YaTreeTrees", { clear = true })
     api.nvim_create_autocmd("DirChanged", {
