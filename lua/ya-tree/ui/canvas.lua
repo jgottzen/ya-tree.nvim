@@ -240,6 +240,13 @@ function Canvas:_on_win_closed()
 
   self.window_augroup = nil
   self.winid = nil
+  if self.bufnr then
+    ok = pcall(api.nvim_buf_delete, self.bufnr, { force = true })
+    if not ok then
+      log.error("error deleting buffer %s", self.bufnr)
+    end
+    self.bufnr = nil
+  end
 end
 
 function Canvas:resize()
@@ -351,19 +358,6 @@ function Canvas:close()
   local ok = pcall(api.nvim_win_close, self.winid, true)
   if not ok then
     log.error("error closing window %q", self.winid)
-  end
-end
-
-function Canvas:delete()
-  self:close()
-  if self.bufnr then
-    local ok = pcall(api.nvim_buf_delete, self.bufnr, { force = true })
-    if ok then
-      log.debug("deleted canvas buffer %s", self.bufnr)
-    else
-      log.error("error deleting buffer %s", self.bufnr)
-    end
-    self.bufnr = nil
   end
 end
 

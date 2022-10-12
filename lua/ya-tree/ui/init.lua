@@ -16,7 +16,7 @@ function M.delete_ui_for_nonexisting_tabpages()
   local tabpages = api.nvim_list_tabpages()
   for tabpage, canvas in pairs(M._canvases) do
     if not vim.tbl_contains(tabpages, tonumber(tabpage)) then
-      canvas:delete()
+      canvas:close()
       log.debug("deleted ui %s for tabpage %s", tostring(canvas), tabpage)
       M._canvases[tabpage] = nil
     end
