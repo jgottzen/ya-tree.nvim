@@ -69,11 +69,11 @@ local function delete_tree(tabpage, tree, force)
   if tree and (not tree.persistent or force) then
     local trees = M._tabpage_trees[tabpage]
     if trees then
-      tree:delete()
       trees[tree.TYPE] = nil
       if trees.current and trees.current.TYPE == tree.TYPE then
         trees.current = nil
       end
+      tree:delete()
     end
   end
 end
@@ -109,11 +109,23 @@ function M.get_tree(tabpage, tree_type, set_current)
   if trees then
     local tree = trees[tree_type]
     if tree and set_current then
+      log.debug("setting current to %s", tostring(tree))
       delete_tree(tabpage, trees.current, false)
       trees.current = tree
     end
     return tree
   end
+end
+
+---@param tabpage integer
+---@return table<Yat.Trees.Type|"current", Yat.Tree> trees
+local function get_or_create_tabpage_trees(tabpage)
+  local trees = M._tabpage_trees[tabpage]
+  if not trees then
+    trees = {}
+    M._tabpage_trees[tabpage] = trees
+  end
+  return trees
 end
 
 ---@async
@@ -124,11 +136,7 @@ end
 ---@param kwargs? table<string, string>
 ---@return Yat.Tree? tree
 function M.new_tree(tabpage, tree_type, set_current, path, kwargs)
-  local trees = M._tabpage_trees[tabpage]
-  if not trees then
-    trees = {}
-    M._tabpage_trees[tabpage] = trees
-  end
+  local trees = get_or_create_tabpage_trees(tabpage)
   local tree = trees[tree_type]
   if not tree then
     local class = M._registered_trees[tree_type]
@@ -156,13 +164,10 @@ end
 ---@param tabpage integer
 ---@param tree Yat.Tree
 function M.set_current_tree(tabpage, tree)
-  local trees = M._tabpage_trees[tabpage]
-  if not trees then
-    trees = {}
-    M._tabpage_trees[tabpage] = trees
-  end
+  local trees = get_or_create_tabpage_trees(tabpage)
   if trees.current ~= tree then
     delete_tree(tabpage, trees.current, false)
+    log.debug("setting current tree to %s", tostring(tree))
     trees.current = tree
   end
 end
@@ -174,6 +179,13 @@ function M.filesystem(tabpage, set_current)
   return M.get_tree(tabpage, "filesystem", set_current) --[[@as Yat.Trees.Filesystem?]]
 end
 
+---@param tabpage integer
+---@param tree Yat.Tree
+local function add_tree_to_tabpage_trees(tabpage, tree)
+  local trees = get_or_create_tabpage_trees(tabpage)
+  trees[tree.TYPE] = tree
+end
+
 ---@async
 ---@param tabpage integer
 ---@param set_current boolean
@@ -183,6 +195,7 @@ function M.filesystem_or_new(tabpage, set_current, root)
   local tree = M.filesystem(tabpage, set_current)
   if not tree then
     tree = FilesystemTree:new(tabpage, root)
+    add_tree_to_tabpage_trees(tabpage, tree)
     M.set_current_tree(tabpage, tree)
   end
   return tree
@@ -195,6 +208,7 @@ function M.buffers(tabpage)
   local tree = M.get_tree(tabpage, "buffers", true) --[[@as Yat.Trees.Buffers?]]
   if not tree then
     tree = BuffersTree:new(tabpage, vim.loop.cwd())
+    add_tree_to_tabpage_trees(tabpage, tree)
     M.set_current_tree(tabpage, tree)
   end
   return tree
@@ -208,6 +222,7 @@ function M.git(tabpage, repo)
   local tree = M.get_tree(tabpage, "git", true) --[[@as Yat.Trees.Git?]]
   if not tree then
     tree = GitTree:new(tabpage, repo) --[[@as Yat.Trees.Git]]
+    add_tree_to_tabpage_trees(tabpage, tree)
     M.set_current_tree(tabpage, tree)
   end
   return tree
@@ -221,6 +236,7 @@ function M.search(tabpage, path)
   local tree = M.get_tree(tabpage, "search", true) --[[@as Yat.Trees.Search?]]
   if not tree then
     tree = SearchTree:new(tabpage, path) --[[@as Yat.Trees.Search]]
+    add_tree_to_tabpage_trees(tabpage, tree)
     M.set_current_tree(tabpage, tree)
   end
   return tree

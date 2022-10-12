@@ -267,7 +267,7 @@ function Tree:complete_func_file_in_path(bufnr, node)
 end
 
 function Tree:delete()
-  log.info("deleting tree %q for tabpage %s", self.TYPE, self._tabpage)
+  log.info("deleting tree %s", tostring(self))
   for _, event in ipairs(self._registered_events.autcmd) do
     self:remove_autocmd_event(event)
   end
