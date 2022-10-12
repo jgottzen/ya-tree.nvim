@@ -8,14 +8,14 @@ local api = vim.api
 
 local M = {
   ---@private
-  ---@type table<string, Yat.Ui.Canvas>
+  ---@type table<integer, Yat.Ui.Canvas>
   _canvases = {},
 }
 
 function M.delete_ui_for_nonexisting_tabpages()
   local tabpages = api.nvim_list_tabpages()
   for tabpage, canvas in pairs(M._canvases) do
-    if not vim.tbl_contains(tabpages, tonumber(tabpage)) then
+    if not vim.tbl_contains(tabpages, tabpage) then
       canvas:close()
       log.debug("deleted ui %s for tabpage %s", tostring(canvas), tabpage)
       M._canvases[tabpage] = nil
@@ -25,7 +25,7 @@ end
 
 ---@return Yat.Ui.Canvas canvas
 local function get_canvas()
-  return M._canvases[tostring(api.nvim_get_current_tabpage())]
+  return M._canvases[api.nvim_get_current_tabpage()]
 end
 
 ---@param tree_type? Yat.Trees.Type
@@ -63,7 +63,7 @@ end
 ---  - {opts.size?} `integer`
 function M.open(tree, node, opts)
   opts = opts or {}
-  local tabpage = tostring(api.nvim_get_current_tabpage())
+  local tabpage = api.nvim_get_current_tabpage()
   local canvas = M._canvases[tabpage]
   if not canvas then
     canvas = Canvas:new()
