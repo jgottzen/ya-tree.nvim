@@ -72,7 +72,7 @@ BuffersTree.complete_func = "buffer"
 ---@param path? string
 ---@return Yat.Trees.Buffers tree
 function BuffersTree:new(tabpage, path)
-  path = path or uv.cwd()
+  path = path or uv.cwd() --[[@as string]]
   local this = Tree.new(self, tabpage, path)
   this:enable_events(true)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]

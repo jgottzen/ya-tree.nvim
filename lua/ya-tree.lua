@@ -8,6 +8,11 @@ local fn = vim.fn
 
 local M = {}
 
+-- needed for lua-dev
+
+---@alias Callback fun()
+---@alias Number number
+
 ---@class Yat.OpenWindowArgs
 ---@field path? string The path to open.
 ---@field focus? boolean Whether to focus the tree window.

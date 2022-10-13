@@ -421,7 +421,7 @@ function M.copy_dir(source, destination, replace)
   end
   if continue then
     while true do
-      ---@type string?, Luv.FileType
+      ---@type string?, Luv.FileType?
       local name, _type = loop.fs_scandir_next(fd)
       if not name then
         break
@@ -556,7 +556,7 @@ function M.remove_dir(path)
   end
 
   while true do
-    ---@type string?, Luv.FileType
+    ---@type string?, Luv.FileType?
     local name, _type = loop.fs_scandir_next(fd)
     if not name then
       break

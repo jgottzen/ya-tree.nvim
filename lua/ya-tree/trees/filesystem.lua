@@ -151,7 +151,7 @@ function FilesystemTree:new(tabpage, root)
   elseif type(root) == "table" then
     root_node = root --[[@as Yat.Node]]
   else
-    root_node = create_root_node(uv.cwd())
+    root_node = create_root_node(uv.cwd() --[[@as string]])
   end
 
   local this = Tree.new(self, tabpage, root_node.path)

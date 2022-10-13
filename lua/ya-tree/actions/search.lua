@@ -20,8 +20,7 @@ function M.search_interactively(tree, node)
   if node:is_file() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
-  ---@type uv_timer_t
-  local timer = uv.new_timer()
+  local timer = uv.new_timer() --[[@as uv_timer_t]]
   ---@type fun(tree?: Yat.Trees.Search, node: Yat.Node, term: string)
   local search = void(lib.search)
   local search_tree = Trees.search(tabpage, node.path)

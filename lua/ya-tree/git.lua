@@ -223,6 +223,7 @@ function Repo:add_git_watcher()
       events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
     end)
 
+    ---@type any, string?
     local result, message = uv.new_fs_poll()
     if result ~= nil then
       self._git_dir_watcher = result
