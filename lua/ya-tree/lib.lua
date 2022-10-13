@@ -350,7 +350,9 @@ local function on_buf_enter(bufnr, file)
       local node = tree.root:expand({ to = file })
       ui.update(tree, node, { focus_node = true })
     elseif ui.is_highlight_open_file_enabled() then
-      ui.update(tree)
+      vim.defer_fn(function()
+        ui.update(tree)
+      end, 50)
     end
   end
 end
