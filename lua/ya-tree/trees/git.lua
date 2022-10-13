@@ -64,41 +64,47 @@ end
 GitTree.complete_func = Tree.complete_func_loaded_nodes
 
 ---@async
----@param tabpage integer
----@param repo_or_toplevel? Yat.Git.Repo|string
----@return Yat.Trees.Git|nil tree
-function GitTree:new(tabpage, repo_or_toplevel)
+---@param repo_or_path? Yat.Git.Repo|string
+---@return Yat.Nodes.Git|nil
+local function create_root_node(repo_or_path)
   local repo
-  repo_or_toplevel = repo_or_toplevel or vim.loop.cwd()
-  if type(repo_or_toplevel) == "string" then
-    repo = git.create_repo(repo_or_toplevel)
+  if type(repo_or_path) == "string" then
+    repo = git.create_repo(repo_or_path)
   else
-    repo = repo_or_toplevel --[[@as Yat.Git.Repo]]
+    repo = repo_or_path
   end
-  if not repo then
-    log.error("%q is either not a path to a git repo or a git repo object", tostring(repo_or_toplevel))
-    local path = type(repo_or_toplevel) == "string" and repo_or_toplevel or repo_or_toplevel.toplevel
+  if type(repo) == "table" then
+    local fs_node = fs.node_for(repo.toplevel) --[[@as Yat.Fs.Node]]
+    local root = GitNode:new(fs_node)
+    root.repo = repo
+    return root
+  else
+    log.error("%q is either not a path to a git repo or a git repo object", tostring(repo_or_path))
+    local path = type(repo_or_path) == "string" and repo_or_path or (repo_or_path and repo_or_path.toplevel or "unknown")
     utils.warn(string.format("%q is not a path to a Git repo", path))
     return nil
   end
-  local this = Tree.new(self, tabpage, repo.toplevel)
-  this:enable_events(true)
-  local persistent = require("ya-tree.config").config.trees.git.persistent
-  this.persistent = persistent or false
-  this:_init(repo)
-
-  log.debug("created new tree %s", tostring(this))
-  return this
 end
 
 ---@async
----@private
----@param repo Yat.Git.Repo
-function GitTree:_init(repo)
-  local fs_node = fs.node_for(repo.toplevel) --[[@as Yat.Fs.Node]]
-  self.root = GitNode:new(fs_node)
-  self.root.repo = repo
-  self.current_node = self.root:refresh()
+---@param tabpage integer
+---@param repo_or_path? Yat.Git.Repo|string
+---@return Yat.Trees.Git|nil tree
+function GitTree:new(tabpage, repo_or_path)
+  repo_or_path = repo_or_path or vim.loop.cwd()
+  local root = create_root_node(repo_or_path)
+  if not root then
+    return nil
+  end
+  local this = Tree.new(self, tabpage, root.path)
+  this:enable_events(true)
+  local persistent = require("ya-tree.config").config.trees.git.persistent
+  this.persistent = persistent or false
+  this.root = root
+  this.current_node = this.root:refresh()
+
+  log.debug("created new tree %s", tostring(this))
+  return this
 end
 
 ---@async
@@ -144,11 +150,18 @@ function GitTree:on_buffer_saved(_, file)
 end
 
 ---@async
----@param repo Yat.Git.Repo
-function GitTree:change_root_node(repo)
+---@param repo_or_path Yat.Git.Repo|string
+---@return boolean
+---@nodiscard
+function GitTree:change_root_node(repo_or_path)
   local old_root = self.root
-  self:_init(repo)
-  log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
+  local root = create_root_node(repo_or_path)
+  if root then
+    self.root = root
+    self.current_node = self.root:refresh()
+    log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
+  end
+  return root ~= nil
 end
 
 return GitTree

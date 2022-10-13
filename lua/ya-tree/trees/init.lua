@@ -132,8 +132,8 @@ end
 ---@param tabpage integer
 ---@param tree_type Yat.Trees.Type
 ---@param set_current boolean
----@param path string
----@param kwargs? table<string, string>
+---@param path? string
+---@param kwargs? table<string, any>
 ---@return Yat.Tree? tree
 function M.new_tree(tabpage, tree_type, set_current, path, kwargs)
   local trees = get_or_create_tabpage_trees(tabpage)
@@ -141,10 +141,13 @@ function M.new_tree(tabpage, tree_type, set_current, path, kwargs)
   if not tree then
     local class = M._registered_trees[tree_type]
     if class then
+      log.debug("creating tree of type %q", tree_type)
       tree = class:new(tabpage, path, kwargs)
       if tree then
         trees[tree_type] = tree
       end
+    else
+      log.info("no tree of type %q is registered", tree_type)
     end
   end
   if tree and set_current and trees.current ~= tree then
@@ -173,13 +176,6 @@ function M.set_current_tree(tabpage, tree)
 end
 
 ---@param tabpage integer
----@param set_current? boolean
----@return Yat.Trees.Filesystem? tree
-function M.filesystem(tabpage, set_current)
-  return M.get_tree(tabpage, "filesystem", set_current) --[[@as Yat.Trees.Filesystem?]]
-end
-
----@param tabpage integer
 ---@param tree Yat.Tree
 local function add_tree_to_tabpage_trees(tabpage, tree)
   local trees = get_or_create_tabpage_trees(tabpage)
@@ -191,8 +187,8 @@ end
 ---@param set_current boolean
 ---@param root? string|Yat.Node
 ---@return Yat.Trees.Filesystem tree
-function M.filesystem_or_new(tabpage, set_current, root)
-  local tree = M.filesystem(tabpage, set_current)
+function M.filesystem(tabpage, set_current, root)
+  local tree = M.get_tree(tabpage, "filesystem", set_current) --[[@as Yat.Trees.Filesystem?]]
   if not tree then
     tree = FilesystemTree:new(tabpage, root)
     add_tree_to_tabpage_trees(tabpage, tree)
@@ -220,6 +216,10 @@ end
 ---@return Yat.Trees.Git tree
 function M.git(tabpage, repo)
   local tree = M.get_tree(tabpage, "git", true) --[[@as Yat.Trees.Git?]]
+  if tree and tree.root.repo ~= repo then
+    M.delete_tree(tabpage, tree)
+    tree = nil
+  end
   if not tree then
     tree = GitTree:new(tabpage, repo) --[[@as Yat.Trees.Git]]
     add_tree_to_tabpage_trees(tabpage, tree)

@@ -158,23 +158,19 @@ do
   end
 end
 
----@return boolean is_directory, string path
-function M.get_path_from_directory_buffer()
+---@return boolean
+function M.is_buffer_directory()
   local bufnr = api.nvim_get_current_buf() --[[@as number]]
   local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
   if not M.is_directory_sync(bufname) then
-    return false, ""
+    return false
   end
   if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then
-    return false, ""
+    return false
   end
 
   local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false) --[=[@as string[]]=]
-  if #lines == 0 or (#lines == 1 and lines[1] == "") then
-    return true, Path:new(bufname):absolute()
-  else
-    return false, ""
-  end
+  return #lines == 0 or (#lines == 1 and lines[1] == "")
 end
 
 do

@@ -11,7 +11,7 @@ local M = {}
 ---@async
 function M.close_tree()
   local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-  local tree = Trees.filesystem_or_new(tabpage, true)
+  local tree = Trees.filesystem(tabpage, true)
   ui.update(tree, tree.current_node)
 end
 
@@ -20,7 +20,7 @@ end
 function M.delete_tree(tree)
   local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
   Trees.delete_tree(tabpage, tree)
-  local fs_tree = Trees.filesystem_or_new(tabpage, true)
+  local fs_tree = Trees.filesystem(tabpage, true)
   ui.update(fs_tree, fs_tree.current_node)
 end
 

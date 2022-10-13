@@ -258,6 +258,8 @@ end
 
 ---@async
 ---@param new_root string|Yat.Node
+---@return boolean
+---@nodiscard
 function FilesystemTree:change_root_node(new_root)
   local old_root = self.root
   if type(new_root) == "string" then
@@ -265,16 +267,15 @@ function FilesystemTree:change_root_node(new_root)
       new_root = Path:new(new_root):parent():absolute() --[[@as string]]
     end
     if new_root == self.root.path then
-      return
+      return true
     end
     log.debug("setting new tree root to %q", new_root)
     if not update_tree_root_node(self, new_root) then
       self.root = create_root_node(new_root, self.root)
     end
   else
-    ---@cast new_root Yat.Node
     if new_root == self.root then
-      return
+      return true
     end
     log.debug("setting new tree root to %s", tostring(new_root))
     self.root = new_root
@@ -296,10 +297,14 @@ function FilesystemTree:change_root_node(new_root)
     end)
   end
 
+  if not self.root:is_ancestor_of(self.current_node.path) then
+    self.current_node = self.root
+  end
   if not self.root.repo then
     self:check_node_for_repo(self.root)
   end
-  log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
+  log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
+  return true
 end
 
 return FilesystemTree

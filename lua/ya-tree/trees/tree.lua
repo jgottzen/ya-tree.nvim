@@ -124,8 +124,8 @@ function Tree.setup(config) end
 ---@generic T : Yat.Tree
 ---@param self T
 ---@param tabpage integer
----@param path string
----@param kwargs? table<string, string>
+---@param path? string
+---@param kwargs? table<string, any>
 ---@return T tree
 ---@diagnostic disable-next-line:unused-local
 function Tree.new(self, tabpage, path, kwargs)
@@ -378,9 +378,16 @@ function Tree:check_node_for_repo(node)
   return false
 end
 
+-- selene: allow(unused_variable)
+
 ---@async
----@param ... any
-function Tree:change_root_node(...) end
+---@param path string
+---@return boolean
+---@nodiscard
+---@diagnostic disable-next-line:unused-local
+function Tree:change_root_node(path)
+  return true
+end
 
 ---@param tabpage integer
 ---@return boolean

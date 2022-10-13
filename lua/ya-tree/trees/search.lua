@@ -67,7 +67,7 @@ SearchTree.complete_func = Tree.complete_func_loaded_nodes
 ---@async
 ---@param tabpage integer
 ---@param path string
----@param kwargs? table<string, string>
+---@param kwargs? table<string, any>
 ---@return Yat.Trees.Search|nil tree
 function SearchTree:new(tabpage, path, kwargs)
   if not path then
@@ -103,12 +103,15 @@ end
 
 ---@async
 ---@param path string
+---@return boolean
+---@nodiscard
 function SearchTree:change_root_node(path)
   if self.root.path ~= path then
     local old_root = self.root
     self:_init(path)
     log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
   end
+  return true
 end
 
 ---@async

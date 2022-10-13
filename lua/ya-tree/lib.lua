@@ -1,5 +1,4 @@
 local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
@@ -13,11 +12,6 @@ local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
 
--- Flag for signaling when the library is setting up, which might take time if in a large directory and/or
--- repository. A call to M.open_window(), while setting up, will create another, duplicate, tree and doing the
--- filesystem and repository scanning again.
-local setting_up = false
-
 local M = {}
 
 ---@param path string
@@ -30,28 +24,14 @@ end
 ---@async
 ---@param opts? Yat.OpenWindowArgs
 ---  - {opts.path?} `string` The path to open.
----  - {opts.switch_root?} `boolean` Change the root path of the tree to `path`.
 ---  - {opts.focus?} `boolean` Whether to focus the tree window.
 ---  - {opts.tree?} `Yat.Trees.Type` Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
 ---  - {opts.position?} `Yat.Ui.Canvas.Position` Where the tree window should be positioned.
 ---  - {opts.size?} `integer` The size of the tree window, either width or height depending on position.
----  - {opts.tree_args?} `table<string, string>` Any tree specific arguments.
+---  - {opts.tree_args?} `table<string, any>` Any tree specific arguments.
 function M.open_window(opts)
-  if setting_up then
-    log.debug("setup is in progress, deferring opening window...")
-    local deferred = void(function()
-      M.open_window(opts)
-    end)
-    vim.defer_fn(deferred, 100)
-    return
-  end
-
   opts = opts or {}
   log.debug("opening window with %s", opts)
-  -- If the switch_root flag is true and a file is given _and_ the appropriate config flag is set,
-  -- we need to update the filesystem tree with the new root _before_ issuing the `tcd` command, since
-  -- control passes to the handler. Issuing it after will be a no-op.
-  local issue_tcd = false
 
   scheduler()
   local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
@@ -60,50 +40,33 @@ function M.open_window(opts)
     previous_tree.current_node = ui.get_current_node()
   end
 
+  local current_cwd = uv.cwd() --[[@as string]]
+  local path = opts.path and resolve_path(opts.path)
   local tree
   if opts.tree then
     log.debug("opening tree of type %q", opts.tree)
     tree = Trees.get_tree(tabpage, opts.tree, true)
     if not tree then
-      tree = Trees.new_tree(tabpage, opts.tree, true, opts.path, opts.tree_args)
+      if opts.tree == "filesystem" and path and vim.startswith(path, current_cwd) then
+        tree = Trees.filesystem(tabpage, true, current_cwd)
+      else
+        tree = Trees.new_tree(tabpage, opts.tree, true, path, opts.tree_args)
+      end
       if not tree then
         utils.warn(string.format("Could not create tree of type %q", opts.tree))
         return
       end
-    end
-  end
-
-  local path = opts.path and resolve_path(opts.path)
-  if opts.switch_root and opts.path then
-    issue_tcd = config.cwd.update_from_tree
-    if path then
-      local p = Path:new(path)
-      if not p:is_dir() then
-        path = p:parent():absolute() --[[@as string]]
-      end
-      log.debug("switching root to %q", path)
-      tree = Trees.current_tree(tabpage)
-      if not tree then
-        tree = Trees.filesystem_or_new(tabpage, true, path)
-      end
-      -- no-op if a new "filesystem" tree was created
+    elseif path and not tree.root:is_ancestor_of(path) and path ~= tree.root.path then
       tree:change_root_node(path)
-    else
-      issue_tcd = false
-      utils.warn(string.format("Path %q doesn't exist!", opts.path))
-      tree = Trees.current_tree(tabpage)
     end
-  end
-
-  if not tree then
+  else
     tree = Trees.current_tree(tabpage)
     if not tree then
-      tree = Trees.filesystem_or_new(tabpage, true)
+      local root = path and vim.startswith(path, current_cwd) and current_cwd or path
+      tree = Trees.filesystem(tabpage, true, root)
+    elseif path and not tree.root:is_ancestor_of(path) and path ~= tree.root.path then
+      tree:change_root_node(path)
     end
-  end
-
-  if opts.path and not path then
-    utils.warn(string.format("Path %q doesn't exist!", opts.path))
   end
 
   local node
@@ -120,7 +83,7 @@ function M.open_window(opts)
       end
       log.debug("navigating to %q", path)
     else
-      log.info("cannot expand to node %q in tree type %q", path, opts.tree)
+      log.info("cannot expand to node %q in tree type %q", path, tree.TYPE)
       utils.warn(string.format("Path %q is not available in the %q tree", path, tree.TYPE))
     end
   elseif config.follow_focused_file then
@@ -143,7 +106,7 @@ function M.open_window(opts)
     ui.open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })
   end
 
-  if issue_tcd then
+  if tree.TYPE == "filesystem" and config.cwd.update_from_tree and tree.root.path ~= uv.cwd() then
     log.debug("issueing tcd autocmd to %q", tree.root.path)
     vim.cmd("tcd " .. fn.fnameescape(tree.root.path))
   end
@@ -270,7 +233,7 @@ function M.search(tree, node, term)
     tree = Trees.search(tabpage, node.path)
   end
   -- necessary if the tree has been configured as persistent
-  tree:change_root_node(node.path)
+  local _ = tree:change_root_node(node.path)
   local matches_or_error = tree:search(term)
   if type(matches_or_error) == "number" then
     utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, node.path))
@@ -375,28 +338,7 @@ local function on_buf_enter(bufnr, file)
     log.debug("deleting buffer %s with file %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
-    ---@type Yat.OpenWindowArgs
-    local opts = { path = file, focus = true, tree = "filesystem" }
-    if not tree then
-      log.debug("no tree for current tab")
-      local cwd = uv.cwd() --[[@as string]]
-      if file:find(cwd, 1, true) then
-        log.debug("requested directory is a subpath of the current cwd %q, opening tree with root at cwd", cwd)
-      else
-        log.debug("requested directory is not a subpath of the current cwd %q, opening tree with root of the requested path", cwd)
-        opts.switch_root = true
-      end
-    else
-      tree = Trees.filesystem(tabpage)
-      if not tree or not tree.root:is_ancestor_of(file) and tree.root.path ~= file then
-        log.debug("the current tree is not a parent for directory %s", file)
-        opts.switch_root = true
-      else
-        log.debug("current tree is parent of directory %s", file)
-      end
-    end
-
-    M.open_window(opts)
+    M.open_window({ path = file, focus = true })
   elseif tree and ui.is_open() then
     if ui.is_current_window_ui() and config.move_buffers_from_tree_window and buftype == "" then
       log.debug("moving buffer %s to edit window", bufnr)
@@ -414,50 +356,26 @@ local function on_buf_enter(bufnr, file)
 end
 
 function M.setup()
-  setting_up = true
   config = require("ya-tree.config").config
 
   setup_netrw()
 
-  local is_directory = false
-  local path
-  if config.replace_netrw then
-    is_directory, path = utils.get_path_from_directory_buffer()
+  local events = require("ya-tree.events")
+  local event = require("ya-tree.events.event").autocmd
+
+  if config.close_if_last_window then
+    events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", function(_, _, match)
+      local winid = tonumber(match) --[[@as number]]
+      on_win_closed(winid)
+    end)
   end
-  if not is_directory then
-    path = uv.cwd() --[[@as string]]
+  if config.auto_open.on_new_tab then
+    events.on_autocmd_event(event.TAB_NEW, "YA_TREE_LIB_AUTO_OPEN_NEW_TAB", true, function()
+      M.open_window({ focus = config.auto_open.focus_tree })
+    end)
   end
-
-  void(function()
-    local tabpage = api.nvim_get_current_tabpage()
-    local tree = Trees.filesystem_or_new(tabpage, false, path)
-
-    scheduler()
-    if is_directory or config.auto_open.on_setup then
-      local focus = config.auto_open.on_setup and config.auto_open.focus_tree
-      Trees.set_current_tree(tabpage, tree)
-      ui.open(tree, tree.current_node, { hijack_buffer = is_directory, focus = focus, focus_edit_window = not focus })
-    end
-
-    local events = require("ya-tree.events")
-    local event = require("ya-tree.events.event").autocmd
-
-    if config.close_if_last_window then
-      events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", function(_, _, match)
-        local winid = tonumber(match) --[[@as number]]
-        on_win_closed(winid)
-      end)
-    end
-    if config.auto_open.on_new_tab then
-      events.on_autocmd_event(event.TAB_NEW, "YA_TREE_LIB_AUTO_OPEN_NEW_TAB", true, function()
-        M.open_window({ focus = config.auto_open.focus_tree })
-      end)
-    end
-    events.on_autocmd_event(event.TAB_ENTERED, "YA_TREE_LIB_REDRAW_TAB", true, M.redraw)
-    events.on_autocmd_event(event.BUFFER_ENTERED, "YA_TREE_LIB_BUFFER_ENTERED", true, on_buf_enter)
-
-    setting_up = false
-  end)()
+  events.on_autocmd_event(event.TAB_ENTERED, "YA_TREE_LIB_REDRAW_TAB", true, M.redraw)
+  events.on_autocmd_event(event.BUFFER_ENTERED, "YA_TREE_LIB_BUFFER_ENTERED", true, on_buf_enter)
 end
 
 return M
