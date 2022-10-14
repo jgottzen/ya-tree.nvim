@@ -221,7 +221,7 @@ function M.on_yatree_event(event, id, async, callback)
     async = false
   end
   local event_name = get_event_name(event)
-  add_listener(event_name, M._yatree_event_listeners[event_name], id, callback)
+  add_listener(event_name, M._yatree_event_listeners[event_name], id, async and void(callback) or callback)
 end
 
 ---@param event Yat.Events.YaTreeEvent
