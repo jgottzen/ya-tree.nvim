@@ -284,9 +284,6 @@ end
 
 ---@param winid number
 local function on_win_closed(winid)
-  -- if the closed window was a floating window, do nothing.
-  -- otherwise we will quit from a hijacked netrw buffer when using
-  -- any form of popup, including command mode
   if ui.is_window_floating(winid) or not ui.is_open() then
     return
   end

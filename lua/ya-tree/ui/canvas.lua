@@ -138,18 +138,9 @@ function Canvas:_is_buffer_loaded()
 end
 
 ---@private
----@param hijack_buffer boolean
-function Canvas:_create_buffer(hijack_buffer)
-  if hijack_buffer then
-    self.bufnr = api.nvim_get_current_buf() --[[@as number]]
-    -- need to remove the "readonly" option, otherwise a warning might be raised
-    api.nvim_buf_set_option(self.bufnr, "modifiable", true)
-    api.nvim_buf_set_option(self.bufnr, "readonly", false)
-    log.debug("hijacked buffer %s", self.bufnr)
-  else
-    self.bufnr = api.nvim_create_buf(false, false) --[[@as number]]
-    log.debug("created buffer %s", self.bufnr)
-  end
+function Canvas:_create_buffer()
+  self.bufnr = api.nvim_create_buf(false, false) --[[@as number]]
+  log.debug("created buffer %s", self.bufnr)
   api.nvim_buf_set_name(self.bufnr, "YaTree://YaTree" .. self.bufnr)
 
   for _, v in ipairs(buf_options) do
@@ -289,13 +280,11 @@ function Canvas:create_edit_window()
 end
 
 ---@class Yat.Ui.Canvas.OpenArgs
----@field hijack_buffer? boolean
 ---@field position? Yat.Ui.Canvas.Position
 ---@field size? integer
 
 ---@param tree Yat.Tree
 ---@param opts? Yat.Ui.Canvas.OpenArgs
----  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.position?} `YaTreeCanvas.Position`
 ---  - {opts.size?} `integer`
 function Canvas:open(tree, opts)
@@ -304,21 +293,11 @@ function Canvas:open(tree, opts)
   end
 
   opts = opts or {}
-  if not self:_is_buffer_loaded() then
-    self:_create_buffer(opts.hijack_buffer)
-  end
-
   if opts.size then
     self.size = opts.size
   end
-  if opts.hijack_buffer then
-    self.winid = api.nvim_get_current_win() --[[@as number]]
-    log.debug("hijacking current window %s for canvas", self.winid)
-    self.edit_winid = nil
-    self:_set_window_options()
-  else
-    self:_create_window(opts.position)
-  end
+  self:_create_buffer()
+  self:_create_window(opts.position)
 
   self:render(tree)
 

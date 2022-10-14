@@ -47,7 +47,6 @@ function M.is_node_rendered(node)
 end
 
 ---@class Yat.Ui.OpenArgs
----@field hijack_buffer? boolean
 ---@field focus? boolean
 ---@field focus_edit_window? boolean
 ---@field position? Yat.Ui.Canvas.Position
@@ -56,7 +55,6 @@ end
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
 ---@param opts Yat.Ui.OpenArgs
----  - {opts.hijack_buffer?} `boolean`
 ---  - {opts.focus?} `boolean`
 ---  - {opts.focus_edit_window?} `boolean`
 ---  - {opts.position?} `YaTreeCanvas.Position`
@@ -71,7 +69,7 @@ function M.open(tree, node, opts)
   end
 
   if not canvas:is_open() then
-    canvas:open(tree, { hijack_buffer = opts.hijack_buffer, position = opts.position, size = opts.size })
+    canvas:open(tree, { position = opts.position, size = opts.size })
   elseif tree.TYPE ~= canvas.tree_type or (node and not canvas:is_node_rendered(node)) then
     -- redraw the tree if the tree type changed or a specific node is to be focused, and it's currently not rendered
     canvas:render(tree)
