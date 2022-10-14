@@ -21,6 +21,7 @@ function M.toggle_node(tree, node)
   ui.update(tree, node)
 end
 
+---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 function M.close_node(tree, node)

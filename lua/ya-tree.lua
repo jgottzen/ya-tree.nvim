@@ -8,7 +8,7 @@ local fn = vim.fn
 
 local M = {}
 
--- needed for lua-dev
+-- needed for neodev
 
 ---@alias Callback fun()
 ---@alias Number number

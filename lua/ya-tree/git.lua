@@ -187,7 +187,7 @@ function Repo:new(path)
   M.repos[this.toplevel] = this
 
   if config.git.watch_git_dir then
-    this:add_git_watcher()
+    this:_add_git_watcher()
   end
   return this
 end
@@ -207,7 +207,8 @@ function Repo:meta_status()
   return self._status
 end
 
-function Repo:add_git_watcher()
+---@private
+function Repo:_add_git_watcher()
   if not self._git_dir_watcher then
     local event = require("ya-tree.events.event").git
     ---@param err string
@@ -245,7 +246,8 @@ function Repo:add_git_watcher()
   end
 end
 
-function Repo:remove_git_watcher()
+---@private
+function Repo:_remove_git_watcher()
   if self._git_dir_watcher ~= nil then
     self._git_dir_watcher:stop()
     self._git_dir_watcher:close()
@@ -648,7 +650,7 @@ end
 
 ---@param repo Yat.Git.Repo
 function M.remove_repo(repo)
-  repo:remove_git_watcher()
+  repo:_remove_git_watcher()
   M.repos[repo.toplevel] = nil
   log.debug("removed repo %s from cache", tostring(repo))
 end
@@ -677,7 +679,7 @@ end
 
 local function on_vim_leave_pre()
   for _, repo in pairs(M.repos) do
-    repo:remove_git_watcher()
+    repo:_remove_git_watcher()
   end
 end
 

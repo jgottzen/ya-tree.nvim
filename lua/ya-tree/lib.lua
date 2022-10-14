@@ -299,7 +299,7 @@ local function on_win_closed(winid)
         end
       end
       log.debug("is last window, closing it")
-      vim.cmd(":silent q!")
+      vim.cmd("silent q!")
     end
   end, 100)
 end

@@ -321,6 +321,7 @@ function Node:diagnostic_severity()
   return diagnostics.severity_of(self.path)
 end
 
+---@async
 ---@generic T : Yat.Node
 ---@param self T
 ---@param path string
@@ -489,14 +490,13 @@ function Node:is_hidden(config)
   return false
 end
 
----Returns an iterator function for this `node`s children.
---
+---Returns an iterator function for this `node`'s children.
 ---@generic T : Yat.Node
 ---@param self T
 ---@param opts? { reverse?: boolean, from?: T }
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} T
----@return fun():integer, T iterator
+---@return fun(): integer, T iterator
 function Node.iterate_children(self, opts)
   ---@cast self Yat.Node
   if not self._children or #self._children == 0 then
@@ -536,7 +536,6 @@ function Node.iterate_children(self, opts)
 end
 
 ---Collapses the node, if it is a container.
---
 ---@param opts? {children_only?: boolean, recursive?: boolean}
 ---  - {opts.children_only?} `boolean`
 ---  - {opts.recursive?} `boolean`
@@ -556,7 +555,6 @@ function Node:collapse(opts)
 end
 
 ---Expands the node, if it is a container. If the node hasn't been scanned before, will scan the directory.
---
 ---@async
 ---@generic T : Yat.Node
 ---@param self T

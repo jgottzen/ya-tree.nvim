@@ -25,16 +25,16 @@ function M.delete_tree(tree)
 end
 
 ---@async
----@param current_tree Yat.Tree
+---@param tree Yat.Tree
 ---@param node Yat.Node
-function M.open_git_tree(current_tree, node)
+function M.open_git_tree(tree, node)
   local tabpage = api.nvim_get_current_tabpage()
   local repo = node.repo
   if not repo or repo:is_yadm() then
-    repo = lib.rescan_node_for_git(current_tree, node)
+    repo = lib.rescan_node_for_git(tree, node)
   end
   if repo then
-    local tree = Trees.git(tabpage, repo)
+    tree = Trees.git(tabpage, repo)
     ui.update(tree, tree.current_node)
   else
     utils.notify(string.format("No Git repository found in %q.", node.path))
