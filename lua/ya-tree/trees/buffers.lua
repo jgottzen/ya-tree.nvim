@@ -1,5 +1,4 @@
 local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async").void
 
 local fs = require("ya-tree.filesystem")
 local git = require("ya-tree.git")
@@ -81,13 +80,9 @@ function BuffersTree:new(tabpage, path)
   this.current_node = this.root:refresh()
 
   local event = require("ya-tree.events.event").autocmd
-  this:register_autocmd_event(event.BUFFER_NEW, false, function(bufnr, file)
+  this:register_autocmd_event(event.BUFFER_NEW, true, function(bufnr, file)
     if file ~= "" then
-      -- The autocmds are fired before buftypes are set or in the case of BufFilePost before the file is available on the file system,
-      -- causing the node creation to fail, by deferring the call for a short time, we should be able to find the file
-      vim.defer_fn(function()
-        void(BuffersTree.on_buffer_new)(this, bufnr, file)
-      end, 100)
+      this:on_buffer_new(bufnr, file)
     end
   end)
   this:register_autocmd_event(event.BUFFER_HIDDEN, false, function(bufnr, file)
@@ -116,6 +111,7 @@ end
 function BuffersTree:on_buffer_new(bufnr, file)
   local tabpage = api.nvim_get_current_tabpage()
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  -- use sync directory check to avoid having to call scheduler() in BufferNode
   if (buftype == "" or buftype == "terminal") and not utils.is_directory_sync(file) then
     local node
     if buftype == "terminal" then

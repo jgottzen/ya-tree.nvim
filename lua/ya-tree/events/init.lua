@@ -70,7 +70,7 @@ do
     [events.autocmd.TAB_ENTERED] = "TabEnter",
     [events.autocmd.TAB_CLOSED] = "TabClosed",
 
-    [events.autocmd.BUFFER_NEW] = { "BufAdd", "BufFilePost", "TermOpen" },
+    [events.autocmd.BUFFER_NEW] = { "BufAdd", "TermOpen" },
     [events.autocmd.BUFFER_ENTERED] = "BufEnter",
     [events.autocmd.BUFFER_HIDDEN] = "BufHidden",
     [events.autocmd.BUFFER_DISPLAYED] = "BufWinEnter",

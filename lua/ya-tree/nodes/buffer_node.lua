@@ -122,8 +122,8 @@ function BufferNode:_scandir() end
 ---@field modified boolean
 
 ---@class Yat.Nodes.Buffer.TerminalData
----@field name string
 ---@field bufnr number
+---@field name string
 
 ---@return table<string, Yat.Nodes.Buffer.FileData> paths, Yat.Nodes.Buffer.TerminalData[] terminal
 local function get_current_buffers()
@@ -259,7 +259,6 @@ function BufferNode:refresh(opts)
 end
 
 ---Expands the node, if it is a directory.
---
 ---@async
 ---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
