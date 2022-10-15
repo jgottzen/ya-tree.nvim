@@ -309,21 +309,18 @@ end
 ---@param file string
 local function on_buf_enter(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if file == "" or not (buftype == "" or buftype == "terminal") then
+  local is_highlight_open_file_enabled = ui.is_highlight_open_file_enabled()
+  if not ((file ~= "" and (buftype == "" or buftype == "terminal")) or is_highlight_open_file_enabled) then
     return
   end
   local tabpage = api.nvim_get_current_tabpage()
   local tree = Trees.current_tree(tabpage)
 
-  -- Must use a synchronous directory check here, otherwise a scheduler call is required before the call to ui.is_open,
-  -- the scheduler call will update the ui, and if the buffer was opened in the tree window, and the config option to
-  -- move it to the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the
-  -- edit window. Not very visually pleasing.
+  -- Must use a synchronous directory check here, otherwise a scheduler call is required before any call to the ui,
+  -- which in turn will update the ui, and if the buffer was opened in the tree window, and the config option to move it to
+  -- the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the edit window.
+  -- Not very visually pleasing.
   if config.replace_netrw and utils.is_directory_sync(file) then
-    -- strip the ending path separator from the path, the node expansion requires that directories doesn't end with it
-    if file:sub(-1) == utils.os_sep then
-      file = file:sub(1, -2)
-    end
     log.debug("the opened buffer is a directory with path %q", file)
 
     if ui.is_current_window_ui() then
@@ -342,14 +339,20 @@ local function on_buf_enter(bufnr, file)
       ui.move_buffer_to_edit_window(bufnr)
     end
 
-    if config.follow_focused_file then
-      log.debug("focusing on node %q", file)
-      local node = tree.root:expand({ to = file })
-      ui.update(tree, node, { focus_node = true })
-    elseif ui.is_highlight_open_file_enabled() then
-      vim.defer_fn(function()
+    if tree.root:is_ancestor_of(file) then
+      if config.follow_focused_file and file ~= "" and (buftype == "" or buftype == "terminal") then
+        log.debug("focusing on node %q", file)
+        local node = tree.root:expand({ to = file })
+        if node then
+          -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+          scheduler()
+          ui.update(tree, node, { focus_node = true })
+        end
+      elseif is_highlight_open_file_enabled then
+        -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+        scheduler()
         ui.update(tree)
-      end, 50)
+      end
     end
   end
 end
