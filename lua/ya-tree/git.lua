@@ -5,7 +5,7 @@ local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("git")

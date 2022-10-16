@@ -1,5 +1,5 @@
 local Node = require("ya-tree.nodes.node")
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local log = require("ya-tree.log")("nodes")
 
 ---@class Yat.Nodes.Git : Yat.Node

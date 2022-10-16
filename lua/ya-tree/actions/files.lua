@@ -2,7 +2,7 @@ local void = require("plenary.async").void
 local scheduler = require("plenary.async.util").scheduler
 
 local job = require("ya-tree.job")
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local node_actions = require("ya-tree.actions.nodes")
 local ui = require("ya-tree.ui")
 local Input = require("ya-tree.ui.input")

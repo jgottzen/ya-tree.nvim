@@ -1,6 +1,6 @@
 local scheduler = require("plenary.async.util").scheduler
 
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
 local Tree = require("ya-tree.trees.tree")

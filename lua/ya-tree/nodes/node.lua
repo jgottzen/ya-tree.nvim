@@ -2,7 +2,7 @@ local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local diagnostics = require("ya-tree.diagnostics")
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 

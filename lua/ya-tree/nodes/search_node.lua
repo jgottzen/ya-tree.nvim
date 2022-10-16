@@ -1,7 +1,7 @@
 local wrap = require("plenary.async").wrap
 
 local Node = require("ya-tree.nodes.node")
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local job = require("ya-tree.job")
 local log = require("ya-tree.log")("nodes")

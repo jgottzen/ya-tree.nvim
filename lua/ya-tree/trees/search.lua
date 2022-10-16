@@ -1,4 +1,4 @@
-local fs = require("ya-tree.filesystem")
+local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
