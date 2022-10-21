@@ -1,5 +1,3 @@
-local scheduler = require("plenary.async.util").scheduler
-
 local fs = require("ya-tree.fs")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
@@ -64,103 +62,84 @@ local function clear_clipboard()
 end
 
 ---@async
----@param tree Yat.Tree
+---@param tree Yat.Trees.Filesystem
 ---@param node Yat.Node
 function M.paste_nodes(tree, node)
-  ---@type table<Yat.Git.Repo, boolean>
-  local repos = {}
-
   ---@async
-  ---@param dir Yat.Node
-  ---@param src_node Yat.Node
-  ---@return Yat.Node|nil new_node
-  local function paste_node(dir, src_node)
-    if not fs.exists(src_node.path) then
-      utils.warn(string.format("Item %q does not exist, cannot %s!", src_node.path, src_node:clipboard_status()))
-      return
-    end
-
-    local destination = utils.join_path(dir.path, src_node.name)
-    local replace = false
-    if fs.exists(destination) then
-      local response = ui.select({ "Yes", "Rename", "No" }, { kind = "confirmation", prompt = destination .. " already exists" })
-
-      if response == "Yes" then
-        utils.notify(string.format("Will replace %q.", destination))
-        replace = true
-      elseif response == "Rename" then
-        local name = ui.input({ prompt = "New name: ", default = src_node.name })
-        if not name then
-          utils.notify(string.format("No new name given, not pasting item %q to %q.", src_node.name, destination))
-          return
-        else
-          destination = utils.join_path(dir.path, name)
-          log.debug("new destination=%q", destination)
-        end
+  ---@param dir string
+  ---@param nodes_to_paste Yat.Node[]
+  ---@return { node: Yat.Node, destination: string, replace: boolean }[]
+  local function get_nodes_to_paste(dir, nodes_to_paste)
+    ---@type { node: Yat.Node, destination: string, replace: boolean }[]
+    local items = {}
+    for _, node_to_paste in ipairs(nodes_to_paste) do
+      if not fs.exists(node_to_paste.path) then
+        utils.warn(string.format("Item %q does not exist, cannot %s!", node_to_paste.path, node_to_paste:clipboard_status()))
       else
-        utils.notify(string.format("Skipping item %q.", src_node.path))
-        return
-      end
-    end
+        local destination = utils.join_path(dir, node_to_paste.name)
+        local skip = false
+        local replace = false
+        if fs.exists(destination) then
+          local response = ui.select({ "Yes", "Rename", "No" }, { kind = "confirmation", prompt = destination .. " already exists" })
 
-    local new_node
-    local ok = false
-    if src_node:clipboard_status() == "copy" then
-      if src_node:is_directory() then
-        ok = fs.copy_dir(src_node.path, destination, replace)
-      elseif src_node:is_file() then
-        ok = fs.copy_file(src_node.path, destination, replace)
-      end
-    elseif src_node:clipboard_status() == "cut" then
-      ok = fs.rename(src_node.path, destination)
-      if ok then
-        tree.root:remove_node(src_node.path)
-        if src_node.repo then
-          repos[src_node.repo] = true
+          if response == "Yes" then
+            utils.notify(string.format("Will replace %q.", destination))
+            replace = true
+          elseif response == "Rename" then
+            local name = ui.input({ prompt = "New name: ", default = node_to_paste.name })
+            if not name then
+              utils.notify(string.format("No new name given, not pasting item %q to %q.", node_to_paste.name, destination))
+              skip = true
+            else
+              destination = utils.join_path(dir, name)
+              log.debug("new destination=%q", destination)
+            end
+          else
+            utils.notify(string.format("Skipping item %q.", node_to_paste.path))
+            skip = true
+          end
+        end
+
+        if not skip then
+          items[#items + 1] = { node = node_to_paste, destination = destination, replace = replace }
         end
       end
     end
-
-    if ok then
-      utils.notify(string.format("%s %q to %q.", src_node:clipboard_status() == "copy" and "Copied" or "Moved", src_node.path, destination))
-      new_node = tree.root:add_node(destination)
-      if new_node and new_node.repo then
-        repos[new_node.repo] = true
-      end
-    else
-      utils.warn(
-        string.format("Failed to %s %q to %q!", src_node:clipboard_status() == "copy" and "copy" or "move", src_node.path, destination)
-      )
-    end
-
-    return new_node
+    return items
   end
 
   -- paste can only be done into directories
   if not node:is_directory() then
-    node = node.parent
-    if not node then
-      return
-    end
+    node = node.parent --[[@as Yat.Node]]
   end
 
   if #M.queue > 0 then
-    local first_node
-    for _, item in ipairs(M.queue) do
-      local destination_node = paste_node(node, item)
-      if not first_node then
-        first_node = destination_node
+    local nodes = get_nodes_to_paste(node.path, M.queue)
+    local pasted = false
+    tree.focus_path_on_fs_event = "expand"
+    for _, item in ipairs(nodes) do
+      local ok = false
+      if item.node:clipboard_status() == "copy" then
+        if item.node:is_directory() then
+          ok = fs.copy_dir(item.node.path, item.destination, item.replace)
+        elseif item.node:is_file() then
+          ok = fs.copy_file(item.node.path, item.destination, item.replace)
+        end
+      elseif item.node:clipboard_status() == "cut" then
+        ok = fs.rename(item.node.path, item.destination)
       end
+
+      if ok then
+        local copy_or_move = item.node:clipboard_status() == "copy" and "Copied" or "Moved"
+        utils.notify(string.format("%s %q to %q.", copy_or_move, item.node.path, item.destination))
+      else
+        local copy_or_move = item.node:clipboard_status() == "copy" and "copy" or "move"
+        utils.warn(string.format("Failed to %s %q to %q!", copy_or_move, item.node.path, item.destination))
+      end
+      pasted = ok or pasted
     end
-    if first_node then
-      for repo in pairs(repos) do
-        repo:refresh_status({ ignored = true })
-      end
+    if pasted then
       clear_clipboard()
-      -- let the event loop catch up if there was a very large amount of files pasted
-      scheduler()
-      tree.root:expand({ to = first_node.path })
-      ui.update(tree, first_node)
     end
   else
     utils.notify("Nothing in clipboard")

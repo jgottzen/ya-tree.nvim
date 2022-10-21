@@ -1,12 +1,12 @@
 local bit = require("plenary.bit")
 local Path = require("plenary.path")
-local uv = require("plenary.async").uv
+local async_uv = require("plenary.async").uv
 local wrap = require("plenary.async").wrap
 
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("fs")
 
-local loop = vim.loop
+local uv = vim.loop
 
 local os_sep = Path.path.sep
 
@@ -17,7 +17,7 @@ local M = {}
 ---@return boolean is_directory
 function M.is_directory(path)
   ---@type string?, uv_fs_stat
-  local err, stat = uv.fs_stat(path)
+  local err, stat = async_uv.fs_stat(path)
   if err then
     log.error("cannot fs_stat path %q, %s", path, err)
   end
@@ -29,7 +29,7 @@ end
 ---@return uv_fs_stat|nil stat
 function M.lstat(path)
   ---@type string?, uv_fs_stat?
-  local err, stat = uv.fs_lstat(path)
+  local err, stat = async_uv.fs_lstat(path)
   if err then
     log.error("cannot fs_lstat path %q, %s", path, err)
   end
@@ -58,7 +58,7 @@ local function is_empty(path)
     return false
   else
     local entries
-    err, entries = uv.fs_readdir(fd)
+    err, entries = async_uv.fs_readdir(fd)
     if err then
       log.error("cannot fs_readdir path %q, %s", path, err)
     end
@@ -145,7 +145,7 @@ local function file_node(dir, name, stat)
     if not stat then
       local err
       ---@type string?, uv_fs_stat
-      err, stat = uv.fs_lstat(path)
+      err, stat = async_uv.fs_lstat(path)
       if err then
         log.error("cannot fs_lstat path %q, %s", path, err)
       end
@@ -244,7 +244,7 @@ end
 local function link_node(dir, name, lstat)
   local path = utils.join_path(dir, name)
   local rel_link_to, err, abs_link_to
-  err, abs_link_to = uv.fs_readlink(path)
+  err, abs_link_to = async_uv.fs_readlink(path)
   if err then
     log.error("cannot fs_readlink path %q, %s", path, err)
   end
@@ -258,7 +258,7 @@ local function link_node(dir, name, lstat)
   -- stat here is for the target of the link
   ---@type uv_fs_stat?
   local stat
-  err, stat = uv.fs_stat(path)
+  err, stat = async_uv.fs_stat(path)
   if err then
     log.error("cannot fs_stat path %q, %s", path, err)
   end
@@ -302,7 +302,7 @@ function M.node_for(path)
   path = p:absolute() --[[@as string]]
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type string?, uv_fs_stat
-  local err, lstat = uv.fs_lstat(path)
+  local err, lstat = async_uv.fs_lstat(path)
   if err then
     log.error("cannot fs_lstat path %q, %s", path, err)
     return nil
@@ -343,7 +343,7 @@ function M.scan_dir(dir)
     log.error("cannot fs_opendir path %q, %s", dir, err)
   else
     while true do
-      err, entries = uv.fs_readdir(fd)
+      err, entries = async_uv.fs_readdir(fd)
       if err then
         log.error("cannot fs_readdir path %q, %s", dir, err)
       end
@@ -382,12 +382,11 @@ end
 ---@return boolean whether the path exists.
 function M.exists(path)
   -- must use fs_lstat since fs_stat fails on a orphaned links
-  local _, stat = uv.fs_lstat(path)
+  local _, stat = async_uv.fs_lstat(path)
   return stat ~= nil
 end
 
 ---Recursively copy a directory.
----@async
 ---@param source string|string[] source path.
 ---@param destination string|string[] destination path.
 ---@param replace boolean whether to replace existing files.
@@ -396,16 +395,17 @@ function M.copy_dir(source, destination, replace)
   local source_path = Path:new(source):absolute()
   local destination_path = Path:new(destination):absolute()
 
-  local err, fd = uv.fs_scandir(source_path)
+  ---@type userdata?, string?
+  local fd, err = uv.fs_scandir(source_path)
   if err then
     log.error("cannot fs_scandir path %q, %s", source_path, err)
     return false
   end
 
-  ---@type uv_fs_stat?
   local stat
-  err, stat = uv.fs_stat(source_path)
-  if err then
+  ---@type uv_fs_stat?, string?
+  stat, err = uv.fs_stat(source_path)
+  if not stat then
     log.error("cannot fs_stat path %q, %s", source_path, err)
     return false
   end
@@ -413,26 +413,26 @@ function M.copy_dir(source, destination, replace)
   local continue = replace
   if not continue then
     -- fs_mkdir returns nil if dir alrady exists
-    err, continue = uv.fs_mkdir(destination_path, mode)
+    continue, err = uv.fs_mkdir(destination_path, mode)
     if err then
-      log.error("cannot fs_opendir path %q, %s", destination_path, err)
+      log.error("cannot fs_mkdir path %q, %s", destination_path, err)
       return false
     end
   end
   if continue then
     while true do
       ---@type string?, Luv.FileType?
-      local name, _type = loop.fs_scandir_next(fd)
+      local name, _type = uv.fs_scandir_next(fd)
       if not name then
         break
       end
 
       if _type == "directory" then
-        if not M.copy_dir({ source_path, name }, { destination_path, name }, false) then
+        if not M.copy_dir({ source_path, name }, { destination_path, name }, replace) then
           return false
         end
       else
-        if not M.copy_file({ source_path, name }, { destination_path, name }, false) then
+        if not M.copy_file({ source_path, name }, { destination_path, name }, replace) then
           return false
         end
       end
@@ -445,7 +445,6 @@ function M.copy_dir(source, destination, replace)
 end
 
 ---Copy a file.
----@async
 ---@param source string|string[] source path.
 ---@param destination string|string[] destination path.
 ---@param replace boolean whether to replace an existing file.
@@ -453,8 +452,8 @@ end
 function M.copy_file(source, destination, replace)
   source = Path:new(source):absolute()
   destination = Path:new(destination):absolute()
-  ---@type string?, boolean?
-  local err, success = uv.fs_copyfile(source, destination, { excl = not replace })
+  ---@type boolean?, string?
+  local success, err = uv.fs_copyfile(source, destination, { excl = not replace })
   if err then
     log.error("cannot fs_copyfile path %q to %q, %s", source, destination, err)
   end
@@ -462,15 +461,14 @@ function M.copy_file(source, destination, replace)
 end
 
 ---Rename file or directory.
----@async
 ---@param old string old name.
 ---@param new string new name.
 ---@return boolean success success or not.
 function M.rename(old, new)
   old = Path:new(old):absolute()
   new = Path:new(new):absolute()
-  ---@type string?, boolean?
-  local err, success = uv.fs_rename(old, new)
+  ---@type boolean?, string?
+  local success, err = uv.fs_rename(old, new)
   if err then
     log.error("cannot fs_rename path %q to %q, %s", old, new, err)
   end
@@ -478,7 +476,6 @@ function M.rename(old, new)
 end
 
 ---Create a directory.
----@async
 ---@param path string the directory to create
 ---@return boolean success success or not.
 function M.create_dir(path)
@@ -486,15 +483,14 @@ function M.create_dir(path)
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
   local abs_path = Path:new(path):absolute() --[[@as string]]
-  local err, success = uv.fs_mkdir(abs_path, mode)
+  local success = uv.fs_mkdir(abs_path, mode)
   if not success and not M.exists(abs_path) then
     local dirs = vim.split(abs_path, os_sep, { plain = true }) --[=[@as string[]]=]
     local acc = ""
     for _, dir in ipairs(dirs) do
       local current = utils.join_path(acc, dir)
       ---@type uv_fs_stat?
-      local stat
-      err, stat = uv.fs_stat(current)
+      local stat = uv.fs_stat(current)
       if stat then
         if stat.type == "directory" then
           acc = current
@@ -502,10 +498,7 @@ function M.create_dir(path)
           return false
         end
       else
-        err, success = uv.fs_mkdir(current, mode)
-        if err then
-          log.error("cannot fs_mkdir path %q, %s", current, err)
-        end
+        success = uv.fs_mkdir(current, mode)
         if not success then
           return false
         end
@@ -518,14 +511,13 @@ function M.create_dir(path)
 end
 
 ---Create a new file.
----@async
 ---@param file string path.
 ---@return boolean sucess success or not.
 function M.create_file(file)
   local path = Path:new(file)
 
   if M.create_dir(path:parent()) then
-    local err, fd = uv.fs_open(file, "w", 420) -- 644 in octal
+    local fd, err = uv.fs_open(file, "w", 420) -- 644 in octal
     if err then
       log.error("cannot fs_open path %q, %s", file, err)
     end
@@ -533,7 +525,7 @@ function M.create_file(file)
       return false
     else
       local success
-      err, success = uv.fs_close(fd)
+      success, err = uv.fs_close(fd)
       if err then
         log.error("cannot fs_close path %q, %s", file, err)
       end
@@ -545,11 +537,11 @@ function M.create_file(file)
 end
 
 ---Recusively remove a directory.
----@async
 ---@param path string the path to remove.
 ---@return boolean success success or not.
 function M.remove_dir(path)
-  local err, fd = uv.fs_scandir(path)
+  ---@type userdata?, string?
+  local fd, err = uv.fs_scandir(path)
   if err then
     log.error("cannot fs_scandir path %q, %s", path, err)
     return false
@@ -557,7 +549,7 @@ function M.remove_dir(path)
 
   while true do
     ---@type string?, Luv.FileType?
-    local name, _type = loop.fs_scandir_next(fd)
+    local name, _type = uv.fs_scandir_next(fd)
     if not name then
       break
     end
@@ -574,7 +566,7 @@ function M.remove_dir(path)
   end
 
   local success
-  err, success = uv.fs_rmdir(path)
+  success, err = uv.fs_rmdir(path)
   if err then
     log.error("cannot fs_rmdir path %q, %s", path, err)
   end
@@ -582,11 +574,10 @@ function M.remove_dir(path)
 end
 
 ---Remove a file.
----@async
 ---@param path string the path to remove.
 ---@return boolean success success or not.
 function M.remove_file(path)
-  local err, success = uv.fs_unlink(path)
+  local success, err = uv.fs_unlink(path)
   if err then
     log.error("cannot fs_unlink path %q, %s", path, err)
   end

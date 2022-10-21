@@ -1,5 +1,6 @@
 local void = require("plenary.async").void
 local scheduler = require("plenary.async.util").scheduler
+local Path = require("plenary.path")
 
 local job = require("ya-tree.job")
 local fs = require("ya-tree.fs")
@@ -122,10 +123,26 @@ function M.tabnew(_, node)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param tree Yat.Trees.Filesystem
+---@param node Yat.Node
+---@param path string
+local function prepare_add_rename(tree, node, path)
+  local parent = Path:new(path):parent():absolute() --[[@as string]]
+  if tree.root:is_ancestor_of(path) or tree.root.path == parent then
+    -- expand to the parent path will so the tree will detect and display the added file/directory
+    if parent ~= node.path then
+      tree.root:expand({ to = parent })
+      vim.schedule_wrap(ui.update)(tree)
+    end
+    tree.focus_path_on_fs_event = path
+  end
+end
+
+---@async
+---@param tree Yat.Trees.Filesystem
 ---@param node Yat.Node
 function M.add(tree, node)
-  if node:is_file() then
+  if not node:is_directory() then
     node = node.parent --[[@as Yat.Node]]
   end
 
@@ -146,17 +163,12 @@ function M.add(tree, node)
         path = path:sub(1, -2)
       end
 
+      prepare_add_rename(tree, node, path)
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
         log.debug("created %s %q", is_directory and "directory" or "file", path)
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
-        local new_node = tree.root:add_node(path)
-        if new_node and new_node.repo then
-          new_node.repo:refresh_status({ ignored = true })
-        end
-        scheduler()
-        tree.root:expand({ to = path })
-        ui.update(tree, new_node)
       else
+        tree.focus_path_on_fs_event = nil
         log.error("failed to create %s %q", is_directory and "directory" or "file", path)
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
       end
@@ -166,7 +178,7 @@ function M.add(tree, node)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param tree Yat.Trees.Filesystem
 ---@param node Yat.Node
 function M.rename(tree, node)
   -- prohibit renaming the root node
@@ -182,139 +194,123 @@ function M.rename(tree, node)
     return
   end
 
+  prepare_add_rename(tree, node, path)
   if fs.rename(node.path, path) then
     log.debug("renamed %q to %q", node.path, path)
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
-    tree.root:remove_node(node.path)
-    local new_node = tree.root:add_node(path)
-    if node.repo then
-      node.repo:refresh_status({ ignored = true })
-      if new_node and new_node.repo and new_node.repo ~= node.repo then
-        new_node.repo:refresh_status({ ignored = true })
-      end
-    elseif new_node and new_node.repo then
-      new_node.repo:refresh_status({ ignored = true })
-    end
-    tree.root:expand({ to = path })
-    scheduler()
-    ui.update(tree, new_node)
   else
+    tree.focus_path_on_fs_event = nil
     log.error("failed to rename %q to %q", node.path, path)
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
   end
 end
 
 ---@param root_path string
----@return Yat.Node[] nodes, string common_parent
-local function get_nodes_to_delete(root_path)
-  local nodes = ui.get_selected_nodes()
+---@param confirm boolean
+---@param title_prefix string
+---@return Yat.Node[] nodes, Yat.Node? node_to_focus
+local function get_nodes_to_delete(root_path, confirm, title_prefix)
+  local selected_nodes = ui.get_selected_nodes()
 
-  ---@type string[]
-  local parents = {}
-  for i = #nodes, 1, -1 do
-    local node = nodes[i]
+  ---@type Yat.Node[]
+  local nodes = {}
+  for _, node in ipairs(selected_nodes) do
     -- prohibit deleting the root node
     if node.path == root_path then
       utils.warn(string.format("Path %q is the root of the tree, skipping it.", node.path))
-      table.remove(nodes, i)
     else
-      if node.parent then
-        parents[#parents + 1] = node.parent.path
+      if confirm then
+        local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = title_prefix .. "" .. node.path .. "?" })
+        if response == "Yes" then
+          nodes[#nodes + 1] = node
+        end
+      else
+        nodes[#nodes + 1] = node
       end
     end
   end
-  local common_parent = utils.find_common_ancestor(parents) or (#nodes > 0 and nodes[1].path or root_path)
 
-  return nodes, common_parent
+  local config = require("ya-tree.config").config
+
+  ---@type Yat.Node
+  local node_to_focus
+  local first_node = nodes[1]
+  if first_node then
+    for _, node in first_node.parent:iterate_children({ from = first_node, reverse = true }) do
+      if node and not node:is_hidden(config) then
+        node_to_focus = node
+        break
+      end
+    end
+    if not node_to_focus then
+      local last_node = nodes[#nodes]
+      if last_node then
+        for _, node in last_node.parent:iterate_children({ from = last_node }) do
+          if node and not node:is_hidden(config) then
+            node_to_focus = node
+            break
+          end
+        end
+      end
+    end
+    if not node_to_focus then
+      node_to_focus = first_node.parent
+    end
+  end
+
+  return nodes, node_to_focus
 end
 
 ---@async
----@param tree Yat.Tree
+---@param tree Yat.Trees.Filesystem
 function M.delete(tree)
-  ---@type table<Yat.Git.Repo, boolean>
-  local repos = {}
-
-  ---@async
-  ---@param node Yat.Node
-  ---@return boolean
-  local function delete_node(node)
-    local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Delete " .. node.path .. "?" })
-    if response == "Yes" then
-      local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
-      if ok then
-        log.debug("deleted %q", node.path)
-        tree.root:remove_node(node.path)
-        if node.repo then
-          repos[node.repo] = true
-        end
-        utils.notify(string.format("Deleted %q.", node.path))
-      else
-        log.error("failed to delete %q", node.path)
-        utils.warn(string.format("Failed to delete %q!", node.path))
-      end
-      return true
-    else
-      return false
-    end
-  end
-
-  local nodes, common_parent = get_nodes_to_delete(tree.root.path)
+  local nodes, node_to_focus = get_nodes_to_delete(tree.root.path, true, "Delete")
   if #nodes == 0 then
     return
   end
 
   local was_deleted = false
+  tree.focus_path_on_fs_event = node_to_focus and node_to_focus.path
   for _, node in ipairs(nodes) do
-    was_deleted = delete_node(node) or was_deleted
-  end
-  if was_deleted then
-    local node = tree.root:expand({ to = common_parent })
-    for repo in pairs(repos) do
-      repo:refresh_status({ ignored = true })
+    local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
+    if ok then
+      log.debug("deleted %q", node.path)
+      utils.notify(string.format("Deleted %q.", node.path))
+    else
+      log.error("failed to delete %q", node.path)
+      utils.warn(string.format("Failed to delete %q!", node.path))
     end
-    -- let the event loop catch up if there were a very large amount of files deleted
-    scheduler()
-    ui.update(tree, node)
+    was_deleted = ok or was_deleted
+  end
+  if not was_deleted then
+    tree.focus_path_on_fs_event = nil
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param tree Yat.Trees.Filesystem
 function M.trash(tree)
   local config = require("ya-tree.config").config
   if not config.trash.enable then
     return
   end
 
-  local nodes, common_parent = get_nodes_to_delete(tree.root.path)
+  local nodes, node_to_focus = get_nodes_to_delete(tree.root.path, config.trash.require_confirm, "Trash")
   if #nodes == 0 then
     return
   end
 
-  ---@type string[]
-  local files = {}
-  if config.trash.require_confirm then
-    for _, node in ipairs(nodes) do
-      local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Trash " .. node.path .. "?" })
-      if response == "Yes" then
-        files[#files + 1] = node.path
-      end
-    end
-  else
-    ---@param n Yat.Node
-    files = vim.tbl_map(function(n)
-      return n.path
-    end, nodes) --[=[@as string[]]=]
-  end
+  ---@param node Yat.Node
+  local files = vim.tbl_map(function(node)
+    return node.path
+  end, nodes) --[=[@as string[]]=]
 
   if #files > 0 then
+    tree.focus_path_on_fs_event = node_to_focus and node_to_focus.path
     log.debug("trashing files %s", files)
-    job.run({ cmd = "trash", args = files, async_callback = true }, function(code, _, stderr)
-      if code == 0 then
-        tree.root:refresh({ recurse = true, refresh_git = config.git.enable })
-        local node = tree.root:expand({ to = common_parent })
-        ui.update(tree, node, { focus_node = true })
-      else
+    job.run({ cmd = "trash", args = files, async_callback = false }, function(code, _, stderr)
+      if code ~= 0 then
+        tree.focus_path_on_fs_event = nil
         log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
         utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
       end

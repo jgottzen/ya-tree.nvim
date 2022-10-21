@@ -273,7 +273,7 @@ end
 
 ---@async
 ---@param new_cwd string
-function M.change_cwd_for_current_tabpage(new_cwd)
+function M.change_root_for_current_tabpage(new_cwd)
   void(on_cwd_changed)("tabpage", new_cwd)
 end
 

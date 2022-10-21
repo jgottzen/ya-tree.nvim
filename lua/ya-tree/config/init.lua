@@ -11,6 +11,7 @@ local M = {
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
+  ---@field dir_watcher Yat.Config.DirWatcher Directory watching configuration.
   ---@field search Yat.Config.Search Search configuration.
   ---@field filters Yat.Config.Filters Filters configuration.
   ---@field git Yat.Config.Git Git configuration.
@@ -61,6 +62,12 @@ local M = {
     cwd = {
       follow = false,
       update_from_tree = false,
+    },
+
+    ---@class Yat.Config.DirWatcher
+    ---@field exclude string[] The directory names to exclude from watching, ".git" directories are always excluded.
+    dir_watcher = {
+      exclude = {},
     },
 
     ---@class Yat.Config.Search

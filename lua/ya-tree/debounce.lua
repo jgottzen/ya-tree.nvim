@@ -25,6 +25,25 @@ function M.debounce_trailing(fn, ms)
   end
 end
 
+---@param fn fun(...)
+---@param accumulator fun(...): any
+---@param ms number
+---@return fun(...)
+function M.accumulate_trailing(fn, accumulator, ms)
+  local timer = vim.loop.new_timer() --[[@as uv_timer_t]]
+  timers[#timers + 1] = timer
+  local args = {}
+  return function(...)
+    args[#args + 1] = accumulator(...)
+    timer:start(ms, 0, function()
+      timer:stop()
+      local fn_args = args
+      args = {}
+      vim.schedule_wrap(fn)(fn_args)
+    end)
+  end
+end
+
 do
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd

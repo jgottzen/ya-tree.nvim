@@ -3,6 +3,7 @@ local Path = require("plenary.path")
 
 local diagnostics = require("ya-tree.diagnostics")
 local fs = require("ya-tree.fs")
+local fs_watcher = require("ya-tree.fs.watcher")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
@@ -27,6 +28,7 @@ local utils = require("ya-tree.utils")
 ---@field private _clipboard_status Yat.Actions.Clipboard.Action|nil
 ---@field private _scanned? boolean
 ---@field public expanded? boolean
+---@field private _fs_event_registered boolean
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
 
@@ -114,6 +116,13 @@ end
 ---@private
 ---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
+  if self:is_directory() and fs_node.type ~= "directory" and self._fs_event_registered then
+    self._fs_event_registered = false
+    fs_watcher.remove_watcher(self.path)
+  elseif not self:is_directory() and fs_node.type == "directory" and not self._fs_event_registered then
+    self._fs_event_registered = true
+    fs_watcher.watch_dir(self.path)
+  end
   for k, v in pairs(fs_node) do
     if type(self[k]) ~= "function" then
       self[k] = v
@@ -138,6 +147,22 @@ function Node.node_comparator(a, b)
 end
 
 ---@async
+---@param node Yat.Node
+local function maybe_remove_watcher(node)
+  if node:is_directory() and node._fs_event_registered then
+    node._fs_event_registered = false
+    fs_watcher.remove_watcher(node.path)
+  end
+end
+
+---@param node Yat.Node
+local function maybe_add_watcher(node)
+  if node:is_directory() and not node._fs_event_registered then
+    node._fs_event_registered = true
+    fs_watcher.watch_dir(node.path)
+  end
+end
+
 ---@private
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
@@ -154,15 +179,25 @@ function Node:_scandir()
     if child then
       log.trace("merging node %q with new data", fs_node.path)
       child:_merge_new_data(fs_node)
+      children[fs_node.path] = nil
     else
       log.trace("creating new node for %q", fs_node.path)
       child = Node:new(fs_node, self)
       child._clipboard_status = self._clipboard_status
+      maybe_add_watcher(child)
     end
     return child
   end, fs.scan_dir(self.path))
   table.sort(self._children, self.node_comparator)
   self.empty = #self._children == 0
+  maybe_add_watcher(self)
+  -- remove any watchers for any children that was remomved
+  for _, child in pairs(children) do
+    if child:is_directory() then
+      child:walk(maybe_remove_watcher)
+      maybe_remove_watcher(child)
+    end
+  end
   self._scanned = true
 
   scheduler()
@@ -329,7 +364,11 @@ end
 function Node.add_node(self, path)
   ---@cast self Yat.Node
   return self:_add_node(path, function(fs_node, parent)
-    return self.__index.new(self.__index, fs_node, parent)
+    local node = self.__index.new(self.__index, fs_node, parent)
+    if node.__node_type == "FileSystem" then
+      maybe_add_watcher(node)
+    end
+    return node
   end)
 end
 
@@ -396,6 +435,9 @@ function Node:_remove_node(path, remove_empty_parents)
         local child = node.parent._children[i]
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
+          if child.__node_type == "FileSystem" then
+            maybe_remove_watcher(child)
+          end
           table.remove(node.parent._children, i)
           break
         end
@@ -660,9 +702,17 @@ do
       local fs_node = fs.node_for(self.path)
       if fs_node then
         self:_merge_new_data(fs_node)
-        if refresh_git and self.repo then
-          self.repo:refresh_status_for_path(self.path)
+      else
+        for i = #self.parent._children, 1, -1 do
+          local child = self.parent._children[i]
+          if child == self then
+            table.remove(self.parent._children, i)
+            break
+          end
         end
+      end
+      if refresh_git and self.repo then
+        self.repo:refresh_status_for_path(self.path)
       end
     end
   end

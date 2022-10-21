@@ -2,6 +2,7 @@ local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local fs = require("ya-tree.fs")
+local fs_watcher = require("ya-tree.fs.watcher")
 local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
 local ui = require("ya-tree.ui")
@@ -16,6 +17,7 @@ local uv = vim.loop
 ---@field persistent true
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
 ---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
+---@field focus_path_on_fs_event? string|"expand"
 local FilesystemTree = { TYPE = "filesystem" }
 FilesystemTree.__index = FilesystemTree
 FilesystemTree.__eq = Tree.__eq
@@ -162,8 +164,29 @@ function FilesystemTree:new(tabpage, root)
   this.current_node = this.root
   this:check_node_for_repo(this.root)
 
+  local event = require("ya-tree.events.event").ya_tree
+  ---@param dir string
+  ---@param filenames string[]
+  this:register_yatree_event(event.FS_CHANGED, true, function(dir, filenames)
+    this:on_fs_event(dir, filenames)
+  end)
+
   log.debug("created new tree %s", tostring(this))
   return this
+end
+
+---@param node Yat.Node
+local function maybe_remove_watcher(node)
+  if node:is_directory() and node._fs_event_registered then
+    node._fs_event_registered = false
+    fs_watcher.remove_watcher(node.path)
+  end
+end
+
+function FilesystemTree:delete()
+  self.root:walk(maybe_remove_watcher)
+  maybe_remove_watcher(self.root)
+  Tree.delete(self)
 end
 
 ---@async
@@ -190,6 +213,58 @@ function FilesystemTree:on_git_event(repo, fs_changes)
   if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
     -- get the current node to keep the cursor on it
     ui.update(self, ui.get_current_node())
+  end
+end
+
+---@async
+---@param dir string
+---@param filenames string[]
+function FilesystemTree:on_fs_event(dir, filenames)
+  log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, self.focus_path_on_fs_event)
+  local is_shown_in_ui = self:is_shown_in_ui(self._tabpage)
+  -- if the watched directory was deleted, the parent directory will handle any updates
+  if not fs.exists(dir) then
+    return
+  end
+  if not (self.root:is_ancestor_of(dir) or self.root.path == dir) then
+    return
+  end
+
+  local current_node = nil
+  local node = self.root:get_child_if_loaded(dir)
+  if node then
+    node:refresh({ refresh_git = true })
+    if is_shown_in_ui then
+      if self.focus_path_on_fs_event then
+        if self.focus_path_on_fs_event == "expand" then
+          node:expand()
+        elseif self.focus_path_on_fs_event then
+          local parent = self.root:expand({ to = Path:new(self.focus_path_on_fs_event):parent().filename })
+          current_node = parent and parent:get_child_if_loaded(self.focus_path_on_fs_event)
+        end
+        if not current_node then
+          for _, filename in ipairs(filenames) do
+            local child = node:get_child_if_loaded(dir .. utils.os_sep .. filename)
+            if child then
+              log.debug("setting current node to %q", dir .. utils.os_sep .. filename)
+              current_node = child
+              break
+            end
+          end
+        end
+      end
+      scheduler()
+      if ui.is_node_rendered(node) then
+        if not current_node then
+          current_node = ui.get_current_node()
+        end
+        ui.update(self, current_node, { focus_node = true })
+      end
+    end
+    if self.focus_path_on_fs_event then
+      log.debug("resetting focus_path_on_fs_event=%q dir=%q, filenames=%s", self.focus_path_on_fs_event, dir, filenames)
+      self.focus_path_on_fs_event = nil
+    end
   end
 end
 
@@ -245,7 +320,7 @@ local function update_tree_root_node(tree, new_root)
     end
 
     if not root then
-      log.debug("cannot walk the tree to find a node for %q, returning nil", new_root)
+      log.debug("cannot walk the tree to find a node for %q", new_root)
       return false
     else
       tree.root = root
@@ -257,44 +332,26 @@ local function update_tree_root_node(tree, new_root)
 end
 
 ---@async
----@param new_root string|Yat.Node
+---@param new_root string
 ---@return boolean
 ---@nodiscard
 function FilesystemTree:change_root_node(new_root)
   local old_root = self.root
-  if type(new_root) == "string" then
-    if not fs.is_directory(new_root) then
-      new_root = Path:new(new_root):parent():absolute() --[[@as string]]
+  if not fs.is_directory(new_root) then
+    new_root = Path:new(new_root):parent():absolute() --[[@as string]]
+  end
+  if new_root == self.root.path then
+    return true
+  end
+  log.debug("setting new tree root to %q", new_root)
+  if not update_tree_root_node(self, new_root) then
+    local root = self.root
+    while root.parent do
+      root = root.parent --[[@as Yat.Node]]
     end
-    if new_root == self.root.path then
-      return true
-    end
-    log.debug("setting new tree root to %q", new_root)
-    if not update_tree_root_node(self, new_root) then
-      self.root = create_root_node(new_root, self.root)
-    end
-  else
-    if new_root == self.root then
-      return true
-    end
-    log.debug("setting new tree root to %s", tostring(new_root))
-    self.root = new_root
-    self.root:expand({ force_scan = true })
-
-    local tree_root = new_root
-    while tree_root.parent do
-      tree_root = tree_root.parent --[[@as Yat.Node]]
-    end
-    ---@type table<string, boolean>
-    local found_toplevels = {}
-    tree_root:walk(function(node)
-      if node.repo and not found_toplevels[node.repo.toplevel] then
-        found_toplevels[node.repo.toplevel] = true
-        if not node.repo:is_yadm() then
-          return true
-        end
-      end
-    end)
+    root:walk(maybe_remove_watcher)
+    maybe_remove_watcher(root)
+    self.root = create_root_node(new_root, self.root)
   end
 
   if not self.root:is_ancestor_of(self.current_node.path) then

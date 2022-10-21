@@ -138,14 +138,12 @@ function M.redraw()
 end
 
 ---@async
----@param new_root Yat.Node|string
-local function change_cwd(new_root)
-  local new_cwd = type(new_root) == "string" and new_root or new_root.path
-
+---@param new_root string
+local function change_root(new_root)
   if config.cwd.update_from_tree then
-    vim.cmd("tcd " .. fn.fnameescape(new_cwd))
+    vim.cmd("tcd " .. fn.fnameescape(new_root))
   else
-    Trees.change_cwd_for_current_tabpage(new_cwd)
+    Trees.change_root_for_current_tabpage(new_root)
   end
 end
 
@@ -160,7 +158,7 @@ function M.cd_to(_, node)
     node = node.parent --[[@as Yat.Node]]
   end
   log.debug("cd to %q", node.path)
-  change_cwd(node)
+  change_root(node.path)
 end
 
 ---@async
@@ -169,7 +167,7 @@ function M.cd_up(tree)
   local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
   log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
-  change_cwd(tree.root.parent or new_cwd)
+  change_root(new_cwd)
 end
 
 ---@param tree Yat.Tree
