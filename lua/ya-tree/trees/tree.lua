@@ -237,7 +237,7 @@ do
     local config = require("ya-tree.config").config
     paths = {}
     self.root:walk(function(node)
-      if node:is_file() and not node:is_hidden(config) then
+      if not node:is_directory() and not node:is_hidden(config) then
         paths[#paths + 1] = node.path:sub(#self.root.path + 2)
       end
     end)

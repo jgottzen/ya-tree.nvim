@@ -17,7 +17,7 @@ local M = {}
 function M.search_interactively(tree, node)
   local tabpage = api.nvim_get_current_tabpage()
   -- if the node is a file, search in the directory
-  if node:is_file() and node.parent then
+  if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
   local timer = uv.new_timer() --[[@as uv_timer_t]]
@@ -92,7 +92,7 @@ end
 ---@param node Yat.Node
 function M.search_once(_, node)
   -- if the node is a file, search in the directory
-  if node:is_file() and node.parent then
+  if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
 
