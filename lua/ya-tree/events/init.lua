@@ -109,7 +109,7 @@ do
 
   ---@param event Yat.Events.AutocmdEvent
   ---@param event_name string
-  create_autocmd = function(event, event_name)
+  local function _create_autcmd(event, event_name)
     local autocmd = event_to_autocmds[event]
     local id = M._autocmd_ids_and_event_names[event_name]
     if id then
@@ -127,6 +127,16 @@ do
     M._autocmd_ids_and_event_names[id] = event_name
     M._autocmd_ids_and_event_names[event_name] = id
     log.debug('created "%s" autocmd handler for event %q as id %s', autocmd, event_name, id)
+  end
+
+  ---@param event Yat.Events.AutocmdEvent
+  ---@param event_name string
+  create_autocmd = function(event, event_name)
+    if vim.in_fast_event() then
+      vim.schedule_wrap(_create_autcmd)(event, event_name)
+    else
+      _create_autcmd(event, event_name)
+    end
   end
 end
 
