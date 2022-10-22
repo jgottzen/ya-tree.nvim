@@ -165,11 +165,9 @@ function M.add(tree, node)
 
       prepare_add_rename(tree, node, path)
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
-        log.debug("created %s %q", is_directory and "directory" or "file", path)
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
       else
         tree.focus_path_on_fs_event = nil
-        log.error("failed to create %s %q", is_directory and "directory" or "file", path)
         utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
       end
     end),
@@ -196,11 +194,9 @@ function M.rename(tree, node)
 
   prepare_add_rename(tree, node, path)
   if fs.rename(node.path, path) then
-    log.debug("renamed %q to %q", node.path, path)
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
   else
     tree.focus_path_on_fs_event = nil
-    log.error("failed to rename %q to %q", node.path, path)
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
   end
 end
@@ -274,10 +270,8 @@ function M.delete(tree)
   for _, node in ipairs(nodes) do
     local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
     if ok then
-      log.debug("deleted %q", node.path)
       utils.notify(string.format("Deleted %q.", node.path))
     else
-      log.error("failed to delete %q", node.path)
       utils.warn(string.format("Failed to delete %q!", node.path))
     end
     was_deleted = ok or was_deleted

@@ -16,7 +16,7 @@ local M = {}
 ---@param path string
 ---@return boolean is_directory
 function M.is_directory(path)
-  ---@type string?, uv_fs_stat
+  ---@type string?, uv_fs_stat?
   local err, stat = async_uv.fs_stat(path)
   if err then
     log.error("cannot fs_stat path %q, %s", path, err)
@@ -41,7 +41,7 @@ end
 ---@param callback fun(err: string|nil, dir: userdata|nil)
 ---@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: userdata|nil
 local fs_opendir = wrap(function(path, entries, callback)
-  vim.loop.fs_opendir(path, callback, entries)
+  uv.fs_opendir(path, callback, entries)
 end, 3)
 
 ---@class Luv.Readdir
@@ -381,7 +381,7 @@ end
 ---@param path string
 ---@return boolean whether the path exists.
 function M.exists(path)
-  -- must use fs_lstat since fs_stat fails on a orphaned links
+  -- must use fs_lstat since fs_stat checks the target of links, not the link itself
   local _, stat = async_uv.fs_lstat(path)
   return stat ~= nil
 end
@@ -417,6 +417,8 @@ function M.copy_dir(source, destination, replace)
     if err then
       log.error("cannot fs_mkdir path %q, %s", destination_path, err)
       return false
+    else
+      log.debug("created directory %q", destination_path)
     end
   end
   if continue then
@@ -456,6 +458,8 @@ function M.copy_file(source, destination, replace)
   local success, err = uv.fs_copyfile(source, destination, { excl = not replace })
   if err then
     log.error("cannot fs_copyfile path %q to %q, %s", source, destination, err)
+  else
+    log.debug("created file %q", destination)
   end
   return success == true
 end
@@ -471,6 +475,8 @@ function M.rename(old, new)
   local success, err = uv.fs_rename(old, new)
   if err then
     log.error("cannot fs_rename path %q to %q, %s", old, new, err)
+  else
+    log.debug("renamed file %q to %q", old, new)
   end
   return success == true
 end
@@ -483,28 +489,37 @@ function M.create_dir(path)
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
   local abs_path = Path:new(path):absolute() --[[@as string]]
-  local success = uv.fs_mkdir(abs_path, mode)
-  if not success and not M.exists(abs_path) then
-    local dirs = vim.split(abs_path, os_sep, { plain = true }) --[=[@as string[]]=]
-    local acc = ""
-    for _, dir in ipairs(dirs) do
-      local current = utils.join_path(acc, dir)
-      ---@type uv_fs_stat?
-      local stat = uv.fs_stat(current)
-      if stat then
-        if stat.type == "directory" then
-          acc = current
+  local success, err = uv.fs_mkdir(abs_path, mode)
+  if not success then
+    if not M.exists(abs_path) then
+      local dirs = vim.split(abs_path, os_sep, { plain = true }) --[=[@as string[]]=]
+      local acc = ""
+      for _, dir in ipairs(dirs) do
+        local current = utils.join_path(acc, dir)
+        ---@type uv_fs_stat?
+        local stat = uv.fs_stat(current)
+        if stat then
+          if stat.type == "directory" then
+            acc = current
+          else
+            return false
+          end
         else
-          return false
+          success, err = uv.fs_mkdir(current, mode)
+          if not success then
+            log.error("cannot fs_mkdir path %q, %s", current, err)
+            return false
+          else
+            log.debug("created directory %q", current)
+          end
+          acc = current
         end
-      else
-        success = uv.fs_mkdir(current, mode)
-        if not success then
-          return false
-        end
-        acc = current
       end
+    else
+      log.debug("directory %q already exists", abs_path)
     end
+  else
+    log.error("cannot fs_mkdir path %q, %s", abs_path, err)
   end
 
   return true
@@ -518,19 +533,18 @@ function M.create_file(file)
 
   if M.create_dir(path:parent()) then
     local fd, err = uv.fs_open(file, "w", 420) -- 644 in octal
-    if err then
+    if not fd or err then
       log.error("cannot fs_open path %q, %s", file, err)
-    end
-    if not fd then
       return false
-    else
-      local success
-      success, err = uv.fs_close(fd)
-      if err then
-        log.error("cannot fs_close path %q, %s", file, err)
-      end
-      return success == true
     end
+    local success
+    success, err = uv.fs_close(fd)
+    if err then
+      log.error("cannot fs_close path %q, %s", file, err)
+    else
+      log.debug("created file %q", file)
+    end
+    return success == true
   else
     return false
   end
@@ -569,6 +583,8 @@ function M.remove_dir(path)
   success, err = uv.fs_rmdir(path)
   if err then
     log.error("cannot fs_rmdir path %q, %s", path, err)
+  else
+    log.debug("removed directory %q", path)
   end
   return success == true
 end
@@ -580,6 +596,8 @@ function M.remove_file(path)
   local success, err = uv.fs_unlink(path)
   if err then
     log.error("cannot fs_unlink path %q, %s", path, err)
+  else
+    log.debug("removed file %q", path)
   end
   return success == true
 end
