@@ -140,17 +140,16 @@ local M = {
 
     ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
     ---@field modes Yat.Actions.Mode[] The mode(s) for the keybinding.
-    ---@field trees Yat.Trees.Type[] The tree types the mapping is available for.
     ---@field fn async fun(tree: Yat.Tree, node: Yat.Node) User function.
     ---@field desc? string Description of what the mapping does.
-
-    ---@class Yat.Config.Trees.Mappings
-    ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
-    ---@field list table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings.
 
     ---@class Yat.Config.Trees.GlobalMappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
     ---@field list table<string, Yat.Trees.Tree.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+
+    ---@class Yat.Config.Trees.Mappings
+    ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+    ---@field list table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Renderer
     ---@field name Yat.Ui.Renderer.Name

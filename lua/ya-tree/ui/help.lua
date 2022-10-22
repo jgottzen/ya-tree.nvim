@@ -8,7 +8,7 @@ local M = {}
 
 local keys_section_width = 15
 
---Sort by description, with user functions first.
+--Sort by description.
 ---@param a { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }
 ---@param b { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }
 ---@return boolean
@@ -50,8 +50,11 @@ local function parse_mappings(mappings)
       if vim.tbl_contains(modes, "n") then
         insert[#insert + 1] = { key = key, action = mapping, desc = desc }
       end
-      if vim.tbl_contains(modes, "v") or vim.tbl_contains(modes, "V") then
-        visual[#visual + 1] = { key = key, action = mapping, desc = desc }
+      for _, mode in ipairs(modes) do
+        if mode == "v" or mode == "V" then
+          visual[#visual + 1] = { key = key, action = mapping, desc = desc }
+          break
+        end
       end
 
       max_mapping_width = math.max(max_mapping_width, api.nvim_strwidth(desc))

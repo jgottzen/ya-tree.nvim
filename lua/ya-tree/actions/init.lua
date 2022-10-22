@@ -235,17 +235,19 @@ local function validate_and_create_mappings(trees)
         elseif not M._actions[mapping] then
           log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, mapping)
           utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, mapping))
+          list[key] = nil
         elseif not vim.tbl_contains(M._actions[mapping].trees, tree_type) then
           log.error(
             "key %q is mapped to 'action' %q, which does not support tree type %q, mapping %s ignored",
             key,
-            tree_type,
             mapping,
+            tree_type,
             M._actions[mapping]
           )
           utils.warn(
-            string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, tree_type, mapping)
+            string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, mapping, tree_type)
           )
+          list[key] = nil
         else
           entry[tree_type] = mapping
         end
@@ -254,10 +256,11 @@ local function validate_and_create_mappings(trees)
         if type(mapping.fn) ~= "function" then
           log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, mapping.fn, mapping)
           utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, mapping.fn))
-        elseif mapping.trees == nil or #mapping.trees == 0 then
-          log.error("key %q has no trees associanted with it, mapping %s ignored", key, mapping)
-          utils.warn(string.format("Key %q has no trees associanted with it, mapping ignored!", key))
+          list[key] = nil
         else
+          if mapping.modes == nil or #mapping.modes == 0 then
+            mapping.modes = { "n" }
+          end
           entry[tree_type] = mapping
         end
       end
