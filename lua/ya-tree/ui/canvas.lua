@@ -675,34 +675,40 @@ function Canvas:focus_last_sibling(node)
   end
 end
 
-function Canvas:focus_prev_git_item()
-  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
+---@param node Yat.Node
+function Canvas:focus_prev_git_item(node)
+  local current_row = self.node_path_to_index_lookup[node.path]
   for row = current_row - 1, 1, -1 do
     if self.nodes[row]:git_status() then
+      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
       set_cursor_position(self.winid, row, column)
       return
     end
   end
 end
 
-function Canvas:focus_next_git_item()
-  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
+---@param node Yat.Node
+function Canvas:focus_next_git_item(node)
+  local current_row = self.node_path_to_index_lookup[node.path]
   for row = current_row + 1, #self.nodes do
     if self.nodes[row]:git_status() then
+      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
       set_cursor_position(self.winid, row, column)
       return
     end
   end
 end
 
-function Canvas:focus_prev_diagnostic_item()
-  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
+---@param node Yat.Node
+function Canvas:focus_prev_diagnostic_item(node)
+  local current_row = self.node_path_to_index_lookup[node.path]
   for row = current_row - 1, 1, -1 do
-    local node = self.nodes[row]
-    local severity = node:diagnostic_severity()
+    local node_at_row = self.nodes[row]
+    local severity = node_at_row:diagnostic_severity()
     if severity then
-      local target_severity = node:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
+      local target_severity = node_at_row:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
       if severity <= target_severity then
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
         set_cursor_position(self.winid, row, column)
         return
       end
@@ -710,14 +716,16 @@ function Canvas:focus_prev_diagnostic_item()
   end
 end
 
-function Canvas:focus_next_diagnostic_item()
-  local current_row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
+---@param node Yat.Node
+function Canvas:focus_next_diagnostic_item(node)
+  local current_row = self.node_path_to_index_lookup[node.path]
   for row = current_row + 1, #self.nodes do
-    local node = self.nodes[row]
-    local severity = node:diagnostic_severity()
+    local node_at_row = self.nodes[row]
+    local severity = node_at_row:diagnostic_severity()
     if severity then
-      local target_severity = node:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
+      local target_severity = node_at_row:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
       if severity <= target_severity then
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
         set_cursor_position(self.winid, row, column)
         return
       end

@@ -110,8 +110,9 @@ local function define_actions(actions)
   local popups = require("ya-tree.actions.popups")
   local search = require("ya-tree.actions.search")
   local tree_actions = require("ya-tree.actions.trees")
+  local ui_actions = require("ya-tree.actions.ui")
 
-  M.define_action(builtin.general.close_window, ui.close, "Close the tree window", { "n" })
+  M.define_action(builtin.general.close_window, ui_actions.close, "Close the tree window", { "n" })
   M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
   M.define_action(builtin.general.open_help, help.open, "Open keybindings help", { "n" })
   M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
@@ -150,11 +151,11 @@ local function define_actions(actions)
 
   M.define_action(builtin.general.refresh_tree, tree_actions.refresh_tree, "Refresh the tree", { "n" })
 
-  M.define_action(builtin.general.focus_parent, ui.focus_parent, "Go to parent directory", { "n" })
-  M.define_action(builtin.general.focus_prev_sibling, ui.focus_prev_sibling, "Go to previous sibling node", { "n" })
-  M.define_action(builtin.general.focus_next_sibling, ui.focus_next_sibling, "Go to next sibling node", { "n" })
-  M.define_action(builtin.general.focus_first_sibling, ui.focus_first_sibling, "Go to first sibling node", { "n" })
-  M.define_action(builtin.general.focus_last_sibling, ui.focus_last_sibling, "Go to last sibling node", { "n" })
+  M.define_action(builtin.general.focus_parent, ui_actions.focus_parent, "Go to parent directory", { "n" })
+  M.define_action(builtin.general.focus_prev_sibling, ui_actions.focus_prev_sibling, "Go to previous sibling node", { "n" })
+  M.define_action(builtin.general.focus_next_sibling, ui_actions.focus_next_sibling, "Go to next sibling node", { "n" })
+  M.define_action(builtin.general.focus_first_sibling, ui_actions.focus_first_sibling, "Go to first sibling node", { "n" })
+  M.define_action(builtin.general.focus_last_sibling, ui_actions.focus_last_sibling, "Go to last sibling node", { "n" })
 
   M.define_action(builtin.files.add, files.add, "Add file or directory", { "n" })
   M.define_action(builtin.files.rename, files.rename, "Rename file or directory", { "n" })
@@ -184,16 +185,16 @@ local function define_actions(actions)
   )
 
   M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
-  M.define_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous Git item", { "n" })
-  M.define_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next Git item", { "n" })
+  M.define_action(builtin.git.focus_prev_git_item, ui_actions.focus_prev_git_item, "Go to previous Git item", { "n" })
+  M.define_action(builtin.git.focus_next_git_item, ui_actions.focus_next_git_item, "Go to next Git item", { "n" })
 
   M.define_action(
     builtin.diagnostics.focus_prev_diagnostic_item,
-    ui.focus_prev_diagnostic_item,
+    ui_actions.focus_prev_diagnostic_item,
     "Go to the previous diagnostic item",
     { "n" }
   )
-  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, ui.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
+  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, ui_actions.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
 
   for name, action in pairs(actions) do
     log.debug("defining user action %q", name)

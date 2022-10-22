@@ -136,50 +136,49 @@ function M.focus_node(node)
   get_canvas():focus_node(node)
 end
 
----@param _ Yat.Tree
 ---@param node Yat.Node
-function M.focus_parent(_, node)
+function M.focus_parent(node)
   get_canvas():focus_parent(node)
 end
 
----@param _ Yat.Tree
 ---@param node Yat.Node
-function M.focus_prev_sibling(_, node)
+function M.focus_prev_sibling(node)
   get_canvas():focus_prev_sibling(node)
 end
 
----@param _ Yat.Tree
 ---@param node Yat.Node
-function M.focus_next_sibling(_, node)
+function M.focus_next_sibling(node)
   get_canvas():focus_next_sibling(node)
 end
 
----@param _ Yat.Tree
 ---@param node Yat.Node
-function M.focus_first_sibling(_, node)
+function M.focus_first_sibling(node)
   get_canvas():focus_first_sibling(node)
 end
 
----@param _ Yat.Tree
 ---@param node Yat.Node
-function M.focus_last_sibling(_, node)
+function M.focus_last_sibling(node)
   get_canvas():focus_last_sibling(node)
 end
 
-function M.focus_prev_git_item()
-  get_canvas():focus_prev_git_item()
+---@param node Yat.Node
+function M.focus_prev_git_item(node)
+  get_canvas():focus_prev_git_item(node)
 end
 
-function M.focus_next_git_item()
-  get_canvas():focus_next_git_item()
+---@param node Yat.Node
+function M.focus_next_git_item(node)
+  get_canvas():focus_next_git_item(node)
 end
 
-function M.focus_prev_diagnostic_item()
-  get_canvas():focus_prev_diagnostic_item()
+---@param node Yat.Node
+function M.focus_prev_diagnostic_item(node)
+  get_canvas():focus_prev_diagnostic_item(node)
 end
 
-function M.focus_next_diagnostic_item()
-  get_canvas():focus_next_diagnostic_item()
+---@param node Yat.Node
+function M.focus_next_diagnostic_item(node)
+  get_canvas():focus_next_diagnostic_item(node)
 end
 
 ---@param winid? number
