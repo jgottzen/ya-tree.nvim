@@ -35,10 +35,10 @@ local M = {
     expand_all_nodes_max_depth = 5,
 
     ---@class Yat.Config.Log
-    ---@field level Yat.Logger.Level The logging level used, default `"warn"`.
+    ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
     ---@field to_file boolean Whether to log the the log file, default: `false`.
-    ---@field namespaces string[] For which namespaces logging is enabled, default `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "lib" }`.
+    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "lib" }`.
     log = {
       level = "warn",
       to_console = false,
@@ -94,7 +94,7 @@ local M = {
     ---@field enable boolean If git should be enabled, default: `true`.
     ---@field show_ignored boolean Whether to show git ignored files in the tree, toggleable, default: `true`.
     ---@field watch_git_dir boolean Whether to watch the repository `.git` directory for changes, using `fs_poll`, default: `true`.
-    ---@field watch_git_dir_interval number Interval for polling, in milliseconds, default `1000`.
+    ---@field watch_git_dir_interval number Interval for polling, in milliseconds, default: `1000`.
     ---@field yadm Yat.Config.Git.Yadm `yadm` configuration.
     git = {
       enable = true,
@@ -144,11 +144,11 @@ local M = {
     ---@field desc? string Description of what the mapping does.
 
     ---@class Yat.Config.Trees.GlobalMappings
-    ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+    ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
     ---@field list table<string, Yat.Trees.Tree.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Mappings
-    ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+    ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
     ---@field list table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Renderer
@@ -217,7 +217,7 @@ local M = {
           setup = nil,
         },
         ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -248,12 +248,12 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed.
+      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed, default: `false`.
       ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       search = {
         ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Search.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -279,7 +279,7 @@ local M = {
       ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       buffers = {
         ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -312,12 +312,12 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed.
+      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed, default: `false`.
       ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
       git = {
         ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default `true`.
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Git.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -407,8 +407,8 @@ local M = {
         ---@field indent_marker string The icon for the indentation marker, default: `"│"`.
         ---@field last_indent_marker string The icon for the last indentation marker, default: `"└"`.
         ---@field use_expander_marker boolean Whether to show expanded and collapsed markers, default: `false`.
-        ---@field expanded_marker string The icon for expanded directories/containers, default `""`.
-        ---@field collapsed_marker string The icon for collapsed directories/containers, default `""`.
+        ---@field expanded_marker string The icon for expanded directories/containers, default: `""`.
+        ---@field collapsed_marker string The icon for collapsed directories/containers, default: `""`.
         indentation = {
           padding = "",
           use_indent_marker = false,
