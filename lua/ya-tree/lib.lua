@@ -88,7 +88,7 @@ function M.open_window(opts)
     end
   elseif config.follow_focused_file then
     scheduler()
-    local bufnr = api.nvim_get_current_buf() --[[@as number]]
+    local bufnr = api.nvim_get_current_buf() --[[@as integer]]
     if api.nvim_buf_get_option(bufnr, "buftype") == "" then
       local filename = api.nvim_buf_get_name(bufnr) --[[@as string]]
       if tree.root:is_ancestor_of(filename) then
@@ -280,7 +280,7 @@ local function setup_netrw()
   end
 end
 
----@param winid number
+---@param winid integer
 local function on_win_closed(winid)
   if ui.is_window_floating(winid) or not ui.is_open() then
     return
@@ -365,7 +365,7 @@ function M.setup()
 
   if config.close_if_last_window then
     events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", function(_, _, match)
-      local winid = tonumber(match) --[[@as number]]
+      local winid = tonumber(match) --[[@as integer]]
       on_win_closed(winid)
     end)
   end

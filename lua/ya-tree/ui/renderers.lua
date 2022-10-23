@@ -62,7 +62,7 @@ local fn = vim.fn
 ---@field highlight string
 
 do
-  ---@type table<number, boolean>
+  ---@type table<integer, boolean>
   local marker_at = {}
 
   ---@param node Yat.Node
@@ -529,10 +529,10 @@ do
     return git_icons_and_hl[status] or git_icons_and_hl.dirty
   end
 
-  ---@type table<number, Yat.Ui.IconAndHighlight>
+  ---@type table<integer, Yat.Ui.IconAndHighlight>
   local diagnostic_icon_and_hl = {}
 
-  ---@param severity number
+  ---@param severity integer
   ---@return Yat.Ui.IconAndHighlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
     return diagnostic_icon_and_hl[severity]

@@ -12,8 +12,8 @@ local M = {}
 ---  - {opts.cwd?} `string`
 ---  - {opts.detached?} `boolean`
 ---  - {opts.async_callback?} `boolean`
----@param on_complete fun(code: number, stdout?: string, stderr?: string)
----@return number|nil pid
+---@param on_complete fun(code: integer, stdout?: string, stderr?: string)
+---@return integer|nil pid
 function M.run(opts, on_complete)
   local state = {
     stdout = uv.new_pipe(false),
@@ -24,10 +24,10 @@ function M.run(opts, on_complete)
     stderr_data = {},
     ---@type userdata
     handle = nil,
-    ---@type number
+    ---@type integer
     pid = nil,
   }
-  ---@type fun(code: number, stdout?: string, stderr?: string)
+  ---@type fun(code: integer, stdout?: string, stderr?: string)
   local cb = opts.async_callback and void(on_complete) or on_complete
 
   state.handle, state.pid = uv.spawn(opts.cmd, {
@@ -36,8 +36,8 @@ function M.run(opts, on_complete)
     cwd = opts.cwd,
     detached = opts.detached,
 
-    ---@param code number
-    ---@param signal number
+    ---@param code integer
+    ---@param signal integer
   }, function(code, signal)
     log.debug("%q completed with code=%s, signal=%s", opts.cmd, code, signal)
 

@@ -219,9 +219,9 @@ do
 
   -- selene: allow(global_usage)
 
-  ---@param start number
+  ---@param start integer
   ---@param base string
-  ---@return number|string[]
+  ---@return integer|string[]
   _G._ya_tree_trees_tree_loaded_nodes_complete = function(start, base)
     if start == 1 then
       return 0
@@ -248,9 +248,9 @@ end
 
 -- selene: allow(global_usage)
 
----@param start number
+---@param start integer
 ---@param base string
----@return number|string[]
+---@return integer|string[]
 _G._ya_tree_trees_tree_file_in_path_complete = function(start, base)
   if start == 1 then
     return 0

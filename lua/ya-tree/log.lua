@@ -63,7 +63,7 @@ do
   local tbl_concat = table.concat
   local tbl_insert = table.insert
 
-  ---@type table<Yat.Logger.Level, number>
+  ---@type table<Yat.Logger.Level, integer>
   local levels = {}
   for k, v in ipairs(config.levels) do
     levels[v.level] = k
@@ -132,7 +132,7 @@ do
   end
 
   ---@param namespace string
-  ---@param level number
+  ---@param level integer
   ---@param level_name string
   ---@param highlight string
   ---@param arg any

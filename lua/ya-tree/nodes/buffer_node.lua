@@ -19,7 +19,7 @@ local fn = vim.fn
 ---@field private _children? Yat.Nodes.Buffer[]
 ---@field private _terminals_container? boolean
 ---@field public bufname? string
----@field public bufnr? number
+---@field public bufnr? integer
 ---@field public bufhidden? boolean
 local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
@@ -42,7 +42,7 @@ setmetatable(BufferNode, { __index = Node })
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Nodes.Buffer the parent node.
 ---@param bufname? string the vim buffer name.
----@param bufnr? number the buffer number.
+---@param bufnr? integer the buffer number.
 ---@param modified? boolean if the buffer is modified.
 ---@param hidden? boolean if the buffer is listed.
 ---@return Yat.Nodes.Buffer node
@@ -70,7 +70,7 @@ function BufferNode:is_terminal()
   return self.type == "terminal"
 end
 
----@return number? id
+---@return integer? id
 function BufferNode:toggleterm_id()
   if self.type == "terminal" then
     return self.bufname:match("#toggleterm#(%d+)$")
@@ -83,7 +83,7 @@ function BufferNode:is_terminals_container()
 end
 
 ---@param file string
----@param bufnr number
+---@param bufnr integer
 ---@param hidden boolean
 function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   if self.parent then
@@ -118,11 +118,11 @@ end
 function BufferNode:_scandir() end
 
 ---@class Yat.Nodes.Buffer.FileData
----@field bufnr number
+---@field bufnr integer
 ---@field modified boolean
 
 ---@class Yat.Nodes.Buffer.TerminalData
----@field bufnr number
+---@field bufnr integer
 ---@field name string
 
 ---@return table<string, Yat.Nodes.Buffer.FileData> paths, Yat.Nodes.Buffer.TerminalData[] terminal
@@ -132,7 +132,7 @@ local function get_current_buffers()
   ---@type Yat.Nodes.Buffer.TerminalData[]
   local terminals = {}
   for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    ---@cast bufnr number
+    ---@cast bufnr integer
     local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
     if ok then
       local path = api.nvim_buf_get_name(bufnr) --[[@as string]]
@@ -285,7 +285,7 @@ end
 
 ---@async
 ---@param file string
----@param bufnr number
+---@param bufnr integer
 ---@param is_terminal boolean
 ---@return Yat.Nodes.Buffer|nil node
 function BufferNode:add_node(file, bufnr, is_terminal)
@@ -315,7 +315,7 @@ function BufferNode:add_node(file, bufnr, is_terminal)
 end
 
 ---@param file string
----@param bufnr number
+---@param bufnr integer
 ---@param is_terminal boolean
 function BufferNode:remove_node(file, bufnr, is_terminal)
   if self.parent then

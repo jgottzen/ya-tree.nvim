@@ -65,7 +65,7 @@ local function create_keymap_function(mapping)
   end
 end
 
----@param bufnr number
+---@param bufnr integer
 function M.apply_mappings(bufnr)
   local opts = { buffer = bufnr, silent = true, nowait = true }
   for key, mapping in pairs(M._mappings) do

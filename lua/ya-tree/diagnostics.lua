@@ -32,7 +32,7 @@ function M.diagnostics_of(path)
 end
 
 ---@param path string
----@return number|nil
+---@return integer|nil
 function M.severity_of(path)
   return M.current_diagnostic_severities[path]
 end
@@ -42,7 +42,7 @@ local function on_diagnostics_changed(diagnostics)
   diagnostics = diagnostics or vim.diagnostic.get() --[=[@as Nvim.DiagnosticStruct[]]=]
   ---@type table<string, Nvim.DiagnosticStruct[]>
   local new_diagnostics = {}
-  ---@type table<string, number>
+  ---@type table<string, integer>
   local new_severity_diagnostics = {}
   for _, diagnostic in ipairs(diagnostics) do
     local bufnr = diagnostic.bufnr

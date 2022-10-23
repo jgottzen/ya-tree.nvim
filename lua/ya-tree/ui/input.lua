@@ -7,13 +7,13 @@ local fn = vim.fn
 ---@field private prompt string
 ---@field private default string
 ---@field private completion? string|fun(bufnr: integer)
----@field private winid? number
----@field private bufnr? number
----@field private title_winid? number
+---@field private winid? integer
+---@field private bufnr? integer
+---@field private title_winid? integer
 ---@field private win_config table<string, any>
 ---@field private callbacks table<string, function>
----@field private orig_row number
----@field private orig_col number
+---@field private orig_row integer
+---@field private orig_col integer
 local Input = {}
 Input.__index = Input
 
@@ -51,12 +51,12 @@ local win_options = {
 ---@field prompt? string defaults to an empty string.
 ---@field default? string defaults to an empty string.
 ---@field completion? string|fun(bufnr: integer)
----@field win? number
+---@field win? integer
 ---@field relative? string defaults to "cursor".
 ---@field anchor? string defaults to "SW".
----@field row? number defaults to 1.
----@field col? number defaults to 1.
----@field width? number defaults to 30.
+---@field row? integer defaults to 1.
+---@field col? integer defaults to 1.
+---@field width? integer defaults to 30.
 ---@field border? string|string[] defaults to "rounded".
 
 --- Create a new `Input`.
@@ -66,12 +66,12 @@ local win_options = {
 ---  - {opts.prompt?} `string` defaults to an empty string.
 ---  - {opts.default?} `string` defaults to an empty string.
 ---  - {opts.completion?} `string|fun(bufnr: intger)`
----  - {opts.win?} `number`
+---  - {opts.win?} `integer`
 ---  - {opts.relative?} `string` defaults to `"cursor"`.
 ---  - {opts.anchor?} `string` defaults to `"SW"`.
----  - {opts.row?} `number` defaults to `1`.
----  - {opts.col?} `number` defaults to `1`.
----  - {opts.width?} `number` defaults to `30`.
+---  - {opts.row?} `integer` defaults to `1`.
+---  - {opts.col?} `integer` defaults to `1`.
+---  - {opts.width?} `integer` defaults to `30`.
 ---  - {opts.border?} `string|string[]` defaults to "rounded".
 ---
 ---@param callbacks {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}
@@ -133,9 +133,9 @@ end
 local current_completion
 
 -- selene: allow(global_usage)
----@param start number
+---@param start integer
 ---@param base string
----@return number|string[]
+---@return integer|string[]
 _G._ya_tree_input_complete = function(start, base)
   if start == 1 then
     return 0
@@ -150,7 +150,7 @@ function Input:open()
 
   self.orig_row, self.orig_col = unpack(api.nvim_win_get_cursor(self.win_config.win or 0))
 
-  self.bufnr = api.nvim_create_buf(false, true) --[[@as number]]
+  self.bufnr = api.nvim_create_buf(false, true) --[[@as integer]]
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
@@ -165,7 +165,7 @@ function Input:open()
     self.completion(self.bufnr)
   end
 
-  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as number]]
+  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as integer]]
   for k, v in pairs(win_options) do
     vim.wo[k] = v
   end
@@ -220,7 +220,7 @@ function Input:_create_title()
       zindex = 151,
       style = "minimal",
       noautocmd = true,
-    }) --[[@as number]]
+    }) --[[@as integer]]
     vim.opt_local["winblend"] = api.nvim_win_get_option(self.winid, "winblend")
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     local title = " " .. self.prompt:sub(1, math.min(width - 2, api.nvim_strwidth(self.prompt))) .. " "

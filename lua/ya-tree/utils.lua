@@ -160,7 +160,7 @@ end
 
 ---@return boolean
 function M.is_buffer_directory()
-  local bufnr = api.nvim_get_current_buf() --[[@as number]]
+  local bufnr = api.nvim_get_current_buf() --[[@as integer]]
   local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
   if not M.is_directory_sync(bufname) then
     return false
@@ -270,7 +270,7 @@ do
   local has_notify_plugin, notify = pcall(require, "notify")
 
   ---@param message string message
-  ---@param level? number default: `vim.log.levels.INFO`
+  ---@param level? integer default: `vim.log.levels.INFO`
   ---@see |vim.log.levels|
   function M.notify(message, level)
     level = level or vim.log.levels.INFO

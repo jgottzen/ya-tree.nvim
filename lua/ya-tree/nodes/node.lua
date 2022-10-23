@@ -351,7 +351,7 @@ function Node:clear_clipboard_status()
   self:set_clipboard_status(nil)
 end
 
----@return number|nil
+---@return integer|nil
 function Node:diagnostic_severity()
   return diagnostics.severity_of(self.path)
 end

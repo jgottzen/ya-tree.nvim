@@ -27,7 +27,7 @@ function M.search_interactively(tree, node)
   -- necessary if the tree has been configured as persistent
   local _ = search_tree:change_root_node(node.path)
 
-  ---@param ms number
+  ---@param ms integer
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()

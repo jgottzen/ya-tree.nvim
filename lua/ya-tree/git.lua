@@ -78,7 +78,7 @@ local function get_repo_info(path, cmd)
 end
 
 ---@class uv_fs_poll_t
----@field start fun(self: uv_fs_poll_t, path: string, interval: number, callback: fun(err: string)):0|nil, string?
+---@field start fun(self: uv_fs_poll_t, path: string, interval: integer, callback: fun(err: string)):0|nil, string?
 ---@field stop fun(self: uv_fs_poll_t):0|nil, string?
 ---@field close fun(self: uv_fs_poll_t)
 

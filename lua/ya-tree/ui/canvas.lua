@@ -51,12 +51,12 @@ local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.m
 ---@class Yat.Ui.Canvas
 ---@field public tree_type Yat.Trees.Type
 ---@field public position Yat.Ui.Canvas.Position
----@field private winid? number
----@field private edit_winid? number
----@field private bufnr? number
----@field private window_augroup? number
----@field private previous_row number
----@field private size number
+---@field private winid? integer
+---@field private edit_winid? integer
+---@field private bufnr? integer
+---@field private window_augroup? integer
+---@field private previous_row integer
+---@field private size integer
 ---@field private nodes Yat.Node[]
 ---@field private node_path_to_index_lookup table<string, integer>
 ---@field private directory_renderers Yat.Ui.Canvas.Renderer[]
@@ -93,12 +93,12 @@ function Canvas:is_on_side()
   return self.position == "left" or self.position == "right"
 end
 
----@return number height, number width
+---@return integer height, integer width
 function Canvas:get_size()
   return api.nvim_win_get_height(self.winid), api.nvim_win_get_width(self.winid)
 end
 
----@return number|nil winid
+---@return integer|nil winid
 function Canvas:get_edit_winid()
   if self.edit_winid and not api.nvim_win_is_valid(self.edit_winid) then
     self.edit_winid = nil
@@ -106,7 +106,7 @@ function Canvas:get_edit_winid()
   return self.edit_winid
 end
 
----@param winid number
+---@param winid integer
 function Canvas:set_edit_winid(winid)
   if not winid then
     log.error("setting edit_winid to nil!")
@@ -139,7 +139,7 @@ end
 
 ---@private
 function Canvas:_create_buffer()
-  self.bufnr = api.nvim_create_buf(false, false) --[[@as number]]
+  self.bufnr = api.nvim_create_buf(false, false) --[[@as integer]]
   log.debug("created buffer %s", self.bufnr)
   api.nvim_buf_set_name(self.bufnr, "YaTree://YaTree" .. self.bufnr)
 
@@ -150,8 +150,8 @@ function Canvas:_create_buffer()
   require("ya-tree.actions").apply_mappings(self.bufnr)
 end
 
----@param winid number
----@param bufnr number
+---@param winid integer
+---@param bufnr integer
 local function win_set_buf_noautocmd(winid, bufnr)
   local eventignore = vim.o.eventignore
   vim.o.eventignore = "all"
@@ -166,7 +166,7 @@ function Canvas:restore()
   end
 end
 
----@param bufnr number
+---@param bufnr integer
 function Canvas:move_buffer_to_edit_window(bufnr)
   if self.winid and self.edit_winid and self.bufnr then
     log.debug("moving buffer %s from window %s to window %s", bufnr, self.winid, self.edit_winid)
@@ -187,13 +187,13 @@ function Canvas:_set_window_options()
     vim.wo[k] = v
   end
 
-  self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true }) --[[@as number]]
+  self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true }) --[[@as integer]]
   api.nvim_create_autocmd("WinLeave", {
     group = self.window_augroup,
     buffer = self.bufnr,
     callback = function()
       if self.edit_winid then
-        self.size = self:is_on_side() and api.nvim_win_get_width(self.winid) or api.nvim_win_get_height(self.winid) --[[@as number]]
+        self.size = self:is_on_side() and api.nvim_win_get_width(self.winid) or api.nvim_win_get_height(self.winid) --[[@as integer]]
       end
     end,
     desc = "Storing window size",
@@ -253,7 +253,7 @@ local positions_to_wincmd = { left = "H", bottom = "J", top = "K", right = "L" }
 ---@private
 ---@param position? Yat.Ui.Canvas.Position
 function Canvas:_create_window(position)
-  local winid = api.nvim_get_current_win() --[[@as number]]
+  local winid = api.nvim_get_current_win() --[[@as integer]]
   if winid ~= self.edit_winid then
     local old_edit_winid = self.edit_winid
     self.edit_winid = winid
@@ -262,7 +262,7 @@ function Canvas:_create_window(position)
 
   self.position = position or self.position
   vim.cmd("noautocmd vsplit")
-  self.winid = api.nvim_get_current_win() --[[@as number]]
+  self.winid = api.nvim_get_current_win() --[[@as integer]]
   vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
   self:resize()
   log.debug("created window %s", self.winid)
@@ -271,7 +271,7 @@ end
 
 function Canvas:create_edit_window()
   vim.cmd("noautocmd vsplit")
-  self.edit_winid = api.nvim_get_current_win() --[[@as number]]
+  self.edit_winid = api.nvim_get_current_win() --[[@as integer]]
   api.nvim_win_call(self.winid, function()
     vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
     self:resize()
@@ -306,7 +306,7 @@ end
 
 function Canvas:focus()
   if self.winid then
-    local current_winid = api.nvim_get_current_win() --[[@as number]]
+    local current_winid = api.nvim_get_current_win() --[[@as integer]]
     if current_winid ~= self.winid then
       if current_winid ~= self.edit_winid then
         log.debug("winid=%s setting edit_winid to %s, old=%s", self.winid, current_winid, self.edit_winid)
@@ -345,11 +345,11 @@ end
 ---@field from integer
 ---@field to integer
 
----@param pos number
+---@param pos integer
 ---@param padding string
 ---@param text string
 ---@param highlight string
----@return number end_position, string content, Yat.Ui.HighlightGroup highlight
+---@return integer end_position, string content, Yat.Ui.HighlightGroup highlight
 local function line_part(pos, padding, text, highlight)
   local from = pos + #padding
   local size = #text
@@ -473,13 +473,13 @@ function Canvas:is_node_rendered(node)
 end
 
 ---@private
----@return Yat.Node|nil node, number row, number column
+---@return Yat.Node|nil node, integer row, integer column
 function Canvas:_get_current_node_and_position()
   if not self.winid then
     return nil, 1, 0
   end
 
-  local row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as number]]
+  local row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as integer]]
   local node = self.nodes[row]
   return node, row, column
 end
@@ -497,8 +497,8 @@ do
   function Canvas:get_selected_nodes()
     local mode = api.nvim_get_mode().mode --[[@as string]]
     if mode == "v" or mode == "V" then
-      local from = vim.fn.getpos("v")[2] --[[@as number]]
-      local to = api.nvim_win_get_cursor(self.winid)[1] --[[@as number]]
+      local from = vim.fn.getpos("v")[2] --[[@as integer]]
+      local to = api.nvim_win_get_cursor(self.winid)[1] --[[@as integer]]
       if from > to then
         from, to = to, from
       end
@@ -544,16 +544,16 @@ function Canvas:_move_cursor_to_name()
   end
 end
 
----@param winid number
----@param row number
----@param col number
+---@param winid integer
+---@param row integer
+---@param col integer
 local function set_cursor_position(winid, row, col)
   -- avoids the cursor moving left when switching to the canvas window and then back,
   -- happens with floating windows
   api.nvim_win_call(winid, function()
     local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
     if ok then
-      local win_height = api.nvim_win_get_height(winid) --[[@as number]]
+      local win_height = api.nvim_win_get_height(winid) --[[@as integer]]
       if win_height > row then
         pcall(vim.cmd, "normal! zb")
       elseif row < (win_height / 2) then
@@ -598,7 +598,7 @@ function Canvas:focus_parent(node)
 
   local row = self.node_path_to_index_lookup[node.parent.path]
   if row then
-    local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+    local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
     set_cursor_position(self.winid, row, column)
   end
 end
@@ -613,7 +613,7 @@ function Canvas:focus_prev_sibling(node)
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[prev.path]
       if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
         set_cursor_position(self.winid, row, column)
         return
       end
@@ -631,7 +631,7 @@ function Canvas:focus_next_sibling(node)
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[next.path]
       if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
         set_cursor_position(self.winid, row, column)
         return
       end
@@ -649,7 +649,7 @@ function Canvas:focus_first_sibling(node)
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[next.path]
       if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
         set_cursor_position(self.winid, row, column)
         return
       end
@@ -667,7 +667,7 @@ function Canvas:focus_last_sibling(node)
     if not node:is_hidden(config) then
       local row = self.node_path_to_index_lookup[prev.path]
       if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
         set_cursor_position(self.winid, row, column)
         return
       end
@@ -680,7 +680,7 @@ function Canvas:focus_prev_git_item(node)
   local current_row = self.node_path_to_index_lookup[node.path]
   for row = current_row - 1, 1, -1 do
     if self.nodes[row]:git_status() then
-      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
       set_cursor_position(self.winid, row, column)
       return
     end
@@ -692,7 +692,7 @@ function Canvas:focus_next_git_item(node)
   local current_row = self.node_path_to_index_lookup[node.path]
   for row = current_row + 1, #self.nodes do
     if self.nodes[row]:git_status() then
-      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
       set_cursor_position(self.winid, row, column)
       return
     end
@@ -708,7 +708,7 @@ function Canvas:focus_prev_diagnostic_item(node)
     if severity then
       local target_severity = node_at_row:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
       if severity <= target_severity then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
         set_cursor_position(self.winid, row, column)
         return
       end
@@ -725,7 +725,7 @@ function Canvas:focus_next_diagnostic_item(node)
     if severity then
       local target_severity = node_at_row:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
       if severity <= target_severity then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as number]]
+        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
         set_cursor_position(self.winid, row, column)
         return
       end

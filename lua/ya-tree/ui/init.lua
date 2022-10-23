@@ -181,7 +181,7 @@ function M.focus_next_diagnostic_item(node)
   get_canvas():focus_next_diagnostic_item(node)
 end
 
----@param winid? number
+---@param winid? integer
 ---@return boolean is_floating
 function M.is_window_floating(winid)
   local win_config = api.nvim_win_get_config(winid or 0)
@@ -194,7 +194,7 @@ function M.is_current_window_ui()
   return canvas and canvas:is_current_window_canvas() or false
 end
 
----@return number height, number width
+---@return integer height, integer width
 function M.get_size()
   return get_canvas():get_size()
 end
@@ -209,7 +209,7 @@ function M.restore()
   get_canvas():restore()
 end
 
----@param bufnr number
+---@param bufnr integer
 function M.move_buffer_to_edit_window(bufnr)
   local canvas = get_canvas()
   if not canvas:get_edit_winid() then
@@ -243,7 +243,7 @@ M.input = wrap(function(opts, on_confirm)
   vim.ui.input(opts, on_confirm)
 end, 2)
 
----@type async fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, number?
+---@type async fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, integer?
 M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)
@@ -253,7 +253,7 @@ function M.is_highlight_open_file_enabled()
   return Canvas.is_highlight_open_file_enabled()
 end
 
----@param bufnr number
+---@param bufnr integer
 local function on_win_leave(bufnr)
   if M.is_window_floating() then
     return

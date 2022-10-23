@@ -62,7 +62,7 @@ end
 do
   ---@async
   ---@param node Yat.Node
-  ---@param depth number
+  ---@param depth integer
   ---@param config Yat.Config
   local function expand(node, depth, config)
     node:expand()

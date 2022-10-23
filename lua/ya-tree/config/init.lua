@@ -73,7 +73,7 @@ local M = {
     },
 
     ---@class Yat.Config.Search
-    ---@field max_results number Max number of search results, only `fd` supports it, setting to 0 will disable it, default: `200`.
+    ---@field max_results integer Max number of search results, only `fd` supports it, setting to 0 will disable it, default: `200`.
     ---@field cmd? string Override the search command to use, default: `nil`.
     ---@field args? string[]|fun(cmd: string, term: string, path:string, config: Yat.Config):string[] Override the search command arguments to use, default: `nil`.
     search = {
@@ -96,7 +96,7 @@ local M = {
     ---@field enable boolean If git should be enabled, default: `true`.
     ---@field show_ignored boolean Whether to show git ignored files in the tree, toggleable, default: `true`.
     ---@field watch_git_dir boolean Whether to watch the repository `.git` directory for changes, using `fs_poll`, default: `true`.
-    ---@field watch_git_dir_interval number Interval for polling, in milliseconds, default: `1000`.
+    ---@field watch_git_dir_interval integer Interval for polling, in milliseconds, default: `1000`.
     ---@field yadm Yat.Config.Git.Yadm `yadm` configuration.
     git = {
       enable = true,
@@ -113,7 +113,7 @@ local M = {
 
     ---@class Yat.Config.Diagnostics
     ---@field enable boolean Show lsp diagnostics in the tree, default: `true`.
-    ---@field debounce_time number Debounce time in ms, for how often `DiagnosticChanged` is processed, default: `300`.
+    ---@field debounce_time integer Debounce time in ms, for how often `DiagnosticChanged` is processed, default: `300`.
     ---@field propagate_to_parents boolean If the diagnostic status should be propagated to parents, default: `true`.
     diagnostics = {
       enable = true,
@@ -340,7 +340,7 @@ local M = {
     },
 
     ---@class Yat.Config.View
-    ---@field size number Size of the tree panel, default: `40`.
+    ---@field size integer Size of the tree panel, default: `40`.
     ---@field position Yat.Ui.Canvas.Position Where the tree panel is placed, default: `"left"`.
     ---@field number boolean Wether to show the number column, default: `false`.
     ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
@@ -573,7 +573,7 @@ local M = {
 
         ---@class Yat.Config.Renderers.Builtin.Diagnostics : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-        ---@field min_severity number The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
+        ---@field min_severity integer The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
         diagnostics = {
           padding = " ",
           min_severity = vim.diagnostic.severity.HINT,

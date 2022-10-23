@@ -60,7 +60,7 @@ do
   ---@async
   ---@param term? string
   ---@return Yat.Nodes.Search|nil first_leaf_node
-  ---@return number|string nr_of_matches_or_error
+  ---@return integer|string nr_of_matches_or_error
   function SearchNode:search(term)
     if self.parent then
       return self.parent:search(term)

@@ -143,7 +143,7 @@ local function parse_open_command_input(fargs)
   local tree = nil
   ---@type Yat.Ui.Canvas.Position?
   local position = nil
-  ---@type number?
+  ---@type integer?
   local size = nil
   ---@type table<string, any>?
   local tree_args = {}

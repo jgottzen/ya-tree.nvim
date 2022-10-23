@@ -82,7 +82,7 @@ local M = {
   UI_OTHER_TAB = "YaTreeUiOhterTab"
 }
 
----@param number number
+---@param number integer
 ---@return string
 local function dec_to_hex(number)
   return string.format("%06x", number)

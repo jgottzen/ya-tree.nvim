@@ -18,15 +18,15 @@ local function get_max_line_size(lines)
 end
 
 ---@param win_size integer
----@param value string|number
----@return number size
+---@param value string|integer
+---@return integer size
 local function compute_size(win_size, value)
   local size
   if type(value) == "string" then
     if value:sub(-1) == "%" then
       size = math.floor((win_size * tonumber(value:sub(1, -2))) / 100)
     else
-      size = tonumber(value) --[[@as number]]
+      size = tonumber(value) --[[@as integer]]
     end
   elseif type(value) == "number" then
     size = value
@@ -35,7 +35,7 @@ local function compute_size(win_size, value)
 end
 
 ---@param content_height integer
----@param size { width?: string|number, height?: string|number, grow_width?: boolean }
+---@param size { width?: string|integer, height?: string|integer, grow_width?: boolean }
 ---@param max_width integer
 ---@param content_width integer
 ---@param max_height integer
@@ -58,10 +58,10 @@ local function compute_width_and_height(content_height, content_width, size, max
 end
 
 ---@param relative string
----@param row number
----@param col number
----@param width number
----@param height number
+---@param row integer
+---@param col integer
+---@param width integer
+---@param height integer
 ---@param enter boolean
 ---@return integer winid
 ---@return integer bufnr
@@ -218,7 +218,7 @@ end
 function PopupBuilder:open(enter)
   enter = enter or false
   -- have to take into account if the statusline is shown, and the two border lines - top and bottom
-  local win_width = vim.o.columns --[[@as number]]
+  local win_width = vim.o.columns --[[@as integer]]
   local win_height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0) - 2
   local nr_of_lines = #self._lines
   local is_relative = self._relative == "cursor"
