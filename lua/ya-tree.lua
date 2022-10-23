@@ -187,6 +187,7 @@ function M.setup(opts)
 
   log.trace("using config=%s", config)
 
+  require("ya-tree.debounce").setup()
   require("ya-tree.fs.watcher").setup()
   require("ya-tree.trees").setup(config)
   require("ya-tree.actions").setup(config)

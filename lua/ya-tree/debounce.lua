@@ -44,7 +44,7 @@ function M.accumulate_trailing(fn, accumulator, ms)
   end
 end
 
-do
+function M.setup()
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd
   events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_DEBOUNCE_CLEANUP", function()
