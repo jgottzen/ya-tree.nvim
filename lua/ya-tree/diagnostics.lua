@@ -37,13 +37,14 @@ function M.severity_of(path)
   return M.current_diagnostic_severities[path]
 end
 
-local function on_diagnostics_changed()
+---@param diagnostics? Nvim.DiagnosticStruct[]
+local function on_diagnostics_changed(diagnostics)
+  diagnostics = diagnostics or vim.diagnostic.get() --[=[@as Nvim.DiagnosticStruct[]]=]
   ---@type table<string, Nvim.DiagnosticStruct[]>
   local new_diagnostics = {}
   ---@type table<string, number>
   local new_severity_diagnostics = {}
-  for _, diagnostic in ipairs(vim.diagnostic.get()) do
-    ---@cast diagnostic Nvim.DiagnosticStruct
+  for _, diagnostic in ipairs(diagnostics) do
     local bufnr = diagnostic.bufnr
     if api.nvim_buf_is_valid(bufnr) then
       local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
@@ -110,7 +111,10 @@ function M.setup()
     api.nvim_create_autocmd("DiagnosticChanged", {
       group = group,
       pattern = "*",
-      callback = debounced_trailing(on_diagnostics_changed, config.diagnostics.debounce_time),
+      ---@param input Nvim.AutocmdArgs
+      callback = debounced_trailing(function(input)
+        on_diagnostics_changed(input.data and input.data.diagnostics)
+      end, config.diagnostics.debounce_time),
       desc = "YaTree diagnostics handler",
     })
   end
