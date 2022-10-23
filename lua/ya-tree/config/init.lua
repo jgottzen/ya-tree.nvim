@@ -65,8 +65,10 @@ local M = {
     },
 
     ---@class Yat.Config.DirWatcher
+    ---@field enable boolean Whether directory watching is enabled, default: `true`.
     ---@field exclude string[] The directory names to exclude from watching, ".git" directories are always excluded.
     dir_watcher = {
+      enable = true,
       exclude = {},
     },
 
