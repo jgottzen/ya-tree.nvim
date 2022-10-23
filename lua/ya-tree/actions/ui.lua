@@ -1,3 +1,4 @@
+local help = require("ya-tree.ui.help")
 local ui = require("ya-tree.ui")
 
 local M = {}
@@ -58,6 +59,11 @@ end
 ---@param node Yat.Node
 function M.focus_next_diagnostic_item(_, node)
   ui.focus_next_diagnostic_item(node)
+end
+
+---@param tree Yat.Tree
+function M.open_help(tree)
+  help.open(tree.TYPE)
 end
 
 return M

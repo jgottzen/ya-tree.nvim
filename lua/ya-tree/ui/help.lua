@@ -181,14 +181,14 @@ local function mappings_for_for_tree(current_tab, all_tree_types, mappings, widt
   return lines, highlight_groups, close_keys
 end
 
----@param tree Yat.Tree
-function M.open(tree)
+---@param tree_type Yat.Trees.Type
+function M.open(tree_type)
   local mappings = require("ya-tree.actions")._tree_mappings
 
   local tree_types = vim.tbl_keys(mappings) --[=[@as Yat.Trees.Type[]]=]
   table.sort(tree_types)
-  utils.tbl_remove(tree_types, tree.TYPE)
-  table.insert(tree_types, 1, tree.TYPE)
+  utils.tbl_remove(tree_types, tree_type)
+  table.insert(tree_types, 1, tree_type)
 
   local width = math.min(vim.o.columns - 2, 90)
   local current_tab = 1
