@@ -48,6 +48,7 @@ local M = {
   NORMAL_NC = "YaTreeNormalNC",
   CURSOR_LINE = "YaTreeCursorLine",
   VERTICAL_SPLIT = "YaTreeVertSplit",
+  WIN_SEPARATOR = "YaTreeWinSeparator",
   STATUS_LINE = "YaTreeStatusLine",
   STATUS_LINE_NC = "YaTreeStatusLineNC",
 
@@ -175,6 +176,7 @@ function M.setup()
   create_highlight(M.NORMAL_NC, { "NormalNC" })
   create_highlight(M.CURSOR_LINE, { "CursorLine" })
   create_highlight(M.VERTICAL_SPLIT, { "VertSplit" })
+  create_highlight(M.WIN_SEPARATOR, { "WinSeparator" })
   create_highlight(M.STATUS_LINE, { "StatusLine" })
   create_highlight(M.STATUS_LINE_NC, { "StatusLineNC" })
 
