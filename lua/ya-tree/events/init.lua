@@ -92,7 +92,6 @@ do
   ---@field buf integer
   ---@field match string
   ---@field file string
-  ---@field data table<string, any>
 
   ---@param input Nvim.AutocmdArgs
   local function autocmd_callback(input)
