@@ -107,15 +107,11 @@ end
 local Repo = {}
 Repo.__index = Repo
 
----@param self Yat.Git.Repo
----@return string
 Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
 end
 
----@param self Yat.Git.Repo
 ---@param other Yat.Git.Repo
----@return boolean
 Repo.__eq = function(self, other)
   return self._git_dir == other._git_dir
 end

@@ -111,15 +111,11 @@ do
   })
 end
 
----@param self Yat.Tree
 ---@param other Yat.Tree
----@return boolean equal
 Tree.__eq = function(self, other)
   return self.TYPE == other.TYPE and self._tabpage == other._tabpage
 end
 
----@param self Yat.Tree
----@return string
 Tree.__tostring = function(self)
   return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), tostring(self.root))
 end

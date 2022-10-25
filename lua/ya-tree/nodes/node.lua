@@ -32,15 +32,11 @@ local utils = require("ya-tree.utils")
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
 
----@param self Yat.Node
 ---@param other Yat.Node
----@return boolean
 Node.__eq = function(self, other)
   return self.path == other.path
 end
 
----@param self Yat.Node
----@return string
 Node.__tostring = function(self)
   return string.format("(%s, %s)", self.__node_type, self.path)
 end

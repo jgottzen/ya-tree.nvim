@@ -15,8 +15,8 @@ local utils = require("ya-tree.utils")
 ---@field private _search_options? { cmd: string, args: string[] }
 local SearchNode = { __node_type = "Search" }
 SearchNode.__index = SearchNode
-SearchNode.__tostring = Node.__tostring
 SearchNode.__eq = Node.__eq
+SearchNode.__tostring = Node.__tostring
 setmetatable(SearchNode, { __index = Node })
 
 ---Creates a new search node.

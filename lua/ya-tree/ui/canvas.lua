@@ -60,8 +60,6 @@ local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.f
 local Canvas = {}
 Canvas.__index = Canvas
 
----@param self Yat.Ui.Canvas
----@return string
 Canvas.__tostring = function(self)
   return string.format(
     "(winid=%s, bufnr=%s, edit_winid=%s, tree_type=%s, nodes=[%s, %s])",

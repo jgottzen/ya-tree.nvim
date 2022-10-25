@@ -25,9 +25,7 @@ local BufferNode = { __node_type = "Buffer" }
 BufferNode.__index = BufferNode
 BufferNode.__tostring = Node.__tostring
 
----@param self Yat.Nodes.Buffer
 ---@param other Yat.Nodes.Buffer
----@return boolean
 BufferNode.__eq = function(self, other)
   if self.type == "terminal" then
     return other.type == "terminal" and self.bufname == other.bufname or false
