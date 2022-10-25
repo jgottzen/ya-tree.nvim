@@ -20,6 +20,12 @@ local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("ui")
 
+---@class Yat.Ui.RenderContext
+---@field tree_type Yat.Trees.Type
+---@field config Yat.Config
+---@field depth integer
+---@field last_child boolean
+
 ---@alias Yat.Ui.Renderer.Name "indentation" | "icon" | "name" | "modified" | "repository" | "symlink_target" | "git_status" | "diagnostics" | "buffer_info" | "clipboard" | string
 ---@alias Yat.Ui.RendererFunction fun(node: Yat.Node, context: Yat.Ui.RenderContext, renderer: Yat.Config.BaseRendererConfig): Yat.Ui.RenderResult[]|nil
 
@@ -441,7 +447,7 @@ end
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
     local severity = node:diagnostic_severity()
-    if severity and (renderer.min_severity == nil or severity <= renderer.min_severity) then
+    if severity and (severity <= (node:is_directory() and renderer.directory_min_severity or renderer.file_min_severity)) then
       local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
       if diagnostic then
         return {

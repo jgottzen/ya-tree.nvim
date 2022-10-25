@@ -4,6 +4,7 @@ local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
 local Tree = require("ya-tree.trees.tree")
+local tree_utils = require("ya-tree.trees.utils")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
@@ -62,6 +63,11 @@ do
 end
 
 GitTree.complete_func = Tree.complete_func_loaded_nodes
+
+---@param config Yat.Config
+function GitTree.setup(config)
+  GitTree.renderers = tree_utils.create_renderers(GitTree.TYPE, config)
+end
 
 ---@async
 ---@param repo_or_path? Yat.Git.Repo|string

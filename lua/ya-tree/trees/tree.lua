@@ -11,6 +11,15 @@ local api = vim.api
 
 ---@alias Yat.Trees.Type "filesystem" | "buffers" | "git" | "search" | string
 
+---@class Yat.Trees.TreeRenderers
+---@field directory Yat.Trees.Ui.Renderer[]
+---@field file Yat.Trees.Ui.Renderer[]
+---@field extra Yat.Trees.TreeRenderersExtra
+
+---@class Yat.Trees.TreeRenderersExtra
+---@field directory_min_diagnstic_severrity integer
+---@field file_min_diagnostic_severity integer
+
 ---@class Yat.Tree
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
@@ -20,6 +29,7 @@ local api = vim.api
 ---@field root Yat.Node
 ---@field current_node Yat.Node
 ---@field supported_actions Yat.Trees.Tree.SupportedActions[]
+---@field renderers Yat.Trees.TreeRenderers
 ---@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
 local Tree = {}
 Tree.__index = Tree
@@ -362,6 +372,88 @@ end
 ---@async
 ---@param new_cwd string
 function Tree:on_cwd_changed(new_cwd) end
+
+---@param pos integer
+---@param padding string
+---@param text string
+---@param highlight string
+---@return integer end_position, string content, Yat.Ui.HighlightGroup highlight
+local function line_part(pos, padding, text, highlight)
+  local from = pos + #padding
+  local size = #text
+  local group = {
+    name = highlight,
+    from = from,
+    to = from + size,
+  }
+  return group.to, string.format("%s%s", padding, text), group
+end
+
+---@class Yat.Trees.Ui.Renderer
+---@field name Yat.Ui.Renderer.Name
+---@field fn Yat.Ui.RendererFunction
+---@field config? Yat.Config.BaseRendererConfig
+
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderers Yat.Trees.Ui.Renderer[]
+---@return string text, Yat.Ui.HighlightGroup[] highlights
+local function render_node(node, context, renderers)
+  ---@type string[], Yat.Ui.HighlightGroup[]
+  local content, highlights, pos = {}, {}, 0
+
+  for _, renderer in ipairs(renderers) do
+    local results = renderer.fn(node, context, renderer.config)
+    if results then
+      for _, result in ipairs(results) do
+        if result.text then
+          if not result.highlight then
+            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
+          end
+          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
+        end
+      end
+    end
+  end
+
+  return table.concat(content), highlights
+end
+
+---@param config Yat.Config
+---@return string[] lines
+---@return Yat.Ui.HighlightGroup[][] highlights
+---@return Yat.Node[] nodes
+---@return Yat.Trees.TreeRenderersExtra
+function Tree:render(config)
+  ---@type Yat.Node[], string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
+  local nodes, lines, highlights, context, linenr = {}, {}, {}, { tree_type = self.TYPE, config = config }, 0
+  local directory_renderers, file_renderers = self.renderers.directory, self.renderers.file
+
+  ---@param node Yat.Node
+  ---@param depth integer
+  ---@param last_child boolean
+  local function append_node(node, depth, last_child)
+    if not node:is_hidden(config) or depth == 0 then
+      linenr = linenr + 1
+      context.depth = depth
+      context.last_child = last_child
+      nodes[linenr] = node
+      local has_children = node:has_children()
+      lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
+
+      if has_children and node.expanded then
+        local nr_of_children = #node:children()
+        for i, child in node:iterate_children() do
+          append_node(child, depth + 1, i == nr_of_children)
+        end
+      end
+    end
+  end
+
+  append_node(self.root, 0, false)
+
+  return lines, highlights, nodes, self.renderers.extra
+end
 
 ---@async
 ---@param node Yat.Node

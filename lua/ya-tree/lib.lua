@@ -26,7 +26,7 @@ end
 ---  - {opts.path?} `string` The path to open.
 ---  - {opts.focus?} `boolean` Whether to focus the tree window.
 ---  - {opts.tree?} `Yat.Trees.Type` Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
----  - {opts.position?} `Yat.Ui.Canvas.Position` Where the tree window should be positioned.
+---  - {opts.position?} `Yat.Ui.Position` Where the tree window should be positioned.
 ---  - {opts.size?} `integer` The size of the tree window, either width or height depending on position.
 ---  - {opts.tree_args?} `table<string, any>` Any tree specific arguments.
 function M.open_window(opts)
@@ -307,8 +307,7 @@ end
 ---@param file string
 local function on_buf_enter(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  local is_highlight_open_file_enabled = ui.is_highlight_open_file_enabled()
-  if not ((file ~= "" and (buftype == "" or buftype == "terminal")) or is_highlight_open_file_enabled) then
+  if not (file ~= "" and (buftype == "" or buftype == "terminal")) then
     return
   end
   local tabpage = api.nvim_get_current_tabpage()
@@ -346,10 +345,6 @@ local function on_buf_enter(bufnr, file)
           scheduler()
           ui.update(tree, node, { focus_node = true })
         end
-      elseif is_highlight_open_file_enabled then
-        -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-        scheduler()
-        ui.update(tree)
       end
     end
   end

@@ -2,6 +2,7 @@ local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
+local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -63,6 +64,11 @@ do
 end
 
 SearchTree.complete_func = Tree.complete_func_loaded_nodes
+
+---@param config Yat.Config
+function SearchTree.setup(config)
+  SearchTree.renderers = tree_utils.create_renderers(SearchTree.TYPE, config)
+end
 
 ---@async
 ---@param tabpage integer

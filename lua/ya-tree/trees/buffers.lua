@@ -4,6 +4,7 @@ local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
 local Tree = require("ya-tree.trees.tree")
+local tree_utils = require("ya-tree.trees.utils")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
@@ -65,6 +66,11 @@ do
 end
 
 BuffersTree.complete_func = "buffer"
+
+---@param config Yat.Config
+function BuffersTree.setup(config)
+  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.TYPE, config)
+end
 
 ---@async
 ---@param tabpage integer

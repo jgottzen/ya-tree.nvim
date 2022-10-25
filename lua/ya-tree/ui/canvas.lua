@@ -1,7 +1,6 @@
 local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local event = require("ya-tree.events.event").ya_tree
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("ui")
 
 local api = vim.api
@@ -19,9 +18,9 @@ local buf_options = {
 }
 
 local win_options = {
-  -- number and relativenumber are taken directly from config
-  number = config.view.number,
-  relativenumber = config.view.relativenumber,
+  -- number and relativenumber are overridden by their config values when creating a window
+  number = false,
+  relativenumber = false,
   list = false,
   winfixwidth = true,
   winfixheight = true,
@@ -44,14 +43,12 @@ local win_options = {
   }, ","),
 }
 
-local file_min_diagnostic_severity = config.renderers.builtin.diagnostics.min_severity
-local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.min_severity
-
----@alias Yat.Ui.Canvas.Position "left" | "right" | "top" | "bottom"
+local file_min_diagnostic_severity = config.renderers.builtin.diagnostics.directory_min_severity
+local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.file_min_severity
 
 ---@class Yat.Ui.Canvas
 ---@field public tree_type Yat.Trees.Type
----@field public position Yat.Ui.Canvas.Position
+---@field public position Yat.Ui.Position
 ---@field private winid? integer
 ---@field private edit_winid? integer
 ---@field private bufnr? integer
@@ -60,8 +57,6 @@ local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.m
 ---@field private size integer
 ---@field private nodes Yat.Node[]
 ---@field private node_path_to_index_lookup table<string, integer>
----@field private directory_renderers Yat.Ui.Canvas.Renderer[]
----@field private file_renderers Yat.Ui.Canvas.Renderer[]
 local Canvas = {}
 Canvas.__index = Canvas
 
@@ -252,7 +247,7 @@ end
 local positions_to_wincmd = { left = "H", bottom = "J", top = "K", right = "L" }
 
 ---@private
----@param position? Yat.Ui.Canvas.Position
+---@param position? Yat.Ui.Position
 function Canvas:_create_window(position)
   local winid = api.nvim_get_current_win() --[[@as integer]]
   if winid ~= self.edit_winid then
@@ -281,7 +276,7 @@ function Canvas:create_edit_window()
 end
 
 ---@class Yat.Ui.Canvas.OpenArgs
----@field position? Yat.Ui.Canvas.Position
+---@field position? Yat.Ui.Position
 ---@field size? integer
 
 ---@param tree Yat.Tree
@@ -300,7 +295,7 @@ function Canvas:open(tree, opts)
   self:_create_buffer()
   self:_create_window(opts.position)
 
-  self:render(tree)
+  self:draw(tree)
 
   events.fire_yatree_event(event.YA_TREE_WINDOW_OPENED, { winid = self.winid })
 end
@@ -341,112 +336,18 @@ function Canvas:close()
   end
 end
 
----@class Yat.Ui.HighlightGroup
----@field name string
----@field from integer
----@field to integer
-
----@param pos integer
----@param padding string
----@param text string
----@param highlight string
----@return integer end_position, string content, Yat.Ui.HighlightGroup highlight
-local function line_part(pos, padding, text, highlight)
-  local from = pos + #padding
-  local size = #text
-  local group = {
-    name = highlight,
-    from = from,
-    to = from + size,
-  }
-  return group.to, string.format("%s%s", padding, text), group
-end
-
----@param node Yat.Node
----@param context Yat.Ui.RenderContext
----@param renderers Yat.Ui.Canvas.Renderer[]
----@return string text, Yat.Ui.HighlightGroup[] highlights
-local function render_node(node, context, renderers)
-  ---@type string[]
-  local content = {}
-  ---@type Yat.Ui.HighlightGroup[]
-  local highlights = {}
-
-  local pos = 0
-  for _, renderer in ipairs(renderers) do
-    local results = renderer.fn(node, context, renderer.config)
-    if results then
-      for _, result in ipairs(results) do
-        if result.text then
-          if not result.highlight then
-            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
-          end
-          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
-        end
-      end
-    end
-  end
-
-  return table.concat(content), highlights
-end
-
----@class Yat.Ui.RenderContext
----@field tree_type Yat.Trees.Type
----@field config Yat.Config
----@field depth integer
----@field last_child boolean
-
----@private
 ---@param tree Yat.Tree
----@return string[] lines, Yat.Ui.HighlightGroup[][] highlights
-function Canvas:_render_tree(tree)
-  log.debug("creating %q canvas tree with root node %s", self.tree_type, tree.root.path)
-  self.nodes, self.node_path_to_index_lookup = {}, {}
-  ---@type string[]
-  local lines = {}
-  ---@type Yat.Ui.HighlightGroup[][]
-  local highlights = {}
-  local linenr = 0
-  ---@type Yat.Ui.RenderContext
-  local context = {
-    tree_type = self.tree_type,
-    config = config,
-  }
-
-  ---@param node Yat.Node
-  ---@param depth integer
-  ---@param last_child boolean
-  local function append_node(node, depth, last_child)
-    if not node:is_hidden(config) or depth == 0 then
-      linenr = linenr + 1
-      context.depth = depth
-      context.last_child = last_child
-      self.nodes[linenr] = node
-      self.node_path_to_index_lookup[node.path] = linenr
-      local has_children = node:has_children()
-      lines[linenr], highlights[linenr] = render_node(node, context, has_children and self.directory_renderers or self.file_renderers)
-
-      if has_children and node.expanded then
-        local nr_of_children = #node:children()
-        for i, child in node:iterate_children() do
-          append_node(child, depth + 1, i == nr_of_children)
-        end
-      end
-    end
-  end
-
-  append_node(tree.root, 0, false)
-
-  return lines, highlights
-end
-
----@param tree Yat.Tree
-function Canvas:render(tree)
-  if self.tree_type ~= tree.TYPE or not (self.directory_renderers and self.file_renderers) then
-    self:_set_renderers_for_tree(tree.TYPE)
-  end
+function Canvas:draw(tree)
   self.tree_type = tree.TYPE
-  local lines, highlights = self:_render_tree(tree)
+  log.debug("creating %q canvas tree with root node %s", tree.TYPE, tree.root.path)
+  local lines, highlights, extra
+  lines, highlights, self.nodes, extra = tree:render(config)
+  directory_min_diagnstic_severrity = extra.directory_min_diagnstic_severrity
+  file_min_diagnostic_severity = extra.file_min_diagnostic_severity
+  self.node_path_to_index_lookup = {}
+  for index, node in ipairs(self.nodes) do
+    self.node_path_to_index_lookup[node.path] = index
+  end
 
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
@@ -457,7 +358,7 @@ function Canvas:render(tree)
     for _, highlight in ipairs(line_highlights) do
       -- guard against bugged out renderer highlights, which will cause an avalanche of errors...
       if not highlight.name then
-        log.error("missing highlight name for node=%q, hl=%s", self.nodes[linenr].path, highlight)
+        log.error("missing highlight name for node=%s, hl=%s", tostring(self.nodes[linenr]), highlight)
       else
         api.nvim_buf_add_highlight(self.bufnr, ns, highlight.name, linenr - 1, highlight.from, highlight.to)
       end
@@ -734,133 +635,8 @@ function Canvas:focus_next_diagnostic_item(node)
   end
 end
 
----@class Yat.Ui.Canvas.Renderer
----@field name Yat.Ui.Renderer.Name
----@field fn Yat.Ui.RendererFunction
----@field config? Yat.Config.BaseRendererConfig
-
-do
-  local renderers = require("ya-tree.ui.renderers")
-
-  ---@param renderer_type string
-  ---@param raw_renderer Yat.Config.Trees.Renderer
-  ---@return Yat.Ui.Canvas.Renderer|nil renderer
-  local function create_renderer(renderer_type, raw_renderer)
-    local name = raw_renderer.name
-    if type(name) == "string" then
-      local renderer_info = renderers.get_renderer(name)
-      if renderer_info then
-        ---@type Yat.Ui.Canvas.Renderer
-        local renderer = {
-          name = name,
-          fn = renderer_info.fn,
-          config = vim.deepcopy(renderer_info.config),
-        }
-        if raw_renderer.override then
-          for k, v in pairs(raw_renderer.override) do
-            if type(k) == "string" then
-              log.debug("overriding %q renderer %q config value for %q with %s", renderer_type, renderer.name, k, v)
-              renderer.config[k] = v
-            end
-          end
-        end
-
-        return renderer
-      end
-    end
-    utils.warn("Invalid renderer:\n" .. vim.inspect(raw_renderer))
-  end
-
-  ---@type Yat.Ui.Canvas.Renderer[], Yat.Ui.Canvas.Renderer[]
-  local default_directory_renderers, default_file_renderers = {}, {}
-  ---@type table<Yat.Trees.Type, { directory: Yat.Config.Trees.Renderer[], file: Yat.Config.Trees.Renderer[] }>
-  local tree_renderers = {}
-  local highlight_open_file = false
-
-  ---@private
-  ---@param tree_type Yat.Trees.Type
-  function Canvas:_set_renderers_for_tree(tree_type)
-    local _renderers = tree_renderers[tree_type]
-    if not _renderers then
-      _renderers = {}
-      local tree_config = config.trees[tree_type]
-      if tree_config and tree_config.renderers and (tree_config.renderers.directory or tree_config.renderers.file) then
-        if tree_config.renderers.directory then
-          _renderers.directory = {}
-          for _, directory_renderer in ipairs(tree_config.renderers.directory) do
-            local renderer = create_renderer("directory", directory_renderer)
-            if renderer then
-              _renderers.directory[#_renderers.directory + 1] = renderer
-            end
-          end
-        end
-
-        if tree_config.renderers.file then
-          _renderers.file = {}
-          for _, file_renderer in ipairs(tree_config.renderers.file) do
-            local renderer = create_renderer("file", file_renderer)
-            if renderer then
-              _renderers.file[#_renderers.file + 1] = renderer
-            end
-          end
-        end
-      end
-
-      _renderers.directory = _renderers.directory or default_directory_renderers
-      _renderers.file = _renderers.file or default_file_renderers
-      tree_renderers[tree_type] = _renderers
-    end
-
-    self.directory_renderers = _renderers.directory
-    self.file_renderers = _renderers.file
-
-    for _, renderer in ipairs(self.directory_renderers) do
-      if renderer.name == "diagnostics" then
-        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
-        directory_min_diagnstic_severrity = renderer_config.min_severity or config.renderers.builtin.diagnostics.min_severity
-      end
-    end
-    for _, renderer in ipairs(self.file_renderers) do
-      if renderer.name == "name" then
-        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Name]]
-        highlight_open_file = renderer_config.highlight_open_file
-      elseif renderer.name == "diagnostics" then
-        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
-        file_min_diagnostic_severity = renderer_config.min_severity or config.renderers.builtin.diagnostics.min_severity
-      end
-    end
-  end
-
-  function Canvas.setup()
-    config = require("ya-tree.config").config
-
-    renderers.setup(config)
-
-    -- reset the renderer arrays, since the setup can be called repeatedly
-    ---@type Yat.Ui.Canvas.Renderer[], Yat.Ui.Canvas.Renderer[]
-    default_directory_renderers, default_file_renderers = {}, {}
-
-    for _, directory_renderer in ipairs(config.view.default_renderers.directory) do
-      local renderer = create_renderer("directory", directory_renderer)
-      if renderer then
-        default_directory_renderers[#default_directory_renderers + 1] = renderer
-      end
-    end
-    log.trace("default directory renderers=%s", default_directory_renderers)
-
-    for _, file_renderer in ipairs(config.view.default_renderers.file) do
-      local renderer = create_renderer("file", file_renderer)
-      if renderer then
-        default_file_renderers[#default_file_renderers + 1] = renderer
-      end
-    end
-    log.trace("default file renderers=%s", default_file_renderers)
-  end
-
-  ---@return boolean enabled
-  function Canvas.is_highlight_open_file_enabled()
-    return highlight_open_file
-  end
+function Canvas.setup()
+  config = require("ya-tree.config").config
 end
 
 return Canvas

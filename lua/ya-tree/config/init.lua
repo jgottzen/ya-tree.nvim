@@ -18,9 +18,9 @@ local M = {
   ---@field diagnostics Yat.Config.Diagnostics Lsp diagnostics configuration.
   ---@field system_open Yat.Config.SystemOpen Open file with system command configuration.
   ---@field trash Yat.Config.Trash `trash-cli` configuration.
+  ---@field view Yat.Config.View Tree view configuration.
   ---@field actions Yat.Config.Actions User actions.
   ---@field trees Yat.Config.Trees Tree configurations.
-  ---@field view Yat.Config.View Tree view configuration.
   ---@field renderers Yat.Config.Renderers Renderer configurations.
   default = {
     close_if_last_window = false,
@@ -137,6 +137,25 @@ local M = {
       require_confirm = false,
     },
 
+    ---@class Yat.Config.View
+    ---@field size integer Size of the tree panel, default: `40`.
+    ---@field position Yat.Ui.Position Where the tree panel is placed, default: `"left"`.
+    ---@field number boolean Wether to show the number column, default: `false`.
+    ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
+    ---@field popups Yat.Config.View.Popups Popup window configuration.
+    view = {
+      size = 40,
+      position = "left",
+      number = false,
+      relativenumber = false,
+
+      ---@class Yat.Config.View.Popups
+      ---@field border string|string[] The border type for floating windows, default: `"rounded"`.
+      popups = {
+        border = "rounded",
+      },
+    },
+
     ---@class Yat.Config.Actions : { [Yat.Actions.Name]: Yat.Action }
     actions = {},
 
@@ -158,12 +177,12 @@ local M = {
     ---@field override Yat.Config.BaseRendererConfig
 
     ---@class Yat.Config.Trees.Renderers
-    ---@field directory? Yat.Config.Trees.Renderer[] Which renderers to use for directories, in order.
-    ---@field file? Yat.Config.Trees.Renderer[] Which renderers to use for files, in order
+    ---@field directory Yat.Config.Trees.Renderer[] Which renderers to use for directories, in order.
+    ---@field file Yat.Config.Trees.Renderer[] Which renderers to use for files, in order
 
     ---@class Yat.Config.Trees.Tree
     ---@field mappings Yat.Config.Trees.Mappings
-    ---@field renderers? Yat.Config.Trees.Renderers
+    ---@field renderers Yat.Config.Trees.Renderers
 
     ---@class Yat.Config.Trees : { [Yat.Trees.Type] : Yat.Config.Trees.Tree }
     ---@field global_mappings Yat.Config.Trees.GlobalMappings Mappings that applies to all trees.
@@ -209,7 +228,7 @@ local M = {
       ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
       ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
       ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
-      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
+      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       filesystem = {
         ---@class Yat.Config.Trees.Filesystem.Completion
         ---@field on "root" | "node" Wether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
@@ -248,11 +267,33 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+        renderers = {
+          directory = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "repository" },
+            { name = "symlink_target" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
+          file = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name", override = { use_git_status_colors = true } },
+            { name = "symlink_target" },
+            { name = "modified" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
+        },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
       ---@field persistent boolean Whether the tree is persistent, and not deleted when closed, default: `false`.
       ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
-      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
+      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       search = {
         ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
@@ -275,10 +316,32 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+        renderers = {
+          directory = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "repository" },
+            { name = "symlink_target" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
+          file = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name", override = { use_git_status_colors = true } },
+            { name = "symlink_target" },
+            { name = "modified" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
+        },
       },
       ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
       ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
-      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
+      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       buffers = {
         ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
@@ -300,6 +363,16 @@ local M = {
           },
         },
         renderers = {
+          directory = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "repository" },
+            { name = "symlink_target" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
           file = {
             { name = "indentation" },
             { name = "icon" },
@@ -316,7 +389,7 @@ local M = {
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
       ---@field persistent boolean Whether the tree is persistent, and not deleted when closed, default: `false`.
       ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
-      ---@field renderers? Yat.Config.Trees.Renderers Override tree specific renderers.
+      ---@field renderers? Yat.Config.Trees.Renderers Tree specific renderers.
       git = {
         ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
@@ -336,51 +409,27 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
-      },
-    },
-
-    ---@class Yat.Config.View
-    ---@field size integer Size of the tree panel, default: `40`.
-    ---@field position Yat.Ui.Canvas.Position Where the tree panel is placed, default: `"left"`.
-    ---@field number boolean Wether to show the number column, default: `false`.
-    ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
-    ---@field popups Yat.Config.View.Popups Popup window configuration.
-    ---@field default_renderers Yat.Config.View.DefaultRenderers Default renderers to use in the tree view.
-    view = {
-      size = 40,
-      position = "left",
-      number = false,
-      relativenumber = false,
-
-      ---@class Yat.Config.View.Popups
-      ---@field border string|string[] The border type for floating windows, default: `"rounded"`.
-      popups = {
-        border = "rounded",
-      },
-
-      ---@class Yat.Config.View.DefaultRenderers
-      ---@field directory Yat.Config.Trees.Renderer[] Which renderers to use for directories, in order.
-      ---@field file Yat.Config.Trees.Renderer[] Which renderers to use for files, in order.
-      default_renderers = {
-        directory = {
-          { name = "indentation" },
-          { name = "icon" },
-          { name = "name" },
-          { name = "repository" },
-          { name = "symlink_target" },
-          { name = "git_status" },
-          { name = "diagnostics", override = { min_severity = vim.diagnostic.severity.ERROR } },
-          { name = "clipboard" },
-        },
-        file = {
-          { name = "indentation" },
-          { name = "icon" },
-          { name = "name", override = { use_git_status_colors = true } },
-          { name = "symlink_target" },
-          { name = "modified" },
-          { name = "git_status" },
-          { name = "diagnostics" },
-          { name = "clipboard" },
+        renderers = {
+          directory = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "repository" },
+            { name = "symlink_target" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
+          file = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name", override = { use_git_status_colors = true } },
+            { name = "symlink_target" },
+            { name = "modified" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "clipboard" },
+          },
         },
       },
     },
@@ -468,13 +517,11 @@ local M = {
         ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
         ---@field trailing_slash boolean Wether to show a trailing OS directory separator after directory names, default: `false`.
         ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
-        ---@field highlight_open_file boolean Wether to highlight the name if it's open in a buffer, default: `false`.
         name = {
           padding = " ",
           root_folder_format = ":~",
           trailing_slash = false,
           use_git_status_colors = false,
-          highlight_open_file = false,
         },
 
         ---@class Yat.Config.Renderers.Builtin.Modified : Yat.Config.BaseRendererConfig
@@ -573,10 +620,12 @@ local M = {
 
         ---@class Yat.Config.Renderers.Builtin.Diagnostics : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-        ---@field min_severity integer The minimum severity necessary to show, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
+        ---@field directory_min_severity integer The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
+        ---@field file_min_severity integer The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
         diagnostics = {
           padding = " ",
-          min_severity = vim.diagnostic.severity.HINT,
+          directory_min_severity = vim.diagnostic.severity.ERROR,
+          file_min_severity = vim.diagnostic.severity.HINT,
         },
 
         ---@class Yat.Config.Renderers.Builtin.BufferInfo : Yat.Config.BaseRendererConfig

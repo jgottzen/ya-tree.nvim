@@ -17,7 +17,7 @@ local M = {}
 ---@field path? string The path to open.
 ---@field focus? boolean Whether to focus the tree window.
 ---@field tree? Yat.Trees.Type Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
----@field position? Yat.Ui.Canvas.Position Where the tree window should be positioned.
+---@field position? Yat.Ui.Position Where the tree window should be positioned.
 ---@field size? integer The size of the tree window, either width or height depending on position.
 ---@field tree_args? table<string, any> Any tree specific arguments.
 
@@ -25,7 +25,7 @@ local M = {}
 ---  - {opts.path?} `string` The path to open.
 ---  - {opts.focus?} `boolean` Whether to focus the tree window.
 ---  - {opts.tree?} `Yat.Trees.Type` Which type of tree to open, defaults to the current tree, or `"filesystem"` if no current tree exists.
----  - {opts.position?} `Yat.Ui.Canvas.Position` Where the tree window should be positioned.
+---  - {opts.position?} `Yat.Ui.Position` Where the tree window should be positioned.
 ---  - {opts.size?} `integer` The size of the tree window, either width or height depending on position.
 ---  - {opts.tree_args?} `table<string, any>` Any tree specific arguments.
 function M.open(opts)
@@ -141,7 +141,7 @@ local function parse_open_command_input(fargs)
   local focus = false
   ---@type string|nil
   local tree = nil
-  ---@type Yat.Ui.Canvas.Position?
+  ---@type Yat.Ui.Position?
   local position = nil
   ---@type integer?
   local size = nil
@@ -189,10 +189,10 @@ function M.setup(opts)
 
   require("ya-tree.debounce").setup()
   require("ya-tree.fs.watcher").setup()
+  require("ya-tree.ui").setup(config)
   require("ya-tree.trees").setup(config)
   require("ya-tree.actions").setup(config)
   require("ya-tree.git").setup()
-  require("ya-tree.ui").setup()
   require("ya-tree.diagnostics").setup()
   require("ya-tree.lib").setup()
 

@@ -5,6 +5,7 @@ local fs = require("ya-tree.fs")
 local fs_watcher = require("ya-tree.fs.watcher")
 local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
+local tree_utils = require("ya-tree.trees.utils")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
@@ -112,6 +113,8 @@ function FilesystemTree.setup(config)
       end
     end
   end
+
+  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.TYPE, config)
 end
 
 ---Creates a new filesystem node tree root.

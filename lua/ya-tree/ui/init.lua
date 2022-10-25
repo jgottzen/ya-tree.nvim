@@ -1,10 +1,16 @@
 local wrap = require("plenary.async").wrap
 
 local Canvas = require("ya-tree.ui.canvas")
-local hl = require("ya-tree.ui.highlights")
 local log = require("ya-tree.log")("ui")
 
 local api = vim.api
+
+---@alias Yat.Ui.Position "left" | "right" | "top" | "bottom"
+
+---@class Yat.Ui.HighlightGroup
+---@field name string
+---@field from integer
+---@field to integer
 
 local M = {
   ---@private
@@ -49,7 +55,7 @@ end
 ---@class Yat.Ui.OpenArgs
 ---@field focus? boolean
 ---@field focus_edit_window? boolean
----@field position? Yat.Ui.Canvas.Position
+---@field position? Yat.Ui.Position
 ---@field size? integer
 
 ---@param tree Yat.Tree
@@ -72,7 +78,7 @@ function M.open(tree, node, opts)
     canvas:open(tree, { position = opts.position, size = opts.size })
   elseif tree.TYPE ~= canvas.tree_type or (node and not canvas:is_node_rendered(node)) then
     -- redraw the tree if the tree type changed or a specific node is to be focused, and it's currently not rendered
-    canvas:render(tree)
+    canvas:draw(tree)
   end
 
   if node then
@@ -109,7 +115,7 @@ function M.update(tree, node, opts)
   opts = opts or {}
   local canvas = get_canvas()
   if canvas and canvas:is_open() then
-    canvas:render(tree)
+    canvas:draw(tree)
     if opts.focus_window then
       canvas:focus()
     end
@@ -248,11 +254,6 @@ M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
 end, 3)
 
----@return boolean enabled
-function M.is_highlight_open_file_enabled()
-  return Canvas.is_highlight_open_file_enabled()
-end
-
 ---@param bufnr integer
 local function on_win_leave(bufnr)
   if M.is_window_floating() then
@@ -269,8 +270,11 @@ local function on_win_leave(bufnr)
   end
 end
 
-function M.setup()
+---@param config Yat.Config
+function M.setup(config)
+  local hl = require("ya-tree.ui.highlights")
   hl.setup()
+  require("ya-tree.ui.renderers").setup(config)
   Canvas.setup()
 
   local events = require("ya-tree.events")
