@@ -422,26 +422,28 @@ end
 ---@return Yat.Trees.TreeRenderersExtra
 function Tree:render(config)
   ---@type Yat.Node[], string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
-  local nodes, lines, highlights, context, linenr = {}, {}, {}, { tree_type = self.TYPE, config = config }, 0
+  local nodes, lines, highlights, context, linenr = {}, {}, {}, { tree_type = self.TYPE, config = config, indent_markers = {} }, 0
   local directory_renderers, file_renderers = self.renderers.directory, self.renderers.file
 
   ---@param node Yat.Node
   ---@param depth integer
   ---@param last_child boolean
   local function append_node(node, depth, last_child)
-    if not node:is_hidden(config) or depth == 0 then
-      linenr = linenr + 1
-      context.depth = depth
-      context.last_child = last_child
-      nodes[linenr] = node
-      local has_children = node:has_children()
-      lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
+    linenr = linenr + 1
+    context.depth = depth
+    context.last_child = last_child
+    nodes[linenr] = node
+    local has_children = node:has_children()
+    lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
 
-      if has_children and node.expanded then
-        local nr_of_children = #node:children()
-        for i, child in node:iterate_children() do
-          append_node(child, depth + 1, i == nr_of_children)
-        end
+    if has_children and node.expanded then
+      ---@param child Yat.Node
+      local children = vim.tbl_filter(function(child)
+        return not child:is_hidden(config)
+      end, node:children()) --[=[@as Yat.Node[]]=]
+      local nr_of_children = #children
+      for i, child in ipairs(children) do
+        append_node(child, depth + 1, i == nr_of_children)
       end
     end
   end

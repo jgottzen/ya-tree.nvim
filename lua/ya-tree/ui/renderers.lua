@@ -25,6 +25,7 @@ local log = require("ya-tree.log")("ui")
 ---@field config Yat.Config
 ---@field depth integer
 ---@field last_child boolean
+---@field indent_markers table<integer, boolean>
 
 ---@alias Yat.Ui.Renderer.Name "indentation" | "icon" | "name" | "modified" | "repository" | "symlink_target" | "git_status" | "diagnostics" | "buffer_info" | "clipboard" | string
 ---@alias Yat.Ui.RendererFunction fun(node: Yat.Node, context: Yat.Ui.RenderContext, renderer: Yat.Config.BaseRendererConfig): Yat.Ui.RenderResult[]|nil
@@ -67,53 +68,49 @@ local fn = vim.fn
 ---@field text string
 ---@field highlight string
 
-do
-  ---@type table<integer, boolean>
-  local marker_at = {}
-
-  ---@param node Yat.Node
-  ---@param context Yat.Ui.RenderContext
-  ---@param renderer Yat.Config.Renderers.Builtin.Indentation
-  ---@return Yat.Ui.RenderResult[] result
-  function M.indentation(node, context, renderer)
-    local text
-    if context.depth == 0 then
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Builtin.Indentation
+---@return Yat.Ui.RenderResult[] result
+function M.indentation(node, context, renderer)
+  local marker_at = context.indent_markers
+  local text
+  if context.depth == 0 then
+    text = ""
+  else
+    if renderer.use_indent_marker then
       text = ""
-    else
-      if renderer.use_indent_marker then
-        text = ""
-        marker_at[context.depth] = not context.last_child
-        for i = 1, context.depth do
-          local marker
-          if i == context.depth and renderer.use_expander_marker and node:has_children() then
-            marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
-          else
-            marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
-          end
-
-          if marker_at[i] or i == context.depth then
-            text = text .. marker .. " "
-          else
-            text = text .. "  "
-          end
-        end
-      elseif renderer.use_expander_marker then
-        if node:has_children() then
-          text = string.rep("  ", context.depth - 1) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
+      marker_at[context.depth] = not context.last_child
+      for i = 1, context.depth do
+        local marker
+        if i == context.depth and renderer.use_expander_marker and node:has_children() then
+          marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
         else
-          text = string.rep("  ", context.depth)
+          marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
         end
+
+        if marker_at[i] or i == context.depth then
+          text = text .. marker .. " "
+        else
+          text = text .. "  "
+        end
+      end
+    elseif renderer.use_expander_marker then
+      if node:has_children() then
+        text = string.rep("  ", context.depth - 1) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
       else
         text = string.rep("  ", context.depth)
       end
+    else
+      text = string.rep("  ", context.depth)
     end
-
-    return { {
-      padding = renderer.padding,
-      text = text,
-      highlight = hl.INDENT_MARKER,
-    } }
   end
+
+  return { {
+    padding = renderer.padding,
+    text = text,
+    highlight = hl.INDENT_MARKER,
+  } }
 end
 
 ---@param node Yat.Node
