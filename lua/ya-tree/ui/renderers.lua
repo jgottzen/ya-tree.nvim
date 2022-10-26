@@ -245,10 +245,6 @@ function M.name(node, context, renderer)
     end
   end
 
-  if renderer.highlight_open_file and node:is_file() and fn.bufloaded(node.path) > 0 then
-    highlight = hl.OPENED_FILE_NAME
-  end
-
   if not highlight then
     if node:is_directory() then
       highlight = hl.DIRECTORY_NAME

@@ -80,7 +80,7 @@ local M = {
   INFO_DATE = "YaTreeInfoDate",
 
   UI_CURRENT_TAB = "YaTreeUiCurrentTab",
-  UI_OTHER_TAB = "YaTreeUiOhterTab"
+  UI_OTHER_TAB = "YaTreeUiOhterTab",
 }
 
 ---@param number integer
