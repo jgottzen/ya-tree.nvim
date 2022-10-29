@@ -387,7 +387,7 @@ end
 ---@return boolean fs_changes
 function Repo:refresh_status(opts)
   opts = opts or {}
-  local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = self._is_yadm })
+  local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self._is_yadm })
   log.debug("git status for %q", self.toplevel)
   local results = self:command(args, true)
 

@@ -94,12 +94,14 @@ local M = {
 
     ---@class Yat.Config.Git
     ---@field enable boolean If git should be enabled, default: `true`.
+    ---@field all_untracked boolean If `git status` checks should include all untracked files: default: `false`.
     ---@field show_ignored boolean Whether to show git ignored files in the tree, toggleable, default: `true`.
     ---@field watch_git_dir boolean Whether to watch the repository `.git` directory for changes, using `fs_poll`, default: `true`.
     ---@field watch_git_dir_interval integer Interval for polling, in milliseconds, default: `1000`.
     ---@field yadm Yat.Config.Git.Yadm `yadm` configuration.
     git = {
       enable = true,
+      all_untracked = false,
       show_ignored = true,
       watch_git_dir = true,
       watch_git_dir_interval = 1000,
