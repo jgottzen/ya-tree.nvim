@@ -145,7 +145,6 @@ local function parse_open_command_input(fargs)
   local position = nil
   ---@type integer?
   local size = nil
-  ---@type table<string, any>?
   local tree_args = {}
   for _, arg in ipairs(fargs) do
     if vim.startswith(arg, "path=") then
@@ -169,7 +168,7 @@ local function parse_open_command_input(fargs)
       end
     end
   end
-  if #tree_args == 0 then
+  if vim.tbl_count(tree_args) == 0 then
     tree_args = nil
   end
 
