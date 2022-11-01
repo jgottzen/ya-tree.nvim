@@ -7,7 +7,7 @@ local M = {
   ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
   ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
-  ---@field replace_netrw boolean Replace `netrw` windows, default: `true`.
+  ---@field hijack_netrw boolean Replace the `netrw` file explorer, default: `true`.
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
@@ -30,7 +30,7 @@ local M = {
     move_cursor_to_name = false,
     move_buffers_from_tree_window = true,
 
-    replace_netrw = true,
+    hijack_netrw = true,
 
     expand_all_nodes_max_depth = 5,
 

@@ -201,7 +201,7 @@ function M.setup(opts)
   api.nvim_create_user_command("YaTreeClose", M.close, { desc = "Close the tree window" })
   api.nvim_create_user_command("YaTreeToggle", M.toggle, { desc = "Toggle the tree window" })
 
-  if config.auto_open.on_setup and not (utils.is_buffer_directory() and config.replace_netrw) then
+  if config.auto_open.on_setup and not (utils.is_buffer_directory() and config.hijack_netrw) then
     M.open({ focus = config.auto_open.focus_tree })
   end
 end

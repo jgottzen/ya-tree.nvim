@@ -272,9 +272,7 @@ function M.search_for_node_in_tree(tree, path)
 end
 
 local function setup_netrw()
-  if config.replace_netrw then
-    vim.g.loaded_netrw = 1
-    vim.g.loaded_netrwPlugin = 1
+  if config.hijack_netrw then
     vim.cmd([[silent! autocmd! FileExplorer *]])
     vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
   end
@@ -317,7 +315,7 @@ local function on_buf_enter(bufnr, file)
   -- which in turn will update the ui, and if the buffer was opened in the tree window, and the config option to move it to
   -- the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the edit window.
   -- Not very visually pleasing.
-  if config.replace_netrw and utils.is_directory_sync(file) then
+  if config.hijack_netrw and utils.is_directory_sync(file) then
     log.debug("the opened buffer is a directory with path %q", file)
 
     if ui.is_current_window_ui() then
