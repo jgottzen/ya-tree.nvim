@@ -5,7 +5,7 @@ local log = require("ya-tree.log")("ui")
 
 local api = vim.api
 
-local ns = api.nvim_create_namespace("YaTreeHighlights") --[[@as integer]]
+local ns = api.nvim_create_namespace("YaTreeHighlights")
 
 ---@type {name: string, value: string|boolean}[]
 local buf_options = {
@@ -120,7 +120,7 @@ end
 
 ---@private
 function Canvas:_create_buffer()
-  self.bufnr = api.nvim_create_buf(false, false) --[[@as integer]]
+  self.bufnr = api.nvim_create_buf(false, false)
   log.debug("created buffer %s", self.bufnr)
   api.nvim_buf_set_name(self.bufnr, "YaTree://YaTree" .. self.bufnr)
 
@@ -197,14 +197,14 @@ function Canvas:_set_window_options()
     vim.wo[k] = v
   end
 
-  self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true }) --[[@as integer]]
+  self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self.winid, { clear = true })
   api.nvim_create_autocmd("WinLeave", {
     group = self.window_augroup,
     buffer = self.bufnr,
     callback = function()
       self.pos_after_win_leave = api.nvim_win_get_cursor(self.winid)
       if self.edit_winid then
-        self.size = self:is_on_side() and api.nvim_win_get_width(self.winid) or api.nvim_win_get_height(self.winid) --[[@as integer]]
+        self.size = self:is_on_side() and api.nvim_win_get_width(self.winid) or api.nvim_win_get_height(self.winid)
       end
     end,
     desc = "Storing window size",
@@ -258,7 +258,7 @@ end
 
 function Canvas:create_edit_window()
   vim.cmd("noautocmd vsplit")
-  self.edit_winid = api.nvim_get_current_win() --[[@as integer]]
+  self.edit_winid = api.nvim_get_current_win()
   api.nvim_win_call(self.winid, function()
     vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
     self:resize()
@@ -317,7 +317,7 @@ end
 
 function Canvas:focus()
   if self.winid then
-    local current_winid = api.nvim_get_current_win() --[[@as integer]]
+    local current_winid = api.nvim_get_current_win()
     if current_winid ~= self.winid then
       if current_winid ~= self.edit_winid then
         log.debug("winid=%s setting edit_winid to %s, old=%s", self.winid, current_winid, self.edit_winid)
@@ -391,14 +391,14 @@ function Canvas:get_current_tree_and_node()
 end
 
 do
-  local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true) --[[@as string]]
+  local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true)
 
   ---@return Yat.Node[] nodes
   function Canvas:get_selected_nodes()
     local mode = api.nvim_get_mode().mode --[[@as string]]
     if mode == "v" or mode == "V" then
       local from = vim.fn.getpos("v")[2] --[[@as integer]]
-      local to = api.nvim_win_get_cursor(self.winid)[1] --[[@as integer]]
+      local to = api.nvim_win_get_cursor(self.winid)[1]
       if from > to then
         from, to = to, from
       end
@@ -431,7 +431,7 @@ function Canvas:_move_cursor_to_name()
     return
   end
 
-  local line = api.nvim_get_current_line() --[[@as string]]
+  local line = api.nvim_get_current_line()
   local column = (line:find(node.name, 1, true) or 0) - 1
   if column > 0 and column ~= col then
     api.nvim_win_set_cursor(self.winid, { row, column })

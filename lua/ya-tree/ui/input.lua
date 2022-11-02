@@ -121,7 +121,7 @@ function Input:new(opts, callbacks)
 
   if callbacks.on_change then
     this.callbacks.on_change = function()
-      local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1] --[[@as string]]
+      local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1]
       callbacks.on_change(value:sub(#this.default + 1))
     end
   end
@@ -150,7 +150,7 @@ function Input:open()
 
   self.orig_row, self.orig_col = unpack(api.nvim_win_get_cursor(self.win_config.win or 0))
 
-  self.bufnr = api.nvim_create_buf(false, true) --[[@as integer]]
+  self.bufnr = api.nvim_create_buf(false, true)
   for _, v in ipairs(buf_options) do
     api.nvim_buf_set_option(self.bufnr, v.name, v.value)
   end
@@ -165,7 +165,7 @@ function Input:open()
     self.completion(self.bufnr)
   end
 
-  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config) --[[@as integer]]
+  self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
   for k, v in pairs(win_options) do
     vim.wo[k] = v
   end
@@ -194,7 +194,7 @@ function Input:open()
 
   vim.cmd("startinsert!")
   if self.completion and fn.pumvisible() == 1 then
-    local escape_key = api.nvim_replace_termcodes("<C-e>", true, false, true) --[[@as string]]
+    local escape_key = api.nvim_replace_termcodes("<C-e>", true, false, true)
     api.nvim_feedkeys(escape_key, "n", true)
   end
 end
@@ -220,7 +220,7 @@ function Input:_create_title()
       zindex = 151,
       style = "minimal",
       noautocmd = true,
-    }) --[[@as integer]]
+    })
     vim.opt_local["winblend"] = api.nvim_win_get_option(self.winid, "winblend")
     api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
     local title = " " .. self.prompt:sub(1, math.min(width - 2, api.nvim_strwidth(self.prompt))) .. " "

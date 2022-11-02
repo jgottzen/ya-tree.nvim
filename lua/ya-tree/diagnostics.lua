@@ -46,7 +46,7 @@ local function on_diagnostics_changed()
     ---@cast diagnostic Nvim.DiagnosticStruct
     local bufnr = diagnostic.bufnr
     if api.nvim_buf_is_valid(bufnr) then
-      local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
+      local bufname = api.nvim_buf_get_name(bufnr)
       local current = new_diagnostics[bufname]
       if not current then
         current = {}

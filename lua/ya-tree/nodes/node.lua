@@ -48,22 +48,22 @@ end
 ---@param parent? T the parent node.
 ---@return T node
 function Node.new(class, fs_node, parent)
-  local this = setmetatable(fs_node, class) --[[@as Yat.Node]]
+  local self = setmetatable(fs_node, class) --[[@as Yat.Node]]
   ---@cast parent Yat.Node?
-  this.parent = parent
-  this.modified = false
-  if this:is_directory() then
-    this._children = {}
+  self.parent = parent
+  self.modified = false
+  if self:is_directory() then
+    self._children = {}
   end
 
   -- inherit any git repo
   if parent and parent.repo then
-    this.repo = parent.repo
+    self.repo = parent.repo
   end
 
-  log.trace("created node %s", this)
+  log.trace("created node %s", self)
 
-  return this
+  return self
 end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` doens't recurse into
@@ -494,6 +494,7 @@ function Node.populate_from_paths(self, paths, node_creator)
     add_node(path, parent, false)
   end
 
+  -- FIXME: doesn't take node:is_hidden into account
   local first_leaf_node = self
   while first_leaf_node and first_leaf_node._children do
     if first_leaf_node._children[1] then

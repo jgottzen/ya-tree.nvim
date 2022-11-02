@@ -1,7 +1,7 @@
 local api = vim.api
 
-local ns = api.nvim_create_namespace("YaTreePopUp") --[[@as integer]]
-local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true }) --[[@as integer]]
+local ns = api.nvim_create_namespace("YaTreePopUp")
+local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true })
 
 local M = {
   ns = ns,
@@ -66,7 +66,7 @@ end
 ---@return integer winid
 ---@return integer bufnr
 local function create_window(relative, row, col, width, height, enter)
-  local bufnr = api.nvim_create_buf(false, true) --[[@as integer]]
+  local bufnr = api.nvim_create_buf(false, true)
   local border = require("ya-tree.config").config.view.popups.border
   local winid = api.nvim_open_win(bufnr, enter, {
     relative = relative,
@@ -77,7 +77,7 @@ local function create_window(relative, row, col, width, height, enter)
     zindex = 50,
     style = "minimal",
     border = border or "rounded",
-  }) --[[@as integer]]
+  })
   api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   api.nvim_buf_set_option(bufnr, "filetype", "YaTreePopup")
   vim.wo.winhl = table.concat({
@@ -218,7 +218,7 @@ end
 function PopupBuilder:open(enter)
   enter = enter or false
   -- have to take into account if the statusline is shown, and the two border lines - top and bottom
-  local win_width = vim.o.columns --[[@as integer]]
+  local win_width = vim.o.columns
   local win_height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0) - 2
   local nr_of_lines = #self._lines
   local is_relative = self._relative == "cursor"
@@ -267,7 +267,7 @@ function PopupBuilder:open(enter)
           end
         end
       end,
-    }) --[[@as integer]]
+    })
   end
 
   return Popup:new(winid, bufnr)

@@ -122,7 +122,7 @@ do
       pattern = "*",
       callback = autocmd_callback,
       desc = event_name,
-    }) --[[@as integer]]
+    })
     M._autocmd_ids_and_event_names[id] = event_name
     M._autocmd_ids_and_event_names[event_name] = id
     log.debug('created "%s" autocmd handler for event %q as id %s', autocmd, event_name, id)

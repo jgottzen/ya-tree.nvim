@@ -160,8 +160,8 @@ end
 
 ---@return boolean
 function M.is_buffer_directory()
-  local bufnr = api.nvim_get_current_buf() --[[@as integer]]
-  local bufname = api.nvim_buf_get_name(bufnr) --[[@as string]]
+  local bufnr = api.nvim_get_current_buf()
+  local bufname = api.nvim_buf_get_name(bufnr)
   if not M.is_directory_sync(bufname) then
     return false
   end
@@ -169,7 +169,7 @@ function M.is_buffer_directory()
     return false
   end
 
-  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false) --[=[@as string[]]=]
+  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
   return #lines == 0 or (#lines == 1 and lines[1] == "")
 end
 

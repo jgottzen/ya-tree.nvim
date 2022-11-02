@@ -84,9 +84,9 @@ function M.open_window(opts)
     end
   elseif config.follow_focused_file then
     scheduler()
-    local bufnr = api.nvim_get_current_buf() --[[@as integer]]
+    local bufnr = api.nvim_get_current_buf()
     if api.nvim_buf_get_option(bufnr, "buftype") == "" then
-      local filename = api.nvim_buf_get_name(bufnr) --[[@as string]]
+      local filename = api.nvim_buf_get_name(bufnr)
       if tree.root:is_ancestor_of(filename) then
         node = tree.root:expand({ to = filename })
       end
