@@ -39,7 +39,7 @@ local function cut_or_copy_nodes(tree, action)
     end
   end
 
-  ui.update(tree)
+  ui.update()
 end
 
 ---@async
@@ -147,10 +147,9 @@ function M.paste_nodes(tree, node)
 end
 
 ---@async
----@param tree Yat.Tree
-function M.clear_clipboard(tree)
+function M.clear_clipboard()
   clear_clipboard()
-  ui.update(tree)
+  ui.update()
   utils.notify("Clipboard cleared!")
 end
 

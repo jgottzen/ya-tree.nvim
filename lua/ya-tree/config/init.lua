@@ -19,6 +19,7 @@ local M = {
   ---@field system_open Yat.Config.SystemOpen Open file with system command configuration.
   ---@field trash Yat.Config.Trash `trash-cli` configuration.
   ---@field view Yat.Config.View Tree view configuration.
+  ---@field sidebar Yat.Config.Sidebar Sidebar configuration.
   ---@field actions Yat.Config.Actions User actions.
   ---@field trees Yat.Config.Trees Tree configurations.
   ---@field renderers Yat.Config.Renderers Renderer configurations.
@@ -38,12 +39,12 @@ local M = {
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
     ---@field to_file boolean Whether to log the the log file, default: `false`.
-    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "lib" }`.
+    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "sidebar", "lib" }`.
     log = {
       level = "warn",
       to_console = false,
       to_file = false,
-      namespaces = { "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "lib" },
+      namespaces = { "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "sidebar", "lib" },
     },
 
     ---@class Yat.Config.AutoOpen
@@ -158,13 +159,26 @@ local M = {
       },
     },
 
+    ---@class Yat.Config.Sidebar
+    ---@field single_mode boolean If the sidebar should be single tree only, default: `false`.
+    ---@field section_separator_char string The separator used between sections, default: `"─"`.
+    ---@field tree_order Yat.Trees.Type[] In which order the tree sections appear, default: `{ "filesystem", "search", "git", "buffers" }`.
+    ---@field trees_always_shown Yat.Trees.Type[] Which trees are always present, default: `{ "filesystem" }`.
+    sidebar = {
+      single_mode = false,
+      section_separator_char = "─",
+      tree_order = { "filesystem", "search", "git", "buffers" },
+      trees_always_shown = { "filesystem" },
+    },
+
     ---@class Yat.Config.Actions : { [Yat.Actions.Name]: Yat.Action }
     actions = {},
 
     ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
     ---@field modes Yat.Actions.Mode[] The mode(s) for the keybinding.
-    ---@field fn async fun(tree: Yat.Tree, node: Yat.Node) User function.
+    ---@field fn Yat.Action.Fn User function.
     ---@field desc? string Description of what the mapping does.
+    ---@field node_independent? boolean If the action can be invoked without a `node`.
 
     ---@class Yat.Config.Trees.GlobalMappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
@@ -175,23 +189,25 @@ local M = {
     ---@field list table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Renderer
-    ---@field name Yat.Ui.Renderer.Name
-    ---@field override Yat.Config.BaseRendererConfig
+    ---@field name Yat.Ui.Renderer.Name The name of the renderer.
+    ---@field override Yat.Config.BaseRendererConfig The renderer specific configuration.
 
     ---@class Yat.Config.Trees.Renderers
     ---@field directory Yat.Config.Trees.Renderer[] Which renderers to use for directories, in order.
     ---@field file Yat.Config.Trees.Renderer[] Which renderers to use for files, in order
 
     ---@class Yat.Config.Trees.Tree
-    ---@field mappings Yat.Config.Trees.Mappings
-    ---@field renderers Yat.Config.Trees.Renderers
+    ---@field section_icon string The icon for the tree in the sidebar.
+    ---@field section_name string The name of the the in the sidebar.
+    ---@field mappings Yat.Config.Trees.Mappings The tree specific mappings.
+    ---@field renderers Yat.Config.Trees.Renderers The tree specific renderers.
 
     ---@class Yat.Config.Trees : { [Yat.Trees.Type] : Yat.Config.Trees.Tree }
     ---@field global_mappings Yat.Config.Trees.GlobalMappings Mappings that applies to all trees.
     ---@field filesystem Yat.Config.Trees.Filesystem Filesystem tree configuration.
     ---@field search Yat.Config.Trees.Search Search tree configuration.
-    ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
     ---@field git Yat.Config.Trees.Git Git tree configuration.
+    ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
     trees = {
       global_mappings = {
         disable_defaults = false,
@@ -201,6 +217,8 @@ local M = {
           ["?"] = "open_help",
           ["<C-i>"] = "show_node_info",
           ["<C-x>"] = "close_tree",
+          ["gT"] = "focus_prev_tree",
+          ["gt"] = "focus_next_tree",
           ["<C-g>"] = "open_git_tree",
           ["b"] = "open_buffers_tree",
           ["<CR>"] = "open",
@@ -228,10 +246,14 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
+      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
+      ---@field section_name string The name of the the in the sidebar, default: `"Files"`.
       ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
       ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       filesystem = {
+        section_name = "Files",
+        section_icon = "",
         ---@class Yat.Config.Trees.Filesystem.Completion
         ---@field on "root" | "node" Wether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
         ---@field setup? fun(self: Yat.Trees.Filesystem, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
@@ -293,10 +315,13 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed, default: `false`.
+      ---@field section_icon string The icon for the tree in the sidebar, default" `""`.
+      ---@field section_name string The name of the the in the sidebar, default: `"Search"`.
       ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       search = {
+        section_name = "Search",
+        section_icon = "",
         ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Search.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
@@ -327,7 +352,6 @@ local M = {
             { name = "symlink_target" },
             { name = "git_status" },
             { name = "diagnostics" },
-            { name = "clipboard" },
           },
           file = {
             { name = "indentation" },
@@ -337,62 +361,17 @@ local M = {
             { name = "modified" },
             { name = "git_status" },
             { name = "diagnostics" },
-            { name = "clipboard" },
-          },
-        },
-      },
-      ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
-      ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
-      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
-      buffers = {
-        ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
-        mappings = {
-          disable_defaults = false,
-          list = {
-            ["<C-]>"] = "cd_to",
-            ["."] = "cd_to",
-            ["I"] = "toggle_ignored",
-            ["H"] = "toggle_filter",
-            ["S"] = "search_for_node_in_tree",
-            ["gn"] = "goto_node_in_filesystem_tree",
-            ["<C-r>"] = "check_node_for_git",
-            ["[c"] = "focus_prev_git_item",
-            ["]c"] = "focus_next_git_item",
-            ["[e"] = "focus_prev_diagnostic_item",
-            ["]e"] = "focus_next_diagnostic_item",
-          },
-        },
-        renderers = {
-          directory = {
-            { name = "indentation" },
-            { name = "icon" },
-            { name = "name" },
-            { name = "repository" },
-            { name = "symlink_target" },
-            { name = "git_status" },
-            { name = "diagnostics" },
-            { name = "clipboard" },
-          },
-          file = {
-            { name = "indentation" },
-            { name = "icon" },
-            { name = "name", override = { use_git_status_colors = true } },
-            { name = "symlink_target" },
-            { name = "modified" },
-            { name = "git_status" },
-            { name = "diagnostics" },
-            { name = "buffer_info" },
-            { name = "clipboard" },
           },
         },
       },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-      ---@field persistent boolean Whether the tree is persistent, and not deleted when closed, default: `false`.
+      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
+      ---@field section_name string The name of the the in the sidebar, default: `"Git"`.
       ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Tree specific renderers.
       git = {
+        section_name = "Git",
+        section_icon = "",
         ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Git.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
@@ -420,7 +399,6 @@ local M = {
             { name = "symlink_target" },
             { name = "git_status" },
             { name = "diagnostics" },
-            { name = "clipboard" },
           },
           file = {
             { name = "indentation" },
@@ -430,7 +408,54 @@ local M = {
             { name = "modified" },
             { name = "git_status" },
             { name = "diagnostics" },
-            { name = "clipboard" },
+          },
+        },
+      },
+      ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
+      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
+      ---@field section_name string The name of the the in the sidebar, default: `"Buffers"`.
+      ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
+      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
+      buffers = {
+        section_name = "Buffers",
+        section_icon = "",
+        ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
+        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+        mappings = {
+          disable_defaults = false,
+          list = {
+            ["<C-]>"] = "cd_to",
+            ["."] = "cd_to",
+            ["I"] = "toggle_ignored",
+            ["H"] = "toggle_filter",
+            ["S"] = "search_for_node_in_tree",
+            ["gn"] = "goto_node_in_filesystem_tree",
+            ["<C-r>"] = "check_node_for_git",
+            ["[c"] = "focus_prev_git_item",
+            ["]c"] = "focus_next_git_item",
+            ["[e"] = "focus_prev_diagnostic_item",
+            ["]e"] = "focus_next_diagnostic_item",
+          },
+        },
+        renderers = {
+          directory = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "symlink_target" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+          },
+          file = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name", override = { use_git_status_colors = true } },
+            { name = "symlink_target" },
+            { name = "modified" },
+            { name = "git_status" },
+            { name = "diagnostics" },
+            { name = "buffer_info" },
           },
         },
       },

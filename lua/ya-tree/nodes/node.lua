@@ -7,7 +7,7 @@ local fs_watcher = require("ya-tree.fs.watcher")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
----@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git"
+---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git" | "Text"
 
 ---@class Yat.Node : Yat.Fs.Node
 ---@field private __node_type "FileSystem"

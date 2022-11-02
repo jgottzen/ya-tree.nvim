@@ -1,8 +1,13 @@
-local renderers = require("ya-tree.ui.renderers")
+local ui_renderers = require("ya-tree.ui.renderers")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
 local M = {}
+
+---@class Yat.Trees.Ui.Renderer
+---@field name Yat.Ui.Renderer.Name
+---@field fn Yat.Ui.RendererFunction
+---@field config? Yat.Config.BaseRendererConfig
 
 ---@param tree_type Yat.Trees.Type
 ---@param config Yat.Config
@@ -14,7 +19,7 @@ function M.create_renderers(tree_type, config)
   local function create_renderer(renderer_type, raw_renderer)
     local name = raw_renderer.name
     if type(name) == "string" then
-      local renderer_info = renderers.get_renderer(name)
+      local renderer_info = ui_renderers.get_renderer(name)
       if renderer_info then
         ---@type Yat.Trees.Ui.Renderer
         local renderer = { name = name, fn = renderer_info.fn, config = vim.deepcopy(renderer_info.config) }
@@ -47,7 +52,7 @@ function M.create_renderers(tree_type, config)
       tree_renderers.directory[#tree_renderers.directory + 1] = renderer
       if renderer.name == "diagnostics" then
         local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
-        tree_renderers.extra.directory_min_diagnstic_severrity = renderer_config.directory_min_severity
+        tree_renderers.extra.directory_min_diagnostic_severity = renderer_config.directory_min_severity
       end
     end
   end
@@ -64,6 +69,47 @@ function M.create_renderers(tree_type, config)
   end
 
   return tree_renderers
+end
+
+---@param pos integer
+---@param padding string
+---@param text string
+---@param highlight string
+---@return integer end_position, string content, Yat.Ui.HighlightGroup highlight
+local function line_part(pos, padding, text, highlight)
+  local from = pos + #padding
+  local size = #text
+  local group = {
+    name = highlight,
+    from = from,
+    to = from + size,
+  }
+  return group.to, string.format("%s%s", padding, text), group
+end
+
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderers Yat.Trees.Ui.Renderer[]
+---@return string text, Yat.Ui.HighlightGroup[] highlights
+function M.render_node(node, context, renderers)
+  ---@type string[], Yat.Ui.HighlightGroup[]
+  local content, highlights, pos = {}, {}, 0
+
+  for _, renderer in ipairs(renderers) do
+    local results = renderer.fn(node, context, renderer.config)
+    if results then
+      for _, result in ipairs(results) do
+        if result.text then
+          if not result.highlight then
+            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
+          end
+          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
+        end
+      end
+    end
+  end
+
+  return table.concat(content), highlights
 end
 
 return M

@@ -23,33 +23,37 @@ function M.delete_ui_for_nonexisting_tabpages()
   for tabpage, canvas in pairs(M._canvases) do
     if not vim.tbl_contains(tabpages, tabpage) then
       canvas:close()
-      log.debug("deleted ui %s for tabpage %s", tostring(canvas), tabpage)
+      log.info("deleted ui %s for tabpage %s", tostring(canvas), tabpage)
       M._canvases[tabpage] = nil
     end
   end
 end
 
+---@param tabpage? integer
 ---@return Yat.Ui.Canvas canvas
-local function get_canvas()
-  return M._canvases[api.nvim_get_current_tabpage()]
+local function get_canvas(tabpage)
+  return M._canvases[tabpage or api.nvim_get_current_tabpage()]
 end
 
----@param tree_type? Yat.Trees.Type
+---@param tabpage integer
+---@param tree? Yat.Tree
 ---@return boolean is_open
-function M.is_open(tree_type)
-  local canvas = get_canvas()
+function M.is_open(tabpage, tree)
+  local canvas = get_canvas(tabpage)
   local is_open = canvas and canvas:is_open() or false
-  if is_open and tree_type then
-    return canvas.tree_type == tree_type
+  if is_open and tree then
+    return canvas:is_tree_rendered(tree)
   end
   return is_open
 end
 
+---@param tabpage integer
+---@param tree Yat.Tree
 ---@param node Yat.Node
 ---@return boolean
-function M.is_node_rendered(node)
-  local canvas = get_canvas()
-  return canvas and canvas:is_node_rendered(node) or false
+function M.is_node_rendered(tabpage, tree, node)
+  local canvas = get_canvas(tabpage)
+  return canvas and canvas:is_node_rendered(tree, node) or false
 end
 
 ---@class Yat.Ui.OpenArgs
@@ -58,6 +62,7 @@ end
 ---@field position? Yat.Ui.Position
 ---@field size? integer
 
+---@param sidebar Yat.Sidebar
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
 ---@param opts Yat.Ui.OpenArgs
@@ -65,24 +70,21 @@ end
 ---  - {opts.focus_edit_window?} `boolean`
 ---  - {opts.position?} `YaTreeCanvas.Position`
 ---  - {opts.size?} `integer`
-function M.open(tree, node, opts)
-  opts = opts or {}
+function M.open(sidebar, tree, node, opts)
   local tabpage = api.nvim_get_current_tabpage()
   local canvas = M._canvases[tabpage]
   if not canvas then
     canvas = Canvas:new()
     M._canvases[tabpage] = canvas
+  elseif canvas:is_open() then
+    return
   end
 
-  if not canvas:is_open() then
-    canvas:open(tree, { position = opts.position, size = opts.size })
-  elseif tree.TYPE ~= canvas.tree_type or (node and not canvas:is_node_rendered(node)) then
-    -- redraw the tree if the tree type changed or a specific node is to be focused, and it's currently not rendered
-    canvas:draw(tree)
-  end
+  opts = opts or {}
+  canvas:open(sidebar, { position = opts.position, size = opts.size })
 
   if node then
-    canvas:focus_node(node)
+    canvas:focus_node(tree, node)
   end
 
   if opts.focus then
@@ -106,30 +108,32 @@ function M.close()
   end
 end
 
----@param tree Yat.Tree
+---@param tree? Yat.Tree
 ---@param node? Yat.Node
 ---@param opts? { focus_node?: boolean, focus_window?: boolean }
 ---  - {opts.focus_node?} `boolean`
 ---  - {opts.focus_window?} `boolean`
+---
 function M.update(tree, node, opts)
   opts = opts or {}
   local canvas = get_canvas()
   if canvas and canvas:is_open() then
-    canvas:draw(tree)
+    canvas:draw()
     if opts.focus_window then
       canvas:focus()
     end
     -- only update the focused node if the current window is the view window,
     -- or explicitly requested
-    if node and (opts.focus_node or canvas:has_focus()) then
-      canvas:focus_node(node)
+    if tree and node and (opts.focus_node or canvas:has_focus()) then
+      canvas:focus_node(tree, node)
     end
   end
 end
 
----@return Yat.Node current_node
-function M.get_current_node()
-  return get_canvas():get_current_node() --[[@as Yat.Node]]
+---@param tabpage integer
+---@return Yat.Tree current_tree, Yat.Node current_node
+function M.get_current_tree_and_node(tabpage)
+  return get_canvas(tabpage):get_current_tree_and_node()
 end
 
 ---@return Yat.Node[] selected_nodes
@@ -137,54 +141,15 @@ function M.get_selected_nodes()
   return get_canvas():get_selected_nodes()
 end
 
----@param node Yat.Node
-function M.focus_node(node)
-  get_canvas():focus_node(node)
+---@param row integer
+function M.focus_row(row)
+  get_canvas():focus_row(row)
 end
 
+---@param tree Yat.Tree
 ---@param node Yat.Node
-function M.focus_parent(node)
-  get_canvas():focus_parent(node)
-end
-
----@param node Yat.Node
-function M.focus_prev_sibling(node)
-  get_canvas():focus_prev_sibling(node)
-end
-
----@param node Yat.Node
-function M.focus_next_sibling(node)
-  get_canvas():focus_next_sibling(node)
-end
-
----@param node Yat.Node
-function M.focus_first_sibling(node)
-  get_canvas():focus_first_sibling(node)
-end
-
----@param node Yat.Node
-function M.focus_last_sibling(node)
-  get_canvas():focus_last_sibling(node)
-end
-
----@param node Yat.Node
-function M.focus_prev_git_item(node)
-  get_canvas():focus_prev_git_item(node)
-end
-
----@param node Yat.Node
-function M.focus_next_git_item(node)
-  get_canvas():focus_next_git_item(node)
-end
-
----@param node Yat.Node
-function M.focus_prev_diagnostic_item(node)
-  get_canvas():focus_prev_diagnostic_item(node)
-end
-
----@param node Yat.Node
-function M.focus_next_diagnostic_item(node)
-  get_canvas():focus_next_diagnostic_item(node)
+function M.focus_node(tree, node)
+  get_canvas():focus_node(tree, node)
 end
 
 ---@param winid? integer
@@ -194,9 +159,10 @@ function M.is_window_floating(winid)
   return win_config.relative > "" or win_config.external
 end
 
+---@param tabpage integer
 ---@return boolean
-function M.is_current_window_ui()
-  local canvas = get_canvas()
+function M.is_current_window_ui(tabpage)
+  local canvas = get_canvas(tabpage)
   return canvas and canvas:is_current_window_canvas() or false
 end
 
@@ -205,19 +171,15 @@ function M.get_size()
   return get_canvas():get_size()
 end
 
----@return Yat.Trees.Type|nil tree_type
-function M.get_tree_type()
-  local canvas = get_canvas()
-  return canvas and canvas.tree_type
+---@param tabpage integer
+function M.restore(tabpage)
+  get_canvas(tabpage):restore()
 end
 
-function M.restore()
-  get_canvas():restore()
-end
-
+---@param tabpage integer
 ---@param bufnr integer
-function M.move_buffer_to_edit_window(bufnr)
-  local canvas = get_canvas()
+function M.move_buffer_to_edit_window(tabpage, bufnr)
+  local canvas = get_canvas(tabpage)
   if not canvas:get_edit_winid() then
     canvas:create_edit_window()
   end
@@ -232,7 +194,6 @@ function M.open_file(file, cmd)
   if not winid then
     -- only the tree window is open, e.g. netrw replacement
     -- create a new window for buffers
-
     canvas:create_edit_window()
     if cmd == "split" or cmd == "vsplit" then
       cmd = "edit"

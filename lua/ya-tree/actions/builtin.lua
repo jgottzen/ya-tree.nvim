@@ -5,6 +5,8 @@
 ---| "show_node_info"
 ---| "close_tree"
 ---| "delete_tree"
+---| "focus_prev_tree"
+---| "focus_next_tree"
 ---| "open_git_tree"
 ---| "open_buffers_tree"
 ---| "open"
@@ -63,6 +65,8 @@ local M = {
     show_node_info = "show_node_info",
     close_tree = "close_tree",
     delete_tree = "delete_tree",
+    focus_prev_tree = "focus_prev_tree",
+    focus_next_tree = "focus_next_tree",
 
     open_git_tree = "open_git_tree",
     open_buffers_tree = "open_buffers_tree",

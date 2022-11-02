@@ -3,6 +3,7 @@ local git = require("ya-tree.git")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
+local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -11,6 +12,7 @@ local log = require("ya-tree.log")("trees")
 ---@field root Yat.Nodes.Search
 ---@field current_node Yat.Nodes.Search
 ---@field supported_actions Yat.Trees.Search.SupportedActions[]
+---@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
 ---@field complete_func fun(self: Yat.Trees.Search, bufnr: integer)
 local SearchTree = { TYPE = "search" }
 SearchTree.__index = SearchTree
@@ -38,9 +40,12 @@ setmetatable(SearchTree, { __index = Tree })
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
-do
-  local builtin = require("ya-tree.actions.builtin")
+---@param config Yat.Config
+function SearchTree.setup(config)
+  SearchTree.complete_func = Tree.complete_func_loaded_nodes
+  SearchTree.renderers = tree_utils.create_renderers(SearchTree.TYPE, config)
 
+  local builtin = require("ya-tree.actions.builtin")
   SearchTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
@@ -59,20 +64,31 @@ do
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(Tree.supported_actions),
+    unpack(vim.deepcopy(Tree.supported_actions)),
   })
-end
 
-SearchTree.complete_func = Tree.complete_func_loaded_nodes
-
----@param config Yat.Config
-function SearchTree.setup(config)
-  SearchTree.renderers = tree_utils.create_renderers(SearchTree.TYPE, config)
+  local ae = require("ya-tree.events.event").autocmd
+  local ge = require("ya-tree.events.event").git
+  local ye = require("ya-tree.events.event").ya_tree
+  SearchTree.supported_events = {
+    autcmd = { ae.BUFFER_MODIFIED },
+    git = {},
+    yatree = {},
+  }
+  if config.update_on_buffer_saved then
+    table.insert(SearchTree.supported_events.autcmd, ae.BUFFER_SAVED)
+  end
+  if config.git.enable then
+    table.insert(SearchTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+  end
+  if config.diagnostics.enable then
+    table.insert(SearchTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+  end
 end
 
 ---@async
 ---@param tabpage integer
----@param path string
+---@param path? string
 ---@param kwargs? table<string, any>
 ---@return Yat.Trees.Search|nil tree
 function SearchTree:new(tabpage, path, kwargs)
@@ -80,9 +96,6 @@ function SearchTree:new(tabpage, path, kwargs)
     return
   end
   local this = Tree.new(self, tabpage, path)
-  this:enable_events(true)
-  local persistent = require("ya-tree.config").config.trees.search.persistent
-  this.persistent = persistent or false
   this:_init(path)
   if kwargs and kwargs.term then
     local matches_or_error = this:search(kwargs.term)
@@ -92,7 +105,7 @@ function SearchTree:new(tabpage, path, kwargs)
     end
   end
 
-  log.debug("created new tree %s", tostring(this))
+  log.info("created new tree %s", tostring(this))
   return this
 end
 
@@ -105,6 +118,23 @@ function SearchTree:_init(path)
   self.root = SearchNode:new(fs_node)
   self.current_node = self.root
   self.root.repo = git.get_repo_for_path(self.root.path)
+end
+
+---@return string line
+---@return Yat.Ui.HighlightGroup[][] highlights
+function SearchTree:render_header()
+  if self.root.search_term then
+    local end_of_name = #self.section_icon + 2 + #self.section_name
+    return self.section_icon .. "  " .. self.section_name .. " for '" .. self.root.search_term .. "'",
+      {
+        { name = hl.SECTION_ICON, from = 0, to = #self.section_icon + 2 },
+        { name = hl.SECTION_NAME, from = #self.section_icon + 2, to = end_of_name },
+        { name = hl.DIM_TEXT, from = end_of_name + 1, to = end_of_name + 6 },
+        { name = hl.SEARCH_TERM, from = end_of_name + 6, to = end_of_name + 6 + #self.root.search_term },
+        { name = hl.DIM_TEXT, from = end_of_name + 6 + #self.root.search_term, to = -1 },
+      }
+  end
+  return Tree.render_header(self)
 end
 
 ---@async
@@ -129,6 +159,11 @@ function SearchTree:search(term)
     self.current_node = result_node
   end
   return matches_or_error
+end
+
+function SearchTree:reset()
+  self.root:clear()
+  self.current_node = self.root
 end
 
 return SearchTree

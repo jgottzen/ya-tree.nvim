@@ -1,9 +1,10 @@
 local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
-local events = require("ya-tree.events")
 local git = require("ya-tree.git")
+local tree_utils = require("ya-tree.trees.utils")
 local ui = require("ya-tree.ui")
+local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -17,18 +18,19 @@ local api = vim.api
 ---@field extra Yat.Trees.TreeRenderersExtra
 
 ---@class Yat.Trees.TreeRenderersExtra
----@field directory_min_diagnstic_severrity integer
+---@field directory_min_diagnostic_severity integer
 ---@field file_min_diagnostic_severity integer
 
 ---@class Yat.Tree
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
----@field private _registered_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
----@field persistent boolean
 ---@field refreshing boolean
 ---@field root Yat.Node
 ---@field current_node Yat.Node
 ---@field supported_actions Yat.Trees.Tree.SupportedActions[]
+---@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
+---@field section_icon string
+---@field section_name string
 ---@field renderers Yat.Trees.TreeRenderers
 ---@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
 local Tree = {}
@@ -41,6 +43,8 @@ Tree.__index = Tree
 ---| "show_node_info"
 ---| "close_tree"
 ---| "delete_tree"
+---| "focus_prev_tree"
+---| "focus_next_tree"
 ---
 ---| "open_git_tree"
 ---| "open_buffers_tree"
@@ -72,7 +76,6 @@ Tree.__index = Tree
 
 do
   local builtin = require("ya-tree.actions.builtin")
-
   Tree.supported_actions = utils.tbl_unique({
     builtin.general.close_window,
     builtin.general.system_open,
@@ -80,6 +83,8 @@ do
     builtin.general.show_node_info,
     builtin.general.close_tree,
     builtin.general.delete_tree,
+    builtin.general.focus_prev_tree,
+    builtin.general.focus_next_tree,
 
     builtin.general.open_git_tree,
     builtin.general.open_buffers_tree,
@@ -128,95 +133,24 @@ function Tree.setup(config) end
 -- selene: allow(unused_variable)
 
 ---@generic T : Yat.Tree
----@param self T
+---@param class T
 ---@param tabpage integer
 ---@param path? string
 ---@param kwargs? table<string, any>
 ---@return T tree
 ---@diagnostic disable-next-line:unused-local
-function Tree.new(self, tabpage, path, kwargs)
+function Tree.new(class, tabpage, path, kwargs)
   ---@type Yat.Tree
-  local this = {
+  local self = {
     _tabpage = tabpage,
-    _registered_events = { autcmd = {}, git = {}, yatree = {} },
-    persistent = false,
     refreshing = false,
   }
-  setmetatable(this, self)
-
-  return this
-end
-
----@param enabled_events boolean | { buf_modified?: boolean, buf_saved?: boolean, dot_git_dir_changed?: boolean, diagnostics?: boolean }
-function Tree:enable_events(enabled_events)
-  if enabled_events == true then
-    enabled_events = { buf_modified = true, buf_saved = true, dot_git_dir_changed = true, diagnostics = true }
-  end
-  if not enabled_events then
-    enabled_events = {}
-  end
+  setmetatable(self, class)
   local config = require("ya-tree.config").config
-  local ae = require("ya-tree.events.event").autocmd
-  if enabled_events.buf_modified then
-    self:register_autocmd_event(ae.BUFFER_MODIFIED, false, function(bufnr, file)
-      self:on_buffer_modified(bufnr, file)
-    end)
-  end
-  if enabled_events.buf_saved and config.update_on_buffer_saved then
-    self:register_autocmd_event(ae.BUFFER_SAVED, true, function(bufnr, _, match)
-      self:on_buffer_saved(bufnr, match)
-    end)
-  end
-  if enabled_events.dot_git_dir_changed and config.git.enable then
-    local ge = require("ya-tree.events.event").git
-    self:register_git_event(ge.DOT_GIT_DIR_CHANGED, function(repo, fs_changes)
-      self:on_git_event(repo, fs_changes)
-    end)
-  end
-  if enabled_events.diagnostics and config.diagnostics.enable then
-    local ye = require("ya-tree.events.event").ya_tree
-    self:register_yatree_event(ye.DIAGNOSTICS_CHANGED, true, function(severity_changed)
-      self:on_diagnostics_event(severity_changed)
-    end)
-  end
-end
+  self.section_icon = config.trees[self.TYPE].section_icon or ""
+  self.section_name = config.trees[self.TYPE].section_name or self.TYPE
 
----@param event Yat.Events.AutocmdEvent
----@param async boolean
----@param callback fun(bufnr: integer, file: string, match: string)
-function Tree:register_autocmd_event(event, async, callback)
-  self._registered_events.autcmd[#self._registered_events.autcmd + 1] = event
-  events.on_autocmd_event(event, self:create_event_id(event), async, callback)
-end
-
----@param event Yat.Events.AutocmdEvent
-function Tree:remove_autocmd_event(event)
-  events.remove_autocmd_event(event, self:create_event_id(event))
-end
-
----@param event Yat.Events.GitEvent
----@param callback fun(repo: Yat.Git.Repo, fs_changes: boolean)
-function Tree:register_git_event(event, callback)
-  self._registered_events.git[#self._registered_events.git + 1] = event
-  events.on_git_event(event, self:create_event_id(event), callback)
-end
-
----@param event Yat.Events.GitEvent
-function Tree:remove_git_event(event)
-  events.remove_git_event(event, self:create_event_id(event))
-end
-
----@param event Yat.Events.YaTreeEvent
----@param async boolean
----@param callback fun(...)
-function Tree:register_yatree_event(event, async, callback)
-  self._registered_events.yatree[#self._registered_events.yatree + 1] = event
-  events.on_yatree_event(event, self:create_event_id(event), async, callback)
-end
-
----@param event Yat.Events.YaTreeEvent
-function Tree:remove_yatree_event(event)
-  events.remove_yatree_event(event, self:create_event_id(event))
+  return self
 end
 
 do
@@ -274,37 +208,27 @@ end
 
 function Tree:delete()
   log.info("deleting tree %s", tostring(self))
-  for _, event in ipairs(self._registered_events.autcmd) do
-    self:remove_autocmd_event(event)
-  end
-  for _, event in ipairs(self._registered_events.git) do
-    self:remove_git_event(event)
-  end
-  for _, event in ipairs(self._registered_events.yatree) do
-    self:remove_yatree_event(event)
-  end
 end
 
----@param event integer
----@return string id
-function Tree:create_event_id(event)
-  return string.format("YA_TREE_%s_TREE%s_%s", self.TYPE:upper(), self._tabpage, events.get_event_name(event))
-end
+-- selene: allow(unused_variable)
 
 ---@param bufnr integer
 ---@param file string
-function Tree:on_buffer_modified(bufnr, file)
+---@param match string
+---@return boolean update
+---@diagnostic disable-next-line:unused-local
+function Tree:on_buffer_modified(bufnr, file, match)
   if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     local modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
     local node = self.root:get_child_if_loaded(file)
     if node and node.modified ~= modified then
       node.modified = modified
 
-      if self:is_shown_in_ui(api.nvim_get_current_tabpage()) and ui.is_node_rendered(node) then
-        ui.update(self)
-      end
+      local tabpage = api.nvim_get_current_tabpage()
+      return self:is_shown_in_ui(tabpage) and ui.is_node_rendered(tabpage, self, node)
     end
   end
+  return false
 end
 
 -- selene: allow(unused_variable)
@@ -312,30 +236,29 @@ end
 ---@async
 ---@param bufnr integer
 ---@param file string
+---@param match string
+---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_buffer_saved(bufnr, file)
+function Tree:on_buffer_saved(bufnr, file, match)
   if self.root:is_ancestor_of(file) then
     log.debug("changed file %q is in tree %s", file, tostring(self))
+    local tabpage = api.nvim_get_current_tabpage()
     local parent = self.root:get_child_if_loaded(Path:new(file):parent().filename)
     if parent then
       parent:refresh()
       local node = parent:get_child_if_loaded(file)
       if node then
         node.modified = false
-      end
-
-      if require("ya-tree.config").config.git.enable then
-        if node and node.repo then
-          node.repo:refresh_status_for_path(file)
+        if require("ya-tree.config").config.git.enable then
+          if node.repo then
+            node.repo:refresh_status_for_path(file)
+          end
         end
+        return self:is_shown_in_ui(tabpage) and ui.is_node_rendered(tabpage, self, node)
       end
-    end
-
-    scheduler()
-    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-      ui.update(self)
     end
   end
+  return false
 end
 
 -- selene: allow(unused_variable)
@@ -343,6 +266,7 @@ end
 ---@async
 ---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
+---@return boolean update
 ---@diagnostic disable-next-line:unused-local
 function Tree:on_git_event(repo, fs_changes)
   if
@@ -351,16 +275,16 @@ function Tree:on_git_event(repo, fs_changes)
     and self:is_shown_in_ui(api.nvim_get_current_tabpage())
   then
     log.debug("git repo %s changed", tostring(repo))
-    ui.update(self)
+    return true
   end
+  return false
 end
 
 ---@async
 ---@param severity_changed boolean
+---@return boolean
 function Tree:on_diagnostics_event(severity_changed)
-  if severity_changed and self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-    ui.update(self)
-  end
+  return severity_changed and self:is_shown_in_ui(api.nvim_get_current_tabpage())
 end
 
 -- selene: allow(unused_variable)
@@ -369,60 +293,22 @@ end
 ---@param new_cwd string
 function Tree:on_cwd_changed(new_cwd) end
 
----@param pos integer
----@param padding string
----@param text string
----@param highlight string
----@return integer end_position, string content, Yat.Ui.HighlightGroup highlight
-local function line_part(pos, padding, text, highlight)
-  local from = pos + #padding
-  local size = #text
-  local group = {
-    name = highlight,
-    from = from,
-    to = from + size,
-  }
-  return group.to, string.format("%s%s", padding, text), group
-end
-
----@class Yat.Trees.Ui.Renderer
----@field name Yat.Ui.Renderer.Name
----@field fn Yat.Ui.RendererFunction
----@field config? Yat.Config.BaseRendererConfig
-
----@param node Yat.Node
----@param context Yat.Ui.RenderContext
----@param renderers Yat.Trees.Ui.Renderer[]
----@return string text, Yat.Ui.HighlightGroup[] highlights
-local function render_node(node, context, renderers)
-  ---@type string[], Yat.Ui.HighlightGroup[]
-  local content, highlights, pos = {}, {}, 0
-
-  for _, renderer in ipairs(renderers) do
-    local results = renderer.fn(node, context, renderer.config)
-    if results then
-      for _, result in ipairs(results) do
-        if result.text then
-          if not result.highlight then
-            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
-          end
-          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
-        end
-      end
-    end
-  end
-
-  return table.concat(content), highlights
+---@return string line
+---@return Yat.Ui.HighlightGroup[][] highlights
+function Tree:render_header()
+  return self.section_icon .. "  " .. self.section_name,
+    { { name = hl.SECTION_ICON, from = 0, to = 3 }, { name = hl.SECTION_NAME, from = 5, to = -1 } }
 end
 
 ---@param config Yat.Config
+---@param offset integer
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlights
----@return Yat.Node[] nodes
+---@return { [integer]: string, [integer]: string } path_lookup
 ---@return Yat.Trees.TreeRenderersExtra
-function Tree:render(config)
-  ---@type Yat.Node[], string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
-  local nodes, lines, highlights, context, linenr = {}, {}, {}, { tree_type = self.TYPE, config = config, indent_markers = {} }, 0
+function Tree:render(config, offset)
+  ---@type { [integer]: string, [integer]: string }, string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
+  local path_lookup, lines, highlights, context, linenr = {}, {}, {}, { tree_type = self.TYPE, config = config, indent_markers = {} }, 0
   local directory_renderers, file_renderers = self.renderers.directory, self.renderers.file
 
   ---@param node Yat.Node
@@ -432,9 +318,10 @@ function Tree:render(config)
     linenr = linenr + 1
     context.depth = depth
     context.last_child = last_child
-    nodes[linenr] = node
+    path_lookup[node.path] = linenr + offset
+    path_lookup[linenr + offset] = node.path
     local has_children = node:has_children()
-    lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
+    lines[linenr], highlights[linenr] = tree_utils.render_node(node, context, has_children and directory_renderers or file_renderers)
 
     if has_children and node.expanded then
       ---@param child Yat.Node
@@ -450,7 +337,7 @@ function Tree:render(config)
 
   append_node(self.root, 0, false)
 
-  return lines, highlights, nodes, self.renderers.extra
+  return lines, highlights, path_lookup, self.renderers.extra
 end
 
 ---@async
@@ -482,7 +369,7 @@ end
 ---@param tabpage integer
 ---@return boolean
 function Tree:is_shown_in_ui(tabpage)
-  return ui.is_open(self.TYPE) and self:is_for_tabpage(tabpage)
+  return ui.is_open(self._tabpage, self) and self:is_for_tabpage(tabpage)
 end
 
 ---@param tabpage integer

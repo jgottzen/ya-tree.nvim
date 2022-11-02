@@ -2,36 +2,46 @@ local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 
 local lib = require("ya-tree.lib")
-local Trees = require("ya-tree.trees")
 local ui = require("ya-tree.ui")
 local Input = require("ya-tree.ui.input")
+local utils = require("ya-tree.utils")
 
-local api = vim.api
 local uv = vim.loop
 
 local M = {}
 
 ---@async
+---@param tree Yat.Trees.Search
+---@param term string
+local function search(tree, term)
+  local matches_or_error = tree:search(term)
+  if type(matches_or_error) == "number" then
+    utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, tree.root.path))
+    ui.update(tree, tree.current_node)
+  else
+    utils.warn(string.format("Failed with message:\n\n%s", matches_or_error))
+  end
+end
+
+---@async
 ---@param tree Yat.Tree
----@param node Yat.Node
-function M.search_interactively(tree, node)
-  local tabpage = api.nvim_get_current_tabpage()
+---@param node? Yat.Node
+---@param context Yat.Action.FnContext
+function M.search_interactively(tree, node, context)
+  local sidebar = context.sidebar
+  node = node or tree.root
   -- if the node is a file, search in the directory
   if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
   local timer = uv.new_timer() --[[@as uv_timer_t]]
-  ---@type fun(tree?: Yat.Trees.Search, node: Yat.Node, term: string)
-  local search = void(lib.search)
-  local search_tree = Trees.search(tabpage, node.path)
-  -- necessary if the tree has been configured as persistent
-  local _ = search_tree:change_root_node(node.path)
+  local search_tree = sidebar:search_tree(node.path)
 
   ---@param ms integer
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()
-      search(search_tree, node, term)
+      void(search)(search_tree, term)
     end)
   end
 
@@ -48,8 +58,9 @@ function M.search_interactively(tree, node)
         -- reset search
         term = text
         timer:stop()
+        search_tree:reset()
         scheduler()
-        ui.update(tree, tree.current_node)
+        ui.update()
       else
         term = text
         local length = #term
@@ -69,28 +80,30 @@ function M.search_interactively(tree, node)
     on_submit = void(function(text)
       if text ~= term or timer:is_active() then
         timer:stop()
-        lib.search(search_tree, node, text)
+        search(search_tree, text)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
         scheduler()
-        ui.focus_node(search_tree.current_node)
+        ui.focus_node(search_tree, search_tree.current_node)
       end
       timer:close()
     end),
     on_close = void(function()
       timer:stop()
       timer:close()
-      Trees.set_current_tree(tabpage, tree)
-      ui.update(tree, tree.current_node)
+      sidebar:close_tree(search_tree)
+      ui.update()
     end),
   })
   input:open()
 end
 
 ---@async
----@param _ Yat.Tree
----@param node Yat.Node
-function M.search_once(_, node)
+---@param tree Yat.Tree
+---@param node? Yat.Node
+---@param context Yat.Action.FnContext
+function M.search_once(tree, node, context)
+  node = node or tree.root
   -- if the node is a file, search in the directory
   if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
@@ -98,14 +111,15 @@ function M.search_once(_, node)
 
   local term = ui.input({ prompt = "Search:" })
   if term then
-    lib.search(nil, node, term)
+    search(context.sidebar:search_tree(node.path), term)
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
----@param node Yat.Node
+---@param node? Yat.Node
 function M.search_for_node_in_tree(tree, node)
+  node = node or tree.root
   local completion = type(tree.complete_func) == "function" and function(bufnr)
     tree:complete_func(bufnr, node)
   end or type(tree.complete_func) == "string" and tree.complete_func or nil

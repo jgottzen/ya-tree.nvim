@@ -17,7 +17,6 @@ local fn = vim.fn
 ---@field public parent? Yat.Nodes.Buffer
 ---@field private type Yat.Nodes.Buffer.Type
 ---@field private _children? Yat.Nodes.Buffer[]
----@field private _terminals_container? boolean
 ---@field public bufname? string
 ---@field public bufnr? integer
 ---@field public bufhidden? boolean
@@ -35,6 +34,9 @@ BufferNode.__eq = function(self, other)
 end
 
 setmetatable(BufferNode, { __index = Node })
+
+local TERMINALS_CONTAINER_PATH = "yatree://terminals/container"
+local TERMINAL_PREFIX = "term://"
 
 ---Creates a new buffer node.
 ---@param fs_node Yat.Fs.Node filesystem data.
@@ -77,7 +79,17 @@ end
 
 ---@return boolean
 function BufferNode:is_terminals_container()
-  return self._terminals_container or false
+  return self.path == TERMINALS_CONTAINER_PATH
+end
+
+---@return integer? index
+---@return Yat.Nodes.Buffer? container
+function BufferNode:get_terminals_container()
+  for index, child in ipairs(self._children) do
+    if child:is_terminals_container() then
+      return index, child
+    end
+  end
 end
 
 ---@param file string
@@ -88,7 +100,7 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
     self.parent:set_terminal_hidden(file, bufnr, hidden)
   end
 
-  local container = self._children[#self._children]
+  local _, container = self:get_terminals_container()
   if container and container:is_terminals_container() then
     for _, child in ipairs(container._children) do
       if child.bufname == file and child.bufnr == bufnr then
@@ -133,7 +145,7 @@ local function get_current_buffers()
     ---@cast bufnr integer
     local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
     if ok then
-      local path = api.nvim_buf_get_name(bufnr) --[[@as string]]
+      local path = api.nvim_buf_get_name(bufnr)
       if buftype == "terminal" then
         terminals[#terminals + 1] = {
           name = path,
@@ -175,12 +187,12 @@ local function create_terminal_buffers_container(root)
   local container = BufferNode:new({
     name = "Terminals",
     type = "directory",
-    path = "Terminals",
+    path = TERMINALS_CONTAINER_PATH,
     extension = "terminal",
   }, root)
-  container._terminals_container = true
   root._children[#root._children + 1] = container
   root.empty = false
+  table.sort(root._children, BufferNode.node_comparator)
   return container
 end
 
@@ -189,13 +201,12 @@ end
 ---@return Yat.Nodes.Buffer node
 local function add_terminal_buffer_to_container(container, terminal)
   local name = terminal.name:match("term://(.*)//.*")
-  local path = fn.fnamemodify(name, ":p")
   local bufinfo = fn.getbufinfo(terminal.bufnr)
   local hidden = bufinfo[1] and bufinfo[1].hidden == 1 or false
   local node = BufferNode:new({
     name = name,
     type = "terminal",
-    path = path,
+    path = terminal.name,
     extension = "terminal",
   }, container, terminal.name, terminal.bufnr, false, hidden)
   container._children[#container._children + 1] = node
@@ -256,6 +267,27 @@ function BufferNode:refresh(opts)
   return first_leaf_node
 end
 
+---@param path string
+---@return Yat.Nodes.Buffer?
+function BufferNode:get_child_if_loaded(path)
+  if path ~= TERMINALS_CONTAINER_PATH and not vim.startswith(path, TERMINAL_PREFIX) then
+    return Node.get_child_if_loaded(self, path)
+  elseif self.parent then
+    return self.parent:get_child_if_loaded(path)
+  end
+
+  local _, container = self:get_terminals_container()
+  if path == TERMINALS_CONTAINER_PATH then
+    return container
+  elseif container then
+    for _, child in ipairs(container._children) do
+      if child.path == path then
+        return child
+      end
+    end
+  end
+end
+
 ---Expands the node, if it is a directory.
 ---@async
 ---@param opts? {force_scan?: boolean, all?: boolean, to?: string}
@@ -264,10 +296,10 @@ end
 ---@return Yat.Nodes.Buffer|nil node if {opts.to} is specified, and found.
 function BufferNode:expand(opts)
   opts = opts or {}
-  if opts.to and vim.startswith(opts.to, "term://") then
+  if opts.to and vim.startswith(opts.to, TERMINAL_PREFIX) then
     if self._children then
-      local container = self._children[#self._children]
-      if container and container:is_terminals_container() then
+      local _, container = self:get_terminals_container()
+      if container then
         for _, child in ipairs(container._children) do
           if child.bufname == opts.to then
             container.expanded = true
@@ -292,8 +324,8 @@ function BufferNode:add_node(file, bufnr, is_terminal)
   end
 
   if is_terminal then
-    local container = self._children[#self._children]
-    if not container or not container:is_terminals_container() then
+    local _, container = self:get_terminals_container()
+    if not container then
       container = create_terminal_buffers_container(self)
     end
     return add_terminal_buffer_to_container(container, { name = file, bufnr = bufnr })
@@ -321,8 +353,8 @@ function BufferNode:remove_node(file, bufnr, is_terminal)
   end
 
   if is_terminal then
-    local container = self._children[#self._children]
-    if container and container:is_terminals_container() then
+    local index, container = self:get_terminals_container()
+    if container then
       for i = #container._children, 1, -1 do
         local child = container._children[i]
         if child.bufname == file and child.bufnr == bufnr then
@@ -332,7 +364,7 @@ function BufferNode:remove_node(file, bufnr, is_terminal)
         end
       end
       if #container._children == 0 then
-        table.remove(self._children, #self._children)
+        table.remove(self._children, index)
         self.empty = #self._children == 0
         log.debug("no more terminal buffers present, removed container item")
       end

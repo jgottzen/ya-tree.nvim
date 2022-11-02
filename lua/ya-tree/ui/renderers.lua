@@ -74,43 +74,71 @@ local fn = vim.fn
 ---@return Yat.Ui.RenderResult[] result
 function M.indentation(node, context, renderer)
   local marker_at = context.indent_markers
+  ---@type Yat.Ui.RenderResult[]
+  local results = {}
   local text
-  if context.depth == 0 then
-    text = ""
-  else
-    if renderer.use_indent_marker then
-      text = ""
+  if renderer.use_indent_marker then
+    if context.depth == 0 then
+      if node:has_children() then
+        results[#results + 1] = {
+          padding = renderer.padding,
+          text = (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " ",
+          highlight = hl.INDENT_EXPANDER,
+        }
+      end
+    else
       marker_at[context.depth] = not context.last_child
+      results[#results + 1] = {
+        padding = renderer.padding,
+        text = renderer.use_expander_marker and "  " or "",
+        highlight = hl.INDENT_MARKER,
+      }
       for i = 1, context.depth do
         local marker
+        local highlight = hl.INDENT_MARKER
         if i == context.depth and renderer.use_expander_marker and node:has_children() then
           marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
+          highlight = hl.INDENT_EXPANDER
         else
-          marker = (i == context.depth and context.last_child) and renderer.last_indent_marker or renderer.indent_marker
+          marker = ((i == context.depth or context.depth == 1) and context.last_child) and renderer.last_indent_marker
+            or renderer.indent_marker
         end
 
         if marker_at[i] or i == context.depth then
-          text = text .. marker .. " "
+          text = marker .. " "
         else
-          text = text .. "  "
+          text = "  "
         end
+        results[#results + 1] = {
+          padding = "",
+          text = text,
+          highlight = highlight,
+        }
       end
-    elseif renderer.use_expander_marker then
-      if node:has_children() then
-        text = string.rep("  ", context.depth - 1) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
-      else
-        text = string.rep("  ", context.depth)
-      end
-    else
-      text = string.rep("  ", context.depth)
     end
+  elseif renderer.use_expander_marker then
+    local highlight = hl.INDENT_MARKER
+    if node:has_children() then
+      text = string.rep("  ", context.depth) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
+      highlight = hl.INDENT_EXPANDER
+    else
+      text = string.rep("  ", context.depth + 1)
+    end
+    results[#results + 1] = {
+      padding = renderer.padding,
+      text = text,
+      highlight = highlight,
+    }
+  else
+    text = string.rep("  ", context.depth)
+    results[#results + 1] = {
+      padding = renderer.padding,
+      text = text,
+      highlight = hl.INDENT_MARKER,
+    }
   end
 
-  return { {
-    padding = renderer.padding,
-    text = text,
-    highlight = hl.INDENT_MARKER,
-  } }
+  return results
 end
 
 ---@param node Yat.Node
@@ -188,50 +216,22 @@ end
 ---@return Yat.Ui.RenderResult[] results
 function M.name(node, context, renderer)
   if context.depth == 0 then
+    if node:node_type() == "Text" then
+      return { {
+        padding = renderer.padding,
+        text = node.name,
+        highlight = hl.DIM_TEXT,
+      } }
+    end
     local text = fn.fnamemodify(node.path, renderer.root_folder_format)
     if text:sub(-1) ~= utils.os_sep then
       text = text .. utils.os_sep
     end
-
-    ---@type Yat.Ui.RenderResult[]
-    local results
-    if context.tree_type == "search" then
-      ---@cast node Yat.Nodes.Search
-      results = {
-        {
-          padding = "",
-          text = 'Find "',
-          highlight = hl.DIM_TEXT,
-        },
-        {
-          padding = "",
-          text = node.search_term or "",
-          highlight = hl.SEARCH_TERM,
-        },
-        {
-          padding = "",
-          text = '" in: ',
-          highlight = hl.DIM_TEXT,
-        },
-      }
-    elseif context.tree_type ~= "filesystem" then
-      results = {
-        {
-          padding = "",
-          text = context.tree_type:gsub("^%l", string.upper) .. ": ",
-          highlight = hl.DIM_TEXT,
-        },
-      }
-    else
-      results = {}
-    end
-
-    results[#results + 1] = {
+    return { {
       padding = "",
       text = text,
       highlight = hl.ROOT_NAME,
-    }
-    return results
+    } }
   end
 
   local highlight

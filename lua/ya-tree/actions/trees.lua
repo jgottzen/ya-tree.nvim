@@ -1,50 +1,54 @@
 local lib = require("ya-tree.lib")
-local Trees = require("ya-tree.trees")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("actions")
 
-local api = vim.api
-
 local M = {}
 
 ---@async
-function M.close_tree()
-  local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-  local tree = Trees.filesystem(tabpage, true)
-  ui.update(tree, tree.current_node)
+---@param tree Yat.Tree
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.close_tree(tree, _, context)
+  local new_tree = context.sidebar:close_tree(tree)
+  if new_tree then
+    ui.update(new_tree, new_tree.current_node)
+  end
 end
 
 ---@async
 ---@param tree Yat.Tree
-function M.delete_tree(tree)
-  local tabpage = api.nvim_get_current_tabpage() --[[@as integer]]
-  Trees.delete_tree(tabpage, tree)
-  local fs_tree = Trees.filesystem(tabpage, true)
-  ui.update(fs_tree, fs_tree.current_node)
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.delete_tree(tree, _, context)
+  local new_tree = context.sidebar:close_tree(tree, true)
+  if new_tree then
+    ui.update(new_tree, new_tree.current_node)
+  end
 end
 
 ---@async
 ---@param tree Yat.Tree
----@param node Yat.Node
-function M.open_git_tree(tree, node)
-  local tabpage = api.nvim_get_current_tabpage()
+---@param node? Yat.Node
+---@param context Yat.Action.FnContext
+function M.open_git_tree(tree, node, context)
+  node = node or tree.root
   local repo = node.repo
   if not repo or repo:is_yadm() then
     repo = lib.rescan_node_for_git(tree, node)
   end
   if repo then
-    tree = Trees.git(tabpage, repo)
-    ui.update(tree, tree.current_node)
+    local git_tree = context.sidebar:git_tree(repo)
+    ui.update(git_tree, git_tree.current_node)
   else
     utils.notify(string.format("No Git repository found in %q.", node.path))
   end
 end
 
 ---@async
-function M.open_buffers_tree()
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.buffers(tabpage)
+---@param context Yat.Action.FnContext
+function M.open_buffers_tree(_, _, context)
+  local tree = context.sidebar:buffers_tree()
   ui.update(tree, tree.current_node)
 end
 

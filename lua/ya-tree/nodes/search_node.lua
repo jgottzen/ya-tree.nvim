@@ -111,4 +111,15 @@ function SearchNode:refresh()
   end
 end
 
+function SearchNode:clear()
+  if self.parent then
+    return self.parent:clear()
+  end
+
+  self._children = {}
+  self.empty = true
+  self.search_term = nil
+  self._search_options = nil
+end
+
 return SearchNode

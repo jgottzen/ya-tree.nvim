@@ -4,6 +4,7 @@ local M = {
   ROOT_NAME = "YaTreeRootName",
 
   INDENT_MARKER = "YaTreeIndentMarker",
+  INDENT_EXPANDER = "YaTreeIndentExpander",
 
   DIRECTORY_ICON = "YaTreeDirectoryIcon",
   SYMBOLIC_DIRECTORY_ICON = "YaTreeSymbolicDirectoryIcon",
@@ -81,6 +82,9 @@ local M = {
 
   UI_CURRENT_TAB = "YaTreeUiCurrentTab",
   UI_OTHER_TAB = "YaTreeUiOhterTab",
+
+  SECTION_ICON = "YaTreeSectionIcon",
+  SECTION_NAME = "YaTreeSectionName",
 }
 
 ---@param number integer
@@ -132,6 +136,7 @@ function M.setup()
   create_highlight(M.ROOT_NAME, nil, { fg = "#ddc7a1", bold = true })
 
   create_highlight(M.INDENT_MARKER, nil, { fg = "#5a524c" })
+  create_highlight(M.INDENT_EXPANDER, { M.DIRECTORY_ICON })
 
   create_highlight(M.DIRECTORY_ICON, { "Directory" })
   create_highlight(M.SYMBOLIC_DIRECTORY_ICON, { M.DIRECTORY_ICON })
@@ -209,6 +214,9 @@ function M.setup()
 
   create_highlight(M.UI_CURRENT_TAB, nil, { fg = "#080808", bg = "#5f87d7" })
   create_highlight(M.UI_OTHER_TAB, nil, { fg = "#080808", bg = "#5a524c" })
+
+  create_highlight(M.SECTION_ICON, { M.SECTION_NAME })
+  create_highlight(M.SECTION_NAME, nil, { fg = "#5f87d7" })
 end
 
 return M

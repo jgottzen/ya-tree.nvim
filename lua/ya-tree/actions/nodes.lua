@@ -1,7 +1,6 @@
-local Trees = require("ya-tree.trees")
-local ui = require("ya-tree.ui")
+local scheduler = require("plenary.async.util").scheduler
 
-local api = vim.api
+local ui = require("ya-tree.ui")
 
 local M = {}
 
@@ -9,32 +8,25 @@ local M = {}
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 function M.toggle_node(tree, node)
-  if not node:has_children() or tree.root == node then
-    return
+  if node:has_children() then
+    if node.expanded then
+      node:collapse()
+    else
+      node:expand()
+    end
+    ui.update(tree, node)
   end
-
-  if node.expanded then
-    node:collapse()
-  else
-    node:expand()
-  end
-  ui.update(tree, node)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 function M.close_node(tree, node)
-  -- bail if the node is the root node
-  if tree.root == node then
-    return
-  end
-
   if node:has_children() and node.expanded then
     node:collapse()
   else
     local parent = node.parent
-    if parent and parent ~= tree.root then
+    if parent then
       parent:collapse()
       node = parent
     end
@@ -45,7 +37,7 @@ end
 ---@async
 ---@param tree Yat.Tree
 function M.close_all_nodes(tree)
-  tree.root:collapse({ recursive = true, children_only = true })
+  tree.root:collapse({ recursive = true })
   ui.update(tree, tree.root)
 end
 
@@ -97,10 +89,11 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.goto_node_in_filesystem_tree(_, node)
-  local tabpage = api.nvim_get_current_tabpage()
-  local tree = Trees.filesystem(tabpage, true)
+---@param context Yat.Action.FnContext
+function M.goto_node_in_filesystem_tree(_, node, context)
+  local tree = context.sidebar:filesystem_tree()
   local target_node = tree.root:expand({ to = node.path })
+  scheduler()
   ui.update(tree, target_node)
 end
 

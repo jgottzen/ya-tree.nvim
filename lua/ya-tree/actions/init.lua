@@ -1,19 +1,25 @@
 local void = require("plenary.async").void
 
-local Trees = require("ya-tree.trees")
-local ui = require("ya-tree.ui")
+local Sidebar = require("ya-tree.sidebar")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("actions")
 
 local api = vim.api
 
+---@class Yat.Action.FnContext
+---@field tabpage integer
+---@field sidebar Yat.Sidebar
+
+---@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, context: Yat.Action.FnContext)
+
 ---@alias Yat.Actions.Mode "n" | "v" | "V"
 
 ---@class Yat.Action
----@field fn async fun(tree: Yat.Tree, node: Yat.Node)
+---@field fn Yat.Action.Fn
 ---@field desc string
 ---@field trees Yat.Trees.Type[]
 ---@field modes Yat.Actions.Mode[]
+---@field node_independent boolean
 
 local M = {
   ---@private
@@ -28,16 +34,20 @@ local M = {
 }
 
 ---@param name Yat.Actions.Name
----@param fn async fun(tree: Yat.Tree, node: Yat.Node)
+---@param fn Yat.Action.Fn
 ---@param desc string
 ---@param modes Yat.Actions.Mode[]
+---@param node_independent? boolean
 ---@param trees? Yat.Trees.Type[]
-function M.define_action(name, fn, desc, modes, trees)
+function M.define_action(name, fn, desc, modes, node_independent, trees)
+  local Trees = require("ya-tree.trees")
+  ---@type Yat.Action
   local action = {
     fn = fn,
     desc = desc,
     modes = modes,
     trees = trees or Trees.actions_supported_by_trees()[name] or {},
+    node_independent = node_independent == true,
   }
   if M._actions[name] then
     log.info("overriding action %q with %s", name, action)
@@ -49,17 +59,34 @@ end
 ---@return function handler
 local function create_keymap_function(mapping)
   return function()
-    local action = mapping[ui.get_tree_type()]
-    if action then
-      local tabpage = api.nvim_get_current_tabpage()
-      local node = ui.get_current_node()
-      local tree = Trees.current_tree(tabpage) --[[@as Yat.Tree]]
-      tree.current_node = node
-      if type(action) == "string" then
-        void(M._actions[action].fn)(tree, node)
-      else
-        ---@cast action Yat.Config.Mapping.Custom
-        void(action.fn)(tree, node)
+    local tabpage = api.nvim_get_current_tabpage()
+    local sidebar = Sidebar.get_sidebar(tabpage)
+    if not sidebar then
+      return
+    end
+    local row = api.nvim_win_get_cursor(0)[1]
+    local tree, node = sidebar:get_current_tree_and_node(row)
+    if tree then
+      local action = mapping[tree.TYPE]
+      if action then
+        local fn, node_independent
+        if type(action) == "string" then
+          local _action = M._actions[action]
+          fn = void(_action.fn)
+          node_independent = _action.node_independent
+        else
+          ---@cast action Yat.Config.Mapping.Custom
+          fn = void(action.fn)
+          node_independent = action.node_independent
+        end
+        if node or node_independent then
+          if node then
+            tree.current_node = node
+          end
+          ---@cast fn Yat.Action.Fn
+          ---@diagnostic disable-next-line:param-type-mismatch
+          fn(tree, node, { tabpage = tabpage, sidebar = sidebar })
+        end
       end
     end
   end
@@ -108,18 +135,20 @@ local function define_actions(actions)
   local nodes = require("ya-tree.actions.nodes")
   local popups = require("ya-tree.actions.popups")
   local search = require("ya-tree.actions.search")
-  local tree_actions = require("ya-tree.actions.trees")
-  local ui_actions = require("ya-tree.actions.ui")
+  local trees = require("ya-tree.actions.trees")
+  local ui = require("ya-tree.actions.ui")
 
-  M.define_action(builtin.general.close_window, ui_actions.close, "Close the tree window", { "n" })
+  M.define_action(builtin.general.close_window, ui.close, "Close the tree window", { "n" }, true)
   M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
-  M.define_action(builtin.general.open_help, ui_actions.open_help, "Open keybindings help", { "n" })
+  M.define_action(builtin.general.open_help, ui.open_help, "Open keybindings help", { "n" }, true)
   M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
-  M.define_action(builtin.general.close_tree, tree_actions.close_tree, "Close the current tree", { "n" })
-  M.define_action(builtin.general.delete_tree, tree_actions.delete_tree, "Delete the current tree", { "n" })
+  M.define_action(builtin.general.close_tree, trees.close_tree, "Close the current tree", { "n" }, true)
+  M.define_action(builtin.general.delete_tree, trees.delete_tree, "Delete the current tree", { "n" }, true)
+  M.define_action(builtin.general.focus_prev_tree, ui.focus_prev_tree, "Go to previous tree", { "n" }, true)
+  M.define_action(builtin.general.focus_next_tree, ui.focus_next_tree, "Go to next tree", { "n" }, true)
 
-  M.define_action(builtin.general.open_git_tree, tree_actions.open_git_tree, "Open or close the current git status tree", { "n" })
-  M.define_action(builtin.general.open_buffers_tree, tree_actions.open_buffers_tree, "Open or close the current buffers tree", { "n" })
+  M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
+  M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open or close the current buffers tree", { "n" }, true)
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
   M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
@@ -148,13 +177,13 @@ local function define_actions(actions)
   M.define_action(builtin.general.expand_all_nodes, nodes.expand_all_nodes, "Recursively expand all directories", { "n" })
   M.define_action(builtin.general.expand_all_child_nodes, nodes.expand_all_child_nodes, "Recursively expand all child directories", { "n" })
 
-  M.define_action(builtin.general.refresh_tree, tree_actions.refresh_tree, "Refresh the tree", { "n" })
+  M.define_action(builtin.general.refresh_tree, trees.refresh_tree, "Refresh the tree", { "n" }, true)
 
-  M.define_action(builtin.general.focus_parent, ui_actions.focus_parent, "Go to parent directory", { "n" })
-  M.define_action(builtin.general.focus_prev_sibling, ui_actions.focus_prev_sibling, "Go to previous sibling node", { "n" })
-  M.define_action(builtin.general.focus_next_sibling, ui_actions.focus_next_sibling, "Go to next sibling node", { "n" })
-  M.define_action(builtin.general.focus_first_sibling, ui_actions.focus_first_sibling, "Go to first sibling node", { "n" })
-  M.define_action(builtin.general.focus_last_sibling, ui_actions.focus_last_sibling, "Go to last sibling node", { "n" })
+  M.define_action(builtin.general.focus_parent, ui.focus_parent, "Go to parent directory", { "n" })
+  M.define_action(builtin.general.focus_prev_sibling, ui.focus_prev_sibling, "Go to previous sibling node", { "n" })
+  M.define_action(builtin.general.focus_next_sibling, ui.focus_next_sibling, "Go to next sibling node", { "n" })
+  M.define_action(builtin.general.focus_first_sibling, ui.focus_first_sibling, "Go to first sibling node", { "n" })
+  M.define_action(builtin.general.focus_last_sibling, ui.focus_last_sibling, "Go to last sibling node", { "n" })
 
   M.define_action(builtin.files.add, files.add, "Add file or directory", { "n" })
   M.define_action(builtin.files.rename, files.rename, "Rename file or directory", { "n" })
@@ -169,35 +198,35 @@ local function define_actions(actions)
   M.define_action(builtin.files.cd_to, lib.cd_to, "Set tree root to directory", { "n" })
   M.define_action(builtin.files.cd_up, lib.cd_up, "Set tree root one level up", { "n" })
 
-  M.define_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" })
-  M.define_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" })
+  M.define_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
+  M.define_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
-  M.define_action(builtin.search.search_for_node_in_tree, search.search_for_node_in_tree, "Go to entered path in tree", { "n" })
-  M.define_action(builtin.search.search_interactively, search.search_interactively, "Search as you type", { "n" })
-  M.define_action(builtin.search.search_once, search.search_once, "Search", { "n" })
+  M.define_action(builtin.search.search_for_node_in_tree, search.search_for_node_in_tree, "Go to entered path in tree", { "n" }, true)
+  M.define_action(builtin.search.search_interactively, search.search_interactively, "Search as you type", { "n" }, true)
+  M.define_action(builtin.search.search_once, search.search_once, "Search", { "n" }, true)
 
   M.define_action(
     builtin.tree_specific.goto_node_in_filesystem_tree,
     nodes.goto_node_in_filesystem_tree,
-    "Close current tree and go to node in the filesystem tree",
+    "Go to node in the filesystem tree",
     { "n" }
   )
 
   M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
-  M.define_action(builtin.git.focus_prev_git_item, ui_actions.focus_prev_git_item, "Go to previous Git item", { "n" })
-  M.define_action(builtin.git.focus_next_git_item, ui_actions.focus_next_git_item, "Go to next Git item", { "n" })
+  M.define_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous Git item", { "n" })
+  M.define_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next Git item", { "n" })
 
   M.define_action(
     builtin.diagnostics.focus_prev_diagnostic_item,
-    ui_actions.focus_prev_diagnostic_item,
+    ui.focus_prev_diagnostic_item,
     "Go to the previous diagnostic item",
     { "n" }
   )
-  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, ui_actions.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
+  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, ui.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
 
   for name, action in pairs(actions) do
     log.debug("defining user action %q", name)
-    M.define_action(name, action.fn, action.desc, action.modes, action.trees)
+    M.define_action(name, action.fn, action.desc, action.modes, action.node_independent, action.trees)
   end
 end
 

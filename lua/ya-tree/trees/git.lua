@@ -1,11 +1,9 @@
-local scheduler = require("plenary.async.util").scheduler
-
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
+local TextNode = require("ya-tree.nodes.text_node")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
-local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -13,9 +11,10 @@ local api = vim.api
 
 ---@class Yat.Trees.Git : Yat.Tree
 ---@field TYPE "git"
----@field root Yat.Nodes.Git
----@field current_node Yat.Nodes.Git
+---@field root Yat.Nodes.Git|Yat.Nodes.Text
+---@field current_node Yat.Nodes.Git|Yat.Nodes.Text
 ---@field supported_actions Yat.Trees.Git.SupportedActions[]
+---@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
 ---@field complete_func fun(self: Yat.Trees.Git, bufnr: integer)
 local GitTree = { TYPE = "git" }
 GitTree.__index = GitTree
@@ -40,9 +39,12 @@ setmetatable(GitTree, { __index = Tree })
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
-do
-  local builtin = require("ya-tree.actions.builtin")
+---@param config Yat.Config
+function GitTree.setup(config)
+  GitTree.complete_func = Tree.complete_func_loaded_nodes
+  GitTree.renderers = tree_utils.create_renderers(GitTree.TYPE, config)
 
+  local builtin = require("ya-tree.actions.builtin")
   GitTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
@@ -58,82 +60,91 @@ do
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(Tree.supported_actions),
+    unpack(vim.deepcopy(Tree.supported_actions)),
   })
-end
 
-GitTree.complete_func = Tree.complete_func_loaded_nodes
-
----@param config Yat.Config
-function GitTree.setup(config)
-  GitTree.renderers = tree_utils.create_renderers(GitTree.TYPE, config)
+  local ae = require("ya-tree.events.event").autocmd
+  local ge = require("ya-tree.events.event").git
+  local ye = require("ya-tree.events.event").ya_tree
+  GitTree.supported_events = {
+    autcmd = { ae.BUFFER_MODIFIED },
+    git = {},
+    yatree = {},
+  }
+  if config.update_on_buffer_saved then
+    table.insert(GitTree.supported_events.autcmd, ae.BUFFER_SAVED)
+  end
+  if config.git.enable then
+    table.insert(GitTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+  end
+  if config.diagnostics.enable then
+    table.insert(GitTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+  end
 end
 
 ---@async
----@param repo_or_path? Yat.Git.Repo|string
----@return Yat.Nodes.Git|nil
-local function create_root_node(repo_or_path)
-  local repo
+---@param repo_or_path Yat.Git.Repo|string
+---@reutrn Yat.Git.Repo|nil repo
+local function get_repo(repo_or_path)
   if type(repo_or_path) == "string" then
-    repo = git.create_repo(repo_or_path)
-  else
-    repo = repo_or_path
+    return git.create_repo(repo_or_path)
+  elseif type(repo_or_path) == "table" and type(repo_or_path.toplevel) == "string" then
+    return repo_or_path
   end
-  if type(repo) == "table" then
-    local fs_node = fs.node_for(repo.toplevel) --[[@as Yat.Fs.Node]]
-    local root = GitNode:new(fs_node)
-    root.repo = repo
-    return root
-  else
-    log.error("%q is either not a path to a git repo or a git repo object", tostring(repo_or_path))
-    local path = type(repo_or_path) == "string" and repo_or_path or (repo_or_path and repo_or_path.toplevel or "unknown")
-    utils.warn(string.format("%q is not a path to a Git repo", path))
-    return nil
-  end
+end
+
+---@async
+---@param repo Yat.Git.Repo
+---@return Yat.Nodes.Git
+local function create_root_node(repo)
+  local fs_node = fs.node_for(repo.toplevel) --[[@as Yat.Fs.Node]]
+  local root = GitNode:new(fs_node)
+  root.repo = repo
+  return root
 end
 
 ---@async
 ---@param tabpage integer
----@param repo_or_path? Yat.Git.Repo|string
----@return Yat.Trees.Git|nil tree
+---@param repo_or_path Yat.Git.Repo|string
+---@return Yat.Trees.Git tree
 function GitTree:new(tabpage, repo_or_path)
-  repo_or_path = repo_or_path or vim.loop.cwd()
-  local root = create_root_node(repo_or_path)
-  if not root then
-    return nil
+  local repo = get_repo(repo_or_path)
+  local root
+  if repo then
+    root = create_root_node(repo)
+  else
+    local path = type(repo_or_path) == "string" and repo_or_path or repo_or_path.toplevel
+    root = TextNode:new(path .. " is not a Git repository", path, false)
   end
   local this = Tree.new(self, tabpage, root.path)
-  this:enable_events(true)
-  local persistent = require("ya-tree.config").config.trees.git.persistent
-  this.persistent = persistent or false
   this.root = root
-  this.current_node = this.root:refresh()
+  this.current_node = this.root:refresh() or this.root
 
-  log.debug("created new tree %s", tostring(this))
+  log.info("created new tree %s", tostring(this))
   return this
 end
 
 ---@async
 ---@param repo Yat.Git.Repo
+---@return boolean
 function GitTree:on_git_event(repo)
-  if vim.v.exiting ~= vim.NIL or self.root.repo ~= repo then
-    return
-  end
-  log.debug("git repo %s changed", tostring(self.root.repo))
+  if vim.v.exiting == vim.NIL and self.root.repo == repo then
+    log.debug("git repo %s changed", tostring(self.root.repo))
+    local tabpage = api.nvim_get_current_tabpage()
 
-  self.root:refresh({ refresh_git = false })
-  scheduler()
-  if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-    -- get the current node to keep the cursor on it, if the tree changed
-    ui.update(self, ui.get_current_node())
+    self.root:refresh({ refresh_git = false })
+    return self:is_shown_in_ui(tabpage)
   end
+  return false
 end
 
 ---@async
 ---@param _ integer
 ---@param file string
+---@return boolean
 function GitTree:on_buffer_saved(_, file)
   if self.root:is_ancestor_of(file) then
+    local tabpage = api.nvim_get_current_tabpage()
     log.debug("changed file %q is in tree %s", file, tostring(self))
     local node = self.root:get_child_if_loaded(file)
     if node then
@@ -148,11 +159,9 @@ function GitTree:on_buffer_saved(_, file)
       end
     end
 
-    scheduler()
-    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-      ui.update(self)
-    end
+    return self:is_shown_in_ui(tabpage)
   end
+  return false
 end
 
 ---@async
@@ -160,14 +169,15 @@ end
 ---@return boolean
 ---@nodiscard
 function GitTree:change_root_node(repo_or_path)
-  local old_root = self.root
-  local root = create_root_node(repo_or_path)
-  if root then
-    self.root = root
-    self.current_node = self.root:refresh()
-    log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
+  local repo = get_repo(repo_or_path)
+  if not repo or repo == self.root.repo then
+    return false
   end
-  return root ~= nil
+  local old_root = self.root
+  self.root = create_root_node(repo)
+  self.current_node = self.root:refresh() --[[@as Yat.Nodes.Git]]
+  log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
+  return true
 end
 
 return GitTree

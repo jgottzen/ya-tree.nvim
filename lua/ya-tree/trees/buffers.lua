@@ -1,11 +1,8 @@
-local scheduler = require("plenary.async.util").scheduler
-
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
-local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -17,6 +14,7 @@ local uv = vim.loop
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
 ---@field supported_actions Yat.Trees.Buffers.SupportedActions
+---@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
 ---@field complete_func "buffer"
 local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
@@ -42,9 +40,12 @@ setmetatable(BuffersTree, { __index = Tree })
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
-do
-  local builtin = require("ya-tree.actions.builtin")
+---@param config Yat.Config
+function BuffersTree.setup(config)
+  BuffersTree.complete_func = "buffer"
+  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.TYPE, config)
 
+  local builtin = require("ya-tree.actions.builtin")
   BuffersTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
@@ -61,15 +62,26 @@ do
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(Tree.supported_actions),
+    unpack(vim.deepcopy(Tree.supported_actions)),
   })
-end
 
-BuffersTree.complete_func = "buffer"
-
----@param config Yat.Config
-function BuffersTree.setup(config)
-  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.TYPE, config)
+  local ae = require("ya-tree.events.event").autocmd
+  local ge = require("ya-tree.events.event").git
+  local ye = require("ya-tree.events.event").ya_tree
+  BuffersTree.supported_events = {
+    autcmd = { ae.BUFFER_MODIFIED, ae.BUFFER_NEW, ae.BUFFER_HIDDEN, ae.BUFFER_DISPLAYED, ae.BUFFER_DELETED },
+    git = {},
+    yatree = {},
+  }
+  if config.update_on_buffer_saved then
+    table.insert(BuffersTree.supported_events.autcmd, ae.BUFFER_SAVED)
+  end
+  if config.git.enable then
+    table.insert(BuffersTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+  end
+  if config.diagnostics.enable then
+    table.insert(BuffersTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+  end
 end
 
 ---@async
@@ -79,41 +91,19 @@ end
 function BuffersTree:new(tabpage, path)
   path = path or uv.cwd() --[[@as string]]
   local this = Tree.new(self, tabpage, path)
-  this:enable_events(true)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   this.root = BufferNode:new(fs_node)
   this.root.repo = git.get_repo_for_path(fs_node.path)
   this.current_node = this.root:refresh()
 
-  local event = require("ya-tree.events.event").autocmd
-  this:register_autocmd_event(event.BUFFER_NEW, true, function(bufnr, file)
-    if file ~= "" then
-      this:on_buffer_new(bufnr, file)
-    end
-  end)
-  this:register_autocmd_event(event.BUFFER_HIDDEN, false, function(bufnr, file)
-    if file ~= "" then
-      this:on_buffer_hidden(bufnr, file)
-    end
-  end)
-  this:register_autocmd_event(event.BUFFER_DISPLAYED, false, function(bufnr, file)
-    if file ~= "" then
-      this:on_buffer_displayed(bufnr, file)
-    end
-  end)
-  this:register_autocmd_event(event.BUFFER_DELETED, true, function(bufnr, _, match)
-    if match ~= "" then
-      this:on_buffer_deleted(bufnr, match)
-    end
-  end)
-
-  log.debug("created new tree %s", tostring(this))
+  log.info("created new tree %s", tostring(this))
   return this
 end
 
 ---@async
 ---@param bufnr integer
 ---@param file string
+---@return boolean
 function BuffersTree:on_buffer_new(bufnr, file)
   local tabpage = api.nvim_get_current_tabpage()
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
@@ -136,63 +126,57 @@ function BuffersTree:on_buffer_new(bufnr, file)
         log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
         node.bufnr = bufnr
       else
-        return
+        return false
       end
     end
 
-    scheduler()
-    if self:is_shown_in_ui(tabpage) then
-      if require("ya-tree.config").config.follow_focused_file and not node then
-        node = self.root:expand({ to = file })
-      else
-        node = ui.get_current_node()
-      end
-      ui.update(self, node, { focus_node = true })
-    end
+    return self:is_shown_in_ui(tabpage)
   end
+  return false
 end
 
 ---@param bufnr integer
 ---@param file string
+---@return boolean
 function BuffersTree:on_buffer_hidden(bufnr, file)
   -- BufHidden might be triggered after TermClose, when the buffer no longer exists,
   -- so calling nvim_buf_get_option results in an error.
   local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
   if ok and buftype == "terminal" then
     self.root:set_terminal_hidden(file, bufnr, true)
-    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-      ui.update(self)
-    end
+    return self:is_shown_in_ui(api.nvim_get_current_tabpage())
   end
+  return false
 end
 
 ---@param bufnr integer
 ---@param file string
+---@return boolean
 function BuffersTree:on_buffer_displayed(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "terminal" then
     self.root:set_terminal_hidden(file, bufnr, false)
-    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-      ui.update(self)
-    end
+    return self:is_shown_in_ui(api.nvim_get_current_tabpage())
   end
+  return false
 end
 
 ---@async
 ---@param bufnr integer
 ---@param file string
+---@return boolean
 function BuffersTree:on_buffer_deleted(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "" or buftype == "terminal" then
+    local tabpage = api.nvim_get_current_tabpage()
     log.debug("removing buffer %q from buffer tree", file)
     self.root:remove_node(file, bufnr, buftype == "terminal")
     if #self.root:children() <= 1 and self.root.path ~= uv.cwd() then
       self.root:refresh({ root_path = uv.cwd() })
     end
-    if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-      ui.update(self, ui.get_current_node())
-    end
+    return self:is_shown_in_ui(tabpage)
   end
+  return false
 end
 
 return BuffersTree

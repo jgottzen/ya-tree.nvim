@@ -24,7 +24,7 @@ function M.open(tree)
     local node = nodes[1]
     if node:has_children() then
       node_actions.toggle_node(tree, node)
-    elseif node:is_file() then
+    elseif node:is_file() and node:node_type() ~= "Text" then
       ui.open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
       ---@cast node Yat.Nodes.Buffer
@@ -43,7 +43,7 @@ function M.open(tree)
     end
   else
     for _, node in ipairs(nodes) do
-      if node:is_file() then
+      if node:is_file() and node:node_type() ~= "Text" then
         ui.open_file(node.path, "edit")
       end
     end
@@ -129,10 +129,10 @@ end
 local function prepare_add_rename(tree, node, path)
   local parent = Path:new(path):parent():absolute() --[[@as string]]
   if tree.root:is_ancestor_of(path) or tree.root.path == parent then
-    -- expand to the parent path will so the tree will detect and display the added file/directory
+    -- expand to the parent path so the tree will detect and display the added file/directory
     if parent ~= node.path then
       tree.root:expand({ to = parent })
-      vim.schedule_wrap(ui.update)(tree)
+      vim.schedule_wrap(ui.update)()
     end
     tree.focus_path_on_fs_event = path
   end
@@ -201,6 +201,7 @@ function M.rename(tree, node)
   end
 end
 
+---@async
 ---@param root_path string
 ---@param confirm boolean
 ---@param title_prefix string

@@ -43,42 +43,29 @@ local win_options = {
   }, ","),
 }
 
-local file_min_diagnostic_severity = config.renderers.builtin.diagnostics.directory_min_severity
-local directory_min_diagnstic_severrity = config.renderers.builtin.diagnostics.file_min_severity
-
 ---@class Yat.Ui.Canvas
----@field public tree_type Yat.Trees.Type
 ---@field public position Yat.Ui.Position
 ---@field private winid? integer
 ---@field private edit_winid? integer
 ---@field private bufnr? integer
 ---@field private window_augroup? integer
 ---@field private previous_row integer
+---@field private pos_after_win_leave? integer[]
 ---@field private size integer
----@field private nodes Yat.Node[]
----@field private node_path_to_index_lookup table<string, integer>
+---@field private sidebar Yat.Sidebar
 local Canvas = {}
 Canvas.__index = Canvas
 
 Canvas.__tostring = function(self)
-  return string.format(
-    "(winid=%s, bufnr=%s, edit_winid=%s, tree_type=%s, nodes=[%s, %s])",
-    self.winid,
-    self.bufnr,
-    self.edit_winid,
-    self.tree_type,
-    self.nodes and #self.nodes or 0,
-    self.nodes and tostring(self.nodes[1]) or "nil"
-  )
+  return string.format("(winid=%s, bufnr=%s, edit_winid=%s, sidebar=[%s])", self.winid, self.bufnr, self.edit_winid, tostring(self.sidebar))
 end
 
 ---@return Yat.Ui.Canvas canvas
 function Canvas:new()
   local this = setmetatable({}, self)
+  this.previous_row = 1
   this.position = config.view.position
   this.size = config.view.size
-  this.nodes = {}
-  this.node_path_to_index_lookup = {}
   return this
 end
 
@@ -171,6 +158,35 @@ function Canvas:move_buffer_to_edit_window(bufnr)
   end
 end
 
+function Canvas:resize()
+  if self:is_on_side() then
+    api.nvim_win_set_width(self.winid, self.size)
+  else
+    api.nvim_win_set_height(self.winid, self.size)
+  end
+end
+
+local positions_to_wincmd = { left = "H", bottom = "J", top = "K", right = "L" }
+
+---@private
+---@param position? Yat.Ui.Position
+function Canvas:_create_window(position)
+  local winid = api.nvim_get_current_win()
+  if winid ~= self.edit_winid then
+    local old_edit_winid = self.edit_winid
+    self.edit_winid = winid
+    log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
+  end
+
+  self.position = position or self.position
+  vim.cmd("noautocmd vsplit")
+  self.winid = api.nvim_get_current_win()
+  vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
+  self:resize()
+  log.debug("created window %s", self.winid)
+  self:_set_window_options()
+end
+
 ---@private
 function Canvas:_set_window_options()
   win_set_buf_noautocmd(self.winid, self.bufnr)
@@ -186,6 +202,7 @@ function Canvas:_set_window_options()
     group = self.window_augroup,
     buffer = self.bufnr,
     callback = function()
+      self.pos_after_win_leave = api.nvim_win_get_cursor(self.winid)
       if self.edit_winid then
         self.size = self:is_on_side() and api.nvim_win_get_width(self.winid) or api.nvim_win_get_height(self.winid) --[[@as integer]]
       end
@@ -226,41 +243,17 @@ function Canvas:_on_win_closed()
   self.window_augroup = nil
   self.winid = nil
   if self.bufnr then
-    ok = pcall(api.nvim_buf_delete, self.bufnr, { force = true })
-    if not ok then
-      log.error("error deleting buffer %s", self.bufnr)
-    end
+    -- Deleting the buffer will inhibit TabClosed autocmds from firing...
+    -- Deferring it works...
+    local bufnr = self.bufnr
+    vim.defer_fn(function()
+      ok = pcall(api.nvim_buf_delete, bufnr, { force = true })
+      if not ok then
+        log.error("error deleting buffer %s", bufnr)
+      end
+    end, 100)
     self.bufnr = nil
   end
-end
-
-function Canvas:resize()
-  if self:is_on_side() then
-    api.nvim_win_set_width(self.winid, self.size)
-  else
-    api.nvim_win_set_height(self.winid, self.size)
-  end
-end
-
-local positions_to_wincmd = { left = "H", bottom = "J", top = "K", right = "L" }
-
----@private
----@param position? Yat.Ui.Position
-function Canvas:_create_window(position)
-  local winid = api.nvim_get_current_win() --[[@as integer]]
-  if winid ~= self.edit_winid then
-    local old_edit_winid = self.edit_winid
-    self.edit_winid = winid
-    log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
-  end
-
-  self.position = position or self.position
-  vim.cmd("noautocmd vsplit")
-  self.winid = api.nvim_get_current_win() --[[@as integer]]
-  vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
-  self:resize()
-  log.debug("created window %s", self.winid)
-  self:_set_window_options()
 end
 
 function Canvas:create_edit_window()
@@ -273,15 +266,34 @@ function Canvas:create_edit_window()
   log.debug("created edit window %s", self.edit_winid)
 end
 
+---@param winid integer
+---@param row integer
+---@param col integer
+local function set_cursor_position(winid, row, col)
+  -- avoids the cursor moving left when switching to the canvas window and then back,
+  -- happens with floating windows
+  api.nvim_win_call(winid, function()
+    local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
+    if ok then
+      local win_height = api.nvim_win_get_height(winid)
+      if win_height > row then
+        pcall(vim.cmd, "normal! zb")
+      elseif row < (win_height / 2) then
+        pcall(vim.cmd, "normal! zz")
+      end
+    end
+  end)
+end
+
 ---@class Yat.Ui.Canvas.OpenArgs
 ---@field position? Yat.Ui.Position
 ---@field size? integer
 
----@param tree Yat.Tree
+---@param sidebar Yat.Sidebar
 ---@param opts? Yat.Ui.Canvas.OpenArgs
 ---  - {opts.position?} `YaTreeCanvas.Position`
 ---  - {opts.size?} `integer`
-function Canvas:open(tree, opts)
+function Canvas:open(sidebar, opts)
   if self:is_open() then
     return
   end
@@ -292,8 +304,13 @@ function Canvas:open(tree, opts)
   end
   self:_create_buffer()
   self:_create_window(opts.position)
+  self.sidebar = sidebar
 
-  self:draw(tree)
+  self:draw()
+  if self.pos_after_win_leave then
+    log.info("setting row_after_win_leave=%s", self.pos_after_win_leave)
+    set_cursor_position(self.winid, self.pos_after_win_leave[1], self.pos_after_win_leave[2])
+  end
 
   events.fire_yatree_event(event.YA_TREE_WINDOW_OPENED, { winid = self.winid })
 end
@@ -334,60 +351,43 @@ function Canvas:close()
   end
 end
 
----@param tree Yat.Tree
-function Canvas:draw(tree)
-  self.tree_type = tree.TYPE
-  log.debug("creating %q canvas tree with root node %s", tree.TYPE, tree.root.path)
-  local lines, highlights, extra
-  lines, highlights, self.nodes, extra = tree:render(config)
-  directory_min_diagnstic_severrity = extra.directory_min_diagnstic_severrity
-  file_min_diagnostic_severity = extra.file_min_diagnostic_severity
-  self.node_path_to_index_lookup = {}
-  for index, node in ipairs(self.nodes) do
-    self.node_path_to_index_lookup[node.path] = index
-  end
-
+function Canvas:draw()
+  local width = api.nvim_win_get_width(self.winid)
+  local lines, highlights = self.sidebar:render(config, width)
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
-
   api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
-
   for linenr, line_highlights in ipairs(highlights) do
     for _, highlight in ipairs(line_highlights) do
       -- guard against bugged out renderer highlights, which will cause an avalanche of errors...
       if not highlight.name then
-        log.error("missing highlight name for node=%s, hl=%s", tostring(self.nodes[linenr]), highlight)
+        log.error("missing highlight name for line=%s, hl=%s", tostring(lines[linenr]), highlight)
       else
         api.nvim_buf_add_highlight(self.bufnr, ns, highlight.name, linenr - 1, highlight.from, highlight.to)
       end
     end
   end
-
   api.nvim_buf_set_option(self.bufnr, "modifiable", false)
 end
 
+---@param tree Yat.Tree
+---@return boolean is_rendered
+function Canvas:is_tree_rendered(tree)
+  return self.sidebar:has_tree(tree)
+end
+
+---@param tree Yat.Tree
 ---@param node Yat.Node
----@return boolean visible
-function Canvas:is_node_rendered(node)
-  return self.node_path_to_index_lookup[node.path] ~= nil
+---@return boolean is_rendered
+function Canvas:is_node_rendered(tree, node)
+  return self.sidebar:is_node_rendered(tree, node)
 end
 
----@private
----@return Yat.Node|nil node, integer row, integer column
-function Canvas:_get_current_node_and_position()
-  if not self.winid then
-    return nil, 1, 0
-  end
-
-  local row, column = unpack(api.nvim_win_get_cursor(self.winid)) --[[@as integer]]
-  local node = self.nodes[row]
-  return node, row, column
-end
-
----@return Yat.Node|nil node
-function Canvas:get_current_node()
-  local node = self:_get_current_node_and_position()
-  return node
+---@return Yat.Tree? current_tree
+---@return Yat.Node? current_node
+function Canvas:get_current_tree_and_node()
+  local row = api.nvim_win_get_cursor(self.winid)[1]
+  return self.sidebar:get_current_tree_and_node(row)
 end
 
 do
@@ -403,20 +403,13 @@ do
         from, to = to, from
       end
 
-      ---@type Yat.Node[]
-      local nodes = {}
-      for index = from, to do
-        local node = self.nodes[index]
-        if node then
-          nodes[#nodes + 1] = node
-        end
-      end
-
+      local nodes = self.sidebar:get_nodes(from, to)
       api.nvim_feedkeys(esc_term_codes, "n", true)
-
       return nodes
     else
-      return { self:get_current_node() }
+      local row = api.nvim_win_get_cursor(self.winid)[1]
+      local node = self.sidebar:get_node(row)
+      return node and { node } or {}
     end
   end
 end
@@ -426,14 +419,15 @@ function Canvas:_move_cursor_to_name()
   if not self.winid then
     return
   end
-  local node, row, col = self:_get_current_node_and_position()
-  if not node or row == self.previous_row then
+  local row, col = unpack(api.nvim_win_get_cursor(self.winid))
+  local tree, node = self.sidebar:get_current_tree_and_node(row)
+  if not tree or not node or row == self.previous_row then
     return
   end
 
   self.previous_row = row
-  -- don't move the cursor on the first line
-  if row == 1 then
+  -- don't move the cursor on the root node
+  if node == tree.root then
     return
   end
 
@@ -444,40 +438,22 @@ function Canvas:_move_cursor_to_name()
   end
 end
 
----@param winid integer
----@param row integer
----@param col integer
-local function set_cursor_position(winid, row, col)
-  -- avoids the cursor moving left when switching to the canvas window and then back,
-  -- happens with floating windows
-  api.nvim_win_call(winid, function()
-    local ok = pcall(api.nvim_win_set_cursor, winid, { row, col })
-    if ok then
-      local win_height = api.nvim_win_get_height(winid) --[[@as integer]]
-      if win_height > row then
-        pcall(vim.cmd, "normal! zb")
-      elseif row < (win_height / 2) then
-        pcall(vim.cmd, "normal! zz")
-      end
-    end
-  end)
-end
-
+---@param tree Yat.Tree
 ---@param node Yat.Node
-function Canvas:focus_node(node)
+function Canvas:focus_node(tree, node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
   while node and node:is_hidden(config) and node.parent do
     node = node.parent
   end
   if node then
-    local row = self.node_path_to_index_lookup[node.path]
-    log.debug("node %s is at index %s", node.path, row)
+    local row = self.sidebar:get_row_of_node(tree, node)
     if row then
+      log.debug("node %s is at line %s", node.path, row)
       local column
-      -- don't move the cursor on the first line
-      if config.move_cursor_to_name and row > 2 then
-        local line = api.nvim_buf_get_lines(self.bufnr, row - 1, row, false)[1] --[[@as string?]]
+      -- don't move the cursor on root node
+      if config.move_cursor_to_name and node ~= tree.root then
+        local line = api.nvim_buf_get_lines(self.bufnr, row - 1, row, false)[1]
         if line then
           column = (line:find(node.name, 1, true) or 0) - 1
         end
@@ -490,147 +466,10 @@ function Canvas:focus_node(node)
   end
 end
 
----@param node Yat.Node
-function Canvas:focus_parent(node)
-  if not node or node == self.nodes[1] or not node.parent then
-    return
-  end
-
-  local row = self.node_path_to_index_lookup[node.parent.path]
-  if row then
-    local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-    set_cursor_position(self.winid, row, column)
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_prev_sibling(node)
-  if not node or not node.parent or not node.parent:has_children() then
-    return
-  end
-
-  for _, prev in node.parent:iterate_children({ reverse = true, from = node }) do
-    if not node:is_hidden(config) then
-      local row = self.node_path_to_index_lookup[prev.path]
-      if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-        set_cursor_position(self.winid, row, column)
-        return
-      end
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_next_sibling(node)
-  if not node or not node.parent or not node.parent:has_children() then
-    return
-  end
-
-  for _, next in node.parent:iterate_children({ from = node }) do
-    if not node:is_hidden(config) then
-      local row = self.node_path_to_index_lookup[next.path]
-      if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-        set_cursor_position(self.winid, row, column)
-        return
-      end
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_first_sibling(node)
-  if not node or not node.parent or not node.parent:has_children() then
-    return
-  end
-
-  for _, next in node.parent:iterate_children() do
-    if not node:is_hidden(config) then
-      local row = self.node_path_to_index_lookup[next.path]
-      if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-        set_cursor_position(self.winid, row, column)
-        return
-      end
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_last_sibling(node)
-  if not node or not node.parent or not node.parent:has_children() then
-    return
-  end
-
-  for _, prev in node.parent:iterate_children({ reverse = true }) do
-    if not node:is_hidden(config) then
-      local row = self.node_path_to_index_lookup[prev.path]
-      if row then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-        set_cursor_position(self.winid, row, column)
-        return
-      end
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_prev_git_item(node)
-  local current_row = self.node_path_to_index_lookup[node.path]
-  for row = current_row - 1, 1, -1 do
-    if self.nodes[row]:git_status() then
-      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-      set_cursor_position(self.winid, row, column)
-      return
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_next_git_item(node)
-  local current_row = self.node_path_to_index_lookup[node.path]
-  for row = current_row + 1, #self.nodes do
-    if self.nodes[row]:git_status() then
-      local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-      set_cursor_position(self.winid, row, column)
-      return
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_prev_diagnostic_item(node)
-  local current_row = self.node_path_to_index_lookup[node.path]
-  for row = current_row - 1, 1, -1 do
-    local node_at_row = self.nodes[row]
-    local severity = node_at_row:diagnostic_severity()
-    if severity then
-      local target_severity = node_at_row:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
-      if severity <= target_severity then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-        set_cursor_position(self.winid, row, column)
-        return
-      end
-    end
-  end
-end
-
----@param node Yat.Node
-function Canvas:focus_next_diagnostic_item(node)
-  local current_row = self.node_path_to_index_lookup[node.path]
-  for row = current_row + 1, #self.nodes do
-    local node_at_row = self.nodes[row]
-    local severity = node_at_row:diagnostic_severity()
-    if severity then
-      local target_severity = node_at_row:is_directory() and directory_min_diagnstic_severrity or file_min_diagnostic_severity
-      if severity <= target_severity then
-        local column = api.nvim_win_get_cursor(self.winid)[2] --[[@as integer]]
-        set_cursor_position(self.winid, row, column)
-        return
-      end
-    end
-  end
+---@param row integer
+function Canvas:focus_row(row)
+  local column = api.nvim_win_get_cursor(self.winid)[2]
+  set_cursor_position(self.winid, row, column)
 end
 
 function Canvas.setup()

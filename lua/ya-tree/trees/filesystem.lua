@@ -1,4 +1,3 @@
-local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local fs = require("ya-tree.fs")
@@ -6,7 +5,6 @@ local fs_watcher = require("ya-tree.fs.watcher")
 local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
-local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -15,8 +13,8 @@ local uv = vim.loop
 
 ---@class Yat.Trees.Filesystem : Yat.Tree
 ---@field TYPE "filesystem"
----@field persistent true
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
+---@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
 ---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
 ---@field focus_path_on_fs_event? string|"expand"
 local FilesystemTree = { TYPE = "filesystem" }
@@ -55,9 +53,32 @@ setmetatable(FilesystemTree, { __index = Tree })
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
-do
-  local builtin = require("ya-tree.actions.builtin")
+---@param config Yat.Config
+function FilesystemTree.setup(config)
+  local completion = config.trees.filesystem.completion
+  if type(completion.setup) == "function" then
+    function FilesystemTree:complete_func(bufnr, node)
+      local completefunc = completion.setup(self, node)
+      if completefunc then
+        api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
+        api.nvim_buf_set_option(bufnr, "omnifunc", "")
+      end
+    end
+  else
+    if completion.on == "node" then
+      FilesystemTree.complete_func = Tree.complete_func_file_in_path
+    else
+      if completion.on ~= "root" then
+        utils.warn(string.format("'trees.filesystem.completion.on' is not a recognized value (%q), using 'root'", completion.on))
+      end
+      function FilesystemTree:complete_func(bufnr)
+        return self:complete_func_file_in_path(bufnr)
+      end
+    end
+  end
+  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.TYPE, config)
 
+  local builtin = require("ya-tree.actions.builtin")
   FilesystemTree.supported_actions = utils.tbl_unique({
     builtin.files.add,
     builtin.files.rename,
@@ -86,35 +107,26 @@ do
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(Tree.supported_actions),
+    unpack(vim.deepcopy(Tree.supported_actions)),
   })
-end
 
----@param config Yat.Config
-function FilesystemTree.setup(config)
-  local completion = config.trees.filesystem.completion
-  if type(completion.setup) == "function" then
-    function FilesystemTree:complete_func(bufnr, node)
-      local completefunc = completion.setup(self, node)
-      if completefunc then
-        api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
-        api.nvim_buf_set_option(bufnr, "omnifunc", "")
-      end
-    end
-  else
-    if completion.on == "node" then
-      FilesystemTree.complete_func = Tree.complete_func_file_in_path
-    else
-      if completion.on ~= "root" then
-        utils.warn(string.format("'trees.filesystem.completion.on' is not a recognized value (%q), using 'root'", completion.on))
-      end
-      function FilesystemTree:complete_func(bufnr)
-        return self:complete_func_file_in_path(bufnr)
-      end
-    end
+  local ae = require("ya-tree.events.event").autocmd
+  local ge = require("ya-tree.events.event").git
+  local ye = require("ya-tree.events.event").ya_tree
+  FilesystemTree.supported_events = {
+    autcmd = { ae.BUFFER_MODIFIED },
+    git = {},
+    yatree = {},
+  }
+  if config.update_on_buffer_saved then
+    table.insert(FilesystemTree.supported_events.autcmd, ae.BUFFER_SAVED)
   end
-
-  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.TYPE, config)
+  if config.git.enable then
+    table.insert(FilesystemTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+  end
+  if config.diagnostics.enable then
+    table.insert(FilesystemTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+  end
 end
 
 ---Creates a new filesystem node tree root.
@@ -160,21 +172,11 @@ function FilesystemTree:new(tabpage, root)
   end
 
   local this = Tree.new(self, tabpage, root_node.path)
-  this:enable_events(true)
-  this.persistent = true
-
   this.root = root_node
   this.current_node = this.root
   this:check_node_for_repo(this.root)
 
-  local event = require("ya-tree.events.event").ya_tree
-  ---@param dir string
-  ---@param filenames string[]
-  this:register_yatree_event(event.FS_CHANGED, true, function(dir, filenames)
-    this:on_fs_event(dir, filenames)
-  end)
-
-  log.debug("created new tree %s", tostring(this))
+  log.info("created new tree %s", tostring(this))
   return this
 end
 
@@ -195,93 +197,33 @@ end
 ---@async
 ---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
+---@return boolean
 function FilesystemTree:on_git_event(repo, fs_changes)
-  if vim.v.exiting ~= vim.NIL or not (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
-    return
-  end
-  log.debug("git repo %s changed", tostring(repo))
+  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
+    log.debug("git repo %s changed", tostring(repo))
+    local tabpage = api.nvim_get_current_tabpage()
 
-  if fs_changes then
-    log.debug("git listener called with fs_changes=true, refreshing tree")
-    local node = self.root:get_child_if_loaded(repo.toplevel)
-    if node then
-      log.debug("repo %s is loaded in node %q", tostring(repo), node.path)
-      node:refresh({ recurse = true })
-    elseif self.root.path:find(repo.toplevel, 1, true) ~= nil then
-      log.debug("tree root %q is a subdirectory of repo %s", self.root.path, tostring(repo))
-      self.root:refresh({ recurse = true })
-    end
-  end
-  scheduler()
-  if self:is_shown_in_ui(api.nvim_get_current_tabpage()) then
-    -- get the current node to keep the cursor on it
-    ui.update(self, ui.get_current_node())
-  end
-end
-
----@async
----@param dir string
----@param filenames string[]
-function FilesystemTree:on_fs_event(dir, filenames)
-  log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, self.focus_path_on_fs_event)
-  local is_shown_in_ui = self:is_shown_in_ui(self._tabpage)
-  -- if the watched directory was deleted, the parent directory will handle any updates
-  if not fs.exists(dir) then
-    return
-  end
-  if not (self.root:is_ancestor_of(dir) or self.root.path == dir) then
-    return
-  end
-
-  local current_node = nil
-  local node = self.root:get_child_if_loaded(dir)
-  if node then
-    node:refresh({ refresh_git = true })
-    if is_shown_in_ui then
-      if self.focus_path_on_fs_event then
-        if self.focus_path_on_fs_event == "expand" then
-          node:expand()
-        elseif self.focus_path_on_fs_event then
-          local parent = self.root:expand({ to = Path:new(self.focus_path_on_fs_event):parent().filename })
-          current_node = parent and parent:get_child_if_loaded(self.focus_path_on_fs_event)
-        end
-        if not current_node then
-          for _, filename in ipairs(filenames) do
-            local child = node:get_child_if_loaded(dir .. utils.os_sep .. filename)
-            if child then
-              log.debug("setting current node to %q", dir .. utils.os_sep .. filename)
-              current_node = child
-              break
-            end
-          end
-        end
-      end
-      scheduler()
-      if ui.is_node_rendered(node) then
-        if not current_node then
-          current_node = ui.get_current_node()
-        end
-        ui.update(self, current_node, { focus_node = true })
+    if fs_changes then
+      log.debug("git listener called with fs_changes=true, refreshing tree")
+      local node = self.root:get_child_if_loaded(repo.toplevel)
+      if node then
+        log.debug("repo %s is loaded in node %q", tostring(repo), node.path)
+        node:refresh({ recurse = true })
+      elseif self.root.path:find(repo.toplevel, 1, true) ~= nil then
+        log.debug("tree root %q is a subdirectory of repo %s", self.root.path, tostring(repo))
+        self.root:refresh({ recurse = true })
       end
     end
-    if self.focus_path_on_fs_event then
-      log.debug("resetting focus_path_on_fs_event=%q dir=%q, filenames=%s", self.focus_path_on_fs_event, dir, filenames)
-      self.focus_path_on_fs_event = nil
-    end
+    return self:is_shown_in_ui(tabpage)
   end
+  return false
 end
 
 ---@async
 ---@param new_cwd string
 function FilesystemTree:on_cwd_changed(new_cwd)
   if new_cwd ~= self.root.path then
-    local tabpage = api.nvim_get_current_tabpage()
     self:change_root_node(new_cwd)
-
-    scheduler()
-    if self:is_shown_in_ui(tabpage) then
-      ui.update(self, ui.get_current_node())
-    end
   end
 end
 
@@ -339,13 +281,13 @@ end
 ---@return boolean
 ---@nodiscard
 function FilesystemTree:change_root_node(new_root)
-  local old_root = self.root
   if not fs.is_directory(new_root) then
     new_root = Path:new(new_root):parent():absolute() --[[@as string]]
   end
   if new_root == self.root.path then
     return true
   end
+  local old_root = self.root
   log.debug("setting new tree root to %q", new_root)
   if not update_tree_root_node(self, new_root) then
     local root = self.root
