@@ -83,12 +83,12 @@ local function create_header(format_string, current_tab, all_tree_types, width)
     tabs[#tabs + 1] = string.format(" (%s) %s ", index, tree_type)
     index = index + 1
   end
+  local header = string.format("%" .. math.floor((width / 2) + 6) .. "s", "KEY MAPPINGS")
   local keys = "press <Tab>, <S-Tab> or <number> to navigate"
   local formatted_keys = string.format("%" .. math.floor((width / 2) + (#keys / 2)) .. "s", keys)
   local tabs_line = " " .. table.concat(tabs, " ")
   local legend = string.format(format_string, "Key", "Action", "Tree")
-  local lines =
-    { string.format("%" .. math.floor((width / 2) + 6) .. "s", "KEY MAPPINGS"), formatted_keys, "", tabs_line, "", legend, "", " Normal Mode:" }
+  local lines = { header, formatted_keys, "", tabs_line, "", legend, "", " Normal Mode:" }
 
   ---@type Yat.Ui.HighlightGroup[]
   local tabs_highligt_group = {}
@@ -104,7 +104,7 @@ local function create_header(format_string, current_tab, all_tree_types, width)
     current_startpos = current_startpos + #tab + 1
   end
 
-  local tab_start = formatted_keys:find("<Tab>", 1, true) -1
+  local tab_start = formatted_keys:find("<Tab>", 1, true) - 1
   local stab_start = formatted_keys:find("<S-Tab>", 1, true) - 1
   local number_start = formatted_keys:find("<number>", 1, true) - 1
 
@@ -168,7 +168,7 @@ end
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlight_groups
 ---@return string[] close_keys
-local function mappings_for_for_tree(current_tab, all_tree_types, mappings, width)
+local function render_mappings_for_for_tree(current_tab, all_tree_types, mappings, width)
   local tree_type = all_tree_types[current_tab]
   local current_mappings = mappings[tree_type]
   local insert, visual, max_mapping_width, close_keys = parse_mappings(current_mappings)
@@ -181,18 +181,18 @@ local function mappings_for_for_tree(current_tab, all_tree_types, mappings, widt
   return lines, highlight_groups, close_keys
 end
 
----@param tree_type Yat.Trees.Type
-function M.open(tree_type)
+---@param current_tree_type Yat.Trees.Type
+function M.open(current_tree_type)
   local mappings = require("ya-tree.actions")._tree_mappings
 
   local tree_types = vim.tbl_keys(mappings) --[=[@as Yat.Trees.Type[]]=]
   table.sort(tree_types)
-  utils.tbl_remove(tree_types, tree_type)
-  table.insert(tree_types, 1, tree_type)
+  utils.tbl_remove(tree_types, current_tree_type)
+  table.insert(tree_types, 1, current_tree_type)
 
   local width = math.min(vim.o.columns - 2, 90)
   local current_tab = 1
-  local lines, highlight_groups, close_keys = mappings_for_for_tree(current_tab, tree_types, mappings, width)
+  local lines, highlight_groups, close_keys = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
 
   ---@type Yat.Ui.Popup
   local popup
@@ -200,7 +200,7 @@ function M.open(tree_type)
   for i in ipairs(tree_types) do
     builder:map_keys("n", tostring(i), function()
       current_tab = i
-      lines, highlight_groups = mappings_for_for_tree(current_tab, tree_types, mappings, width)
+      lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
       popup:set_content(lines, highlight_groups)
     end)
   end
@@ -209,7 +209,7 @@ function M.open(tree_type)
     if current_tab > #tree_types then
       current_tab = 1
     end
-    lines, highlight_groups = mappings_for_for_tree(current_tab, tree_types, mappings, width)
+    lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
     popup:set_content(lines, highlight_groups)
   end)
   builder:map_keys("n", "<S-Tab>", function()
@@ -217,7 +217,7 @@ function M.open(tree_type)
     if current_tab == 0 then
       current_tab = #tree_types
     end
-    lines, highlight_groups = mappings_for_for_tree(current_tab, tree_types, mappings, width)
+    lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
     popup:set_content(lines, highlight_groups)
   end)
   popup = builder:open(true)
