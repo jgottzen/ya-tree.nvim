@@ -160,15 +160,38 @@ local M = {
     },
 
     ---@class Yat.Config.Sidebar
-    ---@field single_mode boolean If the sidebar should be single tree only, default: `false`.
-    ---@field section_separator_char string The separator used between sections, default: `"─"`.
+    ---@field single_mode boolean If the sidebar should be a single tree only, default: `false`.
     ---@field tree_order Yat.Trees.Type[] In which order the tree sections appear, default: `{ "filesystem", "search", "git", "buffers" }`.
     ---@field trees_always_shown Yat.Trees.Type[] Which trees are always present, default: `{ "filesystem" }`.
+    ---@field section_layout Yat.Config.Sidebar.SectionLayout Layout configuration.
     sidebar = {
       single_mode = false,
-      section_separator_char = "─",
       tree_order = { "filesystem", "search", "git", "buffers" },
       trees_always_shown = { "filesystem" },
+
+      ---@class Yat.Config.Sidebar.SectionLayout
+      ---@field header Yat.Config.Sidebar.SectionLayout.Header Header configuration.
+      ---@field footer Yat.Config.Sidebar.SectionLayout.Footer Footer configuration.
+      section_layout = {
+        ---@class Yat.Config.Sidebar.SectionLayout.Header
+        ---@field enable boolean Whether to show the section header, e.g. `trees.filesystem.section_icon` and `trees.filesystem.section_name`, default: `true`.
+        ---@field empty_line_before_tree boolean Whether to show an empty line before the tree, default: `true`.
+        header = {
+          enable = true,
+          empty_line_before_tree = true
+        },
+        ---@class Yat.Config.Sidebar.SectionLayout.Footer
+        ---@field enable boolean Whether to show the section footer, i.e. the separator, default: `true`.
+        ---@field separator_char string The separator used between sections, default: `"─"`.
+        ---@field empty_line_after_tree boolean Whether to show an empty line between the tree and the separator, default: `true`.
+        ---@field empty_line_after_separator boolean Whether to show an empty line after the separator, default: `true`.
+        footer = {
+          enable = true,
+          separator_char = "─",
+          empty_line_after_tree = true,
+          empty_line_after_separator = true,
+        },
+      },
     },
 
     ---@class Yat.Config.Actions : { [Yat.Actions.Name]: Yat.Action }

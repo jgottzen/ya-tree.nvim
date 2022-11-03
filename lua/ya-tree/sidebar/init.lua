@@ -581,7 +581,6 @@ end
 ---@return Yat.Ui.HighlightGroup[][] highlights
 function Sidebar:render(config, width)
   local hl = require("ya-tree.ui.highlights")
-  local single_mode = self.single_mode or #self._sections == 1
   local sections = self.single_mode and { self._sections[1] } or self._sections
   if self.single_mode and #self._sections == 2 then
     self._sections[2].from = 0
@@ -589,29 +588,44 @@ function Sidebar:render(config, width)
     self._sections[2].path_lookup = {}
   end
 
+  local header_enabled = not (self.single_mode or #self._sections == 1) and config.sidebar.section_layout.header.enable
+  local pad_header = config.sidebar.section_layout.header.empty_line_before_tree
+  local offset = not header_enabled and -1 or pad_header and 1 or 0
+  local footer_enabled = config.sidebar.section_layout.footer.enable
+  local pad_footer_top = config.sidebar.section_layout.footer.empty_line_after_tree
+  local pad_footer_bottom = config.sidebar.section_layout.footer.empty_line_after_separator
+  local separator = string.rep(config.sidebar.section_layout.footer.separator_char, width)
+
   ---@type string[], Yat.Ui.HighlightGroup[][]
   local lines, highlights, from = {}, {}, 1
   for i, section in pairs(sections) do
     section.from = from
-    local _lines, _highlights, path_lookup, extra = section.tree:render(config, single_mode and from - 1 or from + 1)
-    if not single_mode then
+    local _lines, _highlights, path_lookup, extra = section.tree:render(config, from + offset)
+
+    if header_enabled then
       local header, header_hl = section.tree:render_header()
       table.insert(_lines, 1, header)
-      table.insert(_lines, 2, "")
       table.insert(_highlights, 1, header_hl)
-      table.insert(_highlights, 2, {})
+      if pad_header then
+        table.insert(_lines, 2, "")
+        table.insert(_highlights, 2, {})
+      end
     end
     section.path_lookup = path_lookup
     section.directory_min_diagnostic_severity = extra.directory_min_diagnostic_severity
     section.file_min_diagnostic_severity = extra.file_min_diagnostic_severity
 
-    if i < #sections then
-      _lines[#_lines + 1] = ""
-      _lines[#_lines + 1] = string.rep(config.sidebar.section_separator_char, width)
-      _lines[#_lines + 1] = ""
-      _highlights[#_highlights + 1] = {}
+    if footer_enabled and i < #sections then
+      if pad_footer_top then
+        _lines[#_lines + 1] = ""
+        _highlights[#_highlights + 1] = {}
+      end
+      _lines[#_lines + 1] = separator
       _highlights[#_highlights + 1] = { { name = hl.DIM_TEXT, from = 0, to = -1 } }
-      _highlights[#_highlights + 1] = {}
+      if pad_footer_bottom then
+        _lines[#_lines + 1] = ""
+        _highlights[#_highlights + 1] = {}
+      end
     end
 
     vim.list_extend(lines, _lines, 1, #_lines)
