@@ -19,6 +19,9 @@ local log = require("ya-tree.log")("sidebar")
 local api = vim.api
 local uv = vim.loop
 
+---@type fun(tree?: Yat.Tree, node?: Yat.Node, opts?: { focus_node?: boolean, focus_window?: boolean })
+local update_ui = vim.schedule_wrap(ui.update)
+
 ---@class Yat.Sidebar.Section
 ---@field tree Yat.Tree
 ---@field directory_min_diagnostic_severity integer
@@ -282,7 +285,7 @@ function Sidebar:close_tree(tree, force)
       self:_delete_section(1)
       -- the filesystem tree is never deleted, reuse it if it's present
       if not (self._sections[1] and self._sections[1].tree.TYPE == "filesystem") then
-        self._sections = { FilesystemTree:new(self.tabpage, uv.cwd()) }
+        self._sections = create_section(FilesystemTree:new(self.tabpage, uv.cwd()))
       end
       return self._sections[1].tree
     end
@@ -316,7 +319,7 @@ function Sidebar:on_buffer_new(bufnr, file, match)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -334,7 +337,7 @@ function Sidebar:on_buffer_hidden(bufnr, file, match)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -352,7 +355,7 @@ function Sidebar:on_buffer_displayed(bufnr, file, match)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -370,7 +373,7 @@ function Sidebar:on_buffer_deleted(bufnr, file, match)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -386,7 +389,7 @@ function Sidebar:on_buffer_modified(bufnr, file, match)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -403,7 +406,7 @@ function Sidebar:on_buffer_saved(bufnr, file, match)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -419,7 +422,7 @@ function Sidebar:on_git_event(repo, fs_changes)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -434,7 +437,7 @@ function Sidebar:on_diagnostics_event(severity_changed)
     end
   end
   if update then
-    vim.schedule_wrap(ui.update)()
+    update_ui()
   end
 end
 
@@ -882,8 +885,7 @@ local function on_cwd_changed(scope, new_cwd)
   -- Do the current tabpage first
   if scope == "tabpage" or scope == "global" then
     cwd_for_sidebar(M._sidebars[current_tabpage])
-    scheduler()
-    ui.update()
+    update_ui()
   end
   if scope == "global" then
     for tabpage, sidebar in ipairs(M._sidebars) do

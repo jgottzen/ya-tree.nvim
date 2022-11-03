@@ -113,7 +113,6 @@ end
 ---@param opts? { focus_node?: boolean, focus_window?: boolean }
 ---  - {opts.focus_node?} `boolean`
 ---  - {opts.focus_window?} `boolean`
----
 function M.update(tree, node, opts)
   opts = opts or {}
   local canvas = get_canvas()
