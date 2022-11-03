@@ -35,8 +35,7 @@ end
 
 setmetatable(BufferNode, { __index = Node })
 
-local TERMINALS_CONTAINER_PATH = "yatree://terminals/container"
-local TERMINAL_PREFIX = "term://"
+local TERMINALS_CONTAINER_PATH = "/yatree://terminals/container"
 
 ---Creates a new buffer node.
 ---@param fs_node Yat.Fs.Node filesystem data.
@@ -79,7 +78,7 @@ end
 
 ---@return boolean
 function BufferNode:is_terminals_container()
-  return self.path == TERMINALS_CONTAINER_PATH
+  return self.path:find(TERMINALS_CONTAINER_PATH, 1, true) ~= nil
 end
 
 ---@return integer? index
@@ -187,7 +186,7 @@ local function create_terminal_buffers_container(root)
   local container = BufferNode:new({
     name = "Terminals",
     type = "directory",
-    path = TERMINALS_CONTAINER_PATH,
+    path = root.path .. TERMINALS_CONTAINER_PATH,
     extension = "terminal",
   }, root)
   root._children[#root._children + 1] = container
@@ -206,7 +205,7 @@ local function add_terminal_buffer_to_container(container, terminal)
   local node = BufferNode:new({
     name = name,
     type = "terminal",
-    path = terminal.name,
+    path = container.path .. "/" .. terminal.name,
     extension = "terminal",
   }, container, terminal.name, terminal.bufnr, false, hidden)
   container._children[#container._children + 1] = node
@@ -265,52 +264,6 @@ function BufferNode:refresh(opts)
   end
 
   return first_leaf_node
-end
-
----@param path string
----@return Yat.Nodes.Buffer?
-function BufferNode:get_child_if_loaded(path)
-  if path ~= TERMINALS_CONTAINER_PATH and not vim.startswith(path, TERMINAL_PREFIX) then
-    return Node.get_child_if_loaded(self, path)
-  elseif self.parent then
-    return self.parent:get_child_if_loaded(path)
-  end
-
-  local _, container = self:get_terminals_container()
-  if path == TERMINALS_CONTAINER_PATH then
-    return container
-  elseif container then
-    for _, child in ipairs(container._children) do
-      if child.path == path then
-        return child
-      end
-    end
-  end
-end
-
----Expands the node, if it is a directory.
----@async
----@param opts? {force_scan?: boolean, all?: boolean, to?: string}
----  - {opts.force_scan?} `boolean` rescan directories.
----  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return Yat.Nodes.Buffer|nil node if {opts.to} is specified, and found.
-function BufferNode:expand(opts)
-  opts = opts or {}
-  if opts.to and vim.startswith(opts.to, TERMINAL_PREFIX) then
-    if self._children then
-      local _, container = self:get_terminals_container()
-      if container then
-        for _, child in ipairs(container._children) do
-          if child.bufname == opts.to then
-            container.expanded = true
-            return child
-          end
-        end
-      end
-    end
-  else
-    return Node.expand(self, opts)
-  end
 end
 
 ---@async
