@@ -560,14 +560,14 @@ do
       { icon = icons.deleted, highlight = hl.GIT_DIRTY },
     }
 
-    git_icons_and_hl["A."] = { { icon = icons.added, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["A."] = { { icon = icons.added, highlight = hl.GIT_NEW } }
     git_icons_and_hl["AM"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } }
     git_icons_and_hl["AT"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
     git_icons_and_hl["AD"] = { { icon = icons.added, highlight = hl.GIT_STAGED }, { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
 
-    git_icons_and_hl["D."] = { { icon = icons.deleted, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["D."] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } }
 
-    git_icons_and_hl["R."] = { { icon = icons.renamed, highlight = hl.GIT_STAGED } }
+    git_icons_and_hl["R."] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } }
     git_icons_and_hl["RM"] = { { icon = icons.renamed, highlight = hl.GIT_STAGED }, { icon = icons.modified, highlight = hl.GIT_DIRTY } }
     git_icons_and_hl["RT"] = {
       { icon = icons.renamed, highlight = hl.GIT_STAGED },
