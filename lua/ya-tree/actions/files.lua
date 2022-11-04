@@ -24,7 +24,7 @@ function M.open(tree)
     local node = nodes[1]
     if node:has_children() then
       node_actions.toggle_node(tree, node)
-    elseif node:is_file() and node:node_type() ~= "Text" then
+    elseif node:is_editable() then
       ui.open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
       ---@cast node Yat.Nodes.Buffer
@@ -43,7 +43,7 @@ function M.open(tree)
     end
   else
     for _, node in ipairs(nodes) do
-      if node:is_file() and node:node_type() ~= "Text" then
+      if node:is_editable() then
         ui.open_file(node.path, "edit")
       end
     end
@@ -54,7 +54,7 @@ end
 ---@param _ Yat.Tree
 ---@param node Yat.Node
 function M.vsplit(_, node)
-  if node:is_file() then
+  if node:is_editable() then
     ui.open_file(node.path, "vsplit")
   end
 end
@@ -63,7 +63,7 @@ end
 ---@param _ Yat.Tree
 ---@param node Yat.Node
 function M.split(_, node)
-  if node:is_file() then
+  if node:is_editable() then
     ui.open_file(node.path, "split")
   end
 end
@@ -72,7 +72,7 @@ end
 ---@param node Yat.Node
 ---@param focus boolean
 local function preview(node, focus)
-  if node:is_file() then
+  if node:is_editable() then
     local already_loaded = vim.fn.bufloaded(node.path) > 0
     ui.open_file(node.path, "edit")
 
@@ -117,7 +117,7 @@ end
 ---@param _ Yat.Tree
 ---@param node Yat.Node
 function M.tabnew(_, node)
-  if node:is_file() then
+  if node:is_editable() then
     ui.open_file(node.path, "tabnew")
   end
 end

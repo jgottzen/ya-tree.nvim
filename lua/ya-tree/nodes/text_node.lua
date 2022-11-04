@@ -24,6 +24,10 @@ function TextNode:new(text, path, container, parent)
   return this
 end
 
+function TextNode:is_editable()
+  return false
+end
+
 ---@private
 function TextNode:_scandir() end
 

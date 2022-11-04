@@ -304,7 +304,7 @@ function M.node_for(path)
   ---@type string?, uv_fs_stat
   local err, lstat = async_uv.fs_lstat(path)
   if err then
-    log.error("cannot fs_lstat path %q, %s", path, err)
+    log.warn("cannot fs_lstat path %q, %s", path, err)
     return nil
   end
 

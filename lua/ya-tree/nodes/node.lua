@@ -243,6 +243,11 @@ function Node:node_type()
   return self.__node_type
 end
 
+---@return boolean editable
+function Node:is_editable()
+  return self.type == "file"
+end
+
 ---@return boolean
 function Node:is_directory()
   return self.type == "directory"

@@ -84,7 +84,11 @@ function GitNode:refresh(opts)
         type = directory and "directory" or "file",
       }
     end
-    return GitNode:new(fs_node, parent)
+    local node = GitNode:new(fs_node, parent)
+    node.is_editable = function(_)
+      return false
+    end
+    return node
   end)
 end
 
