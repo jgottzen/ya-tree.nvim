@@ -453,10 +453,7 @@ function Sidebar:on_fs_changed_event(dir, filenames)
   log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, tree.focus_path_on_fs_event)
   local is_shown_in_ui = ui.is_open(tabpage, tree)
   -- if the watched directory was deleted, the parent directory will handle any updates
-  if not fs.exists(dir) then
-    return
-  end
-  if not (tree.root:is_ancestor_of(dir) or tree.root.path == dir) then
+  if not fs.exists(dir) or not (tree.root:is_ancestor_of(dir) or tree.root.path == dir) then
     return
   end
 
@@ -468,7 +465,7 @@ function Sidebar:on_fs_changed_event(dir, filenames)
       if tree.focus_path_on_fs_event then
         if tree.focus_path_on_fs_event == "expand" then
           node:expand()
-        elseif tree.focus_path_on_fs_event then
+        else
           local parent = tree.root:expand({ to = Path:new(tree.focus_path_on_fs_event):parent().filename })
           new_node = parent and parent:get_child_if_loaded(tree.focus_path_on_fs_event)
         end
@@ -601,6 +598,9 @@ function Sidebar:render(config, width)
   for i, section in pairs(sections) do
     section.from = from
     local _lines, _highlights, path_lookup, extra = section.tree:render(config, from + offset)
+    section.path_lookup = path_lookup
+    section.directory_min_diagnostic_severity = extra.directory_min_diagnostic_severity
+    section.file_min_diagnostic_severity = extra.file_min_diagnostic_severity
 
     if header_enabled then
       local header, header_hl = section.tree:render_header()
@@ -611,9 +611,6 @@ function Sidebar:render(config, width)
         table.insert(_highlights, 2, {})
       end
     end
-    section.path_lookup = path_lookup
-    section.directory_min_diagnostic_severity = extra.directory_min_diagnostic_severity
-    section.file_min_diagnostic_severity = extra.file_min_diagnostic_severity
 
     if footer_enabled and i < #sections then
       if pad_footer_top then
@@ -660,7 +657,7 @@ function Sidebar:_get_section_for_row(row)
 end
 
 ---@param tree Yat.Tree
----@return boolean is_rendere
+---@return boolean is_rendered
 function Sidebar:has_tree(tree)
   if self.single_mode then
     return self._sections[1].tree.TYPE == tree.TYPE
@@ -670,7 +667,7 @@ end
 
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@return boolean visible
+---@return boolean is_rendered
 function Sidebar:is_node_rendered(tree, node)
   local section = self:_get_section(tree.TYPE)
   return section and section.path_lookup[node.path] ~= nil or false
@@ -694,29 +691,25 @@ function Sidebar:get_current_tree_and_node(row)
 end
 
 ---@param tree Yat.Tree
----@return Yat.Tree|nil next_tree `nil` if the current tree is the last one.
+---@return Yat.Tree|nil next_tree `nil` if the current tree is the first one.
 function Sidebar:get_previous_tree(tree)
-  local index
   for i, section in pairs(self._sections) do
     if section.tree.TYPE == tree.TYPE then
-      index = i - 1
-      break
+      local index = i - 1
+      return index <= #self._sections and self._sections[index].tree or nil
     end
   end
-  return index <= #self._sections and self._sections[index].tree or nil
 end
 
 ---@param tree Yat.Tree
 ---@return Yat.Tree|nil next_tree `nil` if the current tree is the last one.
 function Sidebar:get_next_tree(tree)
-  local index
   for i, section in pairs(self._sections) do
     if section.tree.TYPE == tree.TYPE then
-      index = i + 1
-      break
+      local index = i + 1
+      return index <= #self._sections and self._sections[index].tree or nil
     end
   end
-  return index <= #self._sections and self._sections[index].tree or nil
 end
 
 ---@param row integer
@@ -734,11 +727,10 @@ function Sidebar:get_nodes(from, to)
   local nodes = {}
   local section = self:_get_section_for_row(from)
   if section and section.tree.root then
-    local root = section.tree.root
     for row = from, math.min(to, section.to) do
       local path = section.path_lookup[row]
       if path then
-        local node = root:get_child_if_loaded(path)
+        local node = section.tree.root:get_child_if_loaded(path)
         if node then
           nodes[#nodes + 1] = node
         end
