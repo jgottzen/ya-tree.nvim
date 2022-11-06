@@ -1,4 +1,3 @@
-local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local git = require("ya-tree.git")
@@ -249,11 +248,6 @@ function Tree:on_buffer_saved(bufnr, file, match)
       local node = parent:get_child_if_loaded(file)
       if node then
         node.modified = false
-        if require("ya-tree.config").config.git.enable then
-          if node.repo then
-            node.repo:refresh_status_for_path(file)
-          end
-        end
         return self:is_shown_in_ui(tabpage) and ui.is_node_rendered(tabpage, self, node)
       end
     end

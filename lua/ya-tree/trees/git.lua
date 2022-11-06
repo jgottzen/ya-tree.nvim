@@ -150,13 +150,11 @@ function GitTree:on_buffer_saved(_, file)
     if node then
       node.modified = false
     end
-    local git_status_changed = self.root.repo:refresh_status_for_path(file)
-    if not node and git_status_changed then
+    local git_status = self.root.repo:status_of(file, "file")
+    if not node and git_status then
       self.root:add_node(file)
-    elseif node and git_status_changed then
-      if not node:git_status() then
-        self.root:remove_node(file)
-      end
+    elseif node and not git_status then
+      self.root:remove_node(file)
     end
 
     return self:is_shown_in_ui(tabpage)

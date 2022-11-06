@@ -398,6 +398,10 @@ end
 ---@param file string
 ---@diagnostic disable-next-line:unused-local
 function Sidebar:on_buffer_saved(bufnr, file, match)
+  local repo = git.get_repo_for_path(file)
+  if repo then
+    repo:refresh_status_for_path(file)
+  end
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
