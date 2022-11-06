@@ -410,6 +410,7 @@ local M = {
             ["ga"] = "git_stage",
             ["gu"] = "git_unstage",
             ["gr"] = "git_revert",
+            ["r"] = "rename",
             ["[c"] = "focus_prev_git_item",
             ["]c"] = "focus_next_git_item",
             ["[e"] = "focus_prev_diagnostic_item",

@@ -176,7 +176,7 @@ function M.add(tree, node)
 end
 
 ---@async
----@param tree Yat.Trees.Filesystem
+---@param tree Yat.Trees.Filesystem|Yat.Trees.Git
 ---@param node Yat.Node
 function M.rename(tree, node)
   -- prohibit renaming the root node
@@ -192,8 +192,11 @@ function M.rename(tree, node)
     return
   end
 
-  prepare_add_rename(tree, node, path)
-  if fs.rename(node.path, path) then
+  if tree.TYPE == "filesystem" then
+    prepare_add_rename(tree --[[@as Yat.Trees.Filesystem]], node, path)
+  end
+  local ok = node.repo and node.repo:rename(node.path, path) or fs.rename(node.path, path)
+  if ok then
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
   else
     tree.focus_path_on_fs_event = nil

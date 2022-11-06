@@ -23,6 +23,8 @@ GitTree.__tostring = Tree.__tostring
 setmetatable(GitTree, { __index = Tree })
 
 ---@alias Yat.Trees.Git.SupportedActions
+---| "rename"
+---
 ---| "cd_to"
 ---| "toggle_ignored"
 ---| "toggle_filter"
@@ -49,6 +51,8 @@ function GitTree.setup(config)
 
   local builtin = require("ya-tree.actions.builtin")
   GitTree.supported_actions = utils.tbl_unique({
+    builtin.files.rename,
+
     builtin.files.cd_to,
     builtin.files.toggle_ignored,
     builtin.files.toggle_filter,
