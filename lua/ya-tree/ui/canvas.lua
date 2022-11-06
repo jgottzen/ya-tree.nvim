@@ -373,7 +373,7 @@ end
 ---@param tree Yat.Tree
 ---@return boolean is_rendered
 function Canvas:is_tree_rendered(tree)
-  return self.sidebar:has_tree(tree)
+  return self.sidebar:is_tree_rendered(tree)
 end
 
 ---@param tree Yat.Tree

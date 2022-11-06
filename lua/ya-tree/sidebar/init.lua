@@ -449,23 +449,36 @@ end
 ---@param dir string
 ---@param filenames string[]
 function Sidebar:on_fs_changed_event(dir, filenames)
+  local tabpage = api.nvim_get_current_tabpage()
   local tree = self:get_tree("filesystem") --[[@as Yat.Trees.Filesystem?]]
+  log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, tree and tree.focus_path_on_fs_event)
+  local ui_is_open = ui.is_open(tabpage)
+
+  local repo = git.get_repo_for_path(dir)
+  if repo then
+    repo:refresh_status({ ignored = true })
+  end
+  local git_tree = self:get_tree("git") --[[@as Yat.Trees.Git?]]
+  if git_tree and (git_tree.root:is_ancestor_of(dir) or git_tree.root.path == dir) then
+    git_tree.root:refresh({ refresh_git = false })
+  end
+
   if not tree then
+    if git_tree and ui_is_open and self:is_tree_rendered(git_tree) then
+      ui.update()
+    end
     return
   end
-  local tabpage = api.nvim_get_current_tabpage()
-  log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, tree.focus_path_on_fs_event)
-  local is_shown_in_ui = ui.is_open(tabpage, tree)
   -- if the watched directory was deleted, the parent directory will handle any updates
   if not fs.exists(dir) or not (tree.root:is_ancestor_of(dir) or tree.root.path == dir) then
     return
   end
 
-  local new_node = nil
   local node = tree.root:get_child_if_loaded(dir)
   if node then
-    node:refresh({ refresh_git = true })
-    if is_shown_in_ui then
+    node:refresh()
+    if ui_is_open and self:is_tree_rendered(tree) then
+      local new_node = nil
       if tree.focus_path_on_fs_event then
         if tree.focus_path_on_fs_event == "expand" then
           node:expand()
@@ -662,7 +675,7 @@ end
 
 ---@param tree Yat.Tree
 ---@return boolean is_rendered
-function Sidebar:has_tree(tree)
+function Sidebar:is_tree_rendered(tree)
   if self.single_mode then
     return self._sections[1].tree.TYPE == tree.TYPE
   end

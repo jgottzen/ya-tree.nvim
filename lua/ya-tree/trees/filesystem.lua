@@ -195,31 +195,6 @@ function FilesystemTree:delete()
 end
 
 ---@async
----@param repo Yat.Git.Repo
----@param fs_changes boolean
----@return boolean
-function FilesystemTree:on_git_event(repo, fs_changes)
-  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
-    log.debug("git repo %s changed", tostring(repo))
-    local tabpage = api.nvim_get_current_tabpage()
-
-    if fs_changes then
-      log.debug("git listener called with fs_changes=true, refreshing tree")
-      local node = self.root:get_child_if_loaded(repo.toplevel)
-      if node then
-        log.debug("repo %s is loaded in node %q", tostring(repo), node.path)
-        node:refresh({ recurse = true })
-      elseif self.root.path:find(repo.toplevel, 1, true) ~= nil then
-        log.debug("tree root %q is a subdirectory of repo %s", self.root.path, tostring(repo))
-        self.root:refresh({ recurse = true })
-      end
-    end
-    return self:is_shown_in_ui(tabpage)
-  end
-  return false
-end
-
----@async
 ---@param new_cwd string
 function FilesystemTree:on_cwd_changed(new_cwd)
   if new_cwd ~= self.root.path then

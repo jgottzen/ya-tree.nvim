@@ -264,7 +264,7 @@ function Repo:command(args, null_terminated)
   local result, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
   scheduler()
   if err then
-    local message = vim.split(err, "\n", { plain = true, trimempty = true })
+    local message = vim.split(err, "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
     log.error("error running git command, %s", table.concat(message, " "))
   end
   return result
@@ -346,8 +346,7 @@ function Repo:refresh_status_for_path(path)
   end
 
   local relative_path = utils.relative_path_for(path, self.toplevel)
-  local i = 1
-  local found = false
+  local i, found = 1, false
   while i <= #results do
     local line = results[i]
     if line:find(relative_path, 1, true) then
@@ -403,8 +402,7 @@ function Repo:refresh_status(opts)
   self._status._propagated_changed_entries = {}
   self._status._ignored = {}
 
-  local fs_changes = false
-  local i = 1
+  local i, fs_changes = 1, false
   while i <= #results do
     local line = results[i]
     local line_type = line:sub(1, 1)
