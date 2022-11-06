@@ -215,6 +215,9 @@ local function define_actions(actions)
   M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
   M.define_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous Git item", { "n" })
   M.define_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next Git item", { "n" })
+  M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory", { "n" })
+  M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory", { "n" })
+  M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory", { "n" })
 
   M.define_action(
     builtin.diagnostics.focus_prev_diagnostic_item,

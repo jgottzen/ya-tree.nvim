@@ -21,4 +21,34 @@ function M.check_node_for_git(tree, node)
   end
 end
 
+---@async
+---@param _ Yat.Tree
+---@param node Yat.Node
+function M.stage(_, node)
+  if node.repo then
+    node.repo:add(node.path)
+    ui.update()
+  end
+end
+
+---@async
+---@param _ Yat.Tree
+---@param node Yat.Node
+function M.unstage(_, node)
+  if node.repo then
+    node.repo:restore(node.path, true)
+    ui.update()
+  end
+end
+
+---@async
+---@param _ Yat.Tree
+---@param node Yat.Node
+function M.revert(_, node)
+  if node.repo then
+    node.repo:restore(node.path, false)
+    ui.update()
+  end
+end
+
 return M

@@ -637,6 +637,35 @@ end
 
 ---@async
 ---@param path string
+function Repo:add(path)
+  local results = self:command({ "add", path }, false)
+  return results ~= nil and #results == 0
+end
+
+---@async
+---@param path string
+---@param staged? boolean
+function Repo:restore(path, staged)
+  local args = { "restore" }
+  if staged then
+    args[#args + 1] = "--staged"
+  end
+  args[#args + 1] = path
+  local results = self:command(args, false)
+  return results ~= nil and #results == 0
+end
+
+---@async
+---@param path string
+---@param new_path string
+---@return boolean success
+function Repo:rename(path, new_path)
+  local results = self:command({ "mv", "-k", path, new_path }, false)
+  return results ~= nil and #results == 0
+end
+
+---@async
+---@param path string
 ---@return Yat.Git.Repo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function M.create_repo(path)
   return Repo:new(path)

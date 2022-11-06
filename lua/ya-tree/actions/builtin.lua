@@ -52,6 +52,9 @@
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
+---| "git_stage"
+---| "git_unstage"
+---| "git_revert"
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
@@ -129,6 +132,9 @@ local M = {
     check_node_for_git = "check_node_for_git",
     focus_prev_git_item = "focus_prev_git_item",
     focus_next_git_item = "focus_next_git_item",
+    git_stage = "git_stage",
+    git_unstage = "git_unstage",
+    git_revert = "git_revert",
   },
   ---@class Yat.Actions.Action.Diagnostics
   diagnostics = {

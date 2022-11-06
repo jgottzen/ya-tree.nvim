@@ -33,6 +33,9 @@ setmetatable(GitTree, { __index = Tree })
 ---
 ---| "focus_prev_git_item"
 ---| "focus_prev_git_item"
+---| "git_stage"
+---| "git_unstage"
+---| "git_revert"
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
@@ -56,6 +59,9 @@ function GitTree.setup(config)
 
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
+    builtin.git.git_stage,
+    builtin.git.git_unstage,
+    builtin.git.git_revert,
 
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
