@@ -153,8 +153,17 @@ function Canvas:move_buffer_to_edit_window(bufnr)
     log.debug("moving buffer %s from window %s to window %s", bufnr, self.winid, self.edit_winid)
 
     self:restore()
-    api.nvim_win_set_buf(self.edit_winid, bufnr)
     api.nvim_set_current_win(self.edit_winid)
+    --- moving the buffer to the edit window retains the number/relativenumber/signcolumn settings
+    -- from the tree window...
+    -- save them and apply them after switching
+    local number = vim.wo.number
+    local relativenumber = vim.wo.relativenumber
+    local signcolumn = vim.wo.signcolumn
+    api.nvim_win_set_buf(self.edit_winid, bufnr)
+    vim.wo.number = number
+    vim.wo.relativenumber = relativenumber
+    vim.wo.signcolumn = signcolumn
   end
 end
 
@@ -308,7 +317,6 @@ function Canvas:open(sidebar, opts)
 
   self:draw()
   if self.pos_after_win_leave then
-    log.info("setting row_after_win_leave=%s", self.pos_after_win_leave)
     set_cursor_position(self.winid, self.pos_after_win_leave[1], self.pos_after_win_leave[2])
   end
 
