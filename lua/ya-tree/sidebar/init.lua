@@ -65,8 +65,8 @@ local function create_section(tree)
     from = 0,
     to = 0,
     path_lookup = {},
-    directory_min_diagnostic_severity = vim.diagnostic.severity.HINT,
-    file_min_diagnostic_severity = vim.diagnostic.severity.HINT,
+    directory_min_diagnostic_severity = tree.renderers.extra.directory_min_diagnostic_severity,
+    file_min_diagnostic_severity = tree.renderers.extra.file_min_diagnostic_severity,
   }
   return section
 end
@@ -628,10 +628,8 @@ function Sidebar:render(config, width)
   local lines, highlights, from = {}, {}, 1
   for i, section in pairs(sections) do
     section.from = from
-    local _lines, _highlights, path_lookup, extra = section.tree:render(config, from + offset)
-    section.path_lookup = path_lookup
-    section.directory_min_diagnostic_severity = extra.directory_min_diagnostic_severity
-    section.file_min_diagnostic_severity = extra.file_min_diagnostic_severity
+    local _lines, _highlights
+    _lines, _highlights, section.path_lookup = section.tree:render(config, from + offset)
 
     if header_enabled then
       local header, header_hl = section.tree:render_header()

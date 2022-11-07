@@ -303,7 +303,6 @@ end
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlights
 ---@return { [integer]: string, [integer]: string } path_lookup
----@return Yat.Trees.TreeRenderersExtra
 function Tree:render(config, offset)
   ---@type { [integer]: string, [integer]: string }, string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
   local path_lookup, lines, highlights, context, linenr = {}, {}, {}, { tree_type = self.TYPE, config = config, indent_markers = {} }, 0
@@ -335,7 +334,7 @@ function Tree:render(config, offset)
 
   append_node(self.root, 0, false)
 
-  return lines, highlights, path_lookup, self.renderers.extra
+  return lines, highlights, path_lookup
 end
 
 ---@async
