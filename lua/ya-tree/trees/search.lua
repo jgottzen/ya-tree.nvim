@@ -12,7 +12,7 @@ local log = require("ya-tree.log")("trees")
 ---@field root Yat.Nodes.Search
 ---@field current_node Yat.Nodes.Search
 ---@field supported_actions Yat.Trees.Search.SupportedActions[]
----@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
+---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func fun(self: Yat.Trees.Search, bufnr: integer)
 local SearchTree = { TYPE = "search" }
 SearchTree.__index = SearchTree
@@ -77,18 +77,18 @@ function SearchTree.setup(config)
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
   SearchTree.supported_events = {
-    autcmd = { ae.BUFFER_MODIFIED },
+    autocmd = { [ae.BUFFER_MODIFIED] = SearchTree.on_buffer_modified },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    table.insert(SearchTree.supported_events.autcmd, ae.BUFFER_SAVED)
+    SearchTree.supported_events.autocmd[ae.BUFFER_SAVED] = SearchTree.on_buffer_saved
   end
   if config.git.enable then
-    table.insert(SearchTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+    SearchTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = SearchTree.on_git_event
   end
   if config.diagnostics.enable then
-    table.insert(SearchTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+    SearchTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = SearchTree.on_diagnostics_event
   end
 end
 

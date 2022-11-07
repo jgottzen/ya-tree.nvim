@@ -14,7 +14,7 @@ local uv = vim.loop
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
 ---@field supported_actions Yat.Trees.Buffers.SupportedActions
----@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
+---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func "buffer"
 local BuffersTree = { TYPE = "buffers" }
 BuffersTree.__index = BuffersTree
@@ -75,18 +75,24 @@ function BuffersTree.setup(config)
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
   BuffersTree.supported_events = {
-    autcmd = { ae.BUFFER_MODIFIED, ae.BUFFER_NEW, ae.BUFFER_HIDDEN, ae.BUFFER_DISPLAYED, ae.BUFFER_DELETED },
+    autocmd = {
+      [ae.BUFFER_MODIFIED] = BuffersTree.on_buffer_modified,
+      [ae.BUFFER_NEW] = BuffersTree.on_buffer_new,
+      [ae.BUFFER_HIDDEN] = BuffersTree.on_buffer_hidden,
+      [ae.BUFFER_DISPLAYED] = BuffersTree.on_buffer_displayed,
+      [ae.BUFFER_DELETED] = BuffersTree.on_buffer_deleted,
+    },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    table.insert(BuffersTree.supported_events.autcmd, ae.BUFFER_SAVED)
+    BuffersTree.supported_events.autocmd[ae.BUFFER_SAVED] = BuffersTree.on_buffer_saved
   end
   if config.git.enable then
-    table.insert(BuffersTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+    BuffersTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = BuffersTree.on_git_event
   end
   if config.diagnostics.enable then
-    table.insert(BuffersTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+    BuffersTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = BuffersTree.on_diagnostics_event
   end
 end
 

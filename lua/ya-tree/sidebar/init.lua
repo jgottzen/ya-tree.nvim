@@ -42,7 +42,7 @@ end
 ---@field tree_order table<Yat.Trees.Type, integer>
 ---@field always_shown_trees Yat.Trees.Type[]
 ---@field private _sections Yat.Sidebar.Section[]
----@field private _registered_events { autcmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
+---@field private _registered_events { autocmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
 local Sidebar = {}
 Sidebar.__index = Sidebar
 
@@ -85,7 +85,7 @@ function Sidebar:new(tabpage, sidebar_config)
     this.tree_order[tree_type] = i
   end
   this.always_shown_trees = sidebar_config.trees_always_shown
-  this._registered_events = { autcmd = {}, git = {}, yatree = {} }
+  this._registered_events = { autocmd = {}, git = {}, yatree = {} }
   this._sections = {}
   local tree_types = this.single_mode and { this.always_shown_trees[1] } or this.always_shown_trees
   for _, tree_type in ipairs(tree_types) do
@@ -109,49 +109,62 @@ end
 ---@param tree Yat.Tree
 function Sidebar:_register_events_for_tree(tree)
   log.debug("registering events for tree %s", tostring(tree))
-  for _, event in ipairs(tree.supported_events.autcmd) do
-    self:register_autocmd_event(event, true, function(bufnr, file, match)
-      if event == autocmd_event.BUFFER_NEW then
+  for event in pairs(tree.supported_events.autocmd) do
+    ---@cast event Yat.Events.AutocmdEvent
+    if event == autocmd_event.BUFFER_NEW then
+      self:register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_new(bufnr, file, match)
-      elseif event == autocmd_event.BUFFER_HIDDEN then
+      end)
+    elseif event == autocmd_event.BUFFER_HIDDEN then
+      self:register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_hidden(bufnr, file, match)
-      elseif event == autocmd_event.BUFFER_DISPLAYED then
+      end)
+    elseif event == autocmd_event.BUFFER_DISPLAYED then
+      self:register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_displayed(bufnr, file, match)
-      elseif event == autocmd_event.BUFFER_DELETED then
+      end)
+    elseif event == autocmd_event.BUFFER_DELETED then
+      self:register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_deleted(bufnr, file, match)
-      elseif event == autocmd_event.BUFFER_MODIFIED then
+      end)
+    elseif event == autocmd_event.BUFFER_MODIFIED then
+      self:register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_modified(bufnr, file, match)
-      elseif event == autocmd_event.BUFFER_SAVED then
+      end)
+    elseif event == autocmd_event.BUFFER_SAVED then
+      self:register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_saved(bufnr, file, match)
-      else
-        log.error("unhandled event of type %q", events.get_event_name(event))
-      end
-    end)
+      end)
+    else
+      log.error("unhandled event of type %q", events.get_event_name(event))
+    end
   end
-  for _, event in ipairs(tree.supported_events.git) do
-    self:register_git_event(event, function(repo, fs_changes)
-      if event == git_event.DOT_GIT_DIR_CHANGED then
+  for event in pairs(tree.supported_events.git) do
+    ---@cast event Yat.Events.GitEvent
+    if event == git_event.DOT_GIT_DIR_CHANGED then
+      self:register_git_event(event, function(repo, fs_changes)
         self:on_git_event(repo, fs_changes)
-      else
-        log.error("unhandled event of type %q", events.get_event_name(event))
-      end
-    end)
+      end)
+    else
+      log.error("unhandled event of type %q", events.get_event_name(event))
+    end
   end
-  for _, event in ipairs(tree.supported_events.yatree) do
-    ---@param severity_changed boolean
-    self:register_yatree_event(event, true, function(severity_changed)
-      if event == yatree_event.DIAGNOSTICS_CHANGED then
+  for event in pairs(tree.supported_events.yatree) do
+    ---@cast event Yat.Events.YaTreeEvent
+    if event == yatree_event.DIAGNOSTICS_CHANGED then
+      ---@param severity_changed boolean
+      self:register_yatree_event(event, function(severity_changed)
         self:on_diagnostics_event(severity_changed)
-      else
-        log.error("unhandled event of type %q", events.get_event_name(event))
-      end
-    end)
+      end)
+    else
+      log.error("unhandled event of type %q", events.get_event_name(event))
+    end
   end
   local config = require("ya-tree.config").config
   if tree.TYPE == "filesystem" and config.dir_watcher.enable then
     ---@param dir string
     ---@param filenames string[]
-    self:register_yatree_event(yatree_event.FS_CHANGED, true, function(dir, filenames)
+    self:register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
       self:on_fs_changed_event(dir, filenames)
     end)
   end
@@ -228,13 +241,16 @@ function Sidebar:_delete_section(index)
   local section = self._sections[index]
   log.info("deleteing section %s", section_tostring(section))
   local tree = section.tree
-  for _, event in ipairs(tree.supported_events.autcmd) do
+  for event in pairs(tree.supported_events.autocmd) do
+    ---@cast event Yat.Events.AutocmdEvent
     self:remove_autocmd_event(event)
   end
-  for _, event in ipairs(tree.supported_events.git) do
+  for event in pairs(tree.supported_events.git) do
+    ---@cast event Yat.Events.GitEvent
     self:remove_git_event(event)
   end
-  for _, event in ipairs(tree.supported_events.yatree) do
+  for event in pairs(tree.supported_events.yatree) do
+    ---@cast event Yat.Events.YaTreeEvent
     self:remove_yatree_event(event)
   end
   local config = require("ya-tree.config").config
@@ -312,10 +328,9 @@ function Sidebar:on_buffer_new(bufnr, file, match)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    ---@diagnostic disable-next-line:undefined-field
-    if tree.on_buffer_new and vim.tbl_contains(tree.supported_events.autcmd, autocmd_event.BUFFER_NEW) then
-      ---@diagnostic disable-next-line:undefined-field
-      update = tree:on_buffer_new(bufnr, file, match) or update
+    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_NEW]
+    if callback then
+      update = callback(tree, bufnr, file, match) or update
     end
   end
   if update then
@@ -330,10 +345,9 @@ function Sidebar:on_buffer_hidden(bufnr, file, match)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    ---@diagnostic disable-next-line:undefined-field
-    if tree.on_buffer_hidden and vim.tbl_contains(tree.supported_events.autcmd, autocmd_event.BUFFER_HIDDEN) then
-      ---@diagnostic disable-next-line:undefined-field
-      update = tree:on_buffer_hidden(bufnr, file, match) or update
+    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_HIDDEN]
+    if callback then
+      update = callback(tree, bufnr, file, match) or update
     end
   end
   if update then
@@ -348,10 +362,9 @@ function Sidebar:on_buffer_displayed(bufnr, file, match)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    ---@diagnostic disable-next-line:undefined-field
-    if tree.on_buffer_displayed and vim.tbl_contains(tree.supported_events.autcmd, autocmd_event.BUFFER_DISPLAYED) then
-      ---@diagnostic disable-next-line:undefined-field
-      update = tree:on_buffer_displayed(bufnr, file, match) or update
+    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DISPLAYED]
+    if callback then
+      update = callback(tree, bufnr, file, match) or update
     end
   end
   if update then
@@ -366,10 +379,9 @@ function Sidebar:on_buffer_deleted(bufnr, file, match)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    ---@diagnostic disable-next-line:undefined-field
-    if tree.on_buffer_deleted and vim.tbl_contains(tree.supported_events.autcmd, autocmd_event.BUFFER_DELETED) then
-      ---@diagnostic disable-next-line:undefined-field
-      update = tree:on_buffer_deleted(bufnr, file, match) or update
+    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DELETED]
+    if callback then
+      update = callback(tree, bufnr, file, match) or update
     end
   end
   if update then
@@ -384,8 +396,9 @@ function Sidebar:on_buffer_modified(bufnr, file, match)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    if tree.on_buffer_modified and vim.tbl_contains(tree.supported_events.autcmd, autocmd_event.BUFFER_MODIFIED) then
-      update = tree:on_buffer_modified(bufnr, file, match) or update
+    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_MODIFIED]
+    if callback then
+      update = callback(tree, bufnr, file, match) or update
     end
   end
   if update then
@@ -405,8 +418,9 @@ function Sidebar:on_buffer_saved(bufnr, file, match)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    if tree.on_buffer_saved and vim.tbl_contains(tree.supported_events.autcmd, autocmd_event.BUFFER_SAVED) then
-      update = tree:on_buffer_saved(bufnr, file, match) or update
+    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_SAVED]
+    if callback then
+      update = callback(tree, bufnr, file, match) or update
     end
   end
   if update then
@@ -421,8 +435,9 @@ function Sidebar:on_git_event(repo, fs_changes)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    if tree.on_git_event and vim.tbl_contains(tree.supported_events.git, git_event.DOT_GIT_DIR_CHANGED) then
-      update = tree:on_git_event(repo, fs_changes) or update
+    local callback = tree.supported_events.git[git_event.DOT_GIT_DIR_CHANGED]
+    if callback then
+      update = callback(tree, repo, fs_changes) or update
     end
   end
   if update then
@@ -436,8 +451,9 @@ function Sidebar:on_diagnostics_event(severity_changed)
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    if tree.on_diagnostics_event and vim.tbl_contains(tree.supported_events.yatree, yatree_event.DIAGNOSTICS_CHANGED) then
-      update = tree:on_diagnostics_event(severity_changed) or update
+    local callback = tree.supported_events.yatree[yatree_event.DIAGNOSTICS_CHANGED]
+    if callback then
+      update = callback(tree, severity_changed) or update
     end
   end
   if update then
@@ -518,22 +534,21 @@ function Sidebar:on_fs_changed_event(dir, filenames)
 end
 
 ---@param event Yat.Events.AutocmdEvent
----@param async boolean
 ---@param callback fun(bufnr: integer, file: string, match: string)
-function Sidebar:register_autocmd_event(event, async, callback)
-  local count = self._registered_events.autcmd[event] or 0
+function Sidebar:register_autocmd_event(event, callback)
+  local count = self._registered_events.autocmd[event] or 0
   count = count + 1
-  self._registered_events.autcmd[event] = count
+  self._registered_events.autocmd[event] = count
   if count == 1 then
-    events.on_autocmd_event(event, self:_create_event_id(event), async, callback)
+    events.on_autocmd_event(event, self:_create_event_id(event), true, callback)
   end
 end
 
 ---@param event Yat.Events.AutocmdEvent
 function Sidebar:remove_autocmd_event(event)
-  local count = self._registered_events.autcmd[event] or 0
+  local count = self._registered_events.autocmd[event] or 0
   count = count - 1
-  self._registered_events.autcmd[event] = count
+  self._registered_events.autocmd[event] = count
   if count < 1 then
     events.remove_autocmd_event(event, self:_create_event_id(event))
   end
@@ -561,14 +576,13 @@ function Sidebar:remove_git_event(event)
 end
 
 ---@param event Yat.Events.YaTreeEvent
----@param async boolean
 ---@param callback fun(...)
-function Sidebar:register_yatree_event(event, async, callback)
+function Sidebar:register_yatree_event(event, callback)
   local count = self._registered_events.yatree[event] or 0
   count = count + 1
   self._registered_events.yatree[event] = count
   if count == 1 then
-    events.on_yatree_event(event, self:_create_event_id(event), async, callback)
+    events.on_yatree_event(event, self:_create_event_id(event), true, callback)
   end
 end
 
@@ -935,7 +949,7 @@ function M.delete_sidebars_for_nonexisting_tabpages()
       for i = #sidebar._sections, 1, -1 do
         sidebar:_delete_section(i)
       end
-      for event, count in pairs(sidebar._registered_events.autcmd) do
+      for event, count in pairs(sidebar._registered_events.autocmd) do
         if count > 0 then
           log.error("autocmd event %s is still registered with count %s", events.get_event_name(event), count)
         end

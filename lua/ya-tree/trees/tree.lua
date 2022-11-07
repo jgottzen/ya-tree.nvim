@@ -20,6 +20,10 @@ local api = vim.api
 ---@field directory_min_diagnostic_severity integer
 ---@field file_min_diagnostic_severity integer
 
+---@alias Yat.Trees.AutocmdEventsLookupTable { [Yat.Events.AutocmdEvent]: async fun(self: Yat.Tree, bufnr: integer, file: string, match: string): boolean }
+---@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
+---@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, ...): boolean }
+
 ---@class Yat.Tree
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
@@ -27,7 +31,7 @@ local api = vim.api
 ---@field root Yat.Node
 ---@field current_node Yat.Node
 ---@field supported_actions Yat.Trees.Tree.SupportedActions[]
----@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
+---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field section_icon string
 ---@field section_name string
 ---@field renderers Yat.Trees.TreeRenderers

@@ -14,7 +14,7 @@ local uv = vim.loop
 ---@class Yat.Trees.Filesystem : Yat.Tree
 ---@field TYPE "filesystem"
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
----@field supported_events { autcmd: Yat.Events.AutocmdEvent[], git: Yat.Events.GitEvent[], yatree: Yat.Events.YaTreeEvent[] }
+---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
 ---@field focus_path_on_fs_event? string|"expand"
 local FilesystemTree = { TYPE = "filesystem" }
@@ -120,18 +120,18 @@ function FilesystemTree.setup(config)
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
   FilesystemTree.supported_events = {
-    autcmd = { ae.BUFFER_MODIFIED },
+    autocmd = { [ae.BUFFER_MODIFIED] = FilesystemTree.on_buffer_modified },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    table.insert(FilesystemTree.supported_events.autcmd, ae.BUFFER_SAVED)
+    FilesystemTree.supported_events.autocmd[ae.BUFFER_SAVED] = FilesystemTree.on_buffer_saved
   end
   if config.git.enable then
-    table.insert(FilesystemTree.supported_events.git, ge.DOT_GIT_DIR_CHANGED)
+    FilesystemTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = FilesystemTree.on_git_event
   end
   if config.diagnostics.enable then
-    table.insert(FilesystemTree.supported_events.yatree, ye.DIAGNOSTICS_CHANGED)
+    FilesystemTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = FilesystemTree.on_diagnostics_event
   end
 end
 

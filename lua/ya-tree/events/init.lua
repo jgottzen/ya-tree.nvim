@@ -5,17 +5,23 @@ local log = require("ya-tree.log")("events")
 
 local api = vim.api
 
+---@alias Yat.Events.AutocmdEvent.CallbackFn fun(bufnr: integer, file: string, match: string)
+
 ---@class Yat.Events.Handler.AutoCmd
 ---@field id string
----@field callback fun(bufnr: integer, file: string, match: string)
+---@field callback Yat.Events.AutocmdEvent.CallbackFn
+
+---@alias Yat.Events.GitEvent.CallbackFn async fun(repo: Yat.Git.Repo, fs_changes: boolean)
 
 ---@class Yat.Events.Handler.Git
 ---@field id string
----@field callback async fun(repo: Yat.Git.Repo, fs_changes: boolean)
+---@field callback Yat.Events.GitEvent.CallbackFn
+
+---@alias Yat.Events.YaTreeEvent.CallbackFn fun(...)
 
 ---@class Yat.Events.Handler.YaTree
 ---@field id string
----@field callback fun(...)
+---@field callback Yat.Events.YaTreeEvent.CallbackFn
 
 local M = {}
 
@@ -149,8 +155,8 @@ end
 ---@param event Yat.Events.AutocmdEvent
 ---@param id string
 ---@param async boolean
----@param callback fun(bufnr: integer, file: string, match: string)
----@overload fun(event: Yat.Events.AutocmdEvent, id: string, callback: fun(bufnr: integer, file: string, match: string))
+---@param callback Yat.Events.AutocmdEvent.CallbackFn
+---@overload fun(event: Yat.Events.AutocmdEvent, id: string, callback: Yat.Events.AutocmdEvent.CallbackFn)
 function M.on_autocmd_event(event, id, async, callback)
   if type(async) == "function" then
     callback = async
@@ -184,7 +190,7 @@ end
 
 ---@param event Yat.Events.GitEvent
 ---@param id string
----@param callback async fun(repo: Yat.Git.Repo, fs_changes: boolean)
+---@param callback Yat.Events.GitEvent.CallbackFn
 function M.on_git_event(event, id, callback)
   local event_name = event_names[event]
   add_listener(event_name, M._git_event_listeners[event_name], id, callback)
@@ -214,8 +220,8 @@ end
 ---@param event Yat.Events.YaTreeEvent
 ---@param id string
 ---@param async boolean
----@param callback fun(...)
----@overload fun(event: Yat.Events.YaTreeEvent, id: string, callback: fun(...))
+---@param callback Yat.Events.YaTreeEvent.CallbackFn
+---@overload fun(event: Yat.Events.YaTreeEvent, id: string, callback: Yat.Events.YaTreeEvent.CallbackFn)
 function M.on_yatree_event(event, id, async, callback)
   if type(async) == "function" then
     callback = async
