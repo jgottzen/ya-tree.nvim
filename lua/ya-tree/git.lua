@@ -179,7 +179,7 @@ function Repo:new(path)
 
   this:_read_remote_url()
 
-  log.debug("created Repo %s for %q", tostring(this), path)
+  log.info("created Repo %s for %q", tostring(this), path)
   M.repos[this.toplevel] = this
 
   if config.git.watch_git_dir then

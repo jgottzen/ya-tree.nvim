@@ -66,7 +66,8 @@ function GitNode:refresh(opts)
     return self.parent:refresh(opts)
   end
 
-  local refresh_git = opts and opts.refresh_git or true
+  opts = opts or {}
+  local refresh_git = opts.refresh_git ~= false
   log.debug("refreshing git status node %q", self.path)
   if refresh_git then
     self.repo:refresh_status({ ignored = true })
