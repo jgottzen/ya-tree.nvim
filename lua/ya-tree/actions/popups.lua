@@ -270,6 +270,7 @@ function M.show_node_info(_, node)
     group = augroup,
     callback = close_popup,
     once = true,
+    desc = "Auto-close popup",
   })
 end
 

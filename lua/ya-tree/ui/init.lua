@@ -237,11 +237,20 @@ function M.setup(config)
   require("ya-tree.ui.renderers").setup(config)
   Canvas.setup()
 
+  local group = api.nvim_create_augroup("YaTreeUi", { clear = true })
+  api.nvim_create_autocmd("TabClosed", {
+    group = group,
+    callback = M.delete_ui_for_nonexisting_tabpages,
+    desc = "Clean up after closing tabpage",
+  })
+  api.nvim_create_autocmd("WinLeave", {
+    group = group,
+    callback = on_win_leave,
+    desc = "Save the last used window id",
+  })
+
   local events = require("ya-tree.events")
   local event = require("ya-tree.events.event").autocmd
-
-  events.on_autocmd_event(event.TAB_CLOSED, "YA_TREE_UI_TAB_CLOSE_CLEANUP", M.delete_ui_for_nonexisting_tabpages)
-  events.on_autocmd_event(event.WINDOW_LEAVE, "YA_TREE_UI_SAVE_EDIT_WINDOW_ID", on_win_leave)
   events.on_autocmd_event(event.COLORSCHEME, "YA_TREE_UI_HIGHLIGHTS", hl.setup)
 end
 

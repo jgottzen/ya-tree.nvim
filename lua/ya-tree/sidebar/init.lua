@@ -976,8 +976,6 @@ end
 
 ---@param config Yat.Config
 function M.setup(config)
-  events.on_autocmd_event(autocmd_event.TAB_CLOSED, "YA_TREE_SIDEBAR_TAB_CLOSE_CLEANUP", M.delete_sidebars_for_nonexisting_tabpages)
-
   local group = api.nvim_create_augroup("YaTreeSidebar", { clear = true })
   if config.cwd.follow then
     api.nvim_create_autocmd("DirChanged", {
@@ -991,9 +989,14 @@ function M.setup(config)
           void(on_cwd_changed)(input.match, input.file)
         end
       end,
-      desc = "YaTree DirChanged handler",
+      desc = "Handle changed cwd",
     })
   end
+  api.nvim_create_autocmd("TabClosed", {
+    group = group,
+    callback = M.delete_sidebars_for_nonexisting_tabpages,
+    desc = "Clean up after closing tabpage",
+  })
 end
 
 return M

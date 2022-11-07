@@ -1,4 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
+local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
@@ -289,7 +290,6 @@ local function on_buf_enter(bufnr, file)
     return
   end
   local tabpage = api.nvim_get_current_tabpage()
-  local sidebar = Sidebar.get_sidebar(tabpage)
 
   -- Must use a synchronous directory check here, otherwise a scheduler call is required before any call to the ui,
   -- which in turn will update the ui, and if the buffer was opened in the tree window, and the config option to move it to
@@ -309,15 +309,15 @@ local function on_buf_enter(bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
     M.open_window({ path = file, focus = true })
-  elseif sidebar and ui.is_open(tabpage) then
+  elseif ui.is_open(tabpage) then
     if ui.is_current_window_ui(tabpage) and config.move_buffers_from_tree_window and buftype == "" then
       log.debug("moving buffer %s to edit window", bufnr)
       ui.move_buffer_to_edit_window(tabpage, bufnr)
     end
 
-    local tree = ui.get_current_tree_and_node(tabpage)
-    if tree and tree.root:is_ancestor_of(file) then
-      if config.follow_focused_file and file ~= "" and (buftype == "" or buftype == "terminal") then
+    if config.follow_focused_file then
+      local tree = ui.get_current_tree_and_node(tabpage)
+      if tree and tree.root:is_ancestor_of(file) then
         log.debug("focusing on node %q", file)
         local node = tree.root:expand({ to = file })
         if node then
@@ -335,21 +335,38 @@ function M.setup()
 
   setup_netrw()
 
-  local events = require("ya-tree.events")
-  local event = require("ya-tree.events.event").autocmd
+  local group = api.nvim_create_augroup("YaTreeLib", { clear = true })
   if config.close_if_last_window then
-    events.on_autocmd_event(event.WINDOW_CLOSED, "YA_TREE_LIB_AUTO_CLOSE_LAST_WINDOW", function(_, _, match)
-      local winid = tonumber(match) --[[@as integer]]
-      on_win_closed(winid)
-    end)
+    api.nvim_create_autocmd("WinClosed", {
+      group = group,
+      callback = function(input)
+        local winid = tonumber(input.match) --[[@as integer]]
+        on_win_closed(winid)
+      end,
+      desc = "Closing the tree window if it is the last in the tabpage",
+    })
   end
   if config.auto_open.on_new_tab then
-    events.on_autocmd_event(event.TAB_NEW, "YA_TREE_LIB_AUTO_OPEN_NEW_TAB", true, function()
-      M.open_window({ focus = config.auto_open.focus_tree })
-    end)
+    api.nvim_create_autocmd("TabNewEntered", {
+      group = group,
+      callback = void(function()
+        M.open_window({ focus = config.auto_open.focus_tree })
+      end),
+      desc = "Open tree on new tab",
+    })
   end
-  events.on_autocmd_event(event.TAB_ENTERED, "YA_TREE_LIB_REDRAW_TAB", true, M.redraw)
-  events.on_autocmd_event(event.BUFFER_ENTERED, "YA_TREE_LIB_BUFFER_ENTERED", true, on_buf_enter)
+  api.nvim_create_autocmd("TabEnter", {
+    group = group,
+    callback = void(M.redraw),
+    desc = "Redraw tree on tabpage switch",
+  })
+  api.nvim_create_autocmd("BufEnter", {
+    group = group,
+    callback = void(function(input)
+      on_buf_enter(input.buf, input.file)
+    end),
+    desc = "Handle buffers opened in the tree window",
+  })
 end
 
 return M

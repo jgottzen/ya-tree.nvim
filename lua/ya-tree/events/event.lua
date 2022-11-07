@@ -1,24 +1,16 @@
 local M = {
   ---@enum Yat.Events.AutocmdEvent
   autocmd = {
-    TAB_NEW = 1,
-    TAB_ENTERED = 2,
-    TAB_CLOSED = 3,
-
     BUFFER_NEW = 101,
-    BUFFER_ENTERED = 102,
-    BUFFER_HIDDEN = 103,
-    BUFFER_DISPLAYED = 104,
-    BUFFER_DELETED = 105,
-    BUFFER_MODIFIED = 106,
-    BUFFER_SAVED = 107,
+    BUFFER_HIDDEN = 102,
+    BUFFER_DISPLAYED = 103,
+    BUFFER_DELETED = 104,
+    BUFFER_MODIFIED = 105,
+    BUFFER_SAVED = 106,
 
-    WINDOW_LEAVE = 201,
-    WINDOW_CLOSED = 202,
+    COLORSCHEME = 201,
 
-    COLORSCHEME = 401,
-
-    LEAVE_PRE = 501,
+    LEAVE_PRE = 301,
   },
 
   ---@enum Yat.Events.GitEvent

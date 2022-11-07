@@ -111,7 +111,7 @@ function M.setup()
       group = group,
       pattern = "*",
       callback = debounced_trailing(on_diagnostics_changed, config.diagnostics.debounce_time),
-      desc = "YaTree diagnostics handler",
+      desc = "Diagnostics handler",
     })
   end
 end

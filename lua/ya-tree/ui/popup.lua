@@ -267,6 +267,7 @@ function PopupBuilder:open(enter)
           end
         end
       end,
+      desc = "Close popup on focus loss",
     })
   end
 

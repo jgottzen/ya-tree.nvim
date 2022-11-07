@@ -65,20 +65,12 @@ do
 
   ---@type table<Yat.Events.AutocmdEvent, string|string[]>
   local event_to_autocmds = {
-    [events.autocmd.TAB_NEW] = "TabNewEntered",
-    [events.autocmd.TAB_ENTERED] = "TabEnter",
-    [events.autocmd.TAB_CLOSED] = "TabClosed",
-
     [events.autocmd.BUFFER_NEW] = { "BufAdd", "TermOpen" },
-    [events.autocmd.BUFFER_ENTERED] = "BufEnter",
     [events.autocmd.BUFFER_HIDDEN] = "BufHidden",
     [events.autocmd.BUFFER_DISPLAYED] = "BufWinEnter",
     [events.autocmd.BUFFER_DELETED] = { "BufDelete", "TermClose" },
     [events.autocmd.BUFFER_MODIFIED] = "BufModifiedSet",
     [events.autocmd.BUFFER_SAVED] = "BufWritePost",
-
-    [events.autocmd.WINDOW_LEAVE] = "WinLeave",
-    [events.autocmd.WINDOW_CLOSED] = "WinClosed",
 
     [events.autocmd.COLORSCHEME] = "ColorScheme",
 

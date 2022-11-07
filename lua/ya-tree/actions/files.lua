@@ -87,6 +87,7 @@ local function preview(node, focus)
         callback = function()
           vim.bo.bufhidden = ""
         end,
+        desc = "Clear bufhidden for edited previewed file",
       })
     end
 
