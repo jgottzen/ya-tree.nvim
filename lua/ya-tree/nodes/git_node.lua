@@ -78,6 +78,7 @@ function GitNode:refresh(opts)
   self.empty = true
   return self:populate_from_paths(paths, function(path, parent, directory)
     local fs_node = fs.node_for(path)
+    local is_editable = fs_node ~= nil
     if not fs_node then
       fs_node = {
         name = fs.get_file_name(path),
@@ -86,8 +87,10 @@ function GitNode:refresh(opts)
       }
     end
     local node = GitNode:new(fs_node, parent)
-    node.is_editable = function(_)
-      return false
+    if not is_editable then
+      node.is_editable = function(_)
+        return false
+      end
     end
     return node
   end)
