@@ -33,7 +33,7 @@ setmetatable(SearchTree, { __index = Tree })
 ---
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
----| "focus_prev_git_item"
+---| "focus_next_git_item"
 ---| "git_stage"
 ---| "git_unstage"
 ---| "git_revert"

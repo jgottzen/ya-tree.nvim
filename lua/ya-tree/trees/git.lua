@@ -34,7 +34,7 @@ setmetatable(GitTree, { __index = Tree })
 ---| "goto_node_in_filesystem_tree"
 ---
 ---| "focus_prev_git_item"
----| "focus_prev_git_item"
+---| "focus_next_git_item"
 ---| "git_stage"
 ---| "git_unstage"
 ---| "git_revert"

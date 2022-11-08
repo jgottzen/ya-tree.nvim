@@ -13,7 +13,7 @@ local uv = vim.loop
 ---@field TYPE "buffers"
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
----@field supported_actions Yat.Trees.Buffers.SupportedActions
+---@field supported_actions Yat.Trees.Buffers.SupportedActions[]
 ---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func "buffer"
 local BuffersTree = { TYPE = "buffers" }
@@ -33,7 +33,7 @@ setmetatable(BuffersTree, { __index = Tree })
 ---
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
----| "focus_prev_git_item"
+---| "focus_next_git_item"
 ---| "git_stage"
 ---| "git_unstage"
 ---| "git_revert"
