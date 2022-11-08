@@ -146,7 +146,7 @@ local function create_root_node(path, old_root)
 
   -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree
   if old_root and Path:new(old_root.path):parent().filename == root.path then
-    root._children = { old_root }
+    root:add_child(old_root)
     old_root.parent = root
     local repo = old_root.repo
     if repo and root.path:find(repo.toplevel, 1, true) then
@@ -188,7 +188,9 @@ end
 
 ---@param node Yat.Node
 local function maybe_remove_watcher(node)
+  ---@diagnostic disable-next-line:invisible
   if node:is_directory() and node._fs_event_registered then
+    ---@diagnostic disable-next-line:invisible
     node._fs_event_registered = false
     fs_watcher.remove_watcher(node.path)
   end

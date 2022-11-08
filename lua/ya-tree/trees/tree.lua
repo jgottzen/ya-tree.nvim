@@ -131,6 +131,7 @@ end
 -- selene: allow(unused_variable)
 
 ---@param config Yat.Config
+---@diagnostic disable-next-line:unused-local
 function Tree.setup(config) end
 
 -- selene: allow(unused_variable)
@@ -289,6 +290,7 @@ end
 
 ---@async
 ---@param new_cwd string
+---@diagnostic disable-next-line:unused-local
 function Tree:on_cwd_changed(new_cwd) end
 
 ---@return string line

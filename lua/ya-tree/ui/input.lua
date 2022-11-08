@@ -5,15 +5,15 @@ local fn = vim.fn
 
 ---@class Yat.Ui.Input
 ---@field private prompt string
----@field private default string
+---@field package default string
 ---@field private completion? string|fun(bufnr: integer)
 ---@field private winid? integer
----@field private bufnr? integer
+---@field package bufnr? integer
 ---@field private title_winid? integer
 ---@field private win_config table<string, any>
 ---@field private callbacks table<string, function>
----@field private orig_row integer
----@field private orig_col integer
+---@field package orig_row integer
+---@field package orig_col integer
 local Input = {}
 Input.__index = Input
 
@@ -160,7 +160,7 @@ function Input:open()
     if self.completion == "file_in_path" then
       api.nvim_buf_set_option(self.bufnr, "path", vim.loop.cwd() .. "/**")
     end
-    current_completion = self.completion
+    current_completion = self.completion --[[@as string]]
   elseif type(self.completion) == "function" then
     self.completion(self.bufnr)
   end
@@ -199,6 +199,7 @@ function Input:open()
   end
 end
 
+---@private
 function Input:_create_title()
   if self.prompt then
     -- Force the Input window to position itself, otherwise relative = "win" is

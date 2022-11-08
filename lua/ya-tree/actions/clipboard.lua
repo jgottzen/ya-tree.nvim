@@ -24,7 +24,7 @@ local function cut_or_copy_nodes(tree, action)
         if item.path == node.path then
           if item:clipboard_status() == action then
             table.remove(M.queue, i)
-            node:clear_clipboard_status()
+            node:set_clipboard_status(nil)
           else
             node:set_clipboard_status(action)
           end
@@ -56,7 +56,7 @@ end
 
 local function clear_clipboard()
   for _, item in ipairs(M.queue) do
-    item:clear_clipboard_status()
+    item:set_clipboard_status(nil)
   end
   M.queue = {}
 end

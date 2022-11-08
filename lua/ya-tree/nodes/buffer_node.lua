@@ -13,7 +13,7 @@ local fn = vim.fn
 ---@alias Yat.Nodes.Buffer.Type Luv.FileType | "terminal"
 
 ---@class Yat.Nodes.Buffer : Yat.Node
----@field private __node_type "Buffer"
+---@field protected __node_type "Buffer"
 ---@field public parent? Yat.Nodes.Buffer
 ---@field private type Yat.Nodes.Buffer.Type
 ---@field private _children? Yat.Nodes.Buffer[]
@@ -123,7 +123,7 @@ function BufferNode.node_comparator(a, b)
   return Node.node_comparator(a, b)
 end
 
----@private
+---@protected
 function BufferNode:_scandir() end
 
 ---@class Yat.Nodes.Buffer.FileData
@@ -189,9 +189,7 @@ local function create_terminal_buffers_container(root)
     path = root.path .. TERMINALS_CONTAINER_PATH,
     extension = "terminal",
   }, root)
-  root._children[#root._children + 1] = container
-  root.empty = false
-  table.sort(root._children, BufferNode.node_comparator)
+  root:add_child(container)
   return container
 end
 
@@ -204,12 +202,12 @@ local function add_terminal_buffer_to_container(container, terminal)
   local hidden = bufinfo[1] and bufinfo[1].hidden == 1 or false
   local node = BufferNode:new({
     name = name,
+    ---@diagnostic disable-next-line:assign-type-mismatch
     type = "terminal",
     path = container.path .. "/" .. terminal.name,
     extension = "terminal",
   }, container, terminal.name, terminal.bufnr, false, hidden)
-  container._children[#container._children + 1] = node
-  container.empty = false
+  container:add_child(node)
   log.debug("adding terminal buffer %s (%q)", node.bufnr, node.bufname)
   return node
 end
@@ -239,7 +237,7 @@ function BufferNode:refresh(opts)
   self.repo = git.get_repo_for_path(root_path)
   self._children = {}
   self.empty = true
-  local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
+  local first_leaf_node = self:populate_from_paths(paths, function(path, parent, _)
     local fs_node = fs.node_for(path)
     if fs_node then
       local buffer_node = buffers[fs_node.path]

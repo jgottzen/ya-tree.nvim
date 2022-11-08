@@ -271,7 +271,7 @@ do
 
   ---@param message string message
   ---@param level? integer default: `vim.log.levels.INFO`
-  ---@see |vim.log.levels|
+  ---@see vim.log.levels
   function M.notify(message, level)
     level = level or vim.log.levels.INFO
     if has_notify_plugin and notify == vim.notify then

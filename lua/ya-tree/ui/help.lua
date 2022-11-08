@@ -23,7 +23,7 @@ local function mapping_sorter(a, b)
   return a.desc < b.desc
 end
 
----@param mappings table<string, Yat.Actions.Name|Yat.Config.Mapping.Custom>
+---@param mappings table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>
 ---@return { key: string, action: Yat.Actions.Name|""|Yat.Config.Mapping.Custom, desc: string }[] insert_mappings
 ---@return { key: string, action: Yat.Actions.Name|""|Yat.Config.Mapping.Custom, desc: string }[] visual_mappings
 ---@return integer max_mapping_width

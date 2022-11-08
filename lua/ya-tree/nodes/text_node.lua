@@ -1,7 +1,7 @@
 local Node = require("ya-tree.nodes.node")
 
 ---@class Yat.Nodes.Text : Yat.Node
----@field private __node_type "Text"
+---@field protected __node_type "Text"
 ---@field public parent? Yat.Nodes.Text
 ---@field private _children? Yat.Nodes.Text[]
 local TextNode = { __node_type = "Text" }
@@ -28,7 +28,7 @@ function TextNode:is_editable()
   return false
 end
 
----@private
+---@protected
 function TextNode:_scandir() end
 
 function TextNode:refresh() end

@@ -10,7 +10,7 @@ local M = {
   ---@type table<string, Yat.Fs.Watcher>
   _watchers = {},
   ---@private
-  ---@type string[]
+  ---@type string[][]
   _exclude_patterns = {},
 }
 

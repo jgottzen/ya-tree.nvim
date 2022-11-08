@@ -11,26 +11,31 @@ local logger_class = {}
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
+---@diagnostic disable-next-line:unused-local
 function logger_class.trace(msg, ...) end
 -- selene: allow(unused_variable)
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
+---@diagnostic disable-next-line:unused-local
 function logger_class.debug(msg, ...) end
 -- selene: allow(unused_variable)
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
+---@diagnostic disable-next-line:unused-local
 function logger_class.info(msg, ...) end
 -- selene: allow(unused_variable)
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
+---@diagnostic disable-next-line:unused-local
 function logger_class.warn(msg, ...) end
 -- selene: allow(unused_variable)
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
+---@diagnostic disable-next-line:unused-local
 function logger_class.error(msg, ...) end
 
 ---@alias Yat.Logger.Level "trace" | "debug" | "info" | "warn" | "error"

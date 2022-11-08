@@ -41,8 +41,8 @@ end
 ---@field single_mode boolean
 ---@field tree_order table<Yat.Trees.Type, integer>
 ---@field always_shown_trees Yat.Trees.Type[]
----@field private _sections Yat.Sidebar.Section[]
----@field private _registered_events { autocmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
+---@field package _sections Yat.Sidebar.Section[]
+---@field package _registered_events { autocmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
 local Sidebar = {}
 Sidebar.__index = Sidebar
 
@@ -224,7 +224,7 @@ end
 ---@return Yat.Trees.Search
 function Sidebar:search_tree(path)
   return self:_get_or_create_tree("search", function()
-    return SearchTree:new(self.tabpage, path)
+    return SearchTree:new(self.tabpage, path) --[[@as Yat.Trees.Search]]
   end, path) --[[@as Yat.Trees.Search]]
 end
 
@@ -235,7 +235,7 @@ function Sidebar:get_tree(tree_type)
   return section and section.tree
 end
 
----@private
+---@package
 ---@param index integer
 function Sidebar:_delete_section(index)
   local section = self._sections[index]
@@ -792,7 +792,7 @@ end
 ---@param tree Yat.Tree
 ---@param start_node Yat.Node
 ---@param forward boolean
----@param predicate fun(node_at_row: Yat.Node, section: Yat.Sidebar.Section): boolean
+---@param predicate fun(node_at_row: Yat.Node, section: Yat.Sidebar.Section): boolean?
 ---@return integer|nil row
 function Sidebar:_get_first_row_that_match(tree, start_node, forward, predicate)
   local section = self:_get_section(tree.TYPE)
@@ -817,7 +817,7 @@ end
 ---@param node Yat.Node
 ---@return integer|nil row
 function Sidebar:get_prev_git_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, false, function(node_at_row)
+  return self:_get_first_row_that_match(tree, node, false, function(node_at_row, _)
     return node_at_row:git_status() ~= nil
   end)
 end
@@ -826,7 +826,7 @@ end
 ---@param node Yat.Node
 ---@return integer|nil row
 function Sidebar:get_next_git_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, true, function(node_at_row)
+  return self:_get_first_row_that_match(tree, node, true, function(node_at_row, _)
     return node_at_row:git_status() ~= nil
   end)
 end

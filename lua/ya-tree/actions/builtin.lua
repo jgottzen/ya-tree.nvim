@@ -60,7 +60,6 @@
 ---| "focus_next_diagnostic_item"
 
 local M = {
-  ---@class Yat.Actions.Action.General
   general = {
     close_window = "close_window",
     system_open = "system_open",
@@ -99,7 +98,6 @@ local M = {
     focus_first_sibling = "focus_first_sibling",
     focus_last_sibling = "focus_last_sibling",
   },
-  ---@class Yat.Actions.Action.Files
   files = {
     add = "add",
     rename = "rename",
@@ -117,17 +115,14 @@ local M = {
     toggle_ignored = "toggle_ignored",
     toggle_filter = "toggle_filter",
   },
-  ---@class Yat.Actions.Action.Search
   search = {
     search_for_node_in_tree = "search_for_node_in_tree",
     search_interactively = "search_interactively",
     search_once = "search_once",
   },
-  ---@class Yat.Actions.Action.TreeSpecific
   tree_specific = {
     goto_node_in_filesystem_tree = "goto_node_in_filesystem_tree",
   },
-  ---@class Yat.Actions.Action.Git
   git = {
     check_node_for_git = "check_node_for_git",
     focus_prev_git_item = "focus_prev_git_item",
@@ -136,7 +131,6 @@ local M = {
     git_unstage = "git_unstage",
     git_revert = "git_revert",
   },
-  ---@class Yat.Actions.Action.Diagnostics
   diagnostics = {
     focus_prev_diagnostic_item = "focus_prev_diagnostic_item",
     focus_next_diagnostic_item = "focus_next_diagnostic_item",

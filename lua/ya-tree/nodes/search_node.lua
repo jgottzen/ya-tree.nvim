@@ -8,7 +8,7 @@ local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
 ---@class Yat.Nodes.Search : Yat.Node
----@field private __node_type "Search"
+---@field protected __node_type "Search"
 ---@field public parent? Yat.Nodes.Search
 ---@field private _children? Yat.Nodes.Search[]
 ---@field public search_term? string
@@ -27,13 +27,13 @@ function SearchNode:new(fs_node, parent)
   local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
     this.empty = true
-    this._scanned = true
+    this.scanned = true
     this.expanded = true
   end
   return this
 end
 
----@private
+---@protected
 function SearchNode:_scandir() end
 
 do
@@ -83,7 +83,7 @@ do
     self.empty = true
     local paths, err = search(self.path, self._search_options.cmd, self._search_options.args)
     if paths then
-      local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
+      local first_leaf_node = self:populate_from_paths(paths, function(path, parent, _)
         local fs_node = fs.node_for(path)
         if fs_node then
           local node = SearchNode:new(fs_node, parent)

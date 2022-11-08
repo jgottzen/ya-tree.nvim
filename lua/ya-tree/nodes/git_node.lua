@@ -3,7 +3,7 @@ local fs = require("ya-tree.fs")
 local log = require("ya-tree.log")("nodes")
 
 ---@class Yat.Nodes.Git : Yat.Node
----@field private __node_type "Git"
+---@field protected __node_type "Git"
 ---@field public parent? Yat.Nodes.Git
 ---@field private _children? Yat.Nodes.Git[]
 ---@field public repo Yat.Git.Repo
@@ -21,7 +21,7 @@ function GitNode:new(fs_node, parent)
   local this = Node.new(self, fs_node, parent)
   if this:is_directory() then
     this.empty = true
-    this._scanned = true
+    this.scanned = true
     this.expanded = true
   end
   return this
@@ -30,7 +30,7 @@ end
 ---@param node Yat.Nodes.Git
 ---@return boolean displayable
 local function is_any_child_displayable(node)
-  for _, child in ipairs(node._children) do
+  for _, child in ipairs(node:children()) do
     if not child:is_git_ignored() then
       if child:is_directory() and is_any_child_displayable(child) then
         return true
@@ -54,7 +54,7 @@ function GitNode:is_hidden(config)
   return false
 end
 
----@private
+---@protected
 function GitNode:_scandir() end
 
 ---@async

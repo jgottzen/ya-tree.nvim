@@ -10,9 +10,9 @@ local utils = require("ya-tree.utils")
 ---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git" | "Text"
 
 ---@class Yat.Node : Yat.Fs.Node
----@field private __node_type "FileSystem"
+---@field protected __node_type "FileSystem"
 ---@field public parent? Yat.Node
----@field private type Luv.FileType
+---@field protected type Luv.FileType
 ---@field private _children? Yat.Node[]
 ---@field public empty? boolean
 ---@field public extension? string
@@ -25,10 +25,10 @@ local utils = require("ya-tree.utils")
 ---@field public link_extension? string
 ---@field public modified boolean
 ---@field public repo? Yat.Git.Repo
----@field private _clipboard_status Yat.Actions.Clipboard.Action|nil
----@field private _scanned? boolean
+---@field protected _clipboard_status Yat.Actions.Clipboard.Action|nil
+---@field protected scanned? boolean
 ---@field public expanded? boolean
----@field private _fs_event_registered boolean
+---@field package _fs_event_registered boolean
 local Node = { __node_type = "FileSystem" }
 Node.__index = Node
 
@@ -68,7 +68,7 @@ end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` doens't recurse into
 ---any children of that node, but continues with the next child, if any.
----@param visitor fun(node: Yat.Node):boolean
+---@param visitor fun(node: Yat.Node):boolean?
 function Node:walk(visitor)
   if visitor(self) then
     return
@@ -109,7 +109,7 @@ function Node:get_debug_info(output_to_log)
   return t
 end
 
----@private
+---@package
 ---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
   if self:is_directory() and fs_node.type ~= "directory" and self._fs_event_registered then
@@ -159,7 +159,7 @@ local function maybe_add_watcher(node)
   end
 end
 
----@private
+---@protected
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
   -- keep track of the current children
@@ -194,19 +194,19 @@ function Node:_scandir()
       maybe_remove_watcher(child)
     end
   end
-  self._scanned = true
+  self.scanned = true
 
   scheduler()
 end
 
+---@protected
 ---@param repo Yat.Git.Repo
----@param node Yat.Node
-local function set_git_repo_on_node_and_children(repo, node)
-  node.repo = repo
-  if node._children then
-    for _, child in ipairs(node._children) do
+function Node:_set_git_repo_on_node_and_children(repo)
+  self.repo = repo
+  if self._children then
+    for _, child in ipairs(self._children) do
       if not child.repo then
-        set_git_repo_on_node_and_children(repo, child)
+        child:_set_git_repo_on_node_and_children(repo)
       end
     end
   end
@@ -218,7 +218,7 @@ function Node:set_git_repo(repo)
   if toplevel == self.path then
     log.debug("node %q is the toplevel of repo %s, setting repo on node and all child nodes", self.path, tostring(repo))
     -- this node is the git toplevel directory, set the property on self
-    set_git_repo_on_node_and_children(repo, self)
+    self:_set_git_repo_on_node_and_children(repo)
   else
     log.debug("node %q is not the toplevel of repo %s, walking up the tree", self.path, tostring(repo))
     if #toplevel < #self.path then
@@ -229,7 +229,7 @@ function Node:set_git_repo(repo)
         node = node.parent --[[@as Yat.Node]]
       end
       log.debug("node %q is the top of the tree, setting repo on node and all child nodes", node.path, tostring(repo))
-      set_git_repo_on_node_and_children(repo, node)
+      node:_set_git_repo_on_node_and_children(repo)
     else
       log.error("git repo with toplevel %s is somehow below this node %s, this should not be possible", toplevel, self.path)
       log.error("self=%s", self)
@@ -333,7 +333,7 @@ function Node:is_git_repository_root()
   return self.repo and self.repo.toplevel == self.path or false
 end
 
----@param status Yat.Actions.Clipboard.Action
+---@param status Yat.Actions.Clipboard.Action|nil
 function Node:set_clipboard_status(status)
   self._clipboard_status = status
   if self:is_directory() then
@@ -346,10 +346,6 @@ end
 ---@return Yat.Actions.Clipboard.Action|nil status
 function Node:clipboard_status()
   return self._clipboard_status
-end
-
-function Node:clear_clipboard_status()
-  self:set_clipboard_status(nil)
 end
 
 ---@return integer|nil
@@ -366,7 +362,7 @@ function Node.add_node(self, path)
   ---@cast self Yat.Node
   return self:_add_node(path, function(fs_node, parent)
     local node = self.__index.new(self.__index, fs_node, parent)
-    if node.__node_type == "FileSystem" then
+    if node:node_type() == "FileSystem" then
       maybe_add_watcher(node)
     end
     return node
@@ -374,7 +370,7 @@ function Node.add_node(self, path)
 end
 
 ---@async
----@private
+---@protected
 ---@generic T : Yat.Node
 ---@param self T
 ---@param path string
@@ -425,7 +421,7 @@ function Node:remove_node(path)
   return self:_remove_node(path, false)
 end
 
----@private
+---@protected
 ---@param path string
 ---@param remove_empty_parents boolean
 function Node:_remove_node(path, remove_empty_parents)
@@ -456,6 +452,15 @@ function Node:_remove_node(path, remove_empty_parents)
   end
 end
 
+---@param node Yat.Node
+function Node:add_child(node)
+  if self._children then
+    self._children[#self._children + 1] = node
+    self.empty = false
+    table.sort(self._children, self.node_comparator)
+  end
+end
+
 ---@async
 ---@generic T : Yat.Node
 ---@param self T
@@ -473,9 +478,7 @@ function Node.populate_from_paths(self, paths, node_creator)
   local function add_node(path, parent, directory)
     local node = node_creator(path, parent, directory)
     if node then
-      parent._children[#parent._children + 1] = node
-      parent.empty = false
-      table.sort(parent._children, self.node_comparator)
+      parent:add_child(node)
       node_map[node.path] = node
     end
   end
@@ -543,17 +546,18 @@ end
 ---@return fun(): integer, T iterator
 function Node.iterate_children(self, opts)
   ---@cast self Yat.Node
-  if not self._children or #self._children == 0 then
+  local children = self._children
+  if not children or #children == 0 then
     return function() end
   end
 
   opts = opts or {}
   local start = 0
   if opts.reverse then
-    start = #self._children + 1
+    start = #children + 1
   end
   if opts.from then
-    for i, child in ipairs(self._children) do
+    for i, child in ipairs(children) do
       if child == opts.from then
         start = i
         break
@@ -566,14 +570,14 @@ function Node.iterate_children(self, opts)
     return function()
       pos = pos - 1
       if pos >= 1 then
-        return pos, self._children[pos]
+        return pos, children[pos]
       end
     end
   else
     return function()
       pos = pos + 1
-      if pos <= #self._children then
-        return pos, self._children[pos]
+      if pos <= #children then
+        return pos, children[pos]
       end
     end
   end
@@ -611,7 +615,7 @@ function Node.expand(self, opts)
   log.debug("expanding %q", self.path)
   opts = opts or {}
   if self:is_directory() then
-    if not self._scanned or opts.force_scan then
+    if not self.scanned or opts.force_scan then
       self:_scandir()
     end
     self.expanded = true
@@ -645,8 +649,8 @@ end
 ---@param path string
 ---@return T|nil
 function Node.get_child_if_loaded(self, path)
-  ---@cast self Yat.Node
-  if self.path == path then
+  local self_path = self.path --[[@as string]]
+  if self_path == path then
     return self
   end
   if not self:is_directory() then
@@ -675,11 +679,13 @@ do
       node.repo:refresh_status({ ignored = true })
       refreshed_git_repos[node.repo.toplevel] = true
     end
-    if node._scanned then
+    ---@diagnostic disable-next-line:invisible
+    if node.scanned then
+    ---@diagnostic disable-next-line:invisible
       node:_scandir()
 
       if recurse then
-        for _, child in ipairs(node._children) do
+        for _, child in ipairs(node:children()) do
           if child:is_directory() then
             refresh_directory_node(child, true, refresh_git, refreshed_git_repos)
           end

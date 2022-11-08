@@ -92,16 +92,16 @@ end
 ---@field public untracked integer
 
 ---@class Yat.Git.Repo.Status : Yat.Git.Repo.MetaStatus
----@field private _changed_entries table<string, string>
----@field private _propagated_changed_entries table<string, string>
----@field private _ignored string[]
+---@field package _changed_entries table<string, string>
+---@field package _propagated_changed_entries table<string, string>
+---@field package _ignored string[]
 
 ---@class Yat.Git.Repo
 ---@field public toplevel string
 ---@field public remote_url string
 ---@field public branch string
 ---@field private _status Yat.Git.Repo.Status
----@field private _is_yadm boolean
+---@field package _is_yadm boolean
 ---@field private _git_dir string
 ---@field private _git_dir_watcher? uv_fs_poll_t
 local Repo = {}
@@ -138,7 +138,8 @@ function Repo:new(path)
   local toplevel, git_dir, branch = get_repo_info(path)
   local is_yadm = false
   if not toplevel and config.git.yadm.enable then
-    if vim.startswith(path, os.getenv("HOME")) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
+    local home = os.getenv("HOME") --[[@as string]]
+    if vim.startswith(path, home) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
       toplevel, git_dir, branch = get_repo_info(path, "yadm")
       is_yadm = toplevel ~= nil
     end
@@ -242,7 +243,7 @@ function Repo:_add_git_watcher()
   end
 end
 
----@private
+---@package
 function Repo:_remove_git_watcher()
   if self._git_dir_watcher ~= nil then
     self._git_dir_watcher:stop()
