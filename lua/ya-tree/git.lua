@@ -258,23 +258,28 @@ end
 ---@async
 ---@param args string[]
 ---@param null_terminated? boolean
----@return string[]
+---@return string[] results empty if an error occurred
+---@return string? error_message
 function Repo:command(args, null_terminated)
   -- always run in the the toplevel directory, so all paths are relative the root,
   -- this way we can just concatenate the paths returned by git with the toplevel
-  local result, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
+  local results, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
   scheduler()
   if err then
     local message = vim.split(err, "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
     log.error("error running git command, %s", table.concat(message, " "))
+    return {}, err
   end
-  return result
+  return results, err
 end
 
 ---@async
 ---@private
 function Repo:_read_remote_url()
-  self.remote_url = self:command({ "ls-remote", "--get-url" })[1]
+  local result, err = self:command({ "ls-remote", "--get-url" })
+  if not err then
+    self.remote_url = result[1]
+  end
 end
 
 ---@param status string
@@ -334,7 +339,10 @@ function Repo:refresh_status_for_path(path)
   local args = create_status_arguments({ header = false, ignored = false })
   args[#args + 1] = path
   log.debug("git status for path %q", path)
-  local results = self:command(args, true)
+  local results, err = self:command(args, true)
+  if err then
+    return false
+  end
 
   local old_status = self._status._changed_entries[path]
   if old_status then
@@ -389,7 +397,10 @@ function Repo:refresh_status(opts)
   opts = opts or {}
   local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self._is_yadm })
   log.debug("git status for %q", self.toplevel)
-  local results = self:command(args, true)
+  local results, err = self:command(args, true)
+  if err then
+    return false
+  end
 
   local old_changed_entries = self._status._changed_entries
   self._status.unmerged = 0
@@ -638,31 +649,33 @@ end
 
 ---@async
 ---@param path string
+---@return string|nil error_message
 function Repo:add(path)
-  local results = self:command({ "add", path }, false)
-  return results ~= nil and #results == 0
+  local _, err = self:command({ "add", path })
+  return err
 end
 
 ---@async
 ---@param path string
 ---@param staged? boolean
+---@return string|nil error_message
 function Repo:restore(path, staged)
   local args = { "restore" }
   if staged then
     args[#args + 1] = "--staged"
   end
   args[#args + 1] = path
-  local results = self:command(args, false)
-  return results ~= nil and #results == 0
+  local _, err = self:command(args)
+  return err
 end
 
 ---@async
 ---@param path string
 ---@param new_path string
----@return boolean success
+---@return string|nil error_message
 function Repo:rename(path, new_path)
-  local results = self:command({ "mv", "-k", path, new_path }, false)
-  return results ~= nil and #results == 0
+  local _, err = self:command({ "mv", "-k", path, new_path })
+  return err
 end
 
 ---@async

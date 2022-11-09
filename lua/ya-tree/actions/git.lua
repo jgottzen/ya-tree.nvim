@@ -26,8 +26,12 @@ end
 ---@param node Yat.Node
 function M.stage(_, node)
   if node.repo then
-    node.repo:add(node.path)
-    ui.update()
+    local err = node.repo:add(node.path)
+    if err then
+      utils.warn("Error staging path '" .. node.path .. "': " .. err)
+    else
+      ui.update()
+    end
   end
 end
 
@@ -36,8 +40,12 @@ end
 ---@param node Yat.Node
 function M.unstage(_, node)
   if node.repo then
-    node.repo:restore(node.path, true)
-    ui.update()
+    local err = node.repo:restore(node.path, true)
+    if err then
+      utils.warn("Error unstaging path '" .. node.path .. "': " .. err)
+    else
+      ui.update()
+    end
   end
 end
 
@@ -46,8 +54,12 @@ end
 ---@param node Yat.Node
 function M.revert(_, node)
   if node.repo then
-    node.repo:restore(node.path, false)
-    ui.update()
+    local err = node.repo:restore(node.path, false)
+    if err then
+      utils.warn("Error reverting path '" .. node.path .. "': " .. err)
+    else
+      ui.update()
+    end
   end
 end
 

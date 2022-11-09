@@ -196,12 +196,21 @@ function M.rename(tree, node)
   if tree.TYPE == "filesystem" then
     prepare_add_rename(tree --[[@as Yat.Trees.Filesystem]], node, path)
   end
-  local ok = node.repo and node.repo:rename(node.path, path) or fs.rename(node.path, path)
-  if ok then
-    utils.notify(string.format("Renamed %q to %q.", node.path, path))
+  if node.repo then
+    local err = node.repo:rename(node.path, path)
+    if not err then
+      utils.notify(string.format("Renamed %q to %q.", node.path, path))
+    else
+      utils.warn(string.format("Error renaming path %q: %s", node.path, err))
+      tree.focus_path_on_fs_event = nil
+    end
   else
-    tree.focus_path_on_fs_event = nil
-    utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
+    if fs.rename(node.path, path) then
+      utils.notify(string.format("Renamed %q to %q.", node.path, path))
+    else
+      tree.focus_path_on_fs_event = nil
+      utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
+    end
   end
 end
 
