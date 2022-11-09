@@ -31,21 +31,24 @@ function M.tbl_unique(list)
 end
 
 M.os_sep = os_sep
-M.is_windows = fn.has("win32") == 1 or fn.has("win32unix") == 1
-M.is_macos = fn.has("mac") == 1 or fn.has("macunix") == 1
 M.is_linux = fn.has("unix") == 1
+M.is_macos = not M.is_linux and (fn.has("mac") == 1 or fn.has("macunix") == 1)
+M.is_windows = not M.is_macos and (fn.has("win32") == 1 or fn.has("win32unix") == 1)
 
 do
   ---@type table<string, boolean>
-  local extensions = {}
-  local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true }) --[=[@as string[]]=]
-  for _, extension in pairs(splits) do
-    extensions[extension:upper()] = true
-  end
+  local extensions
 
   ---@param extension string
   ---@return boolean
   function M.is_windows_exe(extension)
+    if not extensions then
+      local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true }) --[=[@as string[]]=]
+      for _, ext in pairs(splits) do
+        extensions[ext:upper()] = true
+      end
+    end
+
     return extensions[extension:upper()] or false
   end
 end
@@ -184,8 +187,21 @@ do
       return not test:match("^error:")
     end
 
-    fd_has_max_results = fn.executable("fd") == 1 and has_max_results("fd")
-    fdfind_has_max_results = fn.executable("fdfind") == 1 and has_max_results("fdfind")
+    ---@type boolean
+    local fd, fdfind
+    fd_has_max_results = function()
+      if not fd then
+        fd = fn.executable("fd") == 1 and has_max_results("fd")
+      end
+      return fd
+    end
+
+    fdfind_has_max_results = function()
+      if not fdfind then
+        fdfind = fn.executable("fdfind") == 1 and has_max_results("fdfind")
+      end
+      return fdfind
+    end
   end
 
   ---@param term string
@@ -214,7 +230,7 @@ do
         if config.git.show_ignored then
           table.insert(args, "--no-ignore")
         end
-        if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
+        if (fd_has_max_results() or fdfind_has_max_results()) and config.search.max_results > 0 then
           table.insert(args, "--max-results=" .. config.search.max_results)
         end
         if glob then
