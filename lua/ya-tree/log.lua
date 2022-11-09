@@ -73,7 +73,7 @@ do
   for k, v in ipairs(config.levels) do
     levels[v.level] = k
   end
-  local log_file = fmt("%s/%s.log", fn.stdpath("cache"), config.name)
+  local log_file = fmt("%s/%s.log", fn.stdpath("log"), config.name)
   local dir = Path:new(log_file):parent()
   if not dir:exists() then
     dir:mkdir({ parents = true })
