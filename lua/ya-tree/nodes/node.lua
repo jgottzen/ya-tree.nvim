@@ -171,8 +171,8 @@ function Node:_scandir()
     children[child.path] = child
   end
 
-  ---@param fs_node Yat.Fs.Node
-  self._children = vim.tbl_map(function(fs_node)
+  self._children = {}
+  for _, fs_node in ipairs(fs.scan_dir(self.path)) do
     local child = children[fs_node.path]
     if child then
       log.trace("merging node %q with new data", fs_node.path)
@@ -184,11 +184,13 @@ function Node:_scandir()
       child._clipboard_status = self._clipboard_status
       maybe_add_watcher(child)
     end
-    return child
-  end, fs.scan_dir(self.path))
+    self._children[#self._children + 1] = child
+  end
   table.sort(self._children, self.node_comparator)
   self.empty = #self._children == 0
+  self.scanned = true
   maybe_add_watcher(self)
+
   -- remove any watchers for any children that was remomved
   for _, child in pairs(children) do
     if child:is_directory() then
@@ -196,7 +198,6 @@ function Node:_scandir()
       maybe_remove_watcher(child)
     end
   end
-  self.scanned = true
 
   scheduler()
 end
@@ -688,7 +689,7 @@ do
     end
     ---@diagnostic disable-next-line:invisible
     if node.scanned then
-    ---@diagnostic disable-next-line:invisible
+      ---@diagnostic disable-next-line:invisible
       node:_scandir()
 
       if recurse then
