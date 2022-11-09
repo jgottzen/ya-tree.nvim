@@ -583,8 +583,8 @@ do
     git_icons_and_hl[".A"] = { { icon = icons.added, highlight = hl.GIT_NEW } }
     git_icons_and_hl[".M"] = { { icon = icons.modified, highlight = hl.GIT_DIRTY } }
     git_icons_and_hl[".T"] = { { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
-    git_icons_and_hl[".D"] = { { icon = icons.deleted, highlight = hl.GIT_DELETED } }
-    git_icons_and_hl[".R"] = { { icon = icons.renamed, highlight = hl.GIT_RENAMED } }
+    git_icons_and_hl[".D"] = { { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
+    git_icons_and_hl[".R"] = { { icon = icons.renamed, highlight = hl.GIT_DIRTY } }
 
     git_icons_and_hl["DD"] = {
       { icon = icons.unmerged, highlight = hl.GIT_MERGE },
