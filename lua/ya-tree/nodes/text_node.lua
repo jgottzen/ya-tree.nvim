@@ -19,7 +19,7 @@ function TextNode:new(text, path, container, parent)
   local this = Node.new(self, {
     name = text,
     path = path,
-    type = container and "directory" or "file",
+    _type = container and "directory" or "file",
   }, parent)
   return this
 end

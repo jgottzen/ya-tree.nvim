@@ -12,10 +12,13 @@ local fn = vim.fn
 
 ---@alias Yat.Nodes.Buffer.Type Luv.FileType | "terminal"
 
+---@class Yat.Node.BufferData : Yat.Fs.Node
+---@field public _type Yat.Nodes.Buffer.Type
+
 ---@class Yat.Nodes.Buffer : Yat.Node
 ---@field protected __node_type "Buffer"
 ---@field public parent? Yat.Nodes.Buffer
----@field private type Yat.Nodes.Buffer.Type
+---@field private _type Yat.Nodes.Buffer.Type
 ---@field private _children? Yat.Nodes.Buffer[]
 ---@field public bufname? string
 ---@field public bufnr? integer
@@ -26,8 +29,8 @@ BufferNode.__tostring = Node.__tostring
 
 ---@param other Yat.Nodes.Buffer
 BufferNode.__eq = function(self, other)
-  if self.type == "terminal" then
-    return other.type == "terminal" and self.bufname == other.bufname or false
+  if self._type == "terminal" then
+    return other._type == "terminal" and self.bufname == other.bufname or false
   else
     return Node.__eq(self, other)
   end
@@ -38,15 +41,15 @@ setmetatable(BufferNode, { __index = Node })
 local TERMINALS_CONTAINER_PATH = "/yatree://terminals/container"
 
 ---Creates a new buffer node.
----@param fs_node Yat.Fs.Node filesystem data.
+---@param node_data Yat.Node.BufferData|Yat.Fs.Node node data.
 ---@param parent? Yat.Nodes.Buffer the parent node.
 ---@param bufname? string the vim buffer name.
 ---@param bufnr? integer the buffer number.
 ---@param modified? boolean if the buffer is modified.
 ---@param hidden? boolean if the buffer is listed.
 ---@return Yat.Nodes.Buffer node
-function BufferNode:new(fs_node, parent, bufname, bufnr, modified, hidden)
-  local this = Node.new(self, fs_node, parent)
+function BufferNode:new(node_data, parent, bufname, bufnr, modified, hidden)
+  local this = Node.new(self, node_data, parent)
   this.bufname = bufname
   this.bufnr = bufnr
   this.modified = modified or false
@@ -64,14 +67,19 @@ function BufferNode:is_hidden()
   return false
 end
 
+---@return Yat.Nodes.Buffer.Type
+function BufferNode:type()
+  return self._type
+end
+
 ---@return boolean is_terminal
 function BufferNode:is_terminal()
-  return self.type == "terminal"
+  return self._type == "terminal"
 end
 
 ---@return integer? id
 function BufferNode:toggleterm_id()
-  if self.type == "terminal" then
+  if self._type == "terminal" then
     return self.bufname:match("#toggleterm#(%d+)$")
   end
 end
@@ -185,7 +193,7 @@ end
 local function create_terminal_buffers_container(root)
   local container = BufferNode:new({
     name = "Terminals",
-    type = "directory",
+    _type = "directory",
     path = root.path .. TERMINALS_CONTAINER_PATH,
     extension = "terminal",
   }, root)
@@ -202,8 +210,7 @@ local function add_terminal_buffer_to_container(container, terminal)
   local hidden = bufinfo[1] and bufinfo[1].hidden == 1 or false
   local node = BufferNode:new({
     name = name,
-    ---@diagnostic disable-next-line:assign-type-mismatch
-    type = "terminal",
+    _type = "terminal",
     path = container.path .. "/" .. terminal.name,
     extension = "terminal",
   }, container, terminal.name, terminal.bufnr, false, hidden)

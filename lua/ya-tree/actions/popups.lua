@@ -140,7 +140,7 @@ local function create_fs_info(node, stat)
   local lines = {
     string.format(format_string, "Name", node.name),
     "",
-    string.format(format_string, "Type", node:is_link() and "Symbolic Link" or node_type_map[node.type] or "Unknown"),
+    string.format(format_string, "Type", node:is_link() and "Symbolic Link" or node_type_map[node:type()] or "Unknown"),
     string.format(format_string, "Location", node.parent and node.parent.path or Path:new(node.path):parent().filename),
     string.format(format_string, "Size", utils.format_size(stat.size)),
     "",
@@ -240,7 +240,7 @@ function M.show_node_info(_, node)
   end
 
   local lines, highlight_groups
-  if node:node_type() == "Buffer" and node.extension == "terminal" then
+  if node:class() == "Buffer" and node.extension == "terminal" then
     ---@cast node Yat.Nodes.Buffer
     if node:is_terminal() then
       lines, highlight_groups = create_terminal_info(node)

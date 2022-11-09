@@ -83,7 +83,7 @@ function GitNode:refresh(opts)
       fs_node = {
         name = fs.get_file_name(path),
         path = path,
-        type = directory and "directory" or "file",
+        _type = directory and "directory" or "file",
       }
     end
     local node = GitNode:new(fs_node, parent)

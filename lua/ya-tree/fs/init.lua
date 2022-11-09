@@ -44,10 +44,6 @@ local fs_opendir = wrap(function(path, entries, callback)
   uv.fs_opendir(path, callback, entries)
 end, 3)
 
----@class Luv.Readdir
----@field name string
----@field type Luv.FileType
-
 ---@async
 ---@param path string
 ---@return boolean empty
@@ -70,6 +66,7 @@ end
 -- file, directory, link, fifo, socket, char, block and unknown
 -- see: https://github.com/luvit/luv/blob/d2e235503f6cb5c86121cd70cdb5d17e368bab03/src/fs.c#L107=
 
+---Excludes the link type since it's handled differently, and unknown.
 ---@alias Luv.FileType "directory" | "file" | "fifo" | "socket" | "char" | "block"
 
 ---@class uv_timespec
@@ -97,7 +94,7 @@ end
 
 ---@class Yat.Fs.Node
 ---@field public name string
----@field public type Luv.FileType
+---@field public _type Luv.FileType
 ---@field public path string
 
 ---@class Yat.Fs.DirectoryNode : Yat.Fs.Node
@@ -114,7 +111,7 @@ local function directory_node(dir, name)
 
   return {
     name = name,
-    type = "directory",
+    _type = "directory",
     path = path,
     empty = empty,
   }
@@ -155,7 +152,7 @@ local function file_node(dir, name, stat)
 
   return {
     name = name,
-    type = "file",
+    _type = "file",
     path = path,
     extension = extension,
     executable = executable,
@@ -181,7 +178,7 @@ end
 ---@return Yat.Fs.FifoNode node
 local function fifo_node(dir, name, stat)
   local node = file_node(dir, name, stat)
-  node.type = "fifo"
+  node._type = "fifo"
   return node --[[@as Yat.Fs.FifoNode]]
 end
 
@@ -194,7 +191,7 @@ end
 ---@return Yat.Fs.SocketNode node
 local function socket_node(dir, name, stat)
   local node = file_node(dir, name, stat)
-  node.type = "socket"
+  node._type = "socket"
   return node --[[@as Yat.Fs.SocketNode]]
 end
 
@@ -207,7 +204,7 @@ end
 ---@return Yat.Fs.CharNode node
 local function char_node(dir, name, stat)
   local node = file_node(dir, name, stat)
-  node.type = "char"
+  node._type = "char"
   return node --[[@as Yat.Fs.CharNode]]
 end
 
@@ -220,7 +217,7 @@ end
 ---@return Yat.Fs.BlockNode node
 local function block_node(dir, name, stat)
   local node = file_node(dir, name, stat)
-  node.type = "block"
+  node._type = "block"
   return node --[[@as Yat.Fs.BlockNode]]
 end
 
@@ -274,7 +271,7 @@ local function link_node(dir, name, lstat)
       node = file_node(dir, name, stat)
       node.link_name = link_name
       node.link_extension = link_extension
-      node.type = _type
+      node._type = _type
     else
       -- "link" or "unknown"
       return nil
@@ -330,19 +327,24 @@ function M.node_for(path)
   end
 end
 
+---@class Luv.Readdir
+---@field name string
+---@field type Luv.FileType
+
 ---Scans a directory and returns an array of items extending `Yat.Fs.Node`.
 ---@async
 ---@param dir string the directory to scan.
 ---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
   dir = Path:new(dir):absolute() --[[@as string]]
-  ---@type Yat.Fs.Node[], string?, userdata?, Luv.Readdir[]?
+  ---@type Yat.Fs.Node[], string?, userdata?
   local nodes, err, fd, entries = {}, nil, nil, nil
   err, fd = fs_opendir(dir, 10)
   if err then
     log.error("cannot fs_opendir path %q, %s", dir, err)
   else
     while true do
+      ---@type string?, Luv.Readdir[]?
       err, entries = async_uv.fs_readdir(fd)
       if err then
         log.error("cannot fs_readdir path %q, %s", dir, err)

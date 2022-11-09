@@ -9,10 +9,12 @@ local utils = require("ya-tree.utils")
 
 ---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git" | "Text"
 
----@class Yat.Node : Yat.Fs.Node
+---@class Yat.Node
 ---@field protected __node_type "FileSystem"
+---@field public name string
+---@field public path string
 ---@field public parent? Yat.Node
----@field protected type Luv.FileType
+---@field protected _type Luv.FileType
 ---@field private _children? Yat.Node[]
 ---@field public empty? boolean
 ---@field public extension? string
@@ -112,10 +114,10 @@ end
 ---@package
 ---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
-  if self:is_directory() and fs_node.type ~= "directory" and self._fs_event_registered then
+  if self:is_directory() and fs_node._type ~= "directory" and self._fs_event_registered then
     self._fs_event_registered = false
     fs_watcher.remove_watcher(self.path)
-  elseif not self:is_directory() and fs_node.type == "directory" and not self._fs_event_registered then
+  elseif not self:is_directory() and fs_node._type == "directory" and not self._fs_event_registered then
     self._fs_event_registered = true
     fs_watcher.watch_dir(self.path)
   end
@@ -239,23 +241,28 @@ function Node:set_git_repo(repo)
 end
 
 ---@return Yat.Nodes.Type node_type
-function Node:node_type()
+function Node:class()
   return self.__node_type
+end
+
+---@return Luv.FileType
+function Node:type()
+  return self._type
 end
 
 ---@return boolean editable
 function Node:is_editable()
-  return self.type == "file"
+  return self._type == "file"
 end
 
 ---@return boolean
 function Node:is_directory()
-  return self.type == "directory"
+  return self._type == "directory"
 end
 
 ---@return boolean
 function Node:is_file()
-  return self.type == "file"
+  return self._type == "file"
 end
 
 ---@return boolean
@@ -265,22 +272,22 @@ end
 
 ---@return boolean
 function Node:is_fifo()
-  return self.type == "fifo"
+  return self._type == "fifo"
 end
 
 ---@return boolean
 function Node:is_socket()
-  return self.type == "socket"
+  return self._type == "socket"
 end
 
 ---@return boolean
 function Node:is_char_device()
-  return self.type == "char"
+  return self._type == "char"
 end
 
 ---@return boolean
 function Node:is_block_device()
-  return self.type == "block"
+  return self._type == "block"
 end
 
 ---@async
@@ -320,12 +327,12 @@ end
 
 ---@return boolean
 function Node:is_git_ignored()
-  return self.repo and self.repo:is_ignored(self.path, self.type) or false
+  return self.repo and self.repo:is_ignored(self.path, self._type) or false
 end
 
 ---@return string|nil
 function Node:git_status()
-  return self.repo and self.repo:status_of(self.path, self.type)
+  return self.repo and self.repo:status_of(self.path, self._type)
 end
 
 ---@return boolean
@@ -362,7 +369,7 @@ function Node.add_node(self, path)
   ---@cast self Yat.Node
   return self:_add_node(path, function(fs_node, parent)
     local node = self.__index.new(self.__index, fs_node, parent)
-    if node:node_type() == "FileSystem" then
+    if node:class() == "FileSystem" then
       maybe_add_watcher(node)
     end
     return node

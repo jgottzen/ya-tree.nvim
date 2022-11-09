@@ -26,7 +26,7 @@ function M.open(tree)
       node_actions.toggle_node(tree, node)
     elseif node:is_editable() then
       ui.open_file(node.path, "edit")
-    elseif node:node_type() == "Buffer" then
+    elseif node:class() == "Buffer" then
       ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
         for _, win in ipairs(api.nvim_list_wins()) do
