@@ -49,7 +49,7 @@ function M.open_window(opts)
       if opts.tree == "filesystem" and path and vim.startswith(path, current_cwd) then
         tree = sidebar:filesystem_tree(current_cwd)
       else
-        tree = Trees.create_tree(tabpage, opts.tree, path, opts.tree_args)
+        tree = Trees.create_tree(tabpage, opts.tree, path or current_cwd, opts.tree_args)
         if tree then
           sidebar:add_tree(tree)
         end

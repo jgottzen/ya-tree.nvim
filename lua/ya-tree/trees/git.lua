@@ -123,7 +123,7 @@ function GitTree:new(tabpage, repo_or_path)
   if repo then
     root = create_root_node(repo)
   else
-    local path = type(repo_or_path) == "string" and repo_or_path or repo_or_path.toplevel
+    local path = type(repo_or_path) == "string" and repo_or_path or "unknown"
     root = TextNode:new(path .. " is not a Git repository", path, false)
   end
   local this = Tree.new(self, tabpage, root.path)

@@ -14,7 +14,7 @@ end
 ---@async
 ---@param tabpage integer
 ---@param tree_type Yat.Trees.Type
----@param path? string
+---@param path string
 ---@param kwargs? table<string, any>
 ---@return Yat.Tree? tree
 function M.create_tree(tabpage, tree_type, path, kwargs)

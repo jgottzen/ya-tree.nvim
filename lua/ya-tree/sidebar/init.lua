@@ -88,8 +88,9 @@ function Sidebar:new(tabpage, sidebar_config)
   this._registered_events = { autocmd = {}, git = {}, yatree = {} }
   this._sections = {}
   local tree_types = this.single_mode and { this.always_shown_trees[1] } or this.always_shown_trees
+  local cwd = uv.cwd() --[[@as string]]
   for _, tree_type in ipairs(tree_types) do
-    local tree = Trees.create_tree(this.tabpage, tree_type, uv.cwd())
+    local tree = Trees.create_tree(this.tabpage, tree_type, cwd)
     if tree then
       this:_register_events_for_tree(tree)
       this._sections[#this._sections + 1] = create_section(tree)
