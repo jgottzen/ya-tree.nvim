@@ -322,6 +322,14 @@ function Sidebar:close_tree(tree, force)
 end
 
 ---@async
+---@param new_cwd string
+function Sidebar:change_cwd(new_cwd)
+  for _, section in pairs(self._sections) do
+    section.tree:on_cwd_changed(new_cwd)
+  end
+end
+
+---@async
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_new(bufnr, file, match)
@@ -903,34 +911,28 @@ end
 local function on_cwd_changed(scope, new_cwd)
   log.debug("scope=%s, cwd=%s", scope, new_cwd)
 
-  ---@param sidebar? Yat.Sidebar
-  local function cwd_for_sidebar(sidebar)
-    if sidebar then
-      for _, section in pairs(sidebar._sections) do
-        section.tree:on_cwd_changed(new_cwd)
-      end
-    end
-  end
-
   local current_tabpage = api.nvim_get_current_tabpage()
   -- Do the current tabpage first
   if scope == "tabpage" or scope == "global" then
-    cwd_for_sidebar(M._sidebars[current_tabpage])
-    update_ui()
+    local sidebar = M._sidebars[current_tabpage]
+    if sidebar then
+      local tree, node
+      if ui.is_open(current_tabpage) then
+        tree, node = ui.get_current_tree_and_node(current_tabpage)
+      end
+      sidebar:change_cwd(new_cwd)
+      if tree and node then
+        ui.update(tree, node)
+      end
+    end
   end
   if scope == "global" then
     for tabpage, sidebar in ipairs(M._sidebars) do
       if tabpage ~= current_tabpage then
-        cwd_for_sidebar(sidebar)
+        sidebar:change_cwd(new_cwd)
       end
     end
   end
-end
-
----@async
----@param new_cwd string
-function M.change_root_for_current_tabpage(new_cwd)
-  void(on_cwd_changed)("tabpage", new_cwd)
 end
 
 function M.delete_sidebars_for_nonexisting_tabpages()
