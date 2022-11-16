@@ -202,8 +202,7 @@ function Input:_create_title()
   if self.prompt then
     -- Force the Input window to position itself, otherwise relative = "win" is
     -- to the parent window of Input and not Input itself...
-    -- See https://github.com/neovim/neovim/issues/13403
-    -- which though closed hasn't fixed the issue
+    -- see https://github.com/neovim/neovim/issues/14735
     vim.cmd("redraw")
 
     local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.prompt))
