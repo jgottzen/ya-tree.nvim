@@ -4,6 +4,7 @@ local Path = require("plenary.path")
 local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
+local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
@@ -16,6 +17,12 @@ local fn = vim.fn
 ---@field public _type Yat.Nodes.Buffer.Type
 
 ---@class Yat.Nodes.Buffer : Yat.Node
+---@field new fun(self: Yat.Nodes.Buffer, node_data: Yat.Node.BufferData, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
+---@overload fun(node_data: Yat.Node.BufferData, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
+---@field class fun(self: Yat.Nodes.Buffer): Yat.Nodes.Buffer
+---@field super Yat.Node
+---
+---@field type fun(self: Yat.Nodes.Buffer): Yat.Nodes.Buffer.Type
 ---@field protected __node_type "Buffer"
 ---@field public parent? Yat.Nodes.Buffer
 ---@field private _type Yat.Nodes.Buffer.Type
@@ -23,53 +30,44 @@ local fn = vim.fn
 ---@field public bufname? string
 ---@field public bufnr? integer
 ---@field public bufhidden? boolean
-local BufferNode = { __node_type = "Buffer" }
-BufferNode.__index = BufferNode
-BufferNode.__tostring = Node.__tostring
+local BufferNode = meta.create_class("Yat.Nodes.Buffer", Node)
+BufferNode.__node_type = "Buffer"
 
 ---@param other Yat.Nodes.Buffer
 BufferNode.__eq = function(self, other)
   if self._type == "terminal" then
     return other._type == "terminal" and self.bufname == other.bufname or false
   else
-    return Node.__eq(self, other)
+    return self.super:__eq(other)
   end
 end
-
-setmetatable(BufferNode, { __index = Node })
 
 local TERMINALS_CONTAINER_PATH = "/yatree://terminals/container"
 
 ---Creates a new buffer node.
----@param node_data Yat.Node.BufferData|Yat.Fs.Node node data.
+---@protected
+---@param node_data Yat.Node.BufferData node data.
 ---@param parent? Yat.Nodes.Buffer the parent node.
 ---@param bufname? string the vim buffer name.
 ---@param bufnr? integer the buffer number.
 ---@param modified? boolean if the buffer is modified.
 ---@param hidden? boolean if the buffer is listed.
----@return Yat.Nodes.Buffer node
-function BufferNode:new(node_data, parent, bufname, bufnr, modified, hidden)
-  local this = Node.new(self, node_data, parent)
-  this.bufname = bufname
-  this.bufnr = bufnr
-  this.modified = modified or false
-  this.bufhidden = hidden
-  if this:is_directory() then
-    this.empty = true
-    this._scanned = true
-    this.expanded = true
+function BufferNode:init(node_data, parent, bufname, bufnr, modified, hidden)
+  self.super:init(node_data, parent)
+  self.bufname = bufname
+  self.bufnr = bufnr
+  self.modified = modified or false
+  self.bufhidden = hidden
+  if self:is_directory() then
+    self.empty = true
+    self._scanned = true
+    self.expanded = true
   end
-  return this
 end
 
 ---@return boolean hidden
 function BufferNode:is_hidden()
   return false
-end
-
----@return Yat.Nodes.Buffer.Type
-function BufferNode:type()
-  return self._type
 end
 
 ---@return boolean is_terminal
@@ -119,16 +117,15 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   end
 end
 
----@param a Yat.Nodes.Buffer
----@param b Yat.Nodes.Buffer
+---@param other Yat.Nodes.Buffer
 ---@return boolean
-function BufferNode.node_comparator(a, b)
-  if a:is_terminals_container() then
+function BufferNode:node_comparator(other)
+  if self:is_terminals_container() then
     return false
-  elseif b:is_terminals_container() then
+  elseif other:is_terminals_container() then
     return true
   end
-  return Node.node_comparator(a, b)
+  return self.super:node_comparator(other)
 end
 
 ---@protected
@@ -244,7 +241,7 @@ function BufferNode:refresh(opts)
   self.repo = git.get_repo_for_path(root_path)
   self._children = {}
   self.empty = true
-  local first_leaf_node = self:populate_from_paths(paths, function(path, parent, _)
+  local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then
       local buffer_node = buffers[fs_node.path]
@@ -272,13 +269,13 @@ function BufferNode:refresh(opts)
 end
 
 ---@async
----@param file string
+---@param path string
 ---@param bufnr integer
 ---@param is_terminal boolean
 ---@return Yat.Nodes.Buffer|nil node
-function BufferNode:add_node(file, bufnr, is_terminal)
+function BufferNode:add_node(path, bufnr, is_terminal)
   if self.parent then
-    return self.parent:add_node(file, bufnr, is_terminal)
+    return self.parent:add_node(path, bufnr, is_terminal)
   end
 
   if is_terminal then
@@ -286,11 +283,11 @@ function BufferNode:add_node(file, bufnr, is_terminal)
     if not container then
       container = create_terminal_buffers_container(self)
     end
-    return add_terminal_buffer_to_container(container, { name = file, bufnr = bufnr })
+    return add_terminal_buffer_to_container(container, { name = path, bufnr = bufnr })
   else
-    return self:_add_node(file, function(fs_node, parent)
-      local is_buffer_node = fs_node.path == file
-      local node = BufferNode:new(fs_node, parent, is_buffer_node and file or nil, is_buffer_node and bufnr or nil, false, false)
+    return self:_add_node(path, function(fs_node, parent)
+      local is_buffer_node = fs_node.path == path
+      local node = BufferNode:new(fs_node, parent, is_buffer_node and path or nil, is_buffer_node and bufnr or nil, false, false)
       if not parent.repo or parent.repo:is_yadm() then
         node.repo = git.get_repo_for_path(node.path)
       end
@@ -302,12 +299,12 @@ function BufferNode:add_node(file, bufnr, is_terminal)
   end
 end
 
----@param file string
+---@param path string
 ---@param bufnr integer
 ---@param is_terminal boolean
-function BufferNode:remove_node(file, bufnr, is_terminal)
+function BufferNode:remove_node(path, bufnr, is_terminal)
   if self.parent then
-    self.parent:remove_node(file, bufnr, is_terminal)
+    self.parent:remove_node(path, bufnr, is_terminal)
   end
 
   if is_terminal then
@@ -315,7 +312,7 @@ function BufferNode:remove_node(file, bufnr, is_terminal)
     if container then
       for i = #container._children, 1, -1 do
         local child = container._children[i]
-        if child.bufname == file and child.bufnr == bufnr then
+        if child.bufname == path and child.bufnr == bufnr then
           table.remove(container._children, i)
           log.debug("removed terminal buffer %s (%q)", child.bufnr, child.bufname)
           break
@@ -328,7 +325,7 @@ function BufferNode:remove_node(file, bufnr, is_terminal)
       end
     end
   else
-    self:_remove_node(file, true)
+    self:_remove_node(path, true)
   end
 end
 

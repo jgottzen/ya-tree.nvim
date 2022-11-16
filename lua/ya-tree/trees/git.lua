@@ -1,6 +1,7 @@
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
+local meta = require("ya-tree.meta")
 local TextNode = require("ya-tree.nodes.text_node")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
@@ -10,17 +11,19 @@ local log = require("ya-tree.log")("trees")
 local api = vim.api
 
 ---@class Yat.Trees.Git : Yat.Tree
+---@field new async fun(self: Yat.Trees.Git, tabpage: integer, path?: string): Yat.Trees.Git
+---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Git
+---@field class fun(self: Yat.Trees.Git): Yat.Trees.Git
+---@field super Yat.Tree
+---
 ---@field TYPE "git"
 ---@field root Yat.Nodes.Git|Yat.Nodes.Text
 ---@field current_node Yat.Nodes.Git|Yat.Nodes.Text
 ---@field supported_actions Yat.Trees.Git.SupportedActions[]
 ---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func fun(self: Yat.Trees.Git, bufnr: integer)
-local GitTree = { TYPE = "git" }
-GitTree.__index = GitTree
-GitTree.__eq = Tree.__eq
-GitTree.__tostring = Tree.__tostring
-setmetatable(GitTree, { __index = Tree })
+local GitTree = meta.create_class("Yat.Trees.Git", Tree)
+GitTree.TYPE = "git"
 
 ---@alias Yat.Trees.Git.SupportedActions
 ---| "rename"
@@ -46,8 +49,8 @@ setmetatable(GitTree, { __index = Tree })
 
 ---@param config Yat.Config
 function GitTree.setup(config)
-  GitTree.complete_func = Tree.complete_func_loaded_nodes
-  GitTree.renderers = tree_utils.create_renderers(GitTree.TYPE, config)
+  GitTree.complete_func = Tree.static.complete_func_loaded_nodes
+  GitTree.renderers = tree_utils.create_renderers(GitTree.static.TYPE, config)
 
   local builtin = require("ya-tree.actions.builtin")
   GitTree.supported_actions = utils.tbl_unique({
@@ -70,26 +73,27 @@ function GitTree.setup(config)
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(vim.deepcopy(Tree.supported_actions)),
+    unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
-  GitTree.supported_events = {
-    autocmd = { [ae.BUFFER_MODIFIED] = GitTree.on_buffer_modified },
+  local supported_events = {
+    autocmd = { [ae.BUFFER_MODIFIED] = Tree.static.on_buffer_modified },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    GitTree.supported_events.autocmd[ae.BUFFER_SAVED] = GitTree.on_buffer_saved
+    supported_events.autocmd[ae.BUFFER_SAVED] = GitTree.static.on_buffer_saved
   end
   if config.git.enable then
-    GitTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = GitTree.on_git_event
+    supported_events.git[ge.DOT_GIT_DIR_CHANGED] = GitTree.static.on_git_event
   end
   if config.diagnostics.enable then
-    GitTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = GitTree.on_diagnostics_event
+    supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
+  GitTree.supported_events = supported_events
 end
 
 ---@async
@@ -114,10 +118,10 @@ local function create_root_node(repo)
 end
 
 ---@async
+---@private
 ---@param tabpage integer
 ---@param repo_or_path Yat.Git.Repo|string
----@return Yat.Trees.Git tree
-function GitTree:new(tabpage, repo_or_path)
+function GitTree:init(tabpage, repo_or_path)
   local repo = get_repo(repo_or_path)
   local root
   if repo then
@@ -126,12 +130,11 @@ function GitTree:new(tabpage, repo_or_path)
     local path = type(repo_or_path) == "string" and repo_or_path or "unknown"
     root = TextNode:new(path .. " is not a Git repository", path, false)
   end
-  local this = Tree.new(self, tabpage, root.path)
-  this.root = root
-  this.current_node = this.root:refresh() or this.root
+  self.super:init(tabpage, root.path)
+  self.root = root
+  self.current_node = self.root:refresh() or self.root
 
-  log.info("created new tree %s", tostring(this))
-  return this
+  log.info("created new tree %s", tostring(self))
 end
 
 ---@async

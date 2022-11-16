@@ -1,27 +1,30 @@
 local Node = require("ya-tree.nodes.node")
+local meta = require("ya-tree.meta")
 
 ---@class Yat.Nodes.Text : Yat.Node
+---@field new fun(self: Yat.Nodes.Text, text: string, path: string, container: boolean, parent?: Yat.Nodes.Text): Yat.Nodes.Text
+---@overload fun(text: string, path: string, container: boolean, parent?: Yat.Nodes.Text): Yat.Nodes.Text
+---@field class fun(self: Yat.Nodes.Text): Yat.Nodes.Text
+---@field super Yat.Node
+---
+---@field add_node fun(self: Yat.Nodes.Text, path: string): Yat.Nodes.Text?
 ---@field protected __node_type "Text"
 ---@field public parent? Yat.Nodes.Text
 ---@field private _children? Yat.Nodes.Text[]
-local TextNode = { __node_type = "Text" }
-TextNode.__index = TextNode
-TextNode.__eq = Node.__eq
-TextNode.__tostring = Node.__tostring
-setmetatable(TextNode, { __index = Node })
+local TextNode = meta.create_class("Yat.Nodes.Text", Node)
+TextNode.__node_type = "Text"
 
+---@protected
 ---@param text string
 ---@param path string
 ---@param container boolean
 ---@param parent? Yat.Nodes.Text
----@return Yat.Nodes.Text node
-function TextNode:new(text, path, container, parent)
-  local this = Node.new(self, {
+function TextNode:init(text, path, container, parent)
+  self.super:init({
     name = text,
     path = path,
     _type = container and "directory" or "file",
   }, parent)
-  return this
 end
 
 function TextNode:is_editable()

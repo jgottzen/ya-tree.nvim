@@ -1,6 +1,7 @@
 local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local event = require("ya-tree.events.event").ya_tree
+local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("ui")
 
 local api = vim.api
@@ -43,7 +44,11 @@ local win_options = {
   }, ","),
 }
 
----@class Yat.Ui.Canvas
+---@class Yat.Ui.Canvas : Yat.Object
+---@field new fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
+---@overload fun(): Yat.Ui.Canvas
+---@field class fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
+---
 ---@field public position Yat.Ui.Position
 ---@field private winid? integer
 ---@field private edit_winid? integer
@@ -53,20 +58,17 @@ local win_options = {
 ---@field private pos_after_win_leave? integer[]
 ---@field private size integer
 ---@field private sidebar Yat.Sidebar
-local Canvas = {}
-Canvas.__index = Canvas
+local Canvas = meta.create_class("Yat.Ui.Canvas")
 
 Canvas.__tostring = function(self)
   return string.format("(winid=%s, bufnr=%s, edit_winid=%s, sidebar=[%s])", self.winid, self.bufnr, self.edit_winid, tostring(self.sidebar))
 end
 
----@return Yat.Ui.Canvas canvas
-function Canvas:new()
-  local this = setmetatable({}, self)
-  this.previous_row = 1
-  this.position = config.view.position
-  this.size = config.view.size
-  return this
+---@private
+function Canvas:init()
+  self.previous_row = 1
+  self.position = config.view.position
+  self.size = config.view.size
 end
 
 ---@return boolean

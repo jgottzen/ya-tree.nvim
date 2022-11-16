@@ -3,6 +3,7 @@ local Path = require("plenary.path")
 local fs = require("ya-tree.fs")
 local fs_watcher = require("ya-tree.fs.watcher")
 local Node = require("ya-tree.nodes.node")
+local meta = require("ya-tree.meta")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
@@ -12,16 +13,18 @@ local api = vim.api
 local uv = vim.loop
 
 ---@class Yat.Trees.Filesystem : Yat.Tree
+---@field new async fun(self: Yat.Trees.Filesystem, tabpage: integer, path?: string): Yat.Trees.Filesystem
+---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Filesystem
+---@field class fun(self: Yat.Trees.Filesystem): Yat.Trees.Filesystem
+---@field super Yat.Tree
+---
 ---@field TYPE "filesystem"
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]
 ---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func fun(self: Yat.Trees.Filesystem, bufnr: integer, node?: Yat.Node)
 ---@field focus_path_on_fs_event? string|"expand"
-local FilesystemTree = { TYPE = "filesystem" }
-FilesystemTree.__index = FilesystemTree
-FilesystemTree.__eq = Tree.__eq
-FilesystemTree.__tostring = Tree.__tostring
-setmetatable(FilesystemTree, { __index = Tree })
+local FilesystemTree = meta.create_class("Yat.Trees.Filesystem", Tree)
+FilesystemTree.TYPE = "filesystem"
 
 ---@alias Yat.Trees.Filesystem.SupportedActions
 ---| "add"
@@ -69,7 +72,7 @@ function FilesystemTree.setup(config)
     end
   else
     if completion.on == "node" then
-      FilesystemTree.complete_func = Tree.complete_func_file_in_path
+      FilesystemTree.complete_func = Tree.static.complete_func_file_in_path
     else
       if completion.on ~= "root" then
         utils.warn(string.format("'trees.filesystem.completion.on' is not a recognized value (%q), using 'root'", completion.on))
@@ -79,7 +82,7 @@ function FilesystemTree.setup(config)
       end
     end
   end
-  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.TYPE, config)
+  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.static.TYPE, config)
 
   local builtin = require("ya-tree.actions.builtin")
   FilesystemTree.supported_actions = utils.tbl_unique({
@@ -113,26 +116,27 @@ function FilesystemTree.setup(config)
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(vim.deepcopy(Tree.supported_actions)),
+    unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
-  FilesystemTree.supported_events = {
-    autocmd = { [ae.BUFFER_MODIFIED] = FilesystemTree.on_buffer_modified },
+  local supported_events = {
+    autocmd = { [ae.BUFFER_MODIFIED] = Tree.static.on_buffer_modified },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    FilesystemTree.supported_events.autocmd[ae.BUFFER_SAVED] = FilesystemTree.on_buffer_saved
+    supported_events.autocmd[ae.BUFFER_SAVED] = Tree.static.on_buffer_saved
   end
   if config.git.enable then
-    FilesystemTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = FilesystemTree.on_git_event
+    supported_events.git[ge.DOT_GIT_DIR_CHANGED] = Tree.static.on_git_event
   end
   if config.diagnostics.enable then
-    FilesystemTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = FilesystemTree.on_diagnostics_event
+    supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
+  FilesystemTree.supported_events = supported_events
 end
 
 ---Creates a new filesystem node tree root.
@@ -161,10 +165,10 @@ local function create_root_node(path, old_root)
 end
 
 ---@async
+---@private
 ---@param tabpage integer
 ---@param root? string|Yat.Node
----@return Yat.Trees.Filesystem tree
-function FilesystemTree:new(tabpage, root)
+function FilesystemTree:init(tabpage, root)
   local root_node
   if type(root) == "string" then
     if not fs.is_directory(root) then
@@ -177,13 +181,12 @@ function FilesystemTree:new(tabpage, root)
     root_node = create_root_node(uv.cwd() --[[@as string]])
   end
 
-  local this = Tree.new(self, tabpage, root_node.path)
-  this.root = root_node
-  this.current_node = this.root
-  this:check_node_for_repo(this.root)
+  self.super:init(tabpage, root_node.path)
+  self.root = root_node
+  self.current_node = self.root
+  self:check_node_for_repo(self.root)
 
-  log.info("created new tree %s", tostring(this))
-  return this
+  log.info("created new tree %s", tostring(self))
 end
 
 ---@param node Yat.Node
@@ -199,7 +202,7 @@ end
 function FilesystemTree:delete()
   self.root:walk(maybe_remove_watcher)
   maybe_remove_watcher(self.root)
-  Tree.delete(self)
+  self.super:delete()
 end
 
 ---@async

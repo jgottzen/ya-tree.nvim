@@ -8,6 +8,7 @@ local git_event = require("ya-tree.events.event").git
 local yatree_event = require("ya-tree.events.event").ya_tree
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
+local meta = require("ya-tree.meta")
 local Trees = require("ya-tree.trees")
 local BuffersTree = require("ya-tree.trees.buffers")
 local FilesystemTree = require("ya-tree.trees.filesystem")
@@ -36,15 +37,18 @@ local function section_tostring(section)
   return string.format("(%s, [%s,%s])", section.tree.TYPE, section.from, section.to)
 end
 
----@class Yat.Sidebar
+---@class Yat.Sidebar : Yat.Object
+---@field new async fun(self: Yat.Sidebar, tabpage: integer, sidebar_config?: Yat.Config.Sidebar): Yat.Sidebar
+---@overload async fun(tabpage: integer, sidebar_config?: Yat.Config.Sidebar): Yat.Sidebar
+---@field class fun(self: Yat.Sidebar): Yat.Sidebar
+---
 ---@field tabpage integer
----@field single_mode boolean
----@field tree_order table<Yat.Trees.Type, integer>
----@field always_shown_trees Yat.Trees.Type[]
+---@field private single_mode boolean
+---@field package tree_order table<Yat.Trees.Type, integer>
+---@field package always_shown_trees Yat.Trees.Type[]
 ---@field package _sections Yat.Sidebar.Section[]
 ---@field package _registered_events { autocmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
-local Sidebar = {}
-Sidebar.__index = Sidebar
+local Sidebar = meta.create_class("Yat.Sidebar")
 
 ---@param other Yat.Sidebar
 ---@return boolean
@@ -72,38 +76,48 @@ local function create_section(tree)
 end
 
 ---@async
+---@private
 ---@param tabpage integer
 ---@param sidebar_config? Yat.Config.Sidebar
----@return Yat.Sidebar
-function Sidebar:new(tabpage, sidebar_config)
+function Sidebar:init(tabpage, sidebar_config)
   sidebar_config = sidebar_config or require("ya-tree.config").config.sidebar
-  local this = setmetatable({}, self)
-  this.tabpage = tabpage
-  this.single_mode = sidebar_config.single_mode
-  this.tree_order = {}
+  self.tabpage = tabpage
+  self.single_mode = sidebar_config.single_mode
+  self.tree_order = {}
   for i, tree_type in ipairs(sidebar_config.tree_order) do
-    this.tree_order[tree_type] = i
+    self.tree_order[tree_type] = i
   end
-  this.always_shown_trees = sidebar_config.trees_always_shown
-  this._registered_events = { autocmd = {}, git = {}, yatree = {} }
-  this._sections = {}
-  local tree_types = this.single_mode and { this.always_shown_trees[1] } or this.always_shown_trees
+  self.always_shown_trees = sidebar_config.trees_always_shown
+  self._registered_events = { autocmd = {}, git = {}, yatree = {} }
+  self._sections = {}
+  local tree_types = self.single_mode and { self.always_shown_trees[1] } or self.always_shown_trees
   local cwd = uv.cwd() --[[@as string]]
   for _, tree_type in ipairs(tree_types) do
-    local tree = Trees.create_tree(this.tabpage, tree_type, cwd)
+    local tree = Trees.create_tree(self.tabpage, tree_type, cwd)
     if tree then
-      this:_register_events_for_tree(tree)
-      this._sections[#this._sections + 1] = create_section(tree)
+      self:_add_section(tree)
     end
   end
-  table.sort(this._sections, function(a, b)
-    local a_order = this.tree_order[a.tree.TYPE] or 1000
-    local b_order = this.tree_order[b.tree.TYPE] or 1000
+  self:_sort_sections()
+
+  log.info("created new sidebar %s", tostring(self))
+end
+
+---@private
+---@param tree Yat.Tree
+---@param pos? integer
+function Sidebar:_add_section(tree, pos)
+  table.insert(self._sections, pos or (#self._sections + 1), create_section(tree))
+  self:_register_events_for_tree(tree)
+end
+
+---@private
+function Sidebar:_sort_sections()
+  table.sort(self._sections, function(a, b)
+    local a_order = self.tree_order[a.tree.TYPE] or 1000
+    local b_order = self.tree_order[b.tree.TYPE] or 1000
     return a_order < b_order
   end)
-
-  log.info("created new sidebar %s", tostring(this))
-  return this
 end
 
 ---@private
@@ -273,8 +287,7 @@ function Sidebar:add_tree(tree)
     if self._sections[1].tree.TYPE ~= "filesystem" then
       self:_delete_section(1)
     end
-    table.insert(self._sections, 1, create_section(tree))
-    self:_register_events_for_tree(tree)
+    self:_add_section(tree, 1)
   else
     for _, section in pairs(self._sections) do
       if section.tree == tree then
@@ -282,13 +295,8 @@ function Sidebar:add_tree(tree)
         return
       end
     end
-    self._sections[#self._sections + 1] = create_section(tree)
-    self:_register_events_for_tree(tree)
-    table.sort(self._sections, function(a, b)
-      local a_order = self.tree_order[a.tree.TYPE] or 1000
-      local b_order = self.tree_order[b.tree.TYPE] or 1000
-      return a_order < b_order
-    end)
+    self:_add_section(tree)
+    self:_sort_sections()
   end
 end
 
@@ -302,7 +310,11 @@ function Sidebar:close_tree(tree, force)
       self:_delete_section(1)
       -- the filesystem tree is never deleted, reuse it if it's present
       if not (self._sections[1] and self._sections[1].tree.TYPE == "filesystem") then
-        self._sections = create_section(FilesystemTree:new(self.tabpage, uv.cwd()))
+        for i = #self._sections, 1, -1 do
+          self:_delete_section(i)
+        end
+        self._sections = {}
+        self:_add_section(FilesystemTree:new(self.tabpage, uv.cwd()))
       end
       return self._sections[1].tree
     end
@@ -615,10 +627,12 @@ end
 function Sidebar:render(config, width)
   local hl = require("ya-tree.ui.highlights")
   local sections = self.single_mode and { self._sections[1] } or self._sections
-  if self.single_mode and #self._sections == 2 then
-    self._sections[2].from = 0
-    self._sections[2].to = 0
-    self._sections[2].path_lookup = {}
+  if self.single_mode and #self._sections > 1 then
+    for i = 2, #self._sections do
+      self._sections[i].from = 0
+      self._sections[i].to = 0
+      self._sections[i].path_lookup = {}
+    end
   end
 
   local header_enabled = not (self.single_mode or #self._sections == 1) and config.sidebar.section_layout.header.enable
@@ -826,7 +840,7 @@ end
 ---@param node Yat.Node
 ---@return integer|nil row
 function Sidebar:get_prev_git_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, false, function(node_at_row, _)
+  return self:_get_first_row_that_match(tree, node, false, function(node_at_row)
     return node_at_row:git_status() ~= nil
   end)
 end
@@ -835,7 +849,7 @@ end
 ---@param node Yat.Node
 ---@return integer|nil row
 function Sidebar:get_next_git_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, true, function(node_at_row, _)
+  return self:_get_first_row_that_match(tree, node, true, function(node_at_row)
     return node_at_row:git_status() ~= nil
   end)
 end

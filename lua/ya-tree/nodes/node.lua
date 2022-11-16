@@ -4,12 +4,17 @@ local Path = require("plenary.path")
 local diagnostics = require("ya-tree.diagnostics")
 local fs = require("ya-tree.fs")
 local fs_watcher = require("ya-tree.fs.watcher")
+local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git" | "Text"
 
----@class Yat.Node
+---@class Yat.Node : Yat.Object
+---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
+---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
+---@field class fun(self: Yat.Node): Yat.Node
+---
 ---@field protected __node_type "FileSystem"
 ---@field public name string
 ---@field public path string
@@ -31,8 +36,8 @@ local utils = require("ya-tree.utils")
 ---@field protected scanned? boolean
 ---@field public expanded? boolean
 ---@field package _fs_event_registered boolean
-local Node = { __node_type = "FileSystem" }
-Node.__index = Node
+local Node = meta.create_class("Yat.Node")
+Node.__node_type = "FileSystem"
 
 ---@param other Yat.Node
 Node.__eq = function(self, other)
@@ -44,14 +49,15 @@ Node.__tostring = function(self)
 end
 
 ---Creates a new node.
----@generic T : Yat.Node
----@param class T
+---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
----@param parent? T the parent node.
----@return T node
-function Node.new(class, fs_node, parent)
-  local self = setmetatable(fs_node, class) --[[@as Yat.Node]]
-  ---@cast parent Yat.Node?
+---@param parent? Yat.Node the parent node.
+function Node:init(fs_node, parent)
+  for k, v in pairs(fs_node) do
+    if type(v) ~= "function" then
+      self[k] = v
+    end
+  end
   self.parent = parent
   self.modified = false
   if self:is_directory() then
@@ -64,8 +70,6 @@ function Node.new(class, fs_node, parent)
   end
 
   log.trace("created node %s", self)
-
-  return self
 end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` doens't recurse into
@@ -86,24 +90,32 @@ end
 ---@param output_to_log? boolean
 ---@return table<string, any>
 function Node:get_debug_info(output_to_log)
-  local t = {}
-  t.__node_type = self.__node_type
-  for k, v in pairs(self) do
-    if type(v) == "table" then
-      if k == "parent" or k == "repo" then
-        t[k] = tostring(v)
-      elseif k == "_children" then
-        local children = {}
-        for _, child in ipairs(v) do
-          children[#children + 1] = tostring(child)
+  ---@type table<string, any>
+  local t = {
+    __class = self:class():name(),
+    __node_type = self.__node_type,
+  }
+  local object = self --[[@as Yat.Object]]
+  local ignored_props = { "super", "__class", "__lower" }
+  while object ~= nil do
+    for k, v in pairs(object) do
+      local val
+      if type(v) == "table" then
+        if k == "parent" or k == "repo" then
+          val = tostring(v)
+        elseif k == "_children" then
+          val = vim.tbl_map(tostring, v)
+        elseif not vim.tbl_contains(ignored_props, k) then
+          val = v
         end
-        t[k] = children
-      else
-        t[k] = v
+      elseif type(v) ~= "function" then
+        val = v
       end
-    elseif type(v) ~= "function" then
-      t[k] = v
+      if not t[k] then
+        t[k] = val
+      end
     end
+    object = object.super
   end
   if output_to_log then
     log.info(t)
@@ -130,18 +142,17 @@ function Node:_merge_new_data(fs_node)
   end
 end
 
----@param a Yat.Node
----@param b Yat.Node
+---@param other Yat.Node
 ---@return boolean
-function Node.node_comparator(a, b)
-  local ac = a:is_directory()
-  local bc = b:is_directory()
-  if ac and not bc then
+function Node:node_comparator(other)
+  local sd = self:is_directory()
+  local od = other:is_directory()
+  if sd and not od then
     return true
-  elseif not ac and bc then
+  elseif not sd and od then
     return false
   end
-  return a.path < b.path
+  return self.path < other.path
 end
 
 ---@async
@@ -161,6 +172,7 @@ local function maybe_add_watcher(node)
   end
 end
 
+---@virtual
 ---@protected
 function Node:_scandir()
   log.debug("scanning directory %q", self.path)
@@ -201,6 +213,7 @@ function Node:_scandir()
 
   scheduler()
 end
+Node:virtual("_scandir")
 
 ---@protected
 ---@param repo Yat.Git.Repo
@@ -242,7 +255,7 @@ function Node:set_git_repo(repo)
 end
 
 ---@return Yat.Nodes.Type node_type
-function Node:class()
+function Node:node_type()
   return self.__node_type
 end
 
@@ -251,10 +264,12 @@ function Node:type()
   return self._type
 end
 
+---@virtual
 ---@return boolean editable
 function Node:is_editable()
   return self._type == "file"
 end
+Node:virtual("is_editable")
 
 ---@return boolean
 function Node:is_directory()
@@ -331,6 +346,27 @@ function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self._type) or false
 end
 
+---@alias Yat.Nodes.HiddenReason "filter" | "git"
+
+---@param config Yat.Config
+---@return boolean hidden
+---@return Yat.Nodes.HiddenReason? reason
+function Node:is_hidden(config)
+  if config.filters.enable then
+    if config.filters.dotfiles and self:is_dotfile() then
+      return true, "filter"
+    elseif vim.tbl_contains(config.filters.custom, self.name) then
+      return true, "filter"
+    end
+  end
+  if not config.git.show_ignored then
+    if self:is_git_ignored() then
+      return true, "git"
+    end
+  end
+  return false
+end
+
 ---@return string|nil
 function Node:git_status()
   return self.repo and self.repo:status_of(self.path, self._type)
@@ -362,20 +398,19 @@ function Node:diagnostic_severity()
 end
 
 ---@async
----@generic T : Yat.Node
----@param self T
+---@virtual
 ---@param path string
----@return T? node
-function Node.add_node(self, path)
-  ---@cast self Yat.Node
+---@return Yat.Node? node
+function Node:add_node(path)
   return self:_add_node(path, function(fs_node, parent)
-    local node = self.__index.new(self.__index, fs_node, parent)
-    if node:class() == "FileSystem" then
+    local node = self.class():new(fs_node, parent)
+    if node:node_type() == "FileSystem" then
       maybe_add_watcher(node)
     end
     return node
   end)
 end
+Node:virtual("add_node")
 
 ---@async
 ---@protected
@@ -424,10 +459,12 @@ function Node._add_node(self, path, node_creator)
   return node
 end
 
+---@virtual
 ---@param path string
 function Node:remove_node(path)
   return self:_remove_node(path, false)
 end
+Node:virtual("remove_node")
 
 ---@protected
 ---@param path string
@@ -524,27 +561,6 @@ function Node.populate_from_paths(self, paths, node_creator)
   return first_leaf_node
 end
 
----@alias Yat.Nodes.HiddenReason "filter" | "git"
-
----@param config Yat.Config
----@return boolean hidden
----@return Yat.Nodes.HiddenReason? reason
-function Node:is_hidden(config)
-  if config.filters.enable then
-    if config.filters.dotfiles and self:is_dotfile() then
-      return true, "filter"
-    elseif vim.tbl_contains(config.filters.custom, self.name) then
-      return true, "filter"
-    end
-  end
-  if not config.git.show_ignored then
-    if self:is_git_ignored() then
-      return true, "git"
-    end
-  end
-  return false
-end
-
 ---Returns an iterator function for this `node`'s children.
 ---@generic T : Yat.Node
 ---@param self T
@@ -553,8 +569,7 @@ end
 ---  - {opts.from?} T
 ---@return fun(): integer, T iterator
 function Node.iterate_children(self, opts)
-  ---@cast self Yat.Node
-  local children = self._children
+  local children = self._children --[=[@as Yat.Node[]]=]
   if not children or #children == 0 then
     return function() end
   end
@@ -652,7 +667,7 @@ function Node.expand(self, opts)
 end
 
 ---Returns the child node specified by `path` if it has been loaded.
----@generic T :Yat.Node
+---@generic T : Yat.Node
 ---@param self T
 ---@param path string
 ---@return T|nil
@@ -687,9 +702,7 @@ do
       node.repo:refresh_status({ ignored = true })
       refreshed_git_repos[node.repo.toplevel] = true
     end
-    ---@diagnostic disable-next-line:invisible
     if node.scanned then
-      ---@diagnostic disable-next-line:invisible
       node:_scandir()
 
       if recurse then
@@ -703,6 +716,7 @@ do
   end
 
   ---@async
+  ---@virtual
   ---@param opts? { recurse?: boolean, refresh_git?: boolean }
   ---  - {opts.recurse?} `boolean` whether to perform a recursive refresh, default: `false`.
   ---  - {opts.refresh_git?} `boolean` whether to refresh the git status, default: `false`.
@@ -732,6 +746,7 @@ do
       end
     end
   end
+  Node:virtual("refresh")
 end
 
 return Node

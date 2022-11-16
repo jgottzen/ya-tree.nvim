@@ -1,9 +1,14 @@
+local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("ui")
 
 local api = vim.api
 local fn = vim.fn
 
----@class Yat.Ui.Input
+---@class Yat.Ui.Input : Yat.Object
+---@field new fun(self: Yat.Ui.Input, opts: Yat.Ui.InputOpts, callbacks: {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}): Yat.Ui.Input
+---@overload fun(opts: Yat.Ui.InputOpts, callbacks: {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}): Yat.Ui.Input
+---@field class fun(self: Yat.Ui.Input): Yat.Ui.Input
+---
 ---@field private prompt string
 ---@field package default string
 ---@field private completion? string|fun(bufnr: integer)
@@ -14,8 +19,7 @@ local fn = vim.fn
 ---@field private callbacks table<string, function>
 ---@field package orig_row integer
 ---@field package orig_col integer
-local Input = {}
-Input.__index = Input
+local Input = meta.create_class("Yat.Ui.Input")
 
 ---@type {name: string, value: string|boolean}[]
 local buf_options = {
@@ -59,8 +63,7 @@ local win_options = {
 ---@field width? integer defaults to 30.
 ---@field border? string|string[] defaults to "rounded".
 
---- Create a new `Input`.
----
+---@private
 ---@param opts Yat.Ui.InputOpts
 ---  - {opts.title} `string`
 ---  - {opts.prompt?} `string` defaults to an empty string.
@@ -78,55 +81,50 @@ local win_options = {
 ---  - {callbacks.on_submit?} `function(text: string): void`
 ---  - {callbacks.on_close?} `function(): void`
 ---  - {callbacks.on_change?} `function(text: string): void`
----@return Yat.Ui.Input input
-function Input:new(opts, callbacks)
-  local this = setmetatable({
-    prompt = opts.prompt or "",
-    default = opts.default or "",
-    completion = opts.completion,
-    win_config = {
-      relative = opts.relative or "cursor",
-      win = opts.win,
-      anchor = opts.anchor or "SW",
-      row = opts.row or 1,
-      col = opts.col or 1,
-      width = opts.width or 30,
-      height = 1,
-      style = "minimal",
-      border = opts.border or "rounded",
-      noautocmd = true,
-    },
-  }, self)
+function Input:init(opts, callbacks)
+  self.prompt = opts.prompt or ""
+  self.default = opts.default or ""
+  self.completion = opts.completion
+  self.win_config = {
+    relative = opts.relative or "cursor",
+    win = opts.win,
+    anchor = opts.anchor or "SW",
+    row = opts.row or 1,
+    col = opts.col or 1,
+    width = opts.width or 30,
+    height = 1,
+    style = "minimal",
+    border = opts.border or "rounded",
+    noautocmd = true,
+  }
 
   callbacks = callbacks or {}
-  this.callbacks = {
+  self.callbacks = {
     on_submit = function(text)
-      this:close()
+      self:close()
 
       if callbacks.on_submit then
         callbacks.on_submit(text)
       end
     end,
     on_close = function()
-      this:close()
+      self:close()
 
       if callbacks.on_close then
         callbacks.on_close()
       end
 
       -- fix the cursor being moved one character to the left after leaving the input
-      pcall(api.nvim_win_set_cursor, 0, { this.orig_row, this.orig_col + 1 })
+      pcall(api.nvim_win_set_cursor, 0, { self.orig_row, self.orig_col + 1 })
     end,
   }
 
   if callbacks.on_change then
-    this.callbacks.on_change = function()
-      local value = api.nvim_buf_get_lines(this.bufnr, 0, 1, false)[1]
-      callbacks.on_change(value:sub(#this.default + 1))
+    self.callbacks.on_change = function()
+      local value = api.nvim_buf_get_lines(self.bufnr, 0, 1, false)[1]
+      callbacks.on_change(value:sub(#self.default + 1))
     end
   end
-
-  return this
 end
 
 ---@type string?

@@ -1,3 +1,5 @@
+local meta = require("ya-tree.meta")
+
 local api = vim.api
 
 local ns = api.nvim_create_namespace("YaTreePopUp")
@@ -109,7 +111,11 @@ end
 ---@field key string
 ---@field rhs string|function
 
----@class Yat.Ui.Popup.Builder
+---@class Yat.Ui.Popup.Builder : Yat.Object
+---@field new fun(self: Yat.Ui.Canvas, lines: string[], highlight_group: Yat.Ui.HighlightGroup[][]): Yat.Ui.Popup.Builder
+---@overload fun(lines: string[], highlight_group: Yat.Ui.HighlightGroup[][]): Yat.Ui.Popup.Builder
+---@field class fun(self: Yat.Ui.Popup.Builder): Yat.Ui.Popup.Builder
+---
 ---@field private _lines string[]
 ---@field private _highlight_groups Yat.Ui.HighlightGroup[][]
 ---@field private _relative string
@@ -120,21 +126,17 @@ end
 ---@field private _on_close? fun()
 ---@field private _close_on_focus_loss boolean
 ---@field private _keymaps? Yat.Ui.Popup.KeyMap[]
-local PopupBuilder = {}
-PopupBuilder.__index = PopupBuilder
+local PopupBuilder = meta.create_class("Yat.Ui.Popup.Builder")
 
+---@private
 ---@param lines string[]
 ---@param highlight_groups Yat.Ui.HighlightGroup[][]
----@return Yat.Ui.Popup.Builder builder
-function PopupBuilder:new(lines, highlight_groups)
-  local this = setmetatable({
-    _lines = lines,
-    _highlight_groups = highlight_groups,
-    _relative = "cursor",
-    _grow_width = false,
-    _close_on_focus_loss = false,
-  }, self)
-  return this
+function PopupBuilder:init(lines, highlight_groups)
+  self._lines = lines
+  self._highlight_groups = highlight_groups
+  self._relative = "cursor"
+  self._grow_width = false
+  self._close_on_focus_loss = false
 end
 
 ---@return Yat.Ui.Popup.Builder builder
@@ -191,20 +193,21 @@ function PopupBuilder:map_keys(mode, keys, rhs)
   return self
 end
 
----@class Yat.Ui.Popup
+---@class Yat.Ui.Popup : Yat.Object
+---@field new fun(self: Yat.Ui.Popup, winid: integer, bufnr: integer): Yat.Ui.Popup
+---@overload fun(winid: integer, bufnr: integer): Yat.Ui.Popup
+---@field class fun(self: Yat.Ui.Popup): Yat.Ui.Popup
+---
 ---@field winid integer
 ---@field bufnr integer
-local Popup = {}
-Popup.__index = Popup
+local Popup = meta.create_class("Yat.Ui.Popup")
 
+---@private
 ---@param winid integer
 ---@param bufnr integer
----@return Yat.Ui.Popup popup
-function Popup:new(winid, bufnr)
-  local this = setmetatable({}, self)
-  this.winid = winid
-  this.bufnr = bufnr
-  return this
+function Popup:init(winid, bufnr)
+  self.winid = winid
+  self.bufnr = bufnr
 end
 
 ---@param lines string[]

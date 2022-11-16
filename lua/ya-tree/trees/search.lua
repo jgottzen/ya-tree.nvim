@@ -1,5 +1,6 @@
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
+local meta = require("ya-tree.meta")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
@@ -8,17 +9,19 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
 ---@class Yat.Trees.Search : Yat.Tree
+---@field new async fun(self: Yat.Trees.Search, tabpage: integer, path?: string): Yat.Trees.Search?
+---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Search?
+---@field class fun(self: Yat.Trees.Search): Yat.Trees.Search
+---@field super Yat.Tree
+---
 ---@field TYPE "search"
 ---@field root Yat.Nodes.Search
 ---@field current_node Yat.Nodes.Search
 ---@field supported_actions Yat.Trees.Search.SupportedActions[]
 ---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func fun(self: Yat.Trees.Search, bufnr: integer)
-local SearchTree = { TYPE = "search" }
-SearchTree.__index = SearchTree
-SearchTree.__eq = Tree.__eq
-SearchTree.__tostring = Tree.__tostring
-setmetatable(SearchTree, { __index = Tree })
+local SearchTree = meta.create_class("Yat.Trees.Search", Tree)
+SearchTree.TYPE = "search"
 
 ---@alias Yat.Trees.Search.SupportedActions
 ---| "cd_to"
@@ -45,8 +48,8 @@ setmetatable(SearchTree, { __index = Tree })
 
 ---@param config Yat.Config
 function SearchTree.setup(config)
-  SearchTree.complete_func = Tree.complete_func_loaded_nodes
-  SearchTree.renderers = tree_utils.create_renderers(SearchTree.TYPE, config)
+  SearchTree.complete_func = Tree.static.complete_func_loaded_nodes
+  SearchTree.renderers = tree_utils.create_renderers(SearchTree.static.TYPE, config)
 
   local builtin = require("ya-tree.actions.builtin")
   SearchTree.supported_actions = utils.tbl_unique({
@@ -70,49 +73,49 @@ function SearchTree.setup(config)
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(vim.deepcopy(Tree.supported_actions)),
+    unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
-  SearchTree.supported_events = {
-    autocmd = { [ae.BUFFER_MODIFIED] = SearchTree.on_buffer_modified },
+  local supported_events = {
+    autocmd = { [ae.BUFFER_MODIFIED] = Tree.static.on_buffer_modified },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    SearchTree.supported_events.autocmd[ae.BUFFER_SAVED] = SearchTree.on_buffer_saved
+    supported_events.autocmd[ae.BUFFER_SAVED] = Tree.static.on_buffer_saved
   end
   if config.git.enable then
-    SearchTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = SearchTree.on_git_event
+    supported_events.git[ge.DOT_GIT_DIR_CHANGED] = Tree.static.on_git_event
   end
   if config.diagnostics.enable then
-    SearchTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = SearchTree.on_diagnostics_event
+    supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
+  SearchTree.supported_events = supported_events
 end
 
 ---@async
+---@private
 ---@param tabpage integer
 ---@param path? string
 ---@param kwargs? table<string, any>
----@return Yat.Trees.Search|nil tree
-function SearchTree:new(tabpage, path, kwargs)
+function SearchTree:init(tabpage, path, kwargs)
   if not path then
-    return
+    return false
   end
-  local this = Tree.new(self, tabpage, path)
-  this:_init(path)
+  self.super:init(tabpage, path)
+  self:_init(path)
   if kwargs and kwargs.term then
-    local matches_or_error = this:search(kwargs.term)
+    local matches_or_error = self:search(kwargs.term)
     if type(matches_or_error) == "string" then
       utils.warn(string.format("Failed with message:\n\n%s", matches_or_error))
-      return
+      return false
     end
   end
 
-  log.info("created new tree %s", tostring(this))
-  return this
+  log.info("created new tree %s", tostring(self))
 end
 
 ---@async
@@ -140,7 +143,7 @@ function SearchTree:render_header()
         { name = hl.DIM_TEXT, from = end_of_name + 6 + #self.root.search_term, to = -1 },
       }
   end
-  return Tree.render_header(self)
+  return self.super:render_header()
 end
 
 ---@async

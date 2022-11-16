@@ -1,6 +1,7 @@
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
+local meta = require("ya-tree.meta")
 local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
@@ -9,18 +10,27 @@ local log = require("ya-tree.log")("trees")
 local api = vim.api
 local uv = vim.loop
 
+---@class Yat.Trees.BuffersStatic : Yat.TreeStatic
+---@field on_buffer_new async fun(bufnr: integer, file: string): boolean
+---@field on_buffer_hidden async fun(bufnr: integer, file: string): boolean
+---@field on_buffer_displayed async fun(bufnr: integer, file: string): boolean
+---@field on_buffer_deleted async fun(bufnr: integer, file: string): boolean
+
 ---@class Yat.Trees.Buffers : Yat.Tree
+---@field new async fun(self: Yat.Trees.Buffers, tabpage: integer, path?: string): Yat.Trees.Buffers
+---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Buffers
+---@field class fun(self: Yat.Trees.Buffers): Yat.Trees.Buffers
+---@field super Yat.Tree
+---@field static Yat.Trees.BuffersStatic
+---
 ---@field TYPE "buffers"
 ---@field root Yat.Nodes.Buffer
 ---@field current_node Yat.Nodes.Buffer
 ---@field supported_actions Yat.Trees.Buffers.SupportedActions[]
 ---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func "buffer"
-local BuffersTree = { TYPE = "buffers" }
-BuffersTree.__index = BuffersTree
-BuffersTree.__eq = Tree.__eq
-BuffersTree.__tostring = Tree.__tostring
-setmetatable(BuffersTree, { __index = Tree })
+local BuffersTree = meta.create_class("Yat.Trees.Buffer", Tree)
+BuffersTree.TYPE = "buffers"
 
 ---@alias Yat.Trees.Buffers.SupportedActions
 ---| "cd_to"
@@ -46,7 +56,7 @@ setmetatable(BuffersTree, { __index = Tree })
 ---@param config Yat.Config
 function BuffersTree.setup(config)
   BuffersTree.complete_func = "buffer"
-  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.TYPE, config)
+  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.static.TYPE, config)
 
   local builtin = require("ya-tree.actions.builtin")
   BuffersTree.supported_actions = utils.tbl_unique({
@@ -68,48 +78,48 @@ function BuffersTree.setup(config)
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
 
-    unpack(vim.deepcopy(Tree.supported_actions)),
+    unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
-  BuffersTree.supported_events = {
+  local supported_events = {
     autocmd = {
-      [ae.BUFFER_MODIFIED] = BuffersTree.on_buffer_modified,
-      [ae.BUFFER_NEW] = BuffersTree.on_buffer_new,
-      [ae.BUFFER_HIDDEN] = BuffersTree.on_buffer_hidden,
-      [ae.BUFFER_DISPLAYED] = BuffersTree.on_buffer_displayed,
-      [ae.BUFFER_DELETED] = BuffersTree.on_buffer_deleted,
+      [ae.BUFFER_MODIFIED] = Tree.static.on_buffer_modified,
+      [ae.BUFFER_NEW] = BuffersTree.static.on_buffer_new,
+      [ae.BUFFER_HIDDEN] = BuffersTree.static.on_buffer_hidden,
+      [ae.BUFFER_DISPLAYED] = BuffersTree.static.on_buffer_displayed,
+      [ae.BUFFER_DELETED] = BuffersTree.static.on_buffer_deleted,
     },
     git = {},
     yatree = {},
   }
   if config.update_on_buffer_saved then
-    BuffersTree.supported_events.autocmd[ae.BUFFER_SAVED] = BuffersTree.on_buffer_saved
+    supported_events.autocmd[ae.BUFFER_SAVED] = Tree.static.on_buffer_saved
   end
   if config.git.enable then
-    BuffersTree.supported_events.git[ge.DOT_GIT_DIR_CHANGED] = BuffersTree.on_git_event
+    supported_events.git[ge.DOT_GIT_DIR_CHANGED] = Tree.static.on_git_event
   end
   if config.diagnostics.enable then
-    BuffersTree.supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = BuffersTree.on_diagnostics_event
+    supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
+  BuffersTree.supported_events = supported_events
 end
 
 ---@async
+---@private
 ---@param tabpage integer
 ---@param path? string
----@return Yat.Trees.Buffers tree
-function BuffersTree:new(tabpage, path)
+function BuffersTree:init(tabpage, path)
   path = path or uv.cwd() --[[@as string]]
-  local this = Tree.new(self, tabpage, path)
+  self.super:init(tabpage, path)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
-  this.root = BufferNode:new(fs_node)
-  this.root.repo = git.get_repo_for_path(fs_node.path)
-  this.current_node = this.root:refresh()
+  self.root = BufferNode:new(fs_node)
+  self.root.repo = git.get_repo_for_path(fs_node.path)
+  self.current_node = self.root:refresh()
 
-  log.info("created new tree %s", tostring(this))
-  return this
+  log.info("created new tree %s", tostring(self))
 end
 
 ---@async
@@ -147,6 +157,7 @@ function BuffersTree:on_buffer_new(bufnr, file)
   return false
 end
 
+---@async
 ---@param bufnr integer
 ---@param file string
 ---@return boolean
@@ -161,6 +172,7 @@ function BuffersTree:on_buffer_hidden(bufnr, file)
   return false
 end
 
+---@async
 ---@param bufnr integer
 ---@param file string
 ---@return boolean

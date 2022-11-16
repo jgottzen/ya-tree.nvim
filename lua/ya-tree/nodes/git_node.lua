@@ -1,30 +1,33 @@
 local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.fs")
+local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 
 ---@class Yat.Nodes.Git : Yat.Node
+---@field new fun(self: Yat.Nodes.Git, fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Git): Yat.Nodes.Git
+---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Git): Yat.Nodes.Git
+---@field class fun(self: Yat.Nodes.Git): Yat.Nodes.Git
+---@field super Yat.Node
+---
+---@field add_node fun(self: Yat.Nodes.Git, path: string): Yat.Nodes.Git?
 ---@field protected __node_type "Git"
 ---@field public parent? Yat.Nodes.Git
 ---@field private _children? Yat.Nodes.Git[]
 ---@field public repo Yat.Git.Repo
-local GitNode = { __node_type = "Git" }
-GitNode.__index = GitNode
-GitNode.__eq = Node.__eq
-GitNode.__tostring = Node.__tostring
-setmetatable(GitNode, { __index = Node })
+local GitNode = meta.create_class("Yat.Nodes.Git", Node)
+GitNode.__node_type = "Git"
 
 ---Creates a new git status node.
+---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Nodes.Git the parent node.
----@return Yat.Nodes.Git node
-function GitNode:new(fs_node, parent)
-  local this = Node.new(self, fs_node, parent)
-  if this:is_directory() then
-    this.empty = true
-    this.scanned = true
-    this.expanded = true
+function GitNode:init(fs_node, parent)
+  self.super:init(fs_node, parent)
+  if self:is_directory() then
+    self.empty = true
+    self.scanned = true
+    self.expanded = true
   end
-  return this
 end
 
 ---@param node Yat.Nodes.Git

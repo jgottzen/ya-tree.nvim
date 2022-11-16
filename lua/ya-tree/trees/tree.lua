@@ -2,6 +2,7 @@ local Path = require("plenary.path")
 
 local git = require("ya-tree.git")
 local tree_utils = require("ya-tree.trees.utils")
+local meta = require("ya-tree.meta")
 local ui = require("ya-tree.ui")
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
@@ -24,7 +25,25 @@ local api = vim.api
 ---@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
 ---@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, ...): boolean }
 
----@class Yat.Tree
+---@class Yat.TreeStatic
+---@field TYPE Yat.Trees.Type
+---@field setup fun(config: Yat.Config)
+---@field supported_actions Yat.Trees.Tree.SupportedActions[]
+---@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
+---@field complete_func_loaded_nodes fun(bufnr: integer)
+---@field complete_func_file_in_path fun(bufnr: integer, node: Yat.Node)
+---@field on_buffer_modified async fun(bufnr: integer, file: string, match: string): boolean
+---@field on_buffer_saved async fun(bufnr: integer, file: string, match: string): boolean
+---@field on_git_event async fun(repo: Yat.Git.Repo, fs_watcher: boolean): boolean
+---@field on_diagnostics_event async fun(severity_changed: boolean): boolean
+
+---@class Yat.Tree : Yat.Object
+---@field new async fun(self: Yat.Tree, tabpage: integer, path?: string, kwargs?: table<string, any>): Yat.Tree?
+---@overload async fun(tabpage: integer, path?: string, kwargs?: table<string, any>): Yat.Tree?
+---@field class fun(self: Yat.Tree): Yat.Tree
+---@field private __lower Yat.Tree
+---@field static Yat.TreeStatic
+---
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer
 ---@field refreshing boolean
@@ -36,8 +55,7 @@ local api = vim.api
 ---@field section_name string
 ---@field renderers Yat.Trees.TreeRenderers
 ---@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
-local Tree = {}
-Tree.__index = Tree
+local Tree = meta.create_class("Yat.Tree")
 
 ---@alias Yat.Trees.Tree.SupportedActions
 ---| "close_window"
@@ -136,25 +154,17 @@ function Tree.setup(config) end
 
 -- selene: allow(unused_variable)
 
----@generic T : Yat.Tree
----@param class T
+---@protected
 ---@param tabpage integer
 ---@param path? string
 ---@param kwargs? table<string, any>
----@return T tree
 ---@diagnostic disable-next-line:unused-local
-function Tree.new(class, tabpage, path, kwargs)
-  ---@type Yat.Tree
-  local self = {
-    _tabpage = tabpage,
-    refreshing = false,
-  }
-  setmetatable(self, class)
-  local config = require("ya-tree.config").config
-  self.section_icon = config.trees[self.TYPE].section_icon or ""
-  self.section_name = config.trees[self.TYPE].section_name or self.TYPE
-
-  return self
+function Tree:init(tabpage, path, kwargs)
+  self._tabpage = tabpage
+  self.refreshing = false
+  local tree_config = require("ya-tree.config").config.trees[self.__lower.TYPE]
+  self.section_icon = tree_config and tree_config.section_icon or ""
+  self.section_name = tree_config and tree_config.section_name or self.__lower.TYPE
 end
 
 do
@@ -216,6 +226,7 @@ end
 
 -- selene: allow(unused_variable)
 
+---@async
 ---@param bufnr integer
 ---@param file string
 ---@param match string

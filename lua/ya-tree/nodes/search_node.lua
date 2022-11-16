@@ -4,33 +4,36 @@ local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local job = require("ya-tree.job")
+local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
 ---@class Yat.Nodes.Search : Yat.Node
+---@field new fun(self: Yat.Nodes.Search, fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Search): Yat.Nodes.Search
+---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Search): Yat.Nodes.Search
+---@field class fun(self: Yat.Nodes.Search): Yat.Nodes.Search
+---@field super Yat.Node
+---
+---@field add_node fun(self: Yat.Nodes.Search, path: string): Yat.Nodes.Search?
 ---@field protected __node_type "Search"
 ---@field public parent? Yat.Nodes.Search
 ---@field private _children? Yat.Nodes.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
-local SearchNode = { __node_type = "Search" }
-SearchNode.__index = SearchNode
-SearchNode.__eq = Node.__eq
-SearchNode.__tostring = Node.__tostring
-setmetatable(SearchNode, { __index = Node })
+local SearchNode = meta.create_class("Yat.Nodes.Search", Node)
+SearchNode.__node_type = "Search"
 
 ---Creates a new search node.
+---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Nodes.Search the parent node.
----@return Yat.Nodes.Search node
-function SearchNode:new(fs_node, parent)
-  local this = Node.new(self, fs_node, parent)
-  if this:is_directory() then
-    this.empty = true
-    this.scanned = true
-    this.expanded = true
+function SearchNode:init(fs_node, parent)
+  self.super:init(fs_node, parent)
+  if self:is_directory() then
+    self.empty = true
+    self.scanned = true
+    self.expanded = true
   end
-  return this
 end
 
 ---@protected
@@ -83,7 +86,7 @@ do
     self.empty = true
     local paths, err = search(self.path, self._search_options.cmd, self._search_options.args)
     if paths then
-      local first_leaf_node = self:populate_from_paths(paths, function(path, parent, _)
+      local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
         local fs_node = fs.node_for(path)
         if fs_node then
           local node = SearchNode:new(fs_node, parent)

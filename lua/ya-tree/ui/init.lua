@@ -235,7 +235,7 @@ function M.setup(config)
   local hl = require("ya-tree.ui.highlights")
   hl.setup()
   require("ya-tree.ui.renderers").setup(config)
-  Canvas.setup()
+  Canvas.static.setup()
 
   local group = api.nvim_create_augroup("YaTreeUi", { clear = true })
   api.nvim_create_autocmd("TabClosed", {

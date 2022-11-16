@@ -7,6 +7,7 @@ local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
+local meta = require("ya-tree.meta")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("git")
 
@@ -96,7 +97,12 @@ end
 ---@field package _propagated_changed_entries table<string, string>
 ---@field package _ignored string[]
 
----@class Yat.Git.Repo
+---@class Yat.Git.Repo : Yat.Object
+---@field protected new async fun(self: Yat.Git.Repo, toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo?
+---@overload async fun(toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo?
+---@field class fun(self: Yat.Git.Repo): Yat.Git.Repo
+---@field protected virtual fun(self: Yat.Git.Repo, method: string)
+---
 ---@field public toplevel string
 ---@field public remote_url string
 ---@field public branch string
@@ -104,8 +110,7 @@ end
 ---@field package _is_yadm boolean
 ---@field private _git_dir string
 ---@field private _git_dir_watcher? uv_fs_poll_t
-local Repo = {}
-Repo.__index = Repo
+local Repo = meta.create_class("Yat.Git.Repo")
 
 Repo.__tostring = function(self)
   return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
@@ -117,76 +122,37 @@ Repo.__eq = function(self, other)
 end
 
 ---@async
----@param path string
----@return Yat.Git.Repo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
-function Repo:new(path)
+---@private
+---@param toplevel string
+---@param git_dir string
+---@param branch string
+---@param is_yadm boolean
+function Repo:init(toplevel, git_dir, branch, is_yadm)
   -- check if it's already cached
-  local cached = M.repos[path]
-  if cached then
-    log.debug("repository for %s already created, returning cached repo %s", path, tostring(cached))
-    return cached
-  end
-
-  if not config.git.enable then
-    return nil
-  end
-
-  if not fs.is_directory(path) then
-    path = Path:new(path):parent().filename --[[@as string]]
-  end
-
-  local toplevel, git_dir, branch = get_repo_info(path)
-  local is_yadm = false
-  if not toplevel and config.git.yadm.enable then
-    local home = os.getenv("HOME") --[[@as string]]
-    if vim.startswith(path, home) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
-      toplevel, git_dir, branch = get_repo_info(path, "yadm")
-      is_yadm = toplevel ~= nil
-    end
-    scheduler()
-  end
-
-  if not toplevel then
-    log.debug("no git repo found for %q", path)
-    return nil
-  end
-
-  cached = M.repos[toplevel]
-  if cached then
-    log.debug("%q is in repository %q, which already exists, returning it", path, tostring(cached))
-    return cached
-  end
-
-  ---@type Yat.Git.Repo
-  local this = {
-    toplevel = toplevel,
-    branch = branch,
-    _status = {
-      unmerged = 0,
-      stashed = 0,
-      behind = 0,
-      ahead = 0,
-      staged = 0,
-      unstaged = 0,
-      untracked = 0,
-      _changed_entries = {},
-      _propagated_changed_entries = {},
-      _ignored = {},
-    },
-    _is_yadm = is_yadm,
-    _git_dir = git_dir,
+  self.toplevel = toplevel
+  self.branch = branch
+  self._status = {
+    unmerged = 0,
+    stashed = 0,
+    behind = 0,
+    ahead = 0,
+    staged = 0,
+    unstaged = 0,
+    untracked = 0,
+    _changed_entries = {},
+    _propagated_changed_entries = {},
+    _ignored = {},
   }
-  setmetatable(this, self)
+  self._is_yadm = is_yadm
+  self._git_dir = git_dir
 
-  this:_read_remote_url()
+  self:_read_remote_url()
 
-  log.info("created Repo %s for %q", tostring(this), path)
-  M.repos[this.toplevel] = this
+  M.repos[self.toplevel] = self
 
   if config.git.watch_git_dir then
-    this:_add_git_watcher()
+    self:_add_git_watcher()
   end
-  return this
 end
 
 ---@return boolean is_yadm
@@ -682,7 +648,46 @@ end
 ---@param path string
 ---@return Yat.Git.Repo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function M.create_repo(path)
-  return Repo:new(path)
+  -- check if it's already cached
+  local cached = M.repos[path]
+  if cached then
+    log.debug("repository for %s already created, returning cached repo %s", path, tostring(cached))
+    return cached
+  end
+
+  if not config.git.enable then
+    return nil
+  end
+
+  if not fs.is_directory(path) then
+    path = Path:new(path):parent().filename --[[@as string]]
+  end
+
+  local toplevel, git_dir, branch = get_repo_info(path)
+  local is_yadm = false
+  if not toplevel and config.git.yadm.enable then
+    local home = os.getenv("HOME") --[[@as string]]
+    if vim.startswith(path, home) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
+      toplevel, git_dir, branch = get_repo_info(path, "yadm")
+      is_yadm = toplevel ~= nil
+    end
+    scheduler()
+  end
+
+  if not toplevel then
+    log.debug("no git repo found for %q", path)
+    return nil
+  end
+
+  cached = M.repos[toplevel]
+  if cached then
+    log.debug("%q is in repository %q, which already exists, returning it", path, tostring(cached))
+    return cached
+  end
+
+  local repo = Repo:new(toplevel, git_dir, branch, is_yadm)
+  log.info("created Repo %s for %q", tostring(repo), path)
+  return repo
 end
 
 ---@param repo Yat.Git.Repo

@@ -14,7 +14,7 @@ end
 ---@async
 ---@param tabpage integer
 ---@param tree_type Yat.Trees.Type
----@param path string
+---@param path? string
 ---@param kwargs? table<string, any>
 ---@return Yat.Tree? tree
 function M.create_tree(tabpage, tree_type, path, kwargs)
@@ -35,18 +35,18 @@ function M.setup(config)
     if tree_name ~= "global_mappings" then
       ---@type boolean, Yat.Tree?
       local ok, tree = pcall(require, "ya-tree.trees." .. tree_name)
-      if ok and tree and type(tree.setup) == "function" and type(tree.TYPE) == "string" and type(tree.new) == "function" then
-        log.debug("registering tree %q", tree.TYPE)
-        tree.setup(config)
-        M._registered_trees[tree.TYPE] = tree
+      if ok and tree and type(tree.static.setup) == "function" and type(tree.static.TYPE) == "string" and type(tree.new) == "function" then
+        log.debug("registering tree %q", tree.static.TYPE)
+        tree.static.setup(config)
+        M._registered_trees[tree.static.TYPE] = tree
 
-        for _, name in ipairs(tree.supported_actions) do
+        for _, name in ipairs(tree.static.supported_actions) do
           local trees = supported_actions[name]
           if not trees then
             trees = {}
             supported_actions[name] = trees
           end
-          trees[#trees + 1] = tree.TYPE
+          trees[#trees + 1] = tree.static.TYPE
         end
       end
     end
