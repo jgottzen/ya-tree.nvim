@@ -207,7 +207,7 @@ do
           fdfind_has_max_results = fn.executable("fdfind") == 1 and has_max_results("fdfind")
         end
 
-        args = { "--color=never", "-tf", "-td", "-tl" }
+        args = { "--color=never" }
         if not config.filters.enable or not config.filters.dotfiles then
           table.insert(args, "--hidden")
         end
@@ -235,7 +235,7 @@ do
         end
         table.insert(args, path)
       elseif cmd == "find" then
-        args = { path, "-type", "f,d,l" }
+        args = { path }
         if config.filters.enable and config.filters.dotfiles then
           table.insert(args, "-not")
           table.insert(args, "-path")
