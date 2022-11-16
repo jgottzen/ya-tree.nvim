@@ -1,0 +1,15 @@
+{
+    "neodev": {
+        "library": {
+            "plugins": [
+                "nvim-notify",
+                "plenary.nvim"
+            ]
+        }
+    },
+    "lspconfig": {
+        "sumneko_lua": {
+            "Lua.runtime.version": "LuaJIT"
+        }
+    }
+}
