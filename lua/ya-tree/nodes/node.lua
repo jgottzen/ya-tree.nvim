@@ -126,12 +126,14 @@ end
 ---@package
 ---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
-  if self:is_directory() and fs_node._type ~= "directory" and self._fs_event_registered then
-    self._fs_event_registered = false
-    fs_watcher.remove_watcher(self.path)
-  elseif not self:is_directory() and fs_node._type == "directory" and not self._fs_event_registered then
-    self._fs_event_registered = true
-    fs_watcher.watch_dir(self.path)
+  if self.__node_type == "FileSystem" then
+    if self:is_directory() and fs_node._type ~= "directory" and self._fs_event_registered then
+      self._fs_event_registered = false
+      fs_watcher.remove_watcher(self.path)
+    elseif not self:is_directory() and fs_node._type == "directory" and not self._fs_event_registered then
+      self._fs_event_registered = true
+      fs_watcher.watch_dir(self.path)
+    end
   end
   for k, v in pairs(fs_node) do
     if type(self[k]) ~= "function" then
