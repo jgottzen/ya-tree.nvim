@@ -177,32 +177,14 @@ function M.is_buffer_directory()
 end
 
 do
-  local fd_has_max_results
-  local fdfind_has_max_results
-  do
-    ---@param cmd string
-    ---@return boolean
-    local function has_max_results(cmd)
-      local test = fn.system(cmd .. " this_is_only_a_test_search --max-depth=1 --max-results=1")
-      return not test:match("^error:")
-    end
-
-    ---@type boolean
-    local fd, fdfind
-    fd_has_max_results = function()
-      if not fd then
-        fd = fn.executable("fd") == 1 and has_max_results("fd")
-      end
-      return fd
-    end
-
-    fdfind_has_max_results = function()
-      if not fdfind then
-        fdfind = fn.executable("fdfind") == 1 and has_max_results("fdfind")
-      end
-      return fdfind
-    end
+  ---@param cmd string
+  ---@return boolean
+  local function has_max_results(cmd)
+    local test = fn.system(cmd .. " this_is_only_a_test_search --max-depth=1 --max-results=1")
+    return not test:match("^error:")
   end
+  ---@type boolean?, boolean?
+  local fd_has_max_results, fdfind_has_max_results
 
   ---@param term string
   ---@param path string
@@ -217,6 +199,14 @@ do
       args = config.search.args(cmd, term, path, config)
     else
       if cmd == "fd" or cmd == "fdfind" then
+        if not fd_has_max_results or not fdfind_has_max_results then
+          if coroutine.running() then
+            require("plenary.async.util").scheduler()
+          end
+          fd_has_max_results = fn.executable("fd") == 1 and has_max_results("fd")
+          fdfind_has_max_results = fn.executable("fdfind") == 1 and has_max_results("fdfind")
+        end
+
         args = { "--color=never", "-tf", "-td", "-tl" }
         if not config.filters.enable or not config.filters.dotfiles then
           table.insert(args, "--hidden")
@@ -230,7 +220,7 @@ do
         if config.git.show_ignored then
           table.insert(args, "--no-ignore")
         end
-        if (fd_has_max_results() or fdfind_has_max_results()) and config.search.max_results > 0 then
+        if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
           table.insert(args, "--max-results=" .. config.search.max_results)
         end
         if glob then
