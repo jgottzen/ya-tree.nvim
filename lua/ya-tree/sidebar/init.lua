@@ -120,34 +120,56 @@ function Sidebar:_sort_sections()
   end)
 end
 
+---@package
+---@param index integer
+function Sidebar:_delete_section(index)
+  local section = self._sections[index]
+  log.info("deleteing section %s", section_tostring(section))
+  local tree = section.tree
+  for event in pairs(tree.supported_events.autocmd) do
+    self:_remove_autocmd_event(event)
+  end
+  for event in pairs(tree.supported_events.git) do
+    self:_remove_git_event(event)
+  end
+  for event in pairs(tree.supported_events.yatree) do
+    self:_remove_yatree_event(event)
+  end
+  local config = require("ya-tree.config").config
+  if tree.TYPE == "filesystem" and config.dir_watcher.enable then
+    self:_remove_yatree_event(yatree_event.FS_CHANGED)
+  end
+  tree:delete()
+  table.remove(self._sections, index)
+end
+
 ---@private
 ---@param tree Yat.Tree
 function Sidebar:_register_events_for_tree(tree)
   log.debug("registering events for tree %s", tostring(tree))
   for event in pairs(tree.supported_events.autocmd) do
-    ---@cast event Yat.Events.AutocmdEvent
     if event == autocmd_event.BUFFER_NEW then
-      self:register_autocmd_event(event, function(bufnr, file, match)
+      self:_register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_new(bufnr, file, match)
       end)
     elseif event == autocmd_event.BUFFER_HIDDEN then
-      self:register_autocmd_event(event, function(bufnr, file, match)
+      self:_register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_hidden(bufnr, file, match)
       end)
     elseif event == autocmd_event.BUFFER_DISPLAYED then
-      self:register_autocmd_event(event, function(bufnr, file, match)
+      self:_register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_displayed(bufnr, file, match)
       end)
     elseif event == autocmd_event.BUFFER_DELETED then
-      self:register_autocmd_event(event, function(bufnr, file, match)
+      self:_register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_deleted(bufnr, file, match)
       end)
     elseif event == autocmd_event.BUFFER_MODIFIED then
-      self:register_autocmd_event(event, function(bufnr, file, match)
+      self:_register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_modified(bufnr, file, match)
       end)
     elseif event == autocmd_event.BUFFER_SAVED then
-      self:register_autocmd_event(event, function(bufnr, file, match)
+      self:_register_autocmd_event(event, function(bufnr, file, match)
         self:on_buffer_saved(bufnr, file, match)
       end)
     else
@@ -155,9 +177,8 @@ function Sidebar:_register_events_for_tree(tree)
     end
   end
   for event in pairs(tree.supported_events.git) do
-    ---@cast event Yat.Events.GitEvent
     if event == git_event.DOT_GIT_DIR_CHANGED then
-      self:register_git_event(event, function(repo, fs_changes)
+      self:_register_git_event(event, function(repo, fs_changes)
         self:on_git_event(repo, fs_changes)
       end)
     else
@@ -165,10 +186,9 @@ function Sidebar:_register_events_for_tree(tree)
     end
   end
   for event in pairs(tree.supported_events.yatree) do
-    ---@cast event Yat.Events.YaTreeEvent
     if event == yatree_event.DIAGNOSTICS_CHANGED then
       ---@param severity_changed boolean
-      self:register_yatree_event(event, function(severity_changed)
+      self:_register_yatree_event(event, function(severity_changed)
         self:on_diagnostics_event(severity_changed)
       end)
     else
@@ -179,7 +199,7 @@ function Sidebar:_register_events_for_tree(tree)
   if tree.TYPE == "filesystem" and config.dir_watcher.enable then
     ---@param dir string
     ---@param filenames string[]
-    self:register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
+    self:_register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
       self:on_fs_changed_event(dir, filenames)
     end)
   end
@@ -189,7 +209,7 @@ end
 ---@private
 ---@param tree_type Yat.Trees.Type
 ---@param tree_creator fun(): Yat.Tree
----@param new_root_node? any
+---@param new_root_node? string|Yat.Git.Repo
 ---@return Yat.Tree
 function Sidebar:_get_or_create_tree(tree_type, tree_creator, new_root_node)
   local tree = self:get_tree(tree_type)
@@ -248,32 +268,6 @@ end
 function Sidebar:get_tree(tree_type)
   local section = self:_get_section(tree_type)
   return section and section.tree
-end
-
----@package
----@param index integer
-function Sidebar:_delete_section(index)
-  local section = self._sections[index]
-  log.info("deleteing section %s", section_tostring(section))
-  local tree = section.tree
-  for event in pairs(tree.supported_events.autocmd) do
-    ---@cast event Yat.Events.AutocmdEvent
-    self:remove_autocmd_event(event)
-  end
-  for event in pairs(tree.supported_events.git) do
-    ---@cast event Yat.Events.GitEvent
-    self:remove_git_event(event)
-  end
-  for event in pairs(tree.supported_events.yatree) do
-    ---@cast event Yat.Events.YaTreeEvent
-    self:remove_yatree_event(event)
-  end
-  local config = require("ya-tree.config").config
-  if tree.TYPE == "filesystem" and config.dir_watcher.enable then
-    self:remove_yatree_event(yatree_event.FS_CHANGED)
-  end
-  tree:delete()
-  table.remove(self._sections, index)
 end
 
 ---@async
@@ -550,9 +544,10 @@ function Sidebar:on_fs_changed_event(dir, filenames)
   end
 end
 
+---@private
 ---@param event Yat.Events.AutocmdEvent
 ---@param callback fun(bufnr: integer, file: string, match: string)
-function Sidebar:register_autocmd_event(event, callback)
+function Sidebar:_register_autocmd_event(event, callback)
   local count = self._registered_events.autocmd[event] or 0
   count = count + 1
   self._registered_events.autocmd[event] = count
@@ -561,8 +556,9 @@ function Sidebar:register_autocmd_event(event, callback)
   end
 end
 
+---@private
 ---@param event Yat.Events.AutocmdEvent
-function Sidebar:remove_autocmd_event(event)
+function Sidebar:_remove_autocmd_event(event)
   local count = self._registered_events.autocmd[event] or 0
   count = count - 1
   self._registered_events.autocmd[event] = count
@@ -571,9 +567,10 @@ function Sidebar:remove_autocmd_event(event)
   end
 end
 
+---@private
 ---@param event Yat.Events.GitEvent
 ---@param callback fun(repo: Yat.Git.Repo, fs_changes: boolean)
-function Sidebar:register_git_event(event, callback)
+function Sidebar:_register_git_event(event, callback)
   local count = self._registered_events.git[event] or 0
   count = count + 1
   self._registered_events.git[event] = count
@@ -582,8 +579,9 @@ function Sidebar:register_git_event(event, callback)
   end
 end
 
+---@private
 ---@param event Yat.Events.GitEvent
-function Sidebar:remove_git_event(event)
+function Sidebar:_remove_git_event(event)
   local count = self._registered_events.git[event] or 0
   count = count - 1
   self._registered_events.git[event] = count
@@ -592,9 +590,10 @@ function Sidebar:remove_git_event(event)
   end
 end
 
+---@private
 ---@param event Yat.Events.YaTreeEvent
 ---@param callback fun(...)
-function Sidebar:register_yatree_event(event, callback)
+function Sidebar:_register_yatree_event(event, callback)
   local count = self._registered_events.yatree[event] or 0
   count = count + 1
   self._registered_events.yatree[event] = count
@@ -603,8 +602,9 @@ function Sidebar:register_yatree_event(event, callback)
   end
 end
 
+---@private
 ---@param event Yat.Events.YaTreeEvent
-function Sidebar:remove_yatree_event(event)
+function Sidebar:_remove_yatree_event(event)
   local count = self._registered_events.yatree[event] or 0
   count = count - 1
   self._registered_events.yatree[event] = count
@@ -954,7 +954,6 @@ function M.delete_sidebars_for_nonexisting_tabpages()
   ---@type table<string, boolean>
   local found_toplevels = {}
   local tabpages = api.nvim_list_tabpages() --[=[@as integer[]]=]
-  -- use pairs instead of ipairs to handle any keys without a value, i.e. when a tabpage has been deleted
   for tabpage, sidebar in pairs(M._sidebars) do
     if not vim.tbl_contains(tabpages, tabpage) then
       for i = #sidebar._sections, 1, -1 do
@@ -975,8 +974,7 @@ function M.delete_sidebars_for_nonexisting_tabpages()
           log.error("yatree event %s is still registered with count %s", events.get_event_name(event), count)
         end
       end
-      log.info("deleted sidebar for tabpage %s", tabpage)
-      -- using table.remove will change the key as well, i.e. { 1, 2, 3 } and table.remove(t, 2) will result in { 1, 2 } instead of { 1, 3 }
+      log.info("deleted sidebar %s for tabpage %s", tostring(sidebar), tabpage)
       M._sidebars[tabpage] = nil
     else
       for _, section in pairs(sidebar._sections) do

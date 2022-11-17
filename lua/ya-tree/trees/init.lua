@@ -18,10 +18,10 @@ end
 ---@param kwargs? table<string, any>
 ---@return Yat.Tree? tree
 function M.create_tree(tabpage, tree_type, path, kwargs)
-  local class = M._registered_trees[tree_type]
-  if class then
+  local tree = M._registered_trees[tree_type]
+  if tree then
     log.debug("creating tree of type %q", tree_type)
-    return class:new(tabpage, path, kwargs)
+    return tree:new(tabpage, path, kwargs)
   else
     log.info("no tree of type %q is registered", tree_type)
   end
@@ -40,11 +40,11 @@ function M.setup(config)
         tree.static.setup(config)
         M._registered_trees[tree.static.TYPE] = tree
 
-        for _, name in ipairs(tree.static.supported_actions) do
-          local trees = supported_actions[name]
+        for _, action in ipairs(tree.static.supported_actions) do
+          local trees = supported_actions[action]
           if not trees then
             trees = {}
-            supported_actions[name] = trees
+            supported_actions[action] = trees
           end
           trees[#trees + 1] = tree.static.TYPE
         end

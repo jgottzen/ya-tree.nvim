@@ -322,7 +322,6 @@ function Tree:render(config, offset)
     lines[linenr], highlights[linenr] = tree_utils.render_node(node, context, has_children and directory_renderers or file_renderers)
 
     if has_children and node.expanded then
-      ---@param child Yat.Node
       local children = vim.tbl_filter(function(child)
         return not child:is_hidden(config)
       end, node:children()) --[=[@as Yat.Node[]]=]
