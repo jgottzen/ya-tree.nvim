@@ -48,6 +48,7 @@ local win_options = {
 ---@field new fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
 ---@overload fun(): Yat.Ui.Canvas
 ---@field class fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
+---@field static Yat.Ui.Canvas
 ---
 ---@field public position Yat.Ui.Position
 ---@field private winid? integer

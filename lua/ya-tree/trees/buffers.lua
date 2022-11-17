@@ -10,18 +10,12 @@ local log = require("ya-tree.log")("trees")
 local api = vim.api
 local uv = vim.loop
 
----@class Yat.Trees.BuffersStatic : Yat.TreeStatic
----@field on_buffer_new async fun(bufnr: integer, file: string): boolean
----@field on_buffer_hidden async fun(bufnr: integer, file: string): boolean
----@field on_buffer_displayed async fun(bufnr: integer, file: string): boolean
----@field on_buffer_deleted async fun(bufnr: integer, file: string): boolean
-
 ---@class Yat.Trees.Buffers : Yat.Tree
 ---@field new async fun(self: Yat.Trees.Buffers, tabpage: integer, path?: string): Yat.Trees.Buffers
 ---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Buffers
 ---@field class fun(self: Yat.Trees.Buffers): Yat.Trees.Buffers
 ---@field super Yat.Tree
----@field static Yat.Trees.BuffersStatic
+---@field static Yat.Trees.Buffers
 ---
 ---@field TYPE "buffers"
 ---@field root Yat.Nodes.Buffer

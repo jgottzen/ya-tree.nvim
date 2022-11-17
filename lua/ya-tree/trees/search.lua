@@ -13,6 +13,7 @@ local log = require("ya-tree.log")("trees")
 ---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Search?
 ---@field class fun(self: Yat.Trees.Search): Yat.Trees.Search
 ---@field super Yat.Tree
+---@field static Yat.Trees.Search
 ---
 ---@field TYPE "search"
 ---@field root Yat.Nodes.Search

@@ -17,6 +17,7 @@ local uv = vim.loop
 ---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Filesystem
 ---@field class fun(self: Yat.Trees.Filesystem): Yat.Trees.Filesystem
 ---@field super Yat.Tree
+---@field static Yat.Trees.Filesystem
 ---
 ---@field TYPE "filesystem"
 ---@field supported_actions Yat.Trees.Filesystem.SupportedActions[]

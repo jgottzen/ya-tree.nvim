@@ -25,24 +25,12 @@ local api = vim.api
 ---@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
 ---@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, ...): boolean }
 
----@class Yat.TreeStatic
----@field TYPE Yat.Trees.Type
----@field setup fun(config: Yat.Config)
----@field supported_actions Yat.Trees.Tree.SupportedActions[]
----@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
----@field complete_func_loaded_nodes fun(bufnr: integer)
----@field complete_func_file_in_path fun(bufnr: integer, node: Yat.Node)
----@field on_buffer_modified async fun(bufnr: integer, file: string, match: string): boolean
----@field on_buffer_saved async fun(bufnr: integer, file: string, match: string): boolean
----@field on_git_event async fun(repo: Yat.Git.Repo, fs_watcher: boolean): boolean
----@field on_diagnostics_event async fun(severity_changed: boolean): boolean
-
 ---@class Yat.Tree : Yat.Object
 ---@field new async fun(self: Yat.Tree, tabpage: integer, path?: string, kwargs?: table<string, any>): Yat.Tree?
 ---@overload async fun(tabpage: integer, path?: string, kwargs?: table<string, any>): Yat.Tree?
 ---@field class fun(self: Yat.Tree): Yat.Tree
 ---@field private __lower Yat.Tree
----@field static Yat.TreeStatic
+---@field static Yat.Tree
 ---
 ---@field TYPE Yat.Trees.Type
 ---@field private _tabpage integer

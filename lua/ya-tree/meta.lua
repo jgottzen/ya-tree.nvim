@@ -72,14 +72,12 @@ local function try_cast(class, instance)
     return instance
   end
 
-  ---@diagnostic disable-next-line:invisible
   local current = instance.__lower
   -- search lower in the hierarchy
   while current ~= nil do
     if current.__class == class then
       return current
     end
-    ---@diagnostic disable-next-line:invisible
     current = current.__lower
   end
 
@@ -216,12 +214,12 @@ end
 
 ---@class Yat.Object
 ---@field package __class Yat.Class
----@field protected __lower Yat.Object
+---@field package __lower Yat.Object
 ---@field protected init fun(self: Yat.Object, ...): boolean?
 ---@field class fun(self: Yat.Object): Yat.Class
 ---@field super Yat.Object
 ---@field subclass fun(self: Yat.Class, name: string): Yat.Object
----@field static { [string]: any }
+---@field static Yat.Object
 ---@field virtual fun(self: Yat.Object, method: string)
 local Object = {}
 

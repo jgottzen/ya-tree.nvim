@@ -15,6 +15,7 @@ local api = vim.api
 ---@overload async fun(tabpage: integer, path?: string): Yat.Trees.Git
 ---@field class fun(self: Yat.Trees.Git): Yat.Trees.Git
 ---@field super Yat.Tree
+---@field static Yat.Trees.Git
 ---
 ---@field TYPE "git"
 ---@field root Yat.Nodes.Git|Yat.Nodes.Text
