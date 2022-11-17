@@ -85,6 +85,7 @@ local M = {
 
   SECTION_ICON = "YaTreeSectionIcon",
   SECTION_NAME = "YaTreeSectionName",
+  SECTION_DIVIDER = "YaTreeSecionSeparator",
 }
 
 ---@param number integer
@@ -217,6 +218,7 @@ function M.setup()
 
   create_highlight(M.SECTION_ICON, { M.SECTION_NAME })
   create_highlight(M.SECTION_NAME, nil, { fg = "#5f87d7" })
+  create_highlight(M.SECTION_DIVIDER, { M.DIM_TEXT })
 end
 
 return M

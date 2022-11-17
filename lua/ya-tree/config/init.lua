@@ -181,15 +181,15 @@ local M = {
           empty_line_before_tree = true
         },
         ---@class Yat.Config.Sidebar.SectionLayout.Footer
-        ---@field enable boolean Whether to show the section footer, i.e. the separator, default: `true`.
-        ---@field separator_char string The separator used between sections, default: `"─"`.
-        ---@field empty_line_after_tree boolean Whether to show an empty line between the tree and the separator, default: `true`.
-        ---@field empty_line_after_separator boolean Whether to show an empty line after the separator, default: `true`.
+        ---@field enable boolean Whether to show the section footer, i.e. the divider, default: `true`.
+        ---@field divider_char string The divider used between sections, default: `"─"`.
+        ---@field empty_line_after_tree boolean Whether to show an empty line between the tree and the divider, default: `true`.
+        ---@field empty_line_after_divider boolean Whether to show an empty line after the divider, default: `true`.
         footer = {
           enable = true,
-          separator_char = "─",
+          divider_char = "─",
           empty_line_after_tree = true,
-          empty_line_after_separator = true,
+          empty_line_after_divider = true,
         },
       },
     },

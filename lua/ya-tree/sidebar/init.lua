@@ -635,13 +635,14 @@ function Sidebar:render(config, width)
     end
   end
 
-  local header_enabled = not (self.single_mode or #self._sections == 1) and config.sidebar.section_layout.header.enable
-  local pad_header = config.sidebar.section_layout.header.empty_line_before_tree
+  local layout = config.sidebar.section_layout
+  local header_enabled = not (self.single_mode or #self._sections == 1) and layout.header.enable
+  local pad_header = layout.header.empty_line_before_tree
   local offset = not header_enabled and -1 or pad_header and 1 or 0
-  local footer_enabled = config.sidebar.section_layout.footer.enable
-  local pad_footer_top = config.sidebar.section_layout.footer.empty_line_after_tree
-  local pad_footer_bottom = config.sidebar.section_layout.footer.empty_line_after_separator
-  local separator = string.rep(config.sidebar.section_layout.footer.separator_char, width)
+  local footer_enabled = layout.footer.enable
+  local pad_footer_top = layout.footer.empty_line_after_tree
+  local pad_footer_bottom = layout.footer.empty_line_after_divider
+  local divider = footer_enabled and string.rep(layout.footer.divider_char, width) or nil
 
   ---@type string[], Yat.Ui.HighlightGroup[][]
   local lines, highlights, from = {}, {}, 1
@@ -665,8 +666,8 @@ function Sidebar:render(config, width)
         _lines[#_lines + 1] = ""
         _highlights[#_highlights + 1] = {}
       end
-      _lines[#_lines + 1] = separator
-      _highlights[#_highlights + 1] = { { name = hl.DIM_TEXT, from = 0, to = -1 } }
+      _lines[#_lines + 1] = divider
+      _highlights[#_highlights + 1] = { { name = hl.SECTION_DIVIDER, from = 0, to = -1 } }
       if pad_footer_bottom then
         _lines[#_lines + 1] = ""
         _highlights[#_highlights + 1] = {}
