@@ -5,6 +5,7 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("ui")
 
 local api = vim.api
+local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
@@ -363,7 +364,8 @@ function Canvas:close()
 end
 
 function Canvas:draw()
-  local width = api.nvim_win_get_width(self.winid)
+  local info = fn.getwininfo(self.winid)
+  local width = info[1] and (info[1].width - info[1].textoff) or api.nvim_win_get_width(self.winid)
   local lines, highlights = self.sidebar:render(config, width)
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
@@ -408,7 +410,7 @@ do
   function Canvas:get_selected_nodes()
     local mode = api.nvim_get_mode().mode --[[@as string]]
     if mode == "v" or mode == "V" then
-      local from = vim.fn.getpos("v")[2] --[[@as integer]]
+      local from = fn.getpos("v")[2] --[[@as integer]]
       local to = api.nvim_win_get_cursor(self.winid)[1]
       if from > to then
         from, to = to, from
