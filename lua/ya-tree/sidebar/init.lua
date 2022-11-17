@@ -979,8 +979,10 @@ function M.delete_sidebars_for_nonexisting_tabpages()
     else
       for _, section in pairs(sidebar._sections) do
         section.tree.root:walk(function(node)
-          if node.repo and not found_toplevels[node.repo.toplevel] then
-            found_toplevels[node.repo.toplevel] = true
+          if node.repo then
+            if not found_toplevels[node.repo.toplevel] then
+              found_toplevels[node.repo.toplevel] = true
+            end
             if not node.repo:is_yadm() then
               return true
             end
