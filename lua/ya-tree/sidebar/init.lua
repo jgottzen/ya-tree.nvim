@@ -487,7 +487,13 @@ function Sidebar:on_fs_changed_event(dir, filenames)
   end
   local git_tree = self:get_tree("git") --[[@as Yat.Trees.Git?]]
   if git_tree and (git_tree.root:is_ancestor_of(dir) or git_tree.root.path == dir) then
-    git_tree.root:refresh({ refresh_git = false })
+    if not git_tree.refreshing then
+      git_tree.refreshing = true
+      git_tree.root:refresh({ refresh_git = false })
+      git_tree.refreshing = false
+    else
+      log.info("git tree is refreshing, skipping")
+    end
   end
 
   if not tree then

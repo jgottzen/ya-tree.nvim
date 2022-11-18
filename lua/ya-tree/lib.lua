@@ -14,7 +14,10 @@ local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
 
-local M = {}
+local M = {
+  ---@private
+  _loading = false,
+}
 
 ---@param path string
 ---@return string|nil path the fully resolved path, or `nil`
@@ -32,6 +35,14 @@ end
 ---  - {opts.size?} `integer` The size of the tree window, either width or height depending on position.
 ---  - {opts.tree_args?} `table<string, any>` Any tree specific arguments.
 function M.open_window(opts)
+  if M._loading then
+    local function open_window()
+      M.open_window(opts)
+    end
+    log.info("deferring open")
+    vim.defer_fn(void(open_window), 100)
+    return
+  end
   opts = opts or {}
   log.debug("opening window with %s", opts)
 
@@ -374,6 +385,23 @@ function M.setup()
     end),
     desc = "Handle buffers opened in the tree window",
   })
+
+  if config.auto_open.on_setup and not (utils.is_buffer_directory() and config.hijack_netrw) then
+    log.info("auto opening sidebar on setup")
+    M._loading = true
+    void(function()
+      Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
+      M._loading = false
+      M.open_window({ focus = config.auto_open.focus_tree })
+    end)()
+  elseif config.load_sidebar_on_setup then
+    log.info("loading sidebar on setup")
+    M._loading = true
+    void(function()
+      Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
+      M._loading = false
+    end)()
+  end
 end
 
 return M

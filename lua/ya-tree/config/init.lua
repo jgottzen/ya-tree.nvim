@@ -8,6 +8,7 @@ local M = {
   ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field hijack_netrw boolean Replace the `netrw` file explorer, default: `true`.
+  ---@field load_sidebar_on_setup boolean Whether to load the sidebar and it's trees on setup, which can make the subsequent open faster, default: `false`.
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
@@ -34,6 +35,8 @@ local M = {
     hijack_netrw = true,
 
     expand_all_nodes_max_depth = 5,
+
+    load_sidebar_on_setup = false,
 
     ---@class Yat.Config.Log
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.

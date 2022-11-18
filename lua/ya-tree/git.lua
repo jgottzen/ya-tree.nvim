@@ -93,6 +93,7 @@ end
 ---@field public untracked integer
 
 ---@class Yat.Git.Repo.Status : Yat.Git.Repo.MetaStatus
+---@field package _timestamp integer
 ---@field package _changed_entries table<string, string>
 ---@field package _propagated_changed_entries table<string, string>
 ---@field package _ignored string[]
@@ -139,6 +140,7 @@ function Repo:init(toplevel, git_dir, branch, is_yadm)
     staged = 0,
     unstaged = 0,
     untracked = 0,
+    _timestamp = 0,
     _changed_entries = {},
     _propagated_changed_entries = {},
     _ignored = {},
@@ -196,7 +198,7 @@ function Repo:_add_git_watcher()
       return
     end
 
-    log.debug("setting up git dir watcher for repo with internval %s", tostring(self), config.git.watch_git_dir_interval)
+    log.debug("setting up git dir watcher for repo %s with interval %s", tostring(self), config.git.watch_git_dir_interval)
     result, message = self._git_dir_watcher:start(self._git_dir, config.git.watch_git_dir_interval, fs_poll_callback)
     if result == 0 then
       log.debug("successfully started fs_poll for directory %s", self._git_dir)
@@ -355,11 +357,18 @@ function Repo:refresh_status_for_path(path)
   return old_status ~= self._status._changed_entries[path]
 end
 
+local ONE_SECOND_IN_NS = 1000 * 1000 * 1000
+
 ---@async
 ---@param opts? { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
 ---@return boolean fs_changes
 function Repo:refresh_status(opts)
+  local now = uv.hrtime() --[[@as integer]]
+  if (self._status._timestamp + ONE_SECOND_IN_NS) > now then
+    log.debug("refresh_status status called within 1 second, returning")
+    return false
+  end
   opts = opts or {}
   local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self._is_yadm })
   log.debug("git status for %q", self.toplevel)
@@ -376,6 +385,7 @@ function Repo:refresh_status(opts)
   self._status.staged = 0
   self._status.unstaged = 0
   self._status.untracked = 0
+  self._status._timestamp = now
   self._status._changed_entries = {}
   self._status._propagated_changed_entries = {}
   self._status._ignored = {}
