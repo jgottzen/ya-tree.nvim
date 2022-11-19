@@ -608,7 +608,7 @@ function Node.iterate_children(self, opts)
   end
 end
 
----Collapses the node, if it is a container.
+---Collapses the node, if it is a directory.
 ---@param opts? {children_only?: boolean, recursive?: boolean}
 ---  - {opts.children_only?} `boolean`
 ---  - {opts.recursive?} `boolean`
@@ -627,7 +627,7 @@ function Node:collapse(opts)
   end
 end
 
----Expands the node, if it is a container. If the node hasn't been scanned before, will scan the directory.
+---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
 ---@async
 ---@generic T : Yat.Node
 ---@param self T

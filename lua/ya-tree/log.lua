@@ -7,31 +7,41 @@ local uv = vim.loop
 ---@class Yat.Logger
 ---@field config Yat.Logger.Config
 local logger_class = {}
+
 -- selene: allow(unused_variable)
+
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
 ---@diagnostic disable-next-line:unused-local
 function logger_class.trace(msg, ...) end
+
 -- selene: allow(unused_variable)
+
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
 ---@diagnostic disable-next-line:unused-local
 function logger_class.debug(msg, ...) end
+
 -- selene: allow(unused_variable)
+
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
 ---@diagnostic disable-next-line:unused-local
 function logger_class.info(msg, ...) end
+
 -- selene: allow(unused_variable)
+
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)
 ---@diagnostic disable-next-line:unused-local
 function logger_class.warn(msg, ...) end
+
 -- selene: allow(unused_variable)
+
 ---@param msg string
 ---@param ... any
 ---@overload fun(...)

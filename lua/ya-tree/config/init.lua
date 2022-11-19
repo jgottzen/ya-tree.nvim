@@ -209,7 +209,7 @@ local M = {
 
     ---@class Yat.Config.Trees.GlobalMappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-    ---@field list table<string, Yat.Trees.Tree.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+    ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Mappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
@@ -525,8 +525,8 @@ local M = {
         ---@field indent_marker string The icon for the indentation marker, default: `"│"`.
         ---@field last_indent_marker string The icon for the last indentation marker, default: `"└"`.
         ---@field use_expander_marker boolean Whether to show expanded and collapsed markers, default: `false`.
-        ---@field expanded_marker string The icon for expanded directories/containers, default: `""`.
-        ---@field collapsed_marker string The icon for collapsed directories/containers, default: `""`.
+        ---@field expanded_marker string The icon for expanded directories, default: `""`.
+        ---@field collapsed_marker string The icon for collapsed directories, default: `""`.
         indentation = {
           padding = "",
           use_indent_marker = false,
