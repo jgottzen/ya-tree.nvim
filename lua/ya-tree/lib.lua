@@ -305,12 +305,13 @@ end
 ---@param file string
 local function on_buf_enter(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if not (file ~= "" and (buftype == "" or buftype == "terminal")) then
+  local is_file_buffer = buftype == ""
+  if not ((is_file_buffer and file ~= "") or buftype == "terminal") then
     return
   end
   local tabpage = api.nvim_get_current_tabpage()
 
-  if config.hijack_netrw and fs.is_directory(file) then
+  if config.hijack_netrw and is_file_buffer and fs.is_directory(file) then
     log.debug("the opened buffer is a directory with path %q", file)
 
     if ui.is_current_window_ui(tabpage) then

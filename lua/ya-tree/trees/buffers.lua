@@ -123,7 +123,7 @@ end
 function BuffersTree:on_buffer_new(bufnr, file)
   local tabpage = api.nvim_get_current_tabpage()
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if (buftype == "" or buftype == "terminal") and not fs.is_directory(file) then
+  if (buftype == "" and not fs.is_directory(file)) or buftype == "terminal" then
     local node
     if buftype == "terminal" then
       node = self.root:add_node(file, bufnr, true)
