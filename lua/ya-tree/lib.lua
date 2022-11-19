@@ -108,6 +108,11 @@ function M.open_window(opts)
 
   scheduler()
   if ui.is_open(tabpage) then
+    if opts.position then
+      ui.move_to(opts.position, opts.size)
+    elseif opts.size then
+      ui.resize(opts.size)
+    end
     ui.update(tree, node, { focus_window = opts.focus })
   else
     ui.open(sidebar, tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })

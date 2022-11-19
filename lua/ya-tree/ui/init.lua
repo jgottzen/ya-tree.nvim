@@ -175,6 +175,17 @@ function M.restore(tabpage)
   get_canvas(tabpage):restore()
 end
 
+---@param position Yat.Ui.Position
+---@param size? integer
+function M.move_to(position, size)
+  get_canvas():move_window(position, size)
+end
+
+---@param size integer
+function M.resize(size)
+  get_canvas():resize(size)
+end
+
 ---@param tabpage integer
 ---@param bufnr integer
 function M.move_buffer_to_edit_window(tabpage, bufnr)

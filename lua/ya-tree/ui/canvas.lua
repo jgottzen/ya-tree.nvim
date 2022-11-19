@@ -50,7 +50,7 @@ local win_options = {
 ---@field class fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
 ---@field static Yat.Ui.Canvas
 ---
----@field public position Yat.Ui.Position
+---@field private position Yat.Ui.Position
 ---@field private winid? integer
 ---@field private edit_winid? integer
 ---@field private bufnr? integer
@@ -170,7 +170,11 @@ function Canvas:move_buffer_to_edit_window(bufnr)
   end
 end
 
-function Canvas:resize()
+---@param size? integer
+function Canvas:resize(size)
+  if size then
+    self.size = size
+  end
   if self:is_on_side() then
     api.nvim_win_set_width(self.winid, self.size)
   else
@@ -179,6 +183,14 @@ function Canvas:resize()
 end
 
 local positions_to_wincmd = { left = "H", bottom = "J", top = "K", right = "L" }
+
+---@param position? Yat.Ui.Position
+---@param size? integer
+function Canvas:move_window(position, size)
+  self.position = position or self.position
+  vim.cmd.wincmd({ positions_to_wincmd[self.position], mods = { noautocmd = true } })
+  self:resize(size)
+end
 
 ---@private
 ---@param position? Yat.Ui.Position
@@ -190,11 +202,9 @@ function Canvas:_create_window(position)
     log.debug("setting edit_winid to %s, old=%s", self.edit_winid, old_edit_winid)
   end
 
-  self.position = position or self.position
   vim.cmd.vsplit({ mods = { noautocmd = true } })
   self.winid = api.nvim_get_current_win()
-  vim.cmd.wincmd({ positions_to_wincmd[self.position], mods = { noautocmd = true } })
-  self:resize()
+  self:move_window(position, self.size)
   log.debug("created window %s", self.winid)
   self:_set_window_options()
 end
