@@ -3,7 +3,6 @@ local fn = vim.fn
 local M = {
   ---@class Yat.Config
   ---@field close_if_last_window boolean Force closing Neovim when YaTree is the last window, default: `false`.
-  ---@field update_on_buffer_saved boolean Update the tree and the directory of the file changed, default: `true`.
   ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
   ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
@@ -27,7 +26,6 @@ local M = {
   ---@field renderers Yat.Config.Renderers Renderer configurations.
   default = {
     close_if_last_window = false,
-    update_on_buffer_saved = true,
 
     follow_focused_file = false,
     move_cursor_to_name = false,

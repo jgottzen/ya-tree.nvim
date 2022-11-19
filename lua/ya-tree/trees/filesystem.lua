@@ -124,13 +124,13 @@ function FilesystemTree.setup(config)
   local ge = require("ya-tree.events.event").git
   local ye = require("ya-tree.events.event").ya_tree
   local supported_events = {
-    autocmd = { [ae.BUFFER_MODIFIED] = Tree.static.on_buffer_modified },
+    autocmd = {
+      [ae.BUFFER_SAVED] = Tree.static.on_buffer_saved,
+      [ae.BUFFER_MODIFIED] = Tree.static.on_buffer_modified,
+    },
     git = {},
     yatree = {},
   }
-  if config.update_on_buffer_saved then
-    supported_events.autocmd[ae.BUFFER_SAVED] = Tree.static.on_buffer_saved
-  end
   if config.git.enable then
     supported_events.git[ge.DOT_GIT_DIR_CHANGED] = Tree.static.on_git_event
   end
