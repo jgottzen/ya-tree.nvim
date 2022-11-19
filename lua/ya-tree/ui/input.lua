@@ -190,7 +190,7 @@ function Input:open()
     end, { expr = true })
   end
 
-  vim.cmd("startinsert!")
+  vim.cmd.startinsert({ bang = true })
   if self.completion and fn.pumvisible() == 1 then
     local escape_key = api.nvim_replace_termcodes("<C-e>", true, false, true)
     api.nvim_feedkeys(escape_key, "n", true)
@@ -203,7 +203,7 @@ function Input:_create_title()
     -- Force the Input window to position itself, otherwise relative = "win" is
     -- to the parent window of Input and not Input itself...
     -- see https://github.com/neovim/neovim/issues/14735
-    vim.cmd("redraw")
+    vim.cmd.redraw()
 
     local width = math.min(api.nvim_win_get_width(self.winid) - 2, 2 + api.nvim_strwidth(self.prompt))
     local bufnr = api.nvim_create_buf(false, true)

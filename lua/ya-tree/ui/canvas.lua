@@ -192,9 +192,9 @@ function Canvas:_create_window(position)
   end
 
   self.position = position or self.position
-  vim.cmd("noautocmd vsplit")
+  vim.cmd.vsplit({ mods = { noautocmd = true } })
   self.winid = api.nvim_get_current_win()
-  vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
+  vim.cmd.wincmd({ positions_to_wincmd[self.position], mods = { noautocmd = true } })
   self:resize()
   log.debug("created window %s", self.winid)
   self:_set_window_options()
@@ -270,10 +270,10 @@ function Canvas:_on_win_closed()
 end
 
 function Canvas:create_edit_window()
-  vim.cmd("noautocmd vsplit")
+  vim.cmd.vsplit({ mods = { noautocmd = true } })
   self.edit_winid = api.nvim_get_current_win()
   api.nvim_win_call(self.winid, function()
-    vim.cmd("noautocmd wincmd " .. positions_to_wincmd[self.position])
+    vim.cmd.wincmd({ positions_to_wincmd[self.position], mods = { noautocmd = true } })
     self:resize()
   end)
   log.debug("created edit window %s", self.edit_winid)
@@ -290,9 +290,9 @@ local function set_cursor_position(winid, row, col)
     if ok then
       local win_height = api.nvim_win_get_height(winid)
       if win_height > row then
-        pcall(vim.cmd, "normal! zb")
+        pcall(vim.cmd.normal, { "zb", bang = true })
       elseif row < (win_height / 2) then
-        pcall(vim.cmd, "normal! zz")
+        pcall(vim.cmd.normal, { "zz", bang = true })
       end
     end
   end)

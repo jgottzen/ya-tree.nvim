@@ -115,7 +115,7 @@ function M.open_window(opts)
 
   if tree.TYPE == "filesystem" and config.cwd.update_from_tree and tree.root.path ~= uv.cwd() then
     log.debug("issueing tcd autocmd to %q", tree.root.path)
-    vim.cmd("tcd " .. fn.fnameescape(tree.root.path))
+    vim.cmd.tcd(fn.fnameescape(tree.root.path))
   end
 end
 
@@ -155,7 +155,7 @@ end
 ---@param sidebar Yat.Sidebar
 local function change_root(tree, node, new_root, sidebar)
   if config.cwd.update_from_tree then
-    vim.cmd("tcd " .. fn.fnameescape(new_root))
+    vim.cmd.tcd(fn.fnameescape(new_root))
   else
     sidebar:change_cwd(new_root)
     ui.update(tree, node)
@@ -318,7 +318,7 @@ local function on_buf_enter(bufnr, file)
       ui.restore(tabpage)
     else
       -- switch back to the previous buffer so the window isn't closed
-      vim.cmd("bprevious")
+      vim.cmd.bprevious()
     end
     log.debug("deleting buffer %s with file %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })

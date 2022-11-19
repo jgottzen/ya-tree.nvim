@@ -201,7 +201,7 @@ function M.open_file(file, cmd)
     api.nvim_set_current_win(winid)
   end
 
-  vim.cmd(cmd .. " " .. vim.fn.fnameescape(file))
+  vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(file) } })
 end
 
 ---@type async fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
