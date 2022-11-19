@@ -9,14 +9,13 @@ local fn = vim.fn
 
 local ns = api.nvim_create_namespace("YaTreeHighlights")
 
----@type {name: string, value: string|boolean}[]
 local buf_options = {
-  { name = "bufhidden", value = "hide" }, -- must be hide and not wipe for Canvas:restore and particularly Canvas:move_buffer_to_edit_window to work
-  { name = "buflisted", value = false },
-  { name = "filetype", value = "YaTree" },
-  { name = "buftype", value = "nofile" },
-  { name = "modifiable", value = false },
-  { name = "swapfile", value = false },
+  bufhidden = "hide", -- must be hide and not wipe for Canvas:restore and particularly Canvas:move_buffer_to_edit_window to work
+  buflisted = false,
+  filetype = "YaTree",
+  buftype = "nofile",
+  modifiable = false,
+  swapfile = false,
 }
 
 local win_options = {
@@ -128,8 +127,8 @@ function Canvas:_create_buffer()
   log.debug("created buffer %s", self.bufnr)
   api.nvim_buf_set_name(self.bufnr, "YaTree://YaTree" .. self.bufnr)
 
-  for _, v in ipairs(buf_options) do
-    api.nvim_buf_set_option(self.bufnr, v.name, v.value)
+  for k, v in pairs(buf_options) do
+    vim.bo[self.bufnr][k] = v
   end
 
   require("ya-tree.actions").apply_mappings(self.bufnr)
