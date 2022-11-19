@@ -366,7 +366,7 @@ end
 ---@param tabpage integer
 ---@return boolean
 function Tree:is_shown_in_ui(tabpage)
-  return ui.is_open(self._tabpage, self) and self:is_for_tabpage(tabpage)
+  return self:is_for_tabpage(tabpage) and ui.is_open(self._tabpage, self)
 end
 
 ---@param tabpage integer

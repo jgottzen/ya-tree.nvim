@@ -1,3 +1,5 @@
+local scheduler = require("plenary.async.util").scheduler
+
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
@@ -147,6 +149,7 @@ function GitTree:on_git_event(repo)
     local tabpage = api.nvim_get_current_tabpage()
 
     self.root:refresh({ refresh_git = false })
+    scheduler()
     return self:is_shown_in_ui(tabpage)
   end
   return false
