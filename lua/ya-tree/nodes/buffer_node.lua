@@ -82,6 +82,15 @@ function BufferNode:toggleterm_id()
   end
 end
 
+---@param name string
+---@return string
+function BufferNode:terminal_name_to_path(name)
+  if self.parent then
+    return self.parent:terminal_name_to_path(name)
+  end
+  return self.path .. TERMINALS_CONTAINER_PATH .. "/" .. name
+end
+
 ---@return boolean
 function BufferNode:is_terminals_container()
   return self.path:find(TERMINALS_CONTAINER_PATH, 1, true) ~= nil

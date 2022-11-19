@@ -305,8 +305,8 @@ end
 ---@param file string
 local function on_buf_enter(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  local is_file_buffer = buftype == ""
-  if not ((is_file_buffer and file ~= "") or buftype == "terminal") then
+  local is_file_buffer, is_terminal_buffer = buftype == "", buftype == "terminal"
+  if not ((is_file_buffer and file ~= "") or is_terminal_buffer) then
     return
   end
   local tabpage = api.nvim_get_current_tabpage()
@@ -325,20 +325,26 @@ local function on_buf_enter(bufnr, file)
 
     M.open_window({ path = file, focus = true })
   elseif ui.is_open(tabpage) then
-    if ui.is_current_window_ui(tabpage) and config.move_buffers_from_tree_window and buftype == "" then
+    if ui.is_current_window_ui(tabpage) and config.move_buffers_from_tree_window then
       log.debug("moving buffer %s to edit window", bufnr)
       ui.move_buffer_to_edit_window(tabpage, bufnr)
     end
 
     if config.follow_focused_file then
       local tree = ui.get_current_tree_and_node(tabpage)
-      if tree and tree.root:is_ancestor_of(file) then
-        log.debug("focusing on node %q", file)
-        local node = tree.root:expand({ to = file })
-        if node then
-          -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-          scheduler()
-          ui.update(tree, node, { focus_node = true })
+      if tree then
+        if is_terminal_buffer and tree.TYPE == "buffers" then
+          local root = tree.root --[[@as Yat.Nodes.Buffer]]
+          file = root:terminal_name_to_path(file)
+        end
+        if tree.root:is_ancestor_of(file) then
+          log.debug("focusing on node %q", file)
+          local node = tree.root:expand({ to = file })
+          if node then
+            -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+            scheduler()
+            ui.update(tree, node, { focus_node = true })
+          end
         end
       end
     end
