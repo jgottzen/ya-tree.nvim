@@ -340,12 +340,13 @@ end
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_new(bufnr, file, match)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_NEW]
     if callback then
-      update = callback(tree, bufnr, file, match) or update
+      update = callback(tree, tabpage, bufnr, file, match) or update
     end
   end
   if update then
@@ -357,12 +358,13 @@ end
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_hidden(bufnr, file, match)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_HIDDEN]
     if callback then
-      update = callback(tree, bufnr, file, match) or update
+      update = callback(tree, tabpage, bufnr, file, match) or update
     end
   end
   if update then
@@ -374,12 +376,13 @@ end
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_displayed(bufnr, file, match)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DISPLAYED]
     if callback then
-      update = callback(tree, bufnr, file, match) or update
+      update = callback(tree, tabpage, bufnr, file, match) or update
     end
   end
   if update then
@@ -391,12 +394,13 @@ end
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_deleted(bufnr, file, match)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DELETED]
     if callback then
-      update = callback(tree, bufnr, file, match) or update
+      update = callback(tree, tabpage, bufnr, file, match) or update
     end
   end
   if update then
@@ -408,12 +412,13 @@ end
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_modified(bufnr, file, match)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_MODIFIED]
     if callback then
-      update = callback(tree, bufnr, file, match) or update
+      update = callback(tree, tabpage, bufnr, file, match) or update
     end
   end
   if update then
@@ -426,12 +431,13 @@ end
 ---@param file string
 ---@diagnostic disable-next-line:unused-local
 function Sidebar:on_buffer_saved(bufnr, file, match)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_SAVED]
     if callback then
-      update = callback(tree, bufnr, file, match) or update
+      update = callback(tree, tabpage, bufnr, file, match) or update
     end
   end
   if update then
@@ -443,12 +449,14 @@ end
 ---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 function Sidebar:on_git_event(repo, fs_changes)
+  scheduler()
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.git[git_event.DOT_GIT_DIR_CHANGED]
     if callback then
-      update = callback(tree, repo, fs_changes) or update
+      update = callback(tree, tabpage, repo, fs_changes) or update
     end
   end
   if update then
@@ -459,12 +467,13 @@ end
 ---@async
 ---@param severity_changed boolean
 function Sidebar:on_diagnostics_event(severity_changed)
+  local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
     local callback = tree.supported_events.yatree[yatree_event.DIAGNOSTICS_CHANGED]
     if callback then
-      update = callback(tree, severity_changed) or update
+      update = callback(tree, tabpage, severity_changed) or update
     end
   end
   if update then

@@ -21,9 +21,9 @@ local api = vim.api
 ---@field directory_min_diagnostic_severity integer
 ---@field file_min_diagnostic_severity integer
 
----@alias Yat.Trees.AutocmdEventsLookupTable { [Yat.Events.AutocmdEvent]: async fun(self: Yat.Tree, bufnr: integer, file: string, match: string): boolean }
----@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
----@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, ...): boolean }
+---@alias Yat.Trees.AutocmdEventsLookupTable { [Yat.Events.AutocmdEvent]: async fun(self: Yat.Tree, tabpage: integer, bufnr: integer, file: string, match: string): boolean }
+---@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, tabpage: integer, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
+---@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, tabpage: integer, ...): boolean }
 
 ---@class Yat.Tree : Yat.Object
 ---@field new async fun(self: Yat.Tree, tabpage: integer, path?: string, kwargs?: table<string, any>): Yat.Tree?
@@ -215,19 +215,19 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
+---@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@param match string
 ---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_buffer_modified(bufnr, file, match)
+function Tree:on_buffer_modified(tabpage, bufnr, file, match)
   if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     local modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
     local node = self.root:get_child_if_loaded(file)
     if node and node.modified ~= modified then
       node.modified = modified
 
-      local tabpage = api.nvim_get_current_tabpage()
       return self:is_shown_in_ui(tabpage) and ui.is_node_rendered(tabpage, self, node)
     end
   end
@@ -237,15 +237,15 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
+---@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@param match string
 ---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_buffer_saved(bufnr, file, match)
+function Tree:on_buffer_saved(tabpage, bufnr, file, match)
   if self.root:is_ancestor_of(file) then
     log.debug("changed file %q is in tree %s", file, tostring(self))
-    local tabpage = api.nvim_get_current_tabpage()
     local parent = self.root:get_child_if_loaded(Path:new(file):parent().filename)
     if parent then
       parent:refresh()
@@ -262,15 +262,16 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
+---@param tabpage integer
 ---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 ---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_git_event(repo, fs_changes)
+function Tree:on_git_event(tabpage, repo, fs_changes)
   if
     vim.v.exiting == vim.NIL
     and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil)
-    and self:is_shown_in_ui(api.nvim_get_current_tabpage())
+    and self:is_shown_in_ui(tabpage)
   then
     log.debug("git repo %s changed", tostring(repo))
     return true
@@ -279,10 +280,11 @@ function Tree:on_git_event(repo, fs_changes)
 end
 
 ---@async
+---@param tabpage integer
 ---@param severity_changed boolean
 ---@return boolean
-function Tree:on_diagnostics_event(severity_changed)
-  return severity_changed and self:is_shown_in_ui(api.nvim_get_current_tabpage())
+function Tree:on_diagnostics_event(tabpage, severity_changed)
+  return severity_changed and self:is_shown_in_ui(tabpage)
 end
 
 -- selene: allow(unused_variable)

@@ -1,5 +1,3 @@
-local scheduler = require("plenary.async.util").scheduler
-
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
@@ -9,8 +7,6 @@ local Tree = require("ya-tree.trees.tree")
 local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
-
-local api = vim.api
 
 ---@class Yat.Trees.Git : Yat.Tree
 ---@field new async fun(self: Yat.Trees.Git, tabpage: integer, path?: string): Yat.Trees.Git
@@ -141,27 +137,26 @@ function GitTree:init(tabpage, repo_or_path)
 end
 
 ---@async
+---@param tabpage integer
 ---@param repo Yat.Git.Repo
 ---@return boolean
-function GitTree:on_git_event(repo)
+function GitTree:on_git_event(tabpage, repo)
   if vim.v.exiting == vim.NIL and self.root.repo == repo then
     log.debug("git repo %s changed", tostring(self.root.repo))
-    local tabpage = api.nvim_get_current_tabpage()
 
     self.root:refresh({ refresh_git = false })
-    scheduler()
     return self:is_shown_in_ui(tabpage)
   end
   return false
 end
 
 ---@async
+---@param tabpage integer
 ---@param _ integer
 ---@param file string
 ---@return boolean
-function GitTree:on_buffer_saved(_, file)
+function GitTree:on_buffer_saved(tabpage, _, file)
   if self.root:is_ancestor_of(file) then
-    local tabpage = api.nvim_get_current_tabpage()
     log.debug("changed file %q is in tree %s", file, tostring(self))
     local node = self.root:get_child_if_loaded(file)
     if node then
