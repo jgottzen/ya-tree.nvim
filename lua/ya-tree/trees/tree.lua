@@ -130,7 +130,7 @@ Tree.__eq = function(self, other)
 end
 
 Tree.__tostring = function(self)
-  return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self.tabpage), tostring(self.root))
+  return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, self.tabpage, self.root)
 end
 
 -- selene: allow(unused_variable)
@@ -139,19 +139,20 @@ end
 ---@diagnostic disable-next-line:unused-local
 function Tree.setup(config) end
 
--- selene: allow(unused_variable)
-
 ---@protected
+---@param type Yat.Trees.Type
 ---@param tabpage integer
----@param path? string
----@param kwargs? table<string, any>
----@diagnostic disable-next-line:unused-local
-function Tree:init(tabpage, path, kwargs)
+---@param root Yat.Node
+---@param current_node Yat.Node
+function Tree:init(type, tabpage, root, current_node)
+  self.TYPE = type
   self.tabpage = tabpage
+  self.root = root
+  self.current_node = current_node
   self.refreshing = false
-  local tree_config = require("ya-tree.config").config.trees[self.__lower.TYPE]
+  local tree_config = require("ya-tree.config").config.trees[self.TYPE]
   self.section_icon = tree_config and tree_config.section_icon or ""
-  self.section_name = tree_config and tree_config.section_name or self.__lower.TYPE
+  self.section_name = tree_config and tree_config.section_name or self.TYPE
 end
 
 do

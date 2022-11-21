@@ -105,11 +105,11 @@ end
 ---@param path? string
 function BuffersTree:init(tabpage, path)
   path = path or uv.cwd() --[[@as string]]
-  self.super:init(tabpage, path)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
-  self.root = BufferNode:new(fs_node)
-  self.root.repo = git.get_repo_for_path(fs_node.path)
-  self.current_node = self.root:refresh()
+  local root = BufferNode:new(fs_node)
+  root.repo = git.get_repo_for_path(fs_node.path)
+  local current_node = root:refresh()
+  self.super:init(self.TYPE, tabpage, root, current_node)
 
   log.info("created new tree %s", tostring(self))
 end

@@ -98,6 +98,16 @@ function SearchTree.setup(config)
 end
 
 ---@async
+---@param path string
+---@return Yat.Nodes.Search
+local function create_root_node(path)
+  local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
+  local root = SearchNode:new(fs_node)
+  root.repo = git.get_repo_for_path(root.path)
+  return root
+end
+
+---@async
 ---@private
 ---@param tabpage integer
 ---@param path? string
@@ -106,8 +116,8 @@ function SearchTree:init(tabpage, path, kwargs)
   if not path then
     return false
   end
-  self.super:init(tabpage, path)
-  self:_init(path)
+  local root = create_root_node(path)
+  self.super:init(self.TYPE, tabpage, root, root)
   if kwargs and kwargs.term then
     local matches_or_error = self:search(kwargs.term)
     if type(matches_or_error) == "string" then
@@ -117,17 +127,6 @@ function SearchTree:init(tabpage, path, kwargs)
   end
 
   log.info("created new tree %s", tostring(self))
-end
-
----@async
----@private
----@param self Yat.Trees.Search
----@param path string
-function SearchTree:_init(path)
-  local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
-  self.root = SearchNode:new(fs_node)
-  self.current_node = self.root
-  self.root.repo = git.get_repo_for_path(self.root.path)
 end
 
 ---@return string line
@@ -154,7 +153,8 @@ end
 function SearchTree:change_root_node(path)
   if self.root.path ~= path then
     local old_root = self.root
-    self:_init(path)
+    self.root = create_root_node(path)
+    self.current_node = self.root
     log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
   end
   return true

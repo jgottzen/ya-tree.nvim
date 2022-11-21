@@ -168,23 +168,17 @@ end
 ---@async
 ---@private
 ---@param tabpage integer
----@param root? string|Yat.Node
-function FilesystemTree:init(tabpage, root)
-  local root_node
-  if type(root) == "string" then
-    if not fs.is_directory(root) then
-      root = Path:new(root):parent():absolute() --[[@as string]]
+---@param path? string
+function FilesystemTree:init(tabpage, path)
+  if path ~= nil then
+    if not fs.is_directory(path) then
+      path = Path:new(path):parent():absolute() --[[@as string]]
     end
-    root_node = create_root_node(root)
-  elseif type(root) == "table" then
-    root_node = root --[[@as Yat.Node]]
   else
-    root_node = create_root_node(uv.cwd() --[[@as string]])
+    path = uv.cwd() --[[@as string]]
   end
-
-  self.super:init(tabpage, root_node.path)
-  self.root = root_node
-  self.current_node = self.root
+  local root = create_root_node(path)
+  self.super:init(self.TYPE, tabpage, root, root)
   self:check_node_for_repo(self.root)
 
   log.info("created new tree %s", tostring(self))

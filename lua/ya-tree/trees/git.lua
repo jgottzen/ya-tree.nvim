@@ -129,9 +129,8 @@ function GitTree:init(tabpage, repo_or_path)
     local path = type(repo_or_path) == "string" and repo_or_path or "unknown"
     root = TextNode:new(path .. " is not a Git repository", path, false)
   end
-  self.super:init(tabpage, root.path)
-  self.root = root
-  self.current_node = self.root:refresh() or self.root
+  local current_node = root:refresh() or root
+  self.super:init(self.TYPE, tabpage, root, current_node)
 
   log.info("created new tree %s", tostring(self))
 end
