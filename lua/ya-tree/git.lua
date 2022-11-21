@@ -3,7 +3,6 @@ local void = require("plenary.async").void
 local wrap = require("plenary.async").wrap
 local Path = require("plenary.path")
 
-local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
@@ -152,8 +151,9 @@ function Repo:init(toplevel, git_dir, branch, is_yadm)
 
   M.repos[self.toplevel] = self
 
+  local config = require("ya-tree.config").config
   if config.git.watch_git_dir then
-    self:_add_git_watcher()
+    self:_add_git_watcher(config)
   end
 end
 
@@ -173,7 +173,8 @@ function Repo:meta_status()
 end
 
 ---@private
-function Repo:_add_git_watcher()
+---@param config Yat.Config
+function Repo:_add_git_watcher(config)
   if not self._git_dir_watcher then
     local event = require("ya-tree.events.event").git
     ---@param err string
@@ -370,6 +371,7 @@ function Repo:refresh_status(opts)
     return false
   end
   opts = opts or {}
+  local config = require("ya-tree.config").config
   local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self._is_yadm })
   log.debug("git status for %q", self.toplevel)
   local results, err = self:command(args, true)
@@ -665,6 +667,7 @@ function M.create_repo(path)
     return cached
   end
 
+  local config = require("ya-tree.config").config
   if not config.git.enable then
     return nil
   end
@@ -736,8 +739,6 @@ local function on_vim_leave_pre()
 end
 
 function M.setup()
-  config = require("ya-tree.config").config
-
   local event = require("ya-tree.events.event").autocmd
   events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", on_vim_leave_pre)
 end

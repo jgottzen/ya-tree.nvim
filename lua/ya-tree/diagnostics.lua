@@ -1,6 +1,5 @@
 local Path = require("plenary.path")
 
-local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local event = require("ya-tree.events.event").ya_tree
 
@@ -62,6 +61,7 @@ local function on_diagnostics_changed()
     end
   end
 
+  local config = require("ya-tree.config").config
   if config.diagnostics.propagate_to_parents then
     for path, severity in pairs(new_severity_diagnostics) do
       for _, parent in next, Path:new(path):parents() do
@@ -101,9 +101,8 @@ local function on_diagnostics_changed()
   events.fire_yatree_event(event.DIAGNOSTICS_CHANGED, severity_changed)
 end
 
-function M.setup()
-  config = require("ya-tree.config").config
-
+---@param config Yat.Config
+function M.setup(config)
   if config.diagnostics.enable then
     local debounced_trailing = require("ya-tree.debounce").debounce_trailing
     local group = api.nvim_create_augroup("YaTreeDiagnostics", { clear = true })

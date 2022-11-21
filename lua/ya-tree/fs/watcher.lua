@@ -1,5 +1,4 @@
 local accumulate = require("ya-tree.debounce").accumulate_trailing
-local config = require("ya-tree.config").config
 local event = require("ya-tree.events.event")
 local events = require("ya-tree.events")
 local utils = require("ya-tree.utils")
@@ -10,7 +9,7 @@ local M = {
   ---@type table<string, Yat.Fs.Watcher>
   _watchers = {},
   ---@private
-  ---@type string[][]
+  ---@type {[1]: string, [2]: string}[]
   _exclude_patterns = {},
 }
 
@@ -39,6 +38,7 @@ end
 
 ---@param dir string
 function M.watch_dir(dir)
+  local config = require("ya-tree.config").config
   if not config.dir_watcher.enable or is_ignored(dir) then
     return
   end
@@ -65,7 +65,7 @@ function M.watch_dir(dir)
     end, 200)
 
     watcher = {
-      handle = vim.loop.new_fs_event() --[[@as Luv.Fs.Event]],
+      handle = vim.loop.new_fs_event(), --[[@as Luv.Fs.Event]]
       number_of_watchers = 1,
     }
     log.debug("starting fs_event on %q", dir)
@@ -106,8 +106,8 @@ function M.stop_all()
   M._watchers = {}
 end
 
-function M.setup()
-  config = require("ya-tree.config").config
+---@param config Yat.Config
+function M.setup(config)
   M._exclude_patterns = { { utils.os_sep .. ".git", utils.os_sep .. ".git" .. utils.os_sep } }
   for _, ignored in ipairs(config.dir_watcher.exclude) do
     M._exclude_patterns[#M._exclude_patterns + 1] = { utils.os_sep .. ignored, utils.os_sep .. ignored .. utils.os_sep }

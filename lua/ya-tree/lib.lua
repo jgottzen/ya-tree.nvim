@@ -2,7 +2,6 @@ local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 local Path = require("plenary.path")
 
-local config = require("ya-tree.config").config
 local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
 local Sidebar = require("ya-tree.sidebar")
@@ -48,6 +47,7 @@ function M.open_window(opts)
   log.debug("opening window with %s", opts)
 
   scheduler()
+  local config = require("ya-tree.config").config
   local tabpage = api.nvim_get_current_tabpage()
   local sidebar = Sidebar.get_or_create_sidebar(tabpage, config.sidebar)
 
@@ -159,6 +159,7 @@ end
 ---@param new_root string
 ---@param sidebar Yat.Sidebar
 local function change_root(tree, node, new_root, sidebar)
+  local config = require("ya-tree.config").config
   if config.cwd.update_from_tree then
     vim.cmd.tcd(fn.fnameescape(new_root))
   else
@@ -198,6 +199,7 @@ end
 ---@param node Yat.Node
 ---@param context Yat.Action.FnContext
 function M.toggle_ignored(tree, node, context)
+  local config = require("ya-tree.config").config
   config.git.show_ignored = not config.git.show_ignored
   log.debug("toggling git ignored to %s", config.git.show_ignored)
   context.sidebar:update(tree, node)
@@ -208,6 +210,7 @@ end
 ---@param node Yat.Node
 ---@param context Yat.Action.FnContext
 function M.toggle_filter(tree, node, context)
+  local config = require("ya-tree.config").config
   config.filters.enable = not config.filters.enable
   log.debug("toggling filter to %s", config.filters.enable)
   context.sidebar:update(tree, node)
@@ -218,6 +221,7 @@ end
 ---@param node Yat.Node
 ---@return Yat.Git.Repo? repo
 function M.rescan_node_for_git(tree, node)
+  local config = require("ya-tree.config").config
   if not config.git.enable then
     utils.notify("Git is not enabled.")
     return
@@ -278,7 +282,8 @@ function M.search_for_node_in_tree(sidebar, tree, path)
   end)
 end
 
-local function setup_netrw()
+---@param config Yat.Config
+local function setup_netrw(config)
   if config.hijack_netrw then
     vim.cmd([[silent! autocmd! FileExplorer *]])
     vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
@@ -317,6 +322,7 @@ local function on_buf_enter(bufnr, file)
   if not ((is_file_buffer and file ~= "") or is_terminal_buffer) then
     return
   end
+  local config = require("ya-tree.config").config
   local tabpage = api.nvim_get_current_tabpage()
   local sidebar = Sidebar.get_sidebar(tabpage)
 
@@ -363,10 +369,9 @@ local function on_buf_enter(bufnr, file)
   end
 end
 
-function M.setup()
-  config = require("ya-tree.config").config
-
-  setup_netrw()
+---@param config Yat.Config
+function M.setup(config)
+  setup_netrw(config)
 
   local group = api.nvim_create_augroup("YaTreeLib", { clear = true })
   if config.close_if_last_window then
@@ -401,20 +406,16 @@ function M.setup()
     desc = "Handle buffers opened in the tree window",
   })
 
-  if config.auto_open.on_setup and not (utils.is_buffer_directory() and config.hijack_netrw) then
-    log.info("auto opening sidebar on setup")
+  local open = config.auto_open.on_setup and not (utils.is_buffer_directory() and config.hijack_netrw)
+  if open or config.load_sidebar_on_setup then
     M._loading = true
+    log.info(open and "auto opening sidebar on setup" or "loading sidebar on setup")
     void(function()
       Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
       M._loading = false
-      M.open_window({ focus = config.auto_open.focus_tree })
-    end)()
-  elseif config.load_sidebar_on_setup then
-    log.info("loading sidebar on setup")
-    M._loading = true
-    void(function()
-      Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
-      M._loading = false
+      if open then
+        M.open_window({ focus = config.auto_open.focus_tree })
+      end
     end)()
   end
 end

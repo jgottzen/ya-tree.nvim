@@ -1,4 +1,3 @@
-local config = require("ya-tree.config").config
 local events = require("ya-tree.events")
 local event = require("ya-tree.events.event").ya_tree
 local meta = require("ya-tree.meta")
@@ -219,6 +218,7 @@ end
 function Canvas:_set_window_options()
   win_set_buf_noautocmd(self.winid, self.bufnr)
 
+  local config = require("ya-tree.config").config
   win_options.number = config.view.number
   win_options.relativenumber = config.view.relativenumber
   for k, v in pairs(win_options) do
