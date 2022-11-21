@@ -1,5 +1,4 @@
 local lib = require("ya-tree.lib")
-local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 
 local M = {}
@@ -7,12 +6,12 @@ local M = {}
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@return Yat.Git.Repo? repo
-function M.check_node_for_git(tree, node)
+---@param context Yat.Action.FnContext
+function M.check_node_for_git(tree, node, context)
   if not node.repo or node.repo:is_yadm() then
     local repo = lib.rescan_node_for_git(tree, node)
     if repo then
-      ui.update(tree, node)
+      context.sidebar:update()
     else
       utils.notify(string.format("No Git repository found in %q.", node.path))
     end
@@ -24,13 +23,14 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.stage(_, node)
+---@param context Yat.Action.FnContext
+function M.stage(_, node, context)
   if node.repo then
     local err = node.repo:add(node.path)
     if err then
       utils.warn("Error staging path '" .. node.path .. "': " .. err)
     else
-      ui.update()
+      context.sidebar:update()
     end
   end
 end
@@ -38,13 +38,14 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.unstage(_, node)
+---@param context Yat.Action.FnContext
+function M.unstage(_, node, context)
   if node.repo then
     local err = node.repo:restore(node.path, true)
     if err then
       utils.warn("Error unstaging path '" .. node.path .. "': " .. err)
     else
-      ui.update()
+      context.sidebar:update()
     end
   end
 end
@@ -52,13 +53,14 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.revert(_, node)
+---@param context Yat.Action.FnContext
+function M.revert(_, node, context)
   if node.repo then
     local err = node.repo:restore(node.path, false)
     if err then
       utils.warn("Error reverting path '" .. node.path .. "': " .. err)
     else
-      ui.update()
+      context.sidebar:update()
     end
   end
 end

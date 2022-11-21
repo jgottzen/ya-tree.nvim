@@ -18,14 +18,16 @@ local M = {}
 
 ---@async
 ---@param tree Yat.Tree
-function M.open(tree)
-  local nodes = ui.get_selected_nodes()
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.open(tree, _, context)
+  local nodes = context.sidebar:get_selected_nodes()
   if #nodes == 1 then
     local node = nodes[1]
     if node:has_children() then
-      node_actions.toggle_node(tree, node)
+      node_actions.toggle_node(tree, node, context)
     elseif node:is_editable() then
-      ui.open_file(node.path, "edit")
+      context.sidebar:open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
       ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
@@ -44,7 +46,7 @@ function M.open(tree)
   else
     for _, node in ipairs(nodes) do
       if node:is_editable() then
-        ui.open_file(node.path, "edit")
+        context.sidebar:open_file(node.path, "edit")
       end
     end
   end
@@ -53,28 +55,31 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.vsplit(_, node)
+---@param context Yat.Action.FnContext
+function M.vsplit(_, node, context)
   if node:is_editable() then
-    ui.open_file(node.path, "vsplit")
+    context.sidebar:open_file(node.path, "vsplit")
   end
 end
 
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.split(_, node)
+---@param context Yat.Action.FnContext
+function M.split(_, node, context)
   if node:is_editable() then
-    ui.open_file(node.path, "split")
+    context.sidebar:open_file(node.path, "split")
   end
 end
 
 ---@async
+---@param sidebar Yat.Sidebar
 ---@param node Yat.Node
 ---@param focus boolean
-local function preview(node, focus)
+local function preview(sidebar, node, focus)
   if node:is_editable() then
     local already_loaded = vim.fn.bufloaded(node.path) > 0
-    ui.open_file(node.path, "edit")
+    sidebar:open_file(node.path, "edit")
 
     -- taken from nvim-tree
     if not already_loaded then
@@ -95,7 +100,7 @@ local function preview(node, focus)
       -- a scheduler call is required here for the event loop to to update the ui state
       -- otherwise the focus will happen before the buffer is opened, and the buffer will keep the focus
       scheduler()
-      ui.focus()
+      sidebar:focus()
     end
   end
 end
@@ -103,37 +108,43 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.preview(_, node)
-  preview(node, false)
+---@param context Yat.Action.FnContext
+function M.preview(_, node, context)
+  preview(context.sidebar, node, false)
 end
 
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.preview_and_focus(_, node)
-  preview(node, true)
+---@param context Yat.Action.FnContext
+function M.preview_and_focus(_, node, context)
+  preview(context.sidebar, node, true)
 end
 
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
-function M.tabnew(_, node)
+---@param context Yat.Action.FnContext
+function M.tabnew(_, node, context)
   if node:is_editable() then
-    ui.open_file(node.path, "tabnew")
+    context.sidebar:open_file(node.path, "tabnew")
   end
 end
 
 ---@async
+---@param sidebar Yat.Sidebar
 ---@param tree Yat.Trees.Filesystem
 ---@param node Yat.Node
 ---@param path string
-local function prepare_add_rename(tree, node, path)
+local function prepare_add_rename(sidebar, tree, node, path)
   local parent = Path:new(path):parent():absolute() --[[@as string]]
   if tree.root:is_ancestor_of(path) or tree.root.path == parent then
     -- expand to the parent path so the tree will detect and display the added file/directory
     if parent ~= node.path then
       tree.root:expand({ to = parent })
-      vim.schedule_wrap(ui.update)()
+      vim.schedule(function()
+        sidebar:update()
+      end)
     end
     tree.focus_path_on_fs_event = path
   end
@@ -142,7 +153,8 @@ end
 ---@async
 ---@param tree Yat.Trees.Filesystem
 ---@param node Yat.Node
-function M.add(tree, node)
+---@param context Yat.Action.FnContext
+function M.add(tree, node, context)
   if not node:is_directory() then
     node = node.parent --[[@as Yat.Node]]
   end
@@ -164,7 +176,7 @@ function M.add(tree, node)
         path = path:sub(1, -2)
       end
 
-      prepare_add_rename(tree, node, path)
+      prepare_add_rename(context.sidebar, tree, node, path)
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
       else
@@ -179,7 +191,8 @@ end
 ---@async
 ---@param tree Yat.Trees.Filesystem|Yat.Trees.Git
 ---@param node Yat.Node
-function M.rename(tree, node)
+---@param context Yat.Action.FnContext
+function M.rename(tree, node, context)
   -- prohibit renaming the root node
   if tree.root == node then
     return
@@ -194,7 +207,7 @@ function M.rename(tree, node)
   end
 
   if tree.TYPE == "filesystem" then
-    prepare_add_rename(tree --[[@as Yat.Trees.Filesystem]], node, path)
+    prepare_add_rename(context.sidebar, tree --[[@as Yat.Trees.Filesystem]], node, path)
   end
   if node.repo then
     local err = node.repo:rename(node.path, path)
@@ -215,13 +228,12 @@ function M.rename(tree, node)
 end
 
 ---@async
+---@param selected_nodes Yat.Node[]
 ---@param root_path string
 ---@param confirm boolean
 ---@param title_prefix string
 ---@return Yat.Node[] nodes, Yat.Node? node_to_focus
-local function get_nodes_to_delete(root_path, confirm, title_prefix)
-  local selected_nodes = ui.get_selected_nodes()
-
+local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_prefix)
   ---@type Yat.Node[]
   local nodes = {}
   for _, node in ipairs(selected_nodes) do
@@ -273,8 +285,10 @@ end
 
 ---@async
 ---@param tree Yat.Trees.Filesystem
-function M.delete(tree)
-  local nodes, node_to_focus = get_nodes_to_delete(tree.root.path, true, "Delete")
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.delete(tree, _, context)
+  local nodes, node_to_focus = get_nodes_to_delete(context.sidebar:get_selected_nodes(), tree.root.path, true, "Delete")
   if #nodes == 0 then
     return
   end
@@ -297,13 +311,15 @@ end
 
 ---@async
 ---@param tree Yat.Trees.Filesystem
-function M.trash(tree)
-  local config = require("ya-tree.config").config
-  if not config.trash.enable then
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.trash(tree, _, context)
+  local trash = require("ya-tree.config").config.trash
+  if not trash.enable then
     return
   end
 
-  local nodes, node_to_focus = get_nodes_to_delete(tree.root.path, config.trash.require_confirm, "Trash")
+  local nodes, node_to_focus = get_nodes_to_delete(context.sidebar:get_selected_nodes(), tree.root.path, trash.require_confirm, "Trash")
   if #nodes == 0 then
     return
   end

@@ -12,10 +12,11 @@ local M = {
 
 ---@alias Yat.Actions.Clipboard.Action "copy" | "cut"
 
+---@param sidebar Yat.Sidebar
 ---@param tree Yat.Tree
 ---@param action Yat.Actions.Clipboard.Action
-local function cut_or_copy_nodes(tree, action)
-  for _, node in ipairs(ui.get_selected_nodes()) do
+local function cut_or_copy_nodes(sidebar, tree, action)
+  for _, node in ipairs(sidebar:get_selected_nodes()) do
     -- copying the root node will not work
     if tree.root ~= node then
       local skip = false
@@ -38,20 +39,23 @@ local function cut_or_copy_nodes(tree, action)
       end
     end
   end
-
-  ui.update()
+  sidebar:update()
 end
 
 ---@async
 ---@param tree Yat.Tree
-function M.copy_node(tree)
-  cut_or_copy_nodes(tree, "copy")
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.copy_node(tree, _, context)
+  cut_or_copy_nodes(context.sidebar, tree, "copy")
 end
 
 ---@async
 ---@param tree Yat.Tree
-function M.cut_node(tree)
-  cut_or_copy_nodes(tree, "cut")
+---@param _ Yat.Node
+---@param context Yat.Action.FnContext
+function M.cut_node(tree, _, context)
+  cut_or_copy_nodes(context.sidebar, tree, "cut")
 end
 
 local function clear_clipboard()
@@ -147,9 +151,10 @@ function M.paste_nodes(tree, node)
 end
 
 ---@async
-function M.clear_clipboard()
+---@param context Yat.Action.FnContext
+function M.clear_clipboard(_, _, context)
   clear_clipboard()
-  ui.update()
+  context.sidebar:update()
   utils.notify("Clipboard cleared!")
 end
 

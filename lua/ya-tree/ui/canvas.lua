@@ -45,31 +45,34 @@ local win_options = {
 }
 
 ---@class Yat.Ui.Canvas : Yat.Object
----@field new fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
----@overload fun(): Yat.Ui.Canvas
+---@field new fun(self: Yat.Ui.Canvas, position: Yat.Ui.Position, size: integer, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
+---@overload fun(position: Yat.Ui.Position, size: integer, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
 ---@field class fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
----@field static Yat.Ui.Canvas
 ---
----@field private position Yat.Ui.Position
 ---@field private winid? integer
 ---@field private edit_winid? integer
 ---@field private bufnr? integer
+---@field private position Yat.Ui.Position
+---@field private size integer
 ---@field private window_augroup? integer
 ---@field private previous_row integer
 ---@field private pos_after_win_leave? integer[]
----@field private size integer
----@field private sidebar Yat.Sidebar
+---@field tree_and_node_provider fun(row: integer): Yat.Tree?, Yat.Node?
 local Canvas = meta.create_class("Yat.Ui.Canvas")
 
 Canvas.__tostring = function(self)
-  return string.format("(winid=%s, bufnr=%s, edit_winid=%s, sidebar=[%s])", self.winid, self.bufnr, self.edit_winid, tostring(self.sidebar))
+  return string.format("(winid=%s, bufnr=%s, edit_winid=%s", self.winid, self.bufnr, self.edit_winid)
 end
 
 ---@private
-function Canvas:init()
+---@param position Yat.Ui.Position
+---@param size integer
+---@param tree_and_node_provider fun(row: integer): Yat.Tree?, Yat.Node?
+function Canvas:init(position, size, tree_and_node_provider)
   self.previous_row = 1
-  self.position = config.view.position
-  self.size = config.view.size
+  self.position = position
+  self.size = size
+  self.tree_and_node_provider = tree_and_node_provider
 end
 
 ---@return boolean
@@ -80,6 +83,12 @@ end
 ---@return integer height, integer width
 function Canvas:get_size()
   return api.nvim_win_get_height(self.winid), api.nvim_win_get_width(self.winid)
+end
+
+---@return integer
+function Canvas:get_inner_width()
+  local info = fn.getwininfo(self.winid)
+  return info[1] and (info[1].width - info[1].textoff) or api.nvim_win_get_width(self.winid)
 end
 
 ---@return integer|nil winid
@@ -116,12 +125,6 @@ function Canvas:is_current_window_canvas()
 end
 
 ---@private
----@return boolean is_loaded
-function Canvas:_is_buffer_loaded()
-  return self.bufnr and api.nvim_buf_is_loaded(self.bufnr) or false
-end
-
----@private
 function Canvas:_create_buffer()
   self.bufnr = api.nvim_create_buf(false, false)
   log.debug("created buffer %s", self.bufnr)
@@ -152,7 +155,10 @@ end
 
 ---@param bufnr integer
 function Canvas:move_buffer_to_edit_window(bufnr)
-  if self.winid and self.edit_winid and self.bufnr then
+  if self.winid and self.bufnr then
+    if not self.edit_winid then
+      self:create_edit_window()
+    end
     log.debug("moving buffer %s from window %s to window %s", bufnr, self.winid, self.edit_winid)
 
     self:restore()
@@ -307,15 +313,10 @@ local function set_cursor_position(winid, row, col)
   end)
 end
 
----@class Yat.Ui.Canvas.OpenArgs
----@field position? Yat.Ui.Position
----@field size? integer
-
----@param sidebar Yat.Sidebar
----@param opts? Yat.Ui.Canvas.OpenArgs
----  - {opts.position?} `YaTreeCanvas.Position`
+---@param opts? { position?: Yat.Ui.Position, size?: integer }
+---  - {opts.position?} `Yat.Ui.Position`
 ---  - {opts.size?} `integer`
-function Canvas:open(sidebar, opts)
+function Canvas:open(opts)
   if self:is_open() then
     return
   end
@@ -326,14 +327,14 @@ function Canvas:open(sidebar, opts)
   end
   self:_create_buffer()
   self:_create_window(opts.position)
-  self.sidebar = sidebar
 
-  self:draw()
+  events.fire_yatree_event(event.YA_TREE_WINDOW_OPENED, { winid = self.winid })
+end
+
+function Canvas:restore_previous_position()
   if self.pos_after_win_leave then
     set_cursor_position(self.winid, self.pos_after_win_leave[1], self.pos_after_win_leave[2])
   end
-
-  events.fire_yatree_event(event.YA_TREE_WINDOW_OPENED, { winid = self.winid })
 end
 
 function Canvas:focus()
@@ -372,10 +373,9 @@ function Canvas:close()
   end
 end
 
-function Canvas:draw()
-  local info = fn.getwininfo(self.winid)
-  local width = info[1] and (info[1].width - info[1].textoff) or api.nvim_win_get_width(self.winid)
-  local lines, highlights = self.sidebar:render(config, width)
+---@param lines string[]
+---@param highlights Yat.Ui.HighlightGroup[][]
+function Canvas:draw(lines, highlights)
   api.nvim_buf_set_option(self.bufnr, "modifiable", true)
   api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
   api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
@@ -392,31 +392,11 @@ function Canvas:draw()
   api.nvim_buf_set_option(self.bufnr, "modifiable", false)
 end
 
----@param tree Yat.Tree
----@return boolean is_rendered
-function Canvas:is_tree_rendered(tree)
-  return self.sidebar:is_tree_rendered(tree)
-end
-
----@param tree Yat.Tree
----@param node Yat.Node
----@return boolean is_rendered
-function Canvas:is_node_rendered(tree, node)
-  return self.sidebar:is_node_rendered(tree, node)
-end
-
----@return Yat.Tree? current_tree
----@return Yat.Node? current_node
-function Canvas:get_current_tree_and_node()
-  local row = api.nvim_win_get_cursor(self.winid)[1]
-  return self.sidebar:get_current_tree_and_node(row)
-end
-
 do
   local esc_term_codes = api.nvim_replace_termcodes("<ESC>", true, false, true)
 
-  ---@return Yat.Node[] nodes
-  function Canvas:get_selected_nodes()
+  ---@return integer from, integer to
+  function Canvas:get_selected_rows()
     local mode = api.nvim_get_mode().mode --[[@as string]]
     if mode == "v" or mode == "V" then
       local from = fn.getpos("v")[2] --[[@as integer]]
@@ -425,13 +405,11 @@ do
         from, to = to, from
       end
 
-      local nodes = self.sidebar:get_nodes(from, to)
       api.nvim_feedkeys(esc_term_codes, "n", true)
-      return nodes
+      return from, to
     else
       local row = api.nvim_win_get_cursor(self.winid)[1]
-      local node = self.sidebar:get_node(row)
-      return node and { node } or {}
+      return row, row
     end
   end
 end
@@ -442,7 +420,7 @@ function Canvas:_move_cursor_to_name()
     return
   end
   local row, col = unpack(api.nvim_win_get_cursor(self.winid))
-  local tree, node = self.sidebar:get_current_tree_and_node(row)
+  local tree, node = self.tree_and_node_provider(row)
   if not tree or not node or row == self.previous_row then
     return
   end
@@ -460,42 +438,10 @@ function Canvas:_move_cursor_to_name()
   end
 end
 
----@param tree Yat.Tree
----@param node Yat.Node
-function Canvas:focus_node(tree, node)
-  -- if the node has been hidden after a toggle
-  -- go upwards in the tree until we find one that's displayed
-  while node and node:is_hidden(config) and node.parent do
-    node = node.parent
-  end
-  if node then
-    local row = self.sidebar:get_row_of_node(tree, node)
-    if row then
-      log.debug("node %s is at line %s", node.path, row)
-      local column
-      -- don't move the cursor on root node
-      if config.move_cursor_to_name and node ~= tree.root then
-        local line = api.nvim_buf_get_lines(self.bufnr, row - 1, row, false)[1]
-        if line then
-          column = (line:find(node.name, 1, true) or 0) - 1
-        end
-      end
-      if not column or column == -1 then
-        column = api.nvim_win_get_cursor(self.winid)[2]
-      end
-      set_cursor_position(self.winid, row, column)
-    end
-  end
-end
-
 ---@param row integer
 function Canvas:focus_row(row)
   local column = api.nvim_win_get_cursor(self.winid)[2]
   set_cursor_position(self.winid, row, column)
-end
-
-function Canvas.setup()
-  config = require("ya-tree.config").config
 end
 
 return Canvas

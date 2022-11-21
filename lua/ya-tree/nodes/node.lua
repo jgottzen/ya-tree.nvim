@@ -330,14 +330,6 @@ function Node:has_children()
   return self._children ~= nil
 end
 
----@generic T : Yat.Node
----@param self T
----@return T[] children
-function Node.children(self)
-  ---@cast self Yat.Node
-  return self._children
-end
-
 ---@return boolean
 function Node:is_dotfile()
   return self.name:sub(1, 1) == "."
@@ -397,6 +389,14 @@ end
 ---@return integer|nil
 function Node:diagnostic_severity()
   return diagnostics.severity_of(self.path)
+end
+
+---@generic T : Yat.Node
+---@param self T
+---@return T[] children
+function Node.children(self)
+  ---@cast self Yat.Node
+  return self._children
 end
 
 ---@async
@@ -463,6 +463,7 @@ end
 
 ---@virtual
 ---@param path string
+---@return boolean updated
 function Node:remove_node(path)
   return self:_remove_node(path, false)
 end
@@ -471,7 +472,9 @@ Node:virtual("remove_node")
 ---@protected
 ---@param path string
 ---@param remove_empty_parents boolean
+---@return boolean updated
 function Node:_remove_node(path, remove_empty_parents)
+  local updated = false
   local node = self:get_child_if_loaded(path)
   while node and node.parent and node ~= self do
     if node.parent and node.parent._children then
@@ -483,6 +486,7 @@ function Node:_remove_node(path, remove_empty_parents)
             maybe_remove_watcher(child)
           end
           table.remove(node.parent._children, i)
+          updated = true
           break
         end
       end
@@ -490,13 +494,14 @@ function Node:_remove_node(path, remove_empty_parents)
         node.parent.empty = true
         node = node.parent
         if not remove_empty_parents then
-          return
+          return updated
         end
       else
         break
       end
     end
   end
+  return updated
 end
 
 ---@param node Yat.Node

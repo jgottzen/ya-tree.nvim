@@ -2,6 +2,7 @@ local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 local Path = require("plenary.path")
 
+local Canvas = require("ya-tree.ui.canvas")
 local events = require("ya-tree.events")
 local autocmd_event = require("ya-tree.events.event").autocmd
 local git_event = require("ya-tree.events.event").git
@@ -19,9 +20,6 @@ local log = require("ya-tree.log")("sidebar")
 
 local api = vim.api
 local uv = vim.loop
-
----@type fun(tree?: Yat.Tree, node?: Yat.Node, opts?: { focus_node?: boolean, focus_window?: boolean })
-local update_ui = vim.schedule_wrap(ui.update)
 
 ---@class Yat.Sidebar.Section
 ---@field tree Yat.Tree
@@ -43,6 +41,7 @@ end
 ---@field class fun(self: Yat.Sidebar): Yat.Sidebar
 ---
 ---@field tabpage integer
+---@field private canvas Yat.Ui.Canvas
 ---@field private single_mode boolean
 ---@field package tree_order table<Yat.Trees.Type, integer>
 ---@field package always_shown_trees Yat.Trees.Type[]
@@ -80,8 +79,12 @@ end
 ---@param tabpage integer
 ---@param sidebar_config? Yat.Config.Sidebar
 function Sidebar:init(tabpage, sidebar_config)
-  sidebar_config = sidebar_config or require("ya-tree.config").config.sidebar
+  local config = require("ya-tree.config").config
+  sidebar_config = sidebar_config or config.sidebar
   self.tabpage = tabpage
+  self.canvas = Canvas:new(config.view.position, config.view.size, function(row)
+    return self:get_tree_and_row_for_row(row)
+  end)
   self.single_mode = sidebar_config.single_mode
   self.tree_order = {}
   for i, tree_type in ipairs(sidebar_config.tree_order) do
@@ -120,7 +123,7 @@ function Sidebar:_sort_sections()
   end)
 end
 
----@package
+---@private
 ---@param index integer
 function Sidebar:_delete_section(index)
   local section = self._sections[index]
@@ -141,68 +144,6 @@ function Sidebar:_delete_section(index)
   end
   tree:delete()
   table.remove(self._sections, index)
-end
-
----@private
----@param tree Yat.Tree
-function Sidebar:_register_events_for_tree(tree)
-  log.debug("registering events for tree %s", tostring(tree))
-  for event in pairs(tree.supported_events.autocmd) do
-    if event == autocmd_event.BUFFER_NEW then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_new(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_HIDDEN then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_hidden(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_DISPLAYED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_displayed(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_DELETED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_deleted(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_MODIFIED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_modified(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_SAVED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_saved(bufnr, file, match)
-      end)
-    else
-      log.error("unhandled event of type %q", events.get_event_name(event))
-    end
-  end
-  for event in pairs(tree.supported_events.git) do
-    if event == git_event.DOT_GIT_DIR_CHANGED then
-      self:_register_git_event(event, function(repo, fs_changes)
-        self:on_git_event(repo, fs_changes)
-      end)
-    else
-      log.error("unhandled event of type %q", events.get_event_name(event))
-    end
-  end
-  for event in pairs(tree.supported_events.yatree) do
-    if event == yatree_event.DIAGNOSTICS_CHANGED then
-      ---@param severity_changed boolean
-      self:_register_yatree_event(event, function(severity_changed)
-        self:on_diagnostics_event(severity_changed)
-      end)
-    else
-      log.error("unhandled event of type %q", events.get_event_name(event))
-    end
-  end
-  local config = require("ya-tree.config").config
-  if tree.TYPE == "filesystem" and config.dir_watcher.enable then
-    ---@param dir string
-    ---@param filenames string[]
-    self:_register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
-      self:on_fs_changed_event(dir, filenames)
-    end)
-  end
 end
 
 ---@async
@@ -328,15 +269,228 @@ function Sidebar:close_tree(tree, force)
   end
 end
 
----@async
----@param new_cwd string
-function Sidebar:change_cwd(new_cwd)
-  for _, section in pairs(self._sections) do
-    section.tree:on_cwd_changed(new_cwd)
+---@class Yat.Sidebar.OpenArgs
+---@field focus? boolean
+---@field focus_edit_window? boolean
+---@field position? Yat.Ui.Position
+---@field size? integer
+
+---@param tree Yat.Tree
+---@param node? Yat.Node
+---@param opts Yat.Sidebar.OpenArgs
+---  - {opts.focus?} `boolean`
+---  - {opts.focus_edit_window?} `boolean`
+---  - {opts.position?} `Yat.Ui.Position`
+---  - {opts.size?} `integer`
+function Sidebar:open(tree, node, opts)
+  if self.canvas:is_open() then
+    return
+  end
+
+  opts = opts or {}
+  self.canvas:open({ position = opts.position, size = opts.size })
+  local lines, highlights = self:render()
+  self.canvas:draw(lines, highlights)
+  self.canvas:restore_previous_position()
+
+  if node then
+    self:focus_node(tree, node)
+  end
+
+  if opts.focus then
+    self.canvas:focus()
+  elseif opts.focus_edit_window then
+    self.canvas:focus_edit_window()
   end
 end
 
+---@param tree? Yat.Tree
+---@return boolean is_open
+function Sidebar:is_open(tree)
+  local is_open = self.canvas:is_open()
+  if is_open and tree then
+    return self:is_tree_rendered(tree)
+  end
+  return is_open
+end
+
+function Sidebar:close()
+  local tree, node = self:get_current_tree_and_node()
+  if tree and node then
+    tree.current_node = node
+  end
+  self.canvas:close()
+end
+
+function Sidebar:focus()
+  self.canvas:focus()
+end
+
+function Sidebar:restore_window()
+  self.canvas:restore()
+end
+
+---@return integer? height, integer? width
+function Sidebar:get_window_size()
+  if self.canvas:is_open() then
+    return self.canvas:get_size()
+  end
+end
+
+---@return boolean
+function Sidebar:is_current_window_ui()
+  return self.canvas:is_current_window_canvas()
+end
+
+---@param position Yat.Ui.Position
+---@param size? integer
+function Sidebar:move_window_to(position, size)
+  self.canvas:move_window(position, size)
+end
+
+---@param size integer
+function Sidebar:resize_window(size)
+  self.canvas:resize(size)
+end
+
+---@param bufnr integer
+function Sidebar:move_buffer_to_edit_window(bufnr)
+  self.canvas:move_buffer_to_edit_window(bufnr)
+end
+
+---@param tree? Yat.Tree
+---@param node? Yat.Node
+---@param opts? { focus_node?: boolean, focus_window?: boolean }
+---  - {opts.focus_node?} `boolean`
+---  - {opts.focus_window?} `boolean`
+function Sidebar:update(tree, node, opts)
+  opts = opts or {}
+  if self.canvas:is_open() then
+    local lines, highlights = self:render()
+    self.canvas:draw(lines, highlights)
+    if opts.focus_window then
+      self.canvas:focus()
+    end
+    -- only update the focused node if the current window is the view window,
+    -- or explicitly requested
+    if tree and node and (opts.focus_node or self.canvas:has_focus()) then
+      self:focus_node(tree, node)
+    end
+  end
+end
+
+---@param tree Yat.Tree
+---@param node Yat.Node
+function Sidebar:focus_node(tree, node)
+  local config = require("ya-tree.config").config
+
+  -- if the node has been hidden after a toggle
+  -- go upwards in the tree until we find one that's displayed
+  while node and node:is_hidden(config) and node.parent do
+    node = node.parent
+  end
+  if node then
+    local row = self:get_row_of_node(tree, node)
+    if row then
+      log.debug("node %s is at row %s", node.path, row)
+      self.canvas:focus_row(row)
+    end
+  end
+end
+
+---@param file string the file path to open
+---@param cmd Yat.Action.Files.Open.Mode
+function Sidebar:open_file(file, cmd)
+  local winid = self.canvas:get_edit_winid()
+  if not winid then
+    -- only the tree window is open, e.g. netrw replacement
+    -- create a new window for buffers
+    self.canvas:create_edit_window()
+    if cmd == "split" or cmd == "vsplit" then
+      cmd = "edit"
+    end
+  else
+    api.nvim_set_current_win(winid)
+  end
+
+  vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(file) } })
+end
+
+---@private
+---@param tree Yat.Tree
+function Sidebar:_register_events_for_tree(tree)
+  log.debug("registering events for tree %s", tostring(tree))
+  for event in pairs(tree.supported_events.autocmd) do
+    if event == autocmd_event.BUFFER_NEW then
+      self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:on_buffer_new(bufnr, file, match)
+      end)
+    elseif event == autocmd_event.BUFFER_HIDDEN then
+      self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:on_buffer_hidden(bufnr, file, match)
+      end)
+    elseif event == autocmd_event.BUFFER_DISPLAYED then
+      self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:on_buffer_displayed(bufnr, file, match)
+      end)
+    elseif event == autocmd_event.BUFFER_DELETED then
+      self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:on_buffer_deleted(bufnr, file, match)
+      end)
+    elseif event == autocmd_event.BUFFER_MODIFIED then
+      self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:on_buffer_modified(bufnr, file, match)
+      end)
+    elseif event == autocmd_event.BUFFER_SAVED then
+      self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:on_buffer_saved(bufnr, file, match)
+      end)
+    else
+      log.error("unhandled event of type %q", events.get_event_name(event))
+    end
+  end
+  for event in pairs(tree.supported_events.git) do
+    if event == git_event.DOT_GIT_DIR_CHANGED then
+      self:_register_git_event(event, function(repo, fs_changes)
+        self:on_git_event(repo, fs_changes)
+      end)
+    else
+      log.error("unhandled event of type %q", events.get_event_name(event))
+    end
+  end
+  for event in pairs(tree.supported_events.yatree) do
+    if event == yatree_event.DIAGNOSTICS_CHANGED then
+      ---@param severity_changed boolean
+      self:_register_yatree_event(event, function(severity_changed)
+        self:on_diagnostics_event(severity_changed)
+      end)
+    else
+      log.error("unhandled event of type %q", events.get_event_name(event))
+    end
+  end
+  local config = require("ya-tree.config").config
+  if tree.TYPE == "filesystem" and config.dir_watcher.enable then
+    ---@param dir string
+    ---@param filenames string[]
+    self:_register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
+      self:on_fs_changed_event(dir, filenames)
+    end)
+  end
+end
+
+---@param sidebar Yat.Sidebar
+---@param focus_node? boolean
+local function update_canvas(sidebar, focus_node)
+  vim.schedule(function()
+    local tree, node = sidebar:get_current_tree_and_node()
+    if tree then
+      sidebar:update(tree, node, { focus_node = focus_node })
+    end
+  end)
+end
+
 ---@async
+---@private
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_new(bufnr, file, match)
@@ -346,15 +500,16 @@ function Sidebar:on_buffer_new(bufnr, file, match)
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_NEW]
     if callback then
-      update = callback(tree, tabpage, bufnr, file, match) or update
+      update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self, true)
   end
 end
 
 ---@async
+---@private
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_hidden(bufnr, file, match)
@@ -364,15 +519,16 @@ function Sidebar:on_buffer_hidden(bufnr, file, match)
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_HIDDEN]
     if callback then
-      update = callback(tree, tabpage, bufnr, file, match) or update
+      update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self)
   end
 end
 
 ---@async
+---@private
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_displayed(bufnr, file, match)
@@ -382,15 +538,16 @@ function Sidebar:on_buffer_displayed(bufnr, file, match)
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DISPLAYED]
     if callback then
-      update = callback(tree, tabpage, bufnr, file, match) or update
+      update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self)
   end
 end
 
 ---@async
+---@private
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_deleted(bufnr, file, match)
@@ -400,15 +557,16 @@ function Sidebar:on_buffer_deleted(bufnr, file, match)
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DELETED]
     if callback then
-      update = callback(tree, tabpage, bufnr, file, match) or update
+      update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self, true)
   end
 end
 
 ---@async
+---@private
 ---@param bufnr integer
 ---@param file string
 function Sidebar:on_buffer_modified(bufnr, file, match)
@@ -418,15 +576,16 @@ function Sidebar:on_buffer_modified(bufnr, file, match)
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_MODIFIED]
     if callback then
-      update = callback(tree, tabpage, bufnr, file, match) or update
+      update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self)
   end
 end
 
 ---@async
+---@private
 ---@param bufnr integer
 ---@param file string
 ---@diagnostic disable-next-line:unused-local
@@ -437,15 +596,16 @@ function Sidebar:on_buffer_saved(bufnr, file, match)
     local tree = section.tree
     local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_SAVED]
     if callback then
-      update = callback(tree, tabpage, bufnr, file, match) or update
+      update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self)
   end
 end
 
 ---@async
+---@private
 ---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 function Sidebar:on_git_event(repo, fs_changes)
@@ -456,15 +616,16 @@ function Sidebar:on_git_event(repo, fs_changes)
     local tree = section.tree
     local callback = tree.supported_events.git[git_event.DOT_GIT_DIR_CHANGED]
     if callback then
-      update = callback(tree, tabpage, repo, fs_changes) or update
+      update = callback(tree, repo, fs_changes) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self, true)
   end
 end
 
 ---@async
+---@private
 ---@param severity_changed boolean
 function Sidebar:on_diagnostics_event(severity_changed)
   local tabpage = api.nvim_get_current_tabpage()
@@ -473,22 +634,22 @@ function Sidebar:on_diagnostics_event(severity_changed)
     local tree = section.tree
     local callback = tree.supported_events.yatree[yatree_event.DIAGNOSTICS_CHANGED]
     if callback then
-      update = callback(tree, tabpage, severity_changed) or update
+      update = callback(tree, severity_changed) or update
     end
   end
-  if update then
-    update_ui()
+  if update and tabpage == self.tabpage and self.canvas:is_open() then
+    update_canvas(self)
   end
 end
 
 ---@async
+---@private
 ---@param dir string
 ---@param filenames string[]
 function Sidebar:on_fs_changed_event(dir, filenames)
-  local tabpage = api.nvim_get_current_tabpage()
   local tree = self:get_tree("filesystem") --[[@as Yat.Trees.Filesystem?]]
   log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, tree and tree.focus_path_on_fs_event)
-  local ui_is_open = ui.is_open(tabpage)
+  local ui_is_open = self.canvas:is_open()
 
   local repo = git.get_repo_for_path(dir)
   if repo then
@@ -507,7 +668,7 @@ function Sidebar:on_fs_changed_event(dir, filenames)
 
   if not tree then
     if git_tree and ui_is_open and self:is_tree_rendered(git_tree) then
-      ui.update()
+      update_canvas(self, true)
     end
     return
   end
@@ -542,13 +703,12 @@ function Sidebar:on_fs_changed_event(dir, filenames)
         end
       end
       if self:is_node_rendered(tree, node) then
-        scheduler()
         if new_node then
-          ui.update(tree, new_node, { focus_node = true })
+          vim.schedule(function()
+            self:update(tree, new_node, { focus_node = true })
+          end)
         else
-          local row = api.nvim_win_get_cursor(0)[1]
-          local current_tree, current_node = self:get_current_tree_and_node(row)
-          ui.update(current_tree, current_node)
+          update_canvas(self, true)
         end
       end
     end
@@ -635,12 +795,14 @@ function Sidebar:_create_event_id(event)
   return string.format("YA_TREE_SIDEBAR_%s_%s", self.tabpage, events.get_event_name(event))
 end
 
----@param config Yat.Config
----@param width integer
+---@private
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlights
-function Sidebar:render(config, width)
+function Sidebar:render()
+  local config = require("ya-tree.config").config
   local hl = require("ya-tree.ui.highlights")
+  local width = self.canvas:get_inner_width()
+
   local sections = self.single_mode and { self._sections[1] } or self._sections
   if self.single_mode and #self._sections > 1 then
     for i = 2, #self._sections do
@@ -747,7 +909,17 @@ end
 ---@param row integer
 ---@return Yat.Tree|nil current_tree
 ---@return Yat.Node|nil current_node
-function Sidebar:get_current_tree_and_node(row)
+function Sidebar:get_tree_and_row_for_row(row)
+  local section = self:_get_section_for_row(row)
+  if section then
+    return section.tree, get_node(section.tree, section.path_lookup[row])
+  end
+end
+
+---@return Yat.Tree|nil current_tree
+---@return Yat.Node|nil current_node
+function Sidebar:get_current_tree_and_node()
+  local row = api.nvim_win_get_cursor(self.canvas.winid)[1]
   local section = self:_get_section_for_row(row)
   if section then
     return section.tree, get_node(section.tree, section.path_lookup[row])
@@ -756,7 +928,7 @@ end
 
 ---@param tree Yat.Tree
 ---@return Yat.Tree|nil next_tree `nil` if the current tree is the first one.
-function Sidebar:get_previous_tree(tree)
+function Sidebar:get_prev_tree(tree)
   for i, section in pairs(self._sections) do
     if section.tree.TYPE == tree.TYPE then
       local index = i - 1
@@ -804,6 +976,12 @@ function Sidebar:get_nodes(from, to)
   return nodes
 end
 
+---@return Yat.Node[]
+function Sidebar:get_selected_nodes()
+  local from, to = self.canvas:get_selected_rows()
+  return self:get_nodes(from, to)
+end
+
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 ---@return integer|nil row
@@ -812,94 +990,12 @@ function Sidebar:get_row_of_node(tree, node)
   return section and section.path_lookup[node.path]
 end
 
----@param iterator fun(): integer, Yat.Node
----@param tree Yat.Tree
----@param config Yat.Config
----@return integer|nil node
-function Sidebar:get_first_non_hidden_node_row(iterator, tree, config)
-  local section = self:_get_section(tree.TYPE)
-  if section then
-    for _, node in iterator do
-      if not node:is_hidden(config) then
-        return section.path_lookup[node.path]
-      end
-    end
+---@async
+---@param new_cwd string
+function Sidebar:change_cwd(new_cwd)
+  for _, section in pairs(self._sections) do
+    section.tree:on_cwd_changed(new_cwd)
   end
-end
-
----@private
----@param tree Yat.Tree
----@param start_node Yat.Node
----@param forward boolean
----@param predicate fun(node_at_row: Yat.Node, section: Yat.Sidebar.Section): boolean?
----@return integer|nil row
-function Sidebar:_get_first_row_that_match(tree, start_node, forward, predicate)
-  local section = self:_get_section(tree.TYPE)
-  if section then
-    local current_row = section.path_lookup[start_node.path]
-    if current_row then
-      local step = forward and 1 or -1
-      for row = current_row + step, forward and section.to or section.from, step do
-        local path = section.path_lookup[row]
-        if path then
-          local node_at_row = get_node(tree, path)
-          if node_at_row and predicate(node_at_row, section) then
-            return row
-          end
-        end
-      end
-    end
-  end
-end
-
----@param tree Yat.Tree
----@param node Yat.Node
----@return integer|nil row
-function Sidebar:get_prev_git_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, false, function(node_at_row)
-    return node_at_row:git_status() ~= nil
-  end)
-end
-
----@param tree Yat.Tree
----@param node Yat.Node
----@return integer|nil row
-function Sidebar:get_next_git_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, true, function(node_at_row)
-    return node_at_row:git_status() ~= nil
-  end)
-end
-
----@param tree Yat.Tree
----@param node Yat.Node
----@return integer|nil row
-function Sidebar:get_prev_diagnostic_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, false, function(node_at_row, section)
-    local severity = node_at_row:diagnostic_severity()
-    if severity then
-      local target_severity = node_at_row:is_directory() and section.directory_min_diagnostic_severity
-        or section.file_min_diagnostic_severity
-      if severity <= target_severity then
-        return true
-      end
-    end
-  end)
-end
-
----@param tree Yat.Tree
----@param node Yat.Node
----@return integer|nil row
-function Sidebar:get_next_diagnostic_item_row(tree, node)
-  return self:_get_first_row_that_match(tree, node, true, function(node_at_row, section)
-    local severity = node_at_row:diagnostic_severity()
-    if severity then
-      local target_severity = node_at_row:is_directory() and section.directory_min_diagnostic_severity
-        or section.file_min_diagnostic_severity
-      if severity <= target_severity then
-        return true
-      end
-    end
-  end)
 end
 
 local M = {
@@ -948,12 +1044,12 @@ local function on_cwd_changed(scope, new_cwd)
     local sidebar = M._sidebars[current_tabpage]
     if sidebar then
       local tree, node
-      if ui.is_open(current_tabpage) then
-        tree, node = ui.get_current_tree_and_node(current_tabpage)
+      if sidebar:is_open() then
+        tree, node = sidebar:get_current_tree_and_node()
       end
       sidebar:change_cwd(new_cwd)
-      if tree and node then
-        ui.update(tree, node)
+      if tree then
+        sidebar:update(tree, node)
       end
     end
   end
@@ -972,6 +1068,8 @@ function M.delete_sidebars_for_nonexisting_tabpages()
   local tabpages = api.nvim_list_tabpages() --[=[@as integer[]]=]
   for tabpage, sidebar in pairs(M._sidebars) do
     if not vim.tbl_contains(tabpages, tabpage) then
+      M._sidebars[tabpage] = nil
+      sidebar.canvas:close()
       for i = #sidebar._sections, 1, -1 do
         sidebar:_delete_section(i)
       end
@@ -991,7 +1089,6 @@ function M.delete_sidebars_for_nonexisting_tabpages()
         end
       end
       log.info("deleted sidebar %s for tabpage %s", tostring(sidebar), tabpage)
-      M._sidebars[tabpage] = nil
     else
       for _, section in pairs(sidebar._sections) do
         section.tree.root:walk(function(node)
@@ -1012,6 +1109,22 @@ function M.delete_sidebars_for_nonexisting_tabpages()
     if not found_toplevels[toplevel] then
       git.remove_repo(repo)
     end
+  end
+end
+
+---@param bufnr integer
+local function on_win_leave(bufnr)
+  if ui.is_window_floating() then
+    return
+  end
+  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  if not ok or buftype ~= "" then
+    return
+  end
+
+  local sidebar = M.get_sidebar(api.nvim_get_current_tabpage())
+  if sidebar and not sidebar.canvas:is_current_window_canvas() then
+    sidebar.canvas:set_edit_winid(api.nvim_get_current_win())
   end
 end
 
@@ -1037,6 +1150,11 @@ function M.setup(config)
     group = group,
     callback = M.delete_sidebars_for_nonexisting_tabpages,
     desc = "Clean up after closing tabpage",
+  })
+  api.nvim_create_autocmd("WinLeave", {
+    group = group,
+    callback = on_win_leave,
+    desc = "Save the last used window id",
   })
 end
 

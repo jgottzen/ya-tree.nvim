@@ -64,8 +64,7 @@ local function create_keymap_function(mapping)
     if not sidebar then
       return
     end
-    local row = api.nvim_win_get_cursor(0)[1]
-    local tree, node = sidebar:get_current_tree_and_node(row)
+    local tree, node = sidebar:get_current_tree_and_node()
     if tree then
       local action = mapping[tree.TYPE]
       if action then
@@ -144,8 +143,8 @@ local function define_actions(actions)
   M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
   M.define_action(builtin.general.close_tree, trees.close_tree, "Close the current tree", { "n" }, true)
   M.define_action(builtin.general.delete_tree, trees.delete_tree, "Delete the current tree", { "n" }, true)
-  M.define_action(builtin.general.focus_prev_tree, ui.focus_prev_tree, "Go to previous tree", { "n" }, true)
-  M.define_action(builtin.general.focus_next_tree, ui.focus_next_tree, "Go to next tree", { "n" }, true)
+  M.define_action(builtin.general.focus_prev_tree, trees.focus_prev_tree, "Go to previous tree", { "n" }, true)
+  M.define_action(builtin.general.focus_next_tree, trees.focus_next_tree, "Go to next tree", { "n" }, true)
 
   M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
   M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open or close the current buffers tree", { "n" }, true)
@@ -179,11 +178,11 @@ local function define_actions(actions)
 
   M.define_action(builtin.general.refresh_tree, trees.refresh_tree, "Refresh the tree", { "n" }, true)
 
-  M.define_action(builtin.general.focus_parent, ui.focus_parent, "Go to parent directory", { "n" })
-  M.define_action(builtin.general.focus_prev_sibling, ui.focus_prev_sibling, "Go to previous sibling node", { "n" })
-  M.define_action(builtin.general.focus_next_sibling, ui.focus_next_sibling, "Go to next sibling node", { "n" })
-  M.define_action(builtin.general.focus_first_sibling, ui.focus_first_sibling, "Go to first sibling node", { "n" })
-  M.define_action(builtin.general.focus_last_sibling, ui.focus_last_sibling, "Go to last sibling node", { "n" })
+  M.define_action(builtin.general.focus_parent, nodes.focus_parent, "Go to parent directory", { "n" })
+  M.define_action(builtin.general.focus_prev_sibling, nodes.focus_prev_sibling, "Go to previous sibling node", { "n" })
+  M.define_action(builtin.general.focus_next_sibling, nodes.focus_next_sibling, "Go to next sibling node", { "n" })
+  M.define_action(builtin.general.focus_first_sibling, nodes.focus_first_sibling, "Go to first sibling node", { "n" })
+  M.define_action(builtin.general.focus_last_sibling, nodes.focus_last_sibling, "Go to last sibling node", { "n" })
 
   M.define_action(builtin.files.add, files.add, "Add file or directory", { "n" })
   M.define_action(builtin.files.rename, files.rename, "Rename file or directory", { "n" })
@@ -213,19 +212,19 @@ local function define_actions(actions)
   )
 
   M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
-  M.define_action(builtin.git.focus_prev_git_item, ui.focus_prev_git_item, "Go to previous Git item", { "n" })
-  M.define_action(builtin.git.focus_next_git_item, ui.focus_next_git_item, "Go to next Git item", { "n" })
+  M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item", { "n" })
+  M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item", { "n" })
   M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory", { "n" })
   M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory", { "n" })
   M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory", { "n" })
 
   M.define_action(
     builtin.diagnostics.focus_prev_diagnostic_item,
-    ui.focus_prev_diagnostic_item,
+    nodes.focus_prev_diagnostic_item,
     "Go to the previous diagnostic item",
     { "n" }
   )
-  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, ui.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
+  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, nodes.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
 
   for name, action in pairs(actions) do
     log.debug("defining user action %q", name)

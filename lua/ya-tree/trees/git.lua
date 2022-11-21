@@ -137,25 +137,23 @@ function GitTree:init(tabpage, repo_or_path)
 end
 
 ---@async
----@param tabpage integer
 ---@param repo Yat.Git.Repo
 ---@return boolean
-function GitTree:on_git_event(tabpage, repo)
+function GitTree:on_git_event(repo)
   if vim.v.exiting == vim.NIL and self.root.repo == repo then
     log.debug("git repo %s changed", tostring(self.root.repo))
 
     self.root:refresh({ refresh_git = false })
-    return self:is_shown_in_ui(tabpage)
+    return true
   end
   return false
 end
 
 ---@async
----@param tabpage integer
 ---@param _ integer
 ---@param file string
 ---@return boolean
-function GitTree:on_buffer_saved(tabpage, _, file)
+function GitTree:on_buffer_saved(_, file)
   if self.root:is_ancestor_of(file) then
     log.debug("changed file %q is in tree %s", file, tostring(self))
     local node = self.root:get_child_if_loaded(file)
@@ -169,7 +167,7 @@ function GitTree:on_buffer_saved(tabpage, _, file)
       self.root:remove_node(file)
     end
 
-    return self:is_shown_in_ui(tabpage)
+    return true
   end
   return false
 end

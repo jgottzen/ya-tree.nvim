@@ -109,6 +109,7 @@ end
 ---@param file string
 ---@param bufnr integer
 ---@param hidden boolean
+---@return boolean updated
 function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   if self.parent then
     self.parent:set_terminal_hidden(file, bufnr, hidden)
@@ -120,10 +121,11 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
       if child.bufname == file and child.bufnr == bufnr then
         child.bufhidden = hidden
         log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
-        break
+        return true
       end
     end
   end
+  return false
 end
 
 ---@param other Yat.Nodes.Buffer
@@ -311,18 +313,21 @@ end
 ---@param path string
 ---@param bufnr integer
 ---@param is_terminal boolean
+---@return boolean updated
 function BufferNode:remove_node(path, bufnr, is_terminal)
   if self.parent then
     self.parent:remove_node(path, bufnr, is_terminal)
   end
 
   if is_terminal then
+    local updated = false
     local index, container = self:get_terminals_container()
     if container then
       for i = #container._children, 1, -1 do
         local child = container._children[i]
         if child.bufname == path and child.bufnr == bufnr then
           table.remove(container._children, i)
+          updated = true
           log.debug("removed terminal buffer %s (%q)", child.bufnr, child.bufname)
           break
         end
@@ -333,8 +338,9 @@ function BufferNode:remove_node(path, bufnr, is_terminal)
         log.debug("no more terminal buffers present, removed container item")
       end
     end
+    return updated
   else
-    self:_remove_node(path, true)
+    return self:_remove_node(path, true)
   end
 end
 

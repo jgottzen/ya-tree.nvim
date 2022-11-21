@@ -107,15 +107,15 @@ function M.open_window(opts)
   end
 
   scheduler()
-  if ui.is_open(tabpage) then
+  if sidebar:is_open() then
     if opts.position then
-      ui.move_to(opts.position, opts.size)
+      sidebar:move_window_to(opts.position, opts.size)
     elseif opts.size then
-      ui.resize(opts.size)
+      sidebar:resize_window(opts.size)
     end
-    ui.update(tree, node, { focus_window = opts.focus })
+    sidebar:update(tree, node, { focus_window = opts.focus })
   else
-    ui.open(sidebar, tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })
+    sidebar:open(tree, node, { focus = opts.focus, focus_edit_window = not opts.focus, position = opts.position, size = opts.size })
   end
 
   if tree.TYPE == "filesystem" and config.cwd.update_from_tree and tree.root.path ~= uv.cwd() then
@@ -125,21 +125,17 @@ function M.open_window(opts)
 end
 
 function M.close_window()
-  local tabpage = api.nvim_get_current_tabpage()
-  if ui.is_open(tabpage) then
-    local tree, node = ui.get_current_tree_and_node(tabpage)
-    if tree and node then
-      tree.current_node = node
-    end
-    ui.close()
+  local sidebar = Sidebar.get_sidebar(api.nvim_get_current_tabpage())
+  if sidebar and sidebar:is_open() then
+    sidebar:close()
   end
 end
 
 ---@async
 function M.toggle_window()
-  local tabpage = api.nvim_get_current_tabpage()
-  if ui.is_open(tabpage) then
-    M.close_window()
+  local sidebar = Sidebar.get_sidebar(api.nvim_get_current_tabpage())
+  if sidebar and sidebar:is_open() then
+    sidebar:close()
   else
     M.open_window()
   end
@@ -147,9 +143,13 @@ end
 
 function M.redraw()
   local tabpage = api.nvim_get_current_tabpage()
-  if ui.is_open(tabpage) then
-    log.debug("redrawing tree")
-    ui.update()
+  local sidebar = Sidebar.get_sidebar(tabpage)
+  if sidebar and sidebar:is_open() then
+    local tree, node = sidebar:get_current_tree_and_node()
+    if tree then
+      log.debug("redrawing tree")
+      sidebar:update(tree, node)
+    end
   end
 end
 
@@ -163,7 +163,7 @@ local function change_root(tree, node, new_root, sidebar)
     vim.cmd.tcd(fn.fnameescape(new_root))
   else
     sidebar:change_cwd(new_root)
-    ui.update(tree, node)
+    sidebar:update(tree, node)
   end
 end
 
@@ -196,19 +196,21 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
-function M.toggle_ignored(tree, node)
+---@param context Yat.Action.FnContext
+function M.toggle_ignored(tree, node, context)
   config.git.show_ignored = not config.git.show_ignored
   log.debug("toggling git ignored to %s", config.git.show_ignored)
-  ui.update(tree, node)
+  context.sidebar:update(tree, node)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
-function M.toggle_filter(tree, node)
+---@param context Yat.Action.FnContext
+function M.toggle_filter(tree, node, context)
   config.filters.enable = not config.filters.enable
   log.debug("toggling filter to %s", config.filters.enable)
-  ui.update(tree, node)
+  context.sidebar:update(tree, node)
 end
 
 ---@async
@@ -245,9 +247,10 @@ function M.rescan_node_for_git(tree, node)
   return node.repo
 end
 
+---@param sidebar Yat.Sidebar
 ---@param tree Yat.Tree
 ---@param path string
-function M.search_for_node_in_tree(tree, path)
+function M.search_for_node_in_tree(sidebar, tree, path)
   local cmd, args = utils.build_search_arguments(path, tree.root.path, false)
   if not cmd then
     return
@@ -265,7 +268,7 @@ function M.search_for_node_in_tree(tree, path)
         end
         local node = tree.root:expand({ to = first })
         scheduler()
-        ui.update(tree, node)
+        sidebar:update(tree, node)
       else
         utils.notify(string.format("%q cannot be found in the tree", path))
       end
@@ -284,8 +287,8 @@ end
 
 ---@param winid integer
 local function on_win_closed(winid)
-  local tabpage = api.nvim_get_current_tabpage()
-  if ui.is_window_floating(winid) or not ui.is_open(tabpage) then
+  local sidebar = Sidebar.get_sidebar(api.nvim_get_current_tabpage())
+  if ui.is_window_floating(winid) or not (sidebar and sidebar:is_open()) then
     return
   end
 
@@ -315,12 +318,16 @@ local function on_buf_enter(bufnr, file)
     return
   end
   local tabpage = api.nvim_get_current_tabpage()
+  local sidebar = Sidebar.get_sidebar(tabpage)
 
   if config.hijack_netrw and is_file_buffer and fs.is_directory(file) then
     log.debug("the opened buffer is a directory with path %q", file)
 
-    if ui.is_current_window_ui(tabpage) then
-      ui.restore(tabpage)
+    if not sidebar then
+      sidebar = Sidebar.get_or_create_sidebar(tabpage)
+    end
+    if sidebar:is_current_window_ui() then
+      sidebar:restore_window()
     else
       -- switch back to the previous buffer so the window isn't closed
       vim.cmd.bprevious()
@@ -329,14 +336,14 @@ local function on_buf_enter(bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
     M.open_window({ path = file, focus = true })
-  elseif ui.is_open(tabpage) then
-    if ui.is_current_window_ui(tabpage) and config.move_buffers_from_tree_window then
+  elseif sidebar and sidebar:is_open() then
+    if sidebar:is_current_window_ui() and config.move_buffers_from_tree_window then
       log.debug("moving buffer %s to edit window", bufnr)
-      ui.move_buffer_to_edit_window(tabpage, bufnr)
+      sidebar:move_buffer_to_edit_window(bufnr)
     end
 
     if config.follow_focused_file then
-      local tree = ui.get_current_tree_and_node(tabpage)
+      local tree = sidebar:get_current_tree_and_node()
       if tree then
         if is_terminal_buffer and tree.TYPE == "buffers" then
           local root = tree.root --[[@as Yat.Nodes.Buffer]]
@@ -348,7 +355,7 @@ local function on_buf_enter(bufnr, file)
           if node then
             -- we need to allow the event loop to catch up when we enter a buffer after one was closed
             scheduler()
-            ui.update(tree, node, { focus_node = true })
+            sidebar:update(tree, node, { focus_node = true })
           end
         end
       end

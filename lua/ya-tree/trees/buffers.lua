@@ -115,11 +115,10 @@ function BuffersTree:init(tabpage, path)
 end
 
 ---@async
----@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@return boolean
-function BuffersTree:on_buffer_new(tabpage, bufnr, file)
+function BuffersTree:on_buffer_new(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if (buftype == "" and not fs.is_directory(file)) or buftype == "terminal" then
     local node
@@ -143,56 +142,52 @@ function BuffersTree:on_buffer_new(tabpage, bufnr, file)
       end
     end
 
-    return self:is_shown_in_ui(tabpage)
+    return true
   end
   return false
 end
 
 ---@async
----@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@return boolean
-function BuffersTree:on_buffer_hidden(tabpage, bufnr, file)
+function BuffersTree:on_buffer_hidden(bufnr, file)
   -- BufHidden might be triggered after TermClose, when the buffer no longer exists,
   -- so calling nvim_buf_get_option results in an error.
   local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
   if ok and buftype == "terminal" then
-    self.root:set_terminal_hidden(file, bufnr, true)
-    return self:is_shown_in_ui(tabpage)
+    return self.root:set_terminal_hidden(file, bufnr, true)
   end
   return false
 end
 
 ---@async
----@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@return boolean
-function BuffersTree:on_buffer_displayed(tabpage, bufnr, file)
+function BuffersTree:on_buffer_displayed(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "terminal" then
-    self.root:set_terminal_hidden(file, bufnr, false)
-    return self:is_shown_in_ui(tabpage)
+    return self.root:set_terminal_hidden(file, bufnr, false)
   end
   return false
 end
 
 ---@async
----@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@return boolean
-function BuffersTree:on_buffer_deleted(tabpage, bufnr, file)
+function BuffersTree:on_buffer_deleted(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "" or buftype == "terminal" then
     log.debug("removing buffer %q from buffer tree", file)
-    self.root:remove_node(file, bufnr, buftype == "terminal")
+    local updated = self.root:remove_node(file, bufnr, buftype == "terminal")
     local cwd = uv.cwd() --[[@as string]]
     if #self.root:children() <= 1 and self.root.path ~= cwd then
       self.root:refresh({ root_path = cwd })
+      updated = true
     end
-    return self:is_shown_in_ui(tabpage)
+    return updated
   end
   return false
 end

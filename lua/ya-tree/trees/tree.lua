@@ -3,7 +3,6 @@ local Path = require("plenary.path")
 local git = require("ya-tree.git")
 local tree_utils = require("ya-tree.trees.utils")
 local meta = require("ya-tree.meta")
-local ui = require("ya-tree.ui")
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
@@ -21,9 +20,9 @@ local api = vim.api
 ---@field directory_min_diagnostic_severity integer
 ---@field file_min_diagnostic_severity integer
 
----@alias Yat.Trees.AutocmdEventsLookupTable { [Yat.Events.AutocmdEvent]: async fun(self: Yat.Tree, tabpage: integer, bufnr: integer, file: string, match: string): boolean }
----@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, tabpage: integer, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
----@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, tabpage: integer, ...): boolean }
+---@alias Yat.Trees.AutocmdEventsLookupTable { [Yat.Events.AutocmdEvent]: async fun(self: Yat.Tree, bufnr: integer, file: string, match: string): boolean }
+---@alias Yat.Trees.GitEventsLookupTable { [Yat.Events.GitEvent]: async fun(self: Yat.Tree, repo: Yat.Git.Repo, fs_changes: boolean): boolean }
+---@alias Yat.Trees.YaTreeEventsLookupTable { [Yat.Events.YaTreeEvent]: async fun(self: Yat.Tree, ...): boolean }
 
 ---@class Yat.Tree : Yat.Object
 ---@field new async fun(self: Yat.Tree, tabpage: integer, path?: string, kwargs?: table<string, any>): Yat.Tree?
@@ -33,7 +32,7 @@ local api = vim.api
 ---@field static Yat.Tree
 ---
 ---@field TYPE Yat.Trees.Type
----@field private _tabpage integer
+---@field tabpage integer
 ---@field refreshing boolean
 ---@field root Yat.Node
 ---@field current_node Yat.Node
@@ -127,11 +126,11 @@ end
 
 ---@param other Yat.Tree
 Tree.__eq = function(self, other)
-  return self.TYPE == other.TYPE and self._tabpage == other._tabpage
+  return self.TYPE == other.TYPE and self.tabpage == other.tabpage
 end
 
 Tree.__tostring = function(self)
-  return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self._tabpage), tostring(self.root))
+  return string.format("(%s, tabpage=%s, root=%s)", self.TYPE, vim.inspect(self.tabpage), tostring(self.root))
 end
 
 -- selene: allow(unused_variable)
@@ -148,7 +147,7 @@ function Tree.setup(config) end
 ---@param kwargs? table<string, any>
 ---@diagnostic disable-next-line:unused-local
 function Tree:init(tabpage, path, kwargs)
-  self._tabpage = tabpage
+  self.tabpage = tabpage
   self.refreshing = false
   local tree_config = require("ya-tree.config").config.trees[self.__lower.TYPE]
   self.section_icon = tree_config and tree_config.section_icon or ""
@@ -212,23 +211,86 @@ function Tree:delete()
   log.info("deleting tree %s", tostring(self))
 end
 
+---@param start Yat.Node
+---@param forward boolean
+---@return Yat.Node[]
+function Tree:flatten_from(start, forward)
+  ---@type Yat.Node[]
+  local nodes = {}
+
+  if self.root:is_ancestor_of(start.path) or self.root.path == start.path then
+    ---@param node Yat.Node
+    local function flatten_children(node)
+      if forward and node.path ~= start.path then
+        nodes[#nodes + 1] = node
+      end
+      if node._children and node.expanded then
+        for _, child in node:iterate_children({ reverse = not forward }) do
+          flatten_children(child)
+        end
+      end
+      if not forward and node.path ~= start.path then
+        nodes[#nodes + 1] = node
+      end
+    end
+
+    ---@param node Yat.Node
+    ---@param from Yat.Node
+    local function flatten_parent(node, from)
+      if self.root:is_ancestor_of(node.path) or self.root.path == node.path then
+        for _, child in node:iterate_children({ reverse = not forward, from = from }) do
+          flatten_children(child)
+        end
+        if not forward and node.path ~= self.root.path then
+          nodes[#nodes + 1] = node
+        end
+        if node.parent then
+          flatten_parent(node.parent, node)
+        end
+      end
+    end
+    if forward and start:has_children() then
+      flatten_children(start)
+    end
+    if start.parent then
+      flatten_parent(start.parent, start)
+    end
+    if not forward then
+      nodes[#nodes + 1] = self.root
+    end
+  end
+
+  return nodes
+end
+
+---@param start_node Yat.Node
+---@param forward boolean
+---@param predicate fun(node: Yat.Node): boolean
+---@return Yat.Node?
+function Tree:get_first_node_that_matches(start_node, forward, predicate)
+  local nodes = self:flatten_from(start_node, forward)
+  for _, node in ipairs(nodes) do
+    if predicate(node) then
+      return node
+    end
+  end
+end
+
 -- selene: allow(unused_variable)
 
 ---@async
----@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@param match string
 ---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_buffer_modified(tabpage, bufnr, file, match)
+function Tree:on_buffer_modified(bufnr, file, match)
   if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     local modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
     local node = self.root:get_child_if_loaded(file)
     if node and node.modified ~= modified then
       node.modified = modified
-
-      return self:is_shown_in_ui(tabpage) and ui.is_node_rendered(tabpage, self, node)
+      return true
     end
   end
   return false
@@ -237,13 +299,12 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
----@param tabpage integer
 ---@param bufnr integer
 ---@param file string
 ---@param match string
 ---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_buffer_saved(tabpage, bufnr, file, match)
+function Tree:on_buffer_saved(bufnr, file, match)
   if self.root:is_ancestor_of(file) then
     log.debug("changed file %q is in tree %s", file, tostring(self))
     local parent = self.root:get_child_if_loaded(Path:new(file):parent().filename)
@@ -252,7 +313,7 @@ function Tree:on_buffer_saved(tabpage, bufnr, file, match)
       local node = parent:get_child_if_loaded(file)
       if node then
         node.modified = false
-        return self:is_shown_in_ui(tabpage) and ui.is_node_rendered(tabpage, self, node)
+        return true
       end
     end
   end
@@ -262,29 +323,26 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
----@param tabpage integer
 ---@param repo Yat.Git.Repo
 ---@param fs_changes boolean
 ---@return boolean update
 ---@diagnostic disable-next-line:unused-local
-function Tree:on_git_event(tabpage, repo, fs_changes)
-  if
-    vim.v.exiting == vim.NIL
-    and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil)
-    and self:is_shown_in_ui(tabpage)
-  then
+function Tree:on_git_event(repo, fs_changes)
+  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
     log.debug("git repo %s changed", tostring(repo))
     return true
   end
   return false
 end
 
+-- selene: allow(unused_variable)
+
 ---@async
----@param tabpage integer
 ---@param severity_changed boolean
 ---@return boolean
-function Tree:on_diagnostics_event(tabpage, severity_changed)
-  return severity_changed and self:is_shown_in_ui(tabpage)
+---@diagnostic disable-next-line:unused-local
+function Tree:on_diagnostics_event(severity_changed)
+  return severity_changed
 end
 
 -- selene: allow(unused_variable)
@@ -363,18 +421,6 @@ end
 ---@diagnostic disable-next-line:unused-local
 function Tree:change_root_node(path)
   return true
-end
-
----@param tabpage integer
----@return boolean
-function Tree:is_shown_in_ui(tabpage)
-  return self:is_for_tabpage(tabpage) and ui.is_open(self._tabpage, self)
-end
-
----@param tabpage integer
----@return boolean
-function Tree:is_for_tabpage(tabpage)
-  return self._tabpage == tabpage
 end
 
 return Tree

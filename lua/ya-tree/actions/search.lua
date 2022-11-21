@@ -11,13 +11,14 @@ local uv = vim.loop
 local M = {}
 
 ---@async
+---@param sidebar Yat.Sidebar
 ---@param tree Yat.Trees.Search
 ---@param term string
-local function search(tree, term)
+local function search(sidebar, tree, term)
   local matches_or_error = tree:search(term)
   if type(matches_or_error) == "number" then
     utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, tree.root.path))
-    ui.update(tree, tree.current_node)
+    sidebar:update(tree, tree.current_node)
   else
     utils.warn(string.format("Failed with message:\n\n%s", matches_or_error))
   end
@@ -41,14 +42,14 @@ function M.search_interactively(tree, node, context)
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()
-      void(search)(search_tree, term)
+      void(search)(sidebar, search_tree, term)
     end)
   end
 
   local border = require("ya-tree.config").config.view.popups.border
   local term = ""
   scheduler()
-  local height, width = ui.get_size()
+  local height, width = sidebar:get_window_size()
   local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2, border = border }, {
     ---@param text string
     on_change = void(function(text)
@@ -60,7 +61,7 @@ function M.search_interactively(tree, node, context)
         timer:stop()
         search_tree:reset()
         scheduler()
-        ui.update()
+        sidebar:update()
       else
         term = text
         local length = #term
@@ -80,11 +81,11 @@ function M.search_interactively(tree, node, context)
     on_submit = void(function(text)
       if text ~= term or timer:is_active() then
         timer:stop()
-        search(search_tree, text)
+        search(sidebar, search_tree, text)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
         scheduler()
-        ui.focus_node(search_tree, search_tree.current_node)
+        context.sidebar:focus_node(search_tree, search_tree.current_node)
       end
       timer:close()
     end),
@@ -92,7 +93,7 @@ function M.search_interactively(tree, node, context)
       timer:stop()
       timer:close()
       sidebar:close_tree(search_tree)
-      ui.update()
+      sidebar:update()
     end),
   })
   input:open()
@@ -111,14 +112,15 @@ function M.search_once(tree, node, context)
 
   local term = ui.input({ prompt = "Search:" })
   if term then
-    search(context.sidebar:search_tree(node.path), term)
+    search(context.sidebar, context.sidebar:search_tree(node.path), term)
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
-function M.search_for_node_in_tree(tree, node)
+---@param context Yat.Action.FnContext
+function M.search_for_node_in_tree(tree, node, context)
   node = node or tree.root
   local completion = type(tree.complete_func) == "function" and function(bufnr)
     tree:complete_func(bufnr, node)
@@ -127,7 +129,7 @@ function M.search_for_node_in_tree(tree, node)
   local input = Input:new({ prompt = "Path:", completion = completion, border = border }, {
     on_submit = void(function(path)
       if path then
-        lib.search_for_node_in_tree(tree, path)
+        lib.search_for_node_in_tree(context.sidebar, tree, path)
       end
     end),
   })
