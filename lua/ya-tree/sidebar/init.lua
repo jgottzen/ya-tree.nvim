@@ -416,65 +416,56 @@ function Sidebar:open_file(file, cmd)
   vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(file) } })
 end
 
----@private
----@param tree Yat.Tree
-function Sidebar:_register_events_for_tree(tree)
-  log.debug("registering events for tree %s", tostring(tree))
-  for event in pairs(tree.supported_events.autocmd) do
-    if event == autocmd_event.BUFFER_NEW then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_new(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_HIDDEN then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_hidden(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_DISPLAYED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_displayed(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_DELETED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_deleted(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_MODIFIED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_modified(bufnr, file, match)
-      end)
-    elseif event == autocmd_event.BUFFER_SAVED then
-      self:_register_autocmd_event(event, function(bufnr, file, match)
-        self:on_buffer_saved(bufnr, file, match)
-      end)
-    else
-      log.error("unhandled event of type %q", events.get_event_name(event))
+do
+  local supported_events = {
+    autocmd_event.BUFFER_NEW,
+    autocmd_event.BUFFER_HIDDEN,
+    autocmd_event.BUFFER_DISPLAYED,
+    autocmd_event.BUFFER_DELETED,
+    autocmd_event.BUFFER_MODIFIED,
+    autocmd_event.BUFFER_SAVED,
+  }
+
+  ---@private
+  ---@param tree Yat.Tree
+  function Sidebar:_register_events_for_tree(tree)
+    log.debug("registering events for tree %s", tostring(tree))
+    for event in pairs(tree.supported_events.autocmd) do
+      if vim.tbl_contains(supported_events, event) then
+        self:_register_autocmd_event(event, function(bufnr, file, match)
+          self:on_autocmd_event(event, bufnr, file, match)
+        end)
+      else
+        log.error("unhandled event of type %q", events.get_event_name(event))
+      end
     end
-  end
-  for event in pairs(tree.supported_events.git) do
-    if event == git_event.DOT_GIT_DIR_CHANGED then
-      self:_register_git_event(event, function(repo, fs_changes)
-        self:on_git_event(repo, fs_changes)
-      end)
-    else
-      log.error("unhandled event of type %q", events.get_event_name(event))
+    for event in pairs(tree.supported_events.git) do
+      if event == git_event.DOT_GIT_DIR_CHANGED then
+        self:_register_git_event(event, function(repo, fs_changes)
+          self:on_git_event(repo, fs_changes)
+        end)
+      else
+        log.error("unhandled event of type %q", events.get_event_name(event))
+      end
     end
-  end
-  for event in pairs(tree.supported_events.yatree) do
-    if event == yatree_event.DIAGNOSTICS_CHANGED then
-      ---@param severity_changed boolean
-      self:_register_yatree_event(event, function(severity_changed)
-        self:on_diagnostics_event(severity_changed)
-      end)
-    else
-      log.error("unhandled event of type %q", events.get_event_name(event))
+    for event in pairs(tree.supported_events.yatree) do
+      if event == yatree_event.DIAGNOSTICS_CHANGED then
+        ---@param severity_changed boolean
+        self:_register_yatree_event(event, function(severity_changed)
+          self:on_diagnostics_event(severity_changed)
+        end)
+      else
+        log.error("unhandled event of type %q", events.get_event_name(event))
+      end
     end
-  end
-  local config = require("ya-tree.config").config
-  if tree.TYPE == "filesystem" and config.dir_watcher.enable then
-    ---@param dir string
-    ---@param filenames string[]
-    self:_register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
-      self:on_fs_changed_event(dir, filenames)
-    end)
+    local config = require("ya-tree.config").config
+    if tree.TYPE == "filesystem" and config.dir_watcher.enable then
+      ---@param dir string
+      ---@param filenames string[]
+      self:_register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
+        self:on_fs_changed_event(dir, filenames)
+      end)
+    end
   end
 end
 
@@ -491,116 +482,22 @@ end
 
 ---@async
 ---@private
+---@param event Yat.Events.AutocmdEvent
 ---@param bufnr integer
 ---@param file string
-function Sidebar:on_buffer_new(bufnr, file, match)
+---@param match string
+function Sidebar:on_autocmd_event(event, bufnr, file, match)
   local tabpage = api.nvim_get_current_tabpage()
   local update = false
   for _, section in pairs(self._sections) do
     local tree = section.tree
-    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_NEW]
+    local callback = tree.supported_events.autocmd[event]
     if callback then
       update = callback(tree, bufnr, file, match) or update
     end
   end
   if update and tabpage == self.tabpage and self.canvas:is_open() then
     update_canvas(self, true)
-  end
-end
-
----@async
----@private
----@param bufnr integer
----@param file string
-function Sidebar:on_buffer_hidden(bufnr, file, match)
-  local tabpage = api.nvim_get_current_tabpage()
-  local update = false
-  for _, section in pairs(self._sections) do
-    local tree = section.tree
-    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_HIDDEN]
-    if callback then
-      update = callback(tree, bufnr, file, match) or update
-    end
-  end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
-    update_canvas(self)
-  end
-end
-
----@async
----@private
----@param bufnr integer
----@param file string
-function Sidebar:on_buffer_displayed(bufnr, file, match)
-  local tabpage = api.nvim_get_current_tabpage()
-  local update = false
-  for _, section in pairs(self._sections) do
-    local tree = section.tree
-    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DISPLAYED]
-    if callback then
-      update = callback(tree, bufnr, file, match) or update
-    end
-  end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
-    update_canvas(self)
-  end
-end
-
----@async
----@private
----@param bufnr integer
----@param file string
-function Sidebar:on_buffer_deleted(bufnr, file, match)
-  local tabpage = api.nvim_get_current_tabpage()
-  local update = false
-  for _, section in pairs(self._sections) do
-    local tree = section.tree
-    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_DELETED]
-    if callback then
-      update = callback(tree, bufnr, file, match) or update
-    end
-  end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
-    update_canvas(self, true)
-  end
-end
-
----@async
----@private
----@param bufnr integer
----@param file string
-function Sidebar:on_buffer_modified(bufnr, file, match)
-  local tabpage = api.nvim_get_current_tabpage()
-  local update = false
-  for _, section in pairs(self._sections) do
-    local tree = section.tree
-    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_MODIFIED]
-    if callback then
-      update = callback(tree, bufnr, file, match) or update
-    end
-  end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
-    update_canvas(self)
-  end
-end
-
----@async
----@private
----@param bufnr integer
----@param file string
----@diagnostic disable-next-line:unused-local
-function Sidebar:on_buffer_saved(bufnr, file, match)
-  local tabpage = api.nvim_get_current_tabpage()
-  local update = false
-  for _, section in pairs(self._sections) do
-    local tree = section.tree
-    local callback = tree.supported_events.autocmd[autocmd_event.BUFFER_SAVED]
-    if callback then
-      update = callback(tree, bufnr, file, match) or update
-    end
-  end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
-    update_canvas(self)
   end
 end
 

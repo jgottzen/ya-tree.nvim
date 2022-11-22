@@ -7,8 +7,9 @@ local os_sep = Path.path.sep
 
 local M = {}
 
----@param tbl table
----@param value any
+---@generic T
+---@param tbl T[]
+---@param value T
 function M.tbl_remove(tbl, value)
   for i = #tbl, 1, -1 do
     if tbl[i] == value then
