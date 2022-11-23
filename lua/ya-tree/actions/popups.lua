@@ -136,13 +136,14 @@ local function create_fs_info(node, stat)
   local left_column_end = 13
   local right_column_start = 15
 
+  local is_directory = node:is_directory() and not node:is_link()
   ---@type string[]
   local lines = {
     string.format(format_string, "Name", node.name),
     "",
     string.format(format_string, "Type", node:is_link() and "Symbolic Link" or node_type_map[node:type()] or "Unknown"),
     string.format(format_string, "Location", node.parent and node.parent.path or Path:new(node.path):parent().filename),
-    string.format(format_string, "Size", utils.format_size(stat.size)),
+    string.format(format_string, "Size", is_directory and "-" or utils.format_size(stat.size)),
     "",
   }
   ---@type Yat.Ui.HighlightGroup[][]
@@ -151,7 +152,10 @@ local function create_fs_info(node, stat)
     {},
     { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
     { { name = "Label", from = 1, to = left_column_end }, { name = "Directory", from = right_column_start, to = -1 } },
-    { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_SIZE, from = right_column_start, to = -1 } },
+    {
+      { name = "Label", from = 1, to = left_column_end },
+      { name = is_directory and hl.DIM_TEXT or hl.INFO_SIZE, from = right_column_start, to = -1 },
+    },
     {},
   }
 
