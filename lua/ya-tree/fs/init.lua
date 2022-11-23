@@ -245,7 +245,7 @@ local function link_node(dir, name, lstat)
   if err then
     log.error("cannot fs_readlink path %q, %s", path, err)
   end
-  if not not utils.is_absolute_path(abs_link_to) then
+  if not utils.is_absolute_path(abs_link_to) then
     rel_link_to = abs_link_to
     abs_link_to = dir .. os_sep .. abs_link_to
   else
@@ -296,7 +296,7 @@ function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type string?, uv_fs_stat
   local err, lstat = async_uv.fs_lstat(path)
-  if err then
+  if not lstat then
     log.warn("cannot fs_lstat path %q, %s", path, err)
     return nil
   end
