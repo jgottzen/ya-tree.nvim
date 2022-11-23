@@ -23,7 +23,7 @@ local uv = vim.loop
 ---@field supported_actions Yat.Trees.Buffers.SupportedActions[]
 ---@field supported_events { autocmd: Yat.Trees.AutocmdEventsLookupTable, git: Yat.Trees.GitEventsLookupTable, yatree: Yat.Trees.YaTreeEventsLookupTable }
 ---@field complete_func "buffer"
-local BuffersTree = meta.create_class("Yat.Trees.Buffer", Tree)
+local BuffersTree = meta.create_class("Yat.Trees.Buffers", Tree)
 BuffersTree.TYPE = "buffers"
 
 ---@alias Yat.Trees.Buffers.SupportedActions

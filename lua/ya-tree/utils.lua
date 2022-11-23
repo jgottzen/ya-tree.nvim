@@ -157,7 +157,7 @@ end
 ---@param path string
 ---@return boolean is_directory
 local function is_directory(path)
-  local stat = uv.fs_stat(path) --[[@as uv_fs_stat?]]
+  local stat = uv.fs_stat(path) --[[@as Luv.Fs.Stat?]]
   return stat and stat.type == "directory" or false
 end
 

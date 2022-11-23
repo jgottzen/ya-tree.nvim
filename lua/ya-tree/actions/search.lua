@@ -34,7 +34,7 @@ function M.search_interactively(tree, node, context)
   if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
-  local timer = uv.new_timer() --[[@as uv_timer_t]]
+  local timer = uv.new_timer() --[[@as Luv.Timer]]
   local search_tree = sidebar:search_tree(node.path)
 
   ---@param ms integer

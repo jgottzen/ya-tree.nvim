@@ -128,7 +128,7 @@ end
 
 ---@async
 ---@param node Yat.Node
----@param stat uv_fs_stat
+---@param stat Luv.Fs.Stat
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlights
 local function create_fs_info(node, stat)

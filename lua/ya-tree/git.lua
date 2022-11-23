@@ -78,10 +78,10 @@ local function get_repo_info(path, cmd)
   return toplevel, git_root, branch
 end
 
----@class uv_fs_poll_t
----@field start fun(self: uv_fs_poll_t, path: string, interval: integer, callback: fun(err: string)):0|nil, string?
----@field stop fun(self: uv_fs_poll_t):0|nil, string?
----@field close fun(self: uv_fs_poll_t)
+---@class Luv.Fs.Poll
+---@field start fun(self: Luv.Fs.Poll, path: string, interval: integer, callback: fun(err: string)):0|nil, string?
+---@field stop fun(self: Luv.Fs.Poll):0|nil, string?
+---@field close fun(self: Luv.Fs.Poll)
 
 ---@class Yat.Git.Repo.MetaStatus
 ---@field public unmerged integer
@@ -110,7 +110,7 @@ end
 ---@field private _status Yat.Git.Repo.Status
 ---@field package _is_yadm boolean
 ---@field private _git_dir string
----@field private _git_dir_watcher? uv_fs_poll_t
+---@field private _git_dir_watcher? Luv.Fs.Poll
 local Repo = meta.create_class("Yat.Git.Repo")
 
 Repo.__tostring = function(self)

@@ -309,7 +309,7 @@ function Node:is_block_device()
 end
 
 ---@async
----@return uv_fs_stat? stat
+---@return Luv.Fs.Stat? stat
 function Node:fs_stat()
   return fs.lstat(self.path)
 end
@@ -405,7 +405,7 @@ end
 ---@return Yat.Node? node
 function Node:add_node(path)
   return self:_add_node(path, function(fs_node, parent)
-    local node = self.class():new(fs_node, parent)
+    local node = self:class():new(fs_node, parent)
     if node:node_type() == "FileSystem" then
       maybe_add_watcher(node)
     end

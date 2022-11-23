@@ -14,16 +14,16 @@ local M = {
   _exclude_patterns = {},
 }
 
----@class uv_fs_event_t
----@field start fun(self: uv_fs_event_t, path: string, flags: { watch_entry?: boolean, stat?: boolean, recursive?: boolean }, callback: fun(err?: string, filename: string, events: { change: boolean, rename: boolean})): 0|nil
----@field stop fun(self: uv_fs_event_t): 0|nil
----@field gepath fun(): string|nil
----@field close fun(self: uv_fs_event_t)
----@field is_active fun(self: uv_fs_event_t): boolean?
----@field is_closing fun(self: uv_fs_event_t): boolean?
+---@class Luv.Fs.Event
+---@field start fun(self: Luv.Fs.Event, path: string, flags: { watch_entry?: boolean, stat?: boolean, recursive?: boolean }, callback: fun(err?: string, filename: string, events: { change: boolean, rename: boolean})): 0|nil
+---@field stop fun(self: Luv.Fs.Event): 0|nil
+---@field getpath fun(self: Luv.Fs.Event): string|nil
+---@field close fun(self: Luv.Fs.Event)
+---@field is_active fun(self: Luv.Fs.Event): boolean?
+---@field is_closing fun(self: Luv.Fs.Event): boolean?
 
 ---@class Yat.Fs.Watcher
----@field handle uv_fs_event_t
+---@field handle Luv.Fs.Event
 ---@field number_of_watchers integer
 
 ---@param dir string
@@ -65,7 +65,7 @@ function M.watch_dir(dir)
     end, 200)
 
     watcher = {
-      handle = vim.loop.new_fs_event() --[[@as uv_fs_event_t]],
+      handle = vim.loop.new_fs_event() --[[@as Luv.Fs.Event]],
       number_of_watchers = 1,
     }
     log.debug("starting fs_event on %q", dir)
