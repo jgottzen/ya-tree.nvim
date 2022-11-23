@@ -8,12 +8,15 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
+---@alias Yat.Nodes.SortBy "name"|"type"|"extension"
+
 ---@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git" | "Text"
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
 ---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
 ---@field class fun(self: Yat.Node): Yat.Node
+---@field static Yat.Node
 ---
 ---@field protected __node_type "FileSystem"
 ---@field public name string
@@ -144,18 +147,57 @@ function Node:_merge_new_data(fs_node)
   end
 end
 
----@param other Yat.Node
+---@param a Yat.Node
+---@param b Yat.Node
 ---@return boolean
-function Node:node_comparator(other)
-  local sd = self:is_directory()
-  local od = other:is_directory()
-  if sd and not od then
+function Node.node_comparator_name_case_insensitve(a, b)
+  local ad = a:is_directory()
+  local bd = b:is_directory()
+  if ad and not bd then
     return true
-  elseif not sd and od then
+  elseif not ad and bd then
     return false
   end
-  return self.path < other.path
+  return a.name:lower() < b.name:lower()
 end
+
+---@param directories_first boolean
+---@param case_sensitive boolean
+---@param by Yat.Nodes.SortBy
+function Node.create_comparator(directories_first, case_sensitive, by)
+  ---@param a Yat.Node
+  ---@param b Yat.Node
+  ---@return boolean
+  Node.node_comparator = function(a, b)
+    if directories_first then
+      local ad = a:is_directory()
+      local bd = b:is_directory()
+      if ad and not bd then
+        return true
+      elseif not ad and bd then
+        return false
+      end
+    end
+    local aby, bby
+    if by == "type" then
+      aby = a:is_link() and "link" or a._type
+      bby = b:is_link() and "link" or b._type
+    elseif by == "extension" then
+      aby = a.extension and a.extension ~= "" and a.extension or a.name
+      bby = b.extension and b.extension ~= "" and b.extension or b.name
+    else
+      aby = a.name
+      bby = b.name
+    end
+    if not case_sensitive then
+      aby = aby:lower()
+      bby = bby:lower()
+    end
+    return aby < bby
+  end
+end
+
+Node.node_comparator = Node.static.node_comparator_name_case_insensitve
 
 ---@async
 ---@param node Yat.Node
