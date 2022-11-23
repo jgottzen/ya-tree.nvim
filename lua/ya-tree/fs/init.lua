@@ -12,13 +12,12 @@ local os_sep = Path.path.sep
 
 local M = {}
 
----@async
 ---@param path string
 ---@return boolean is_directory
 function M.is_directory(path)
-  ---@type string?, uv_fs_stat?
-  local err, stat = async_uv.fs_stat(path)
-  if err then
+  ---@type uv_fs_stat?, string?
+  local stat, err = uv.fs_stat(path)
+  if not stat then
     log.error("cannot fs_stat path %q, %s", path, err)
   end
   return stat and stat.type == "directory" or false
@@ -30,7 +29,7 @@ end
 function M.lstat(path)
   ---@type string?, uv_fs_stat?
   local err, stat = async_uv.fs_lstat(path)
-  if err then
+  if not stat then
     log.error("cannot fs_lstat path %q, %s", path, err)
   end
   return stat
@@ -49,7 +48,7 @@ end, 3)
 ---@return boolean empty
 local function is_empty(path)
   local err, fd = fs_opendir(path, 1)
-  if err then
+  if not fd then
     log.error("cannot fs_opendir path %q, %s", path, err)
     return false
   else
@@ -58,6 +57,7 @@ local function is_empty(path)
     if err then
       log.error("cannot fs_readdir path %q, %s", path, err)
     end
+    async_uv.fs_closedir(fd)
     return entries == nil
   end
 end
@@ -147,7 +147,7 @@ local function file_node(dir, name, stat)
         log.error("cannot fs_lstat path %q, %s", path, err)
       end
     end
-    executable = bit.band(M.st_mode_masks.executable, stat.mode) > 1
+    executable = stat and bit.band(M.st_mode_masks.executable, stat.mode) > 1 or false
   end
 
   return {
@@ -177,9 +177,9 @@ end
 ---@param stat? uv_fs_stat
 ---@return Yat.Fs.FifoNode node
 local function fifo_node(dir, name, stat)
-  local node = file_node(dir, name, stat)
+  local node = file_node(dir, name, stat) --[[@as Yat.Fs.FifoNode]]
   node._type = "fifo"
-  return node --[[@as Yat.Fs.FifoNode]]
+  return node
 end
 
 ---@class Yat.Fs.SocketNode : Yat.Fs.FileNode, Yat.Fs.Node
@@ -190,9 +190,9 @@ end
 ---@param stat? uv_fs_stat
 ---@return Yat.Fs.SocketNode node
 local function socket_node(dir, name, stat)
-  local node = file_node(dir, name, stat)
+  local node = file_node(dir, name, stat) --[[@as Yat.Fs.SocketNode]]
   node._type = "socket"
-  return node --[[@as Yat.Fs.SocketNode]]
+  return node
 end
 
 ---@class Yat.Fs.CharNode : Yat.Fs.FileNode, Yat.Fs.Node
@@ -203,9 +203,9 @@ end
 ---@param stat? uv_fs_stat
 ---@return Yat.Fs.CharNode node
 local function char_node(dir, name, stat)
-  local node = file_node(dir, name, stat)
+  local node = file_node(dir, name, stat) --[[@as Yat.Fs.CharNode]]
   node._type = "char"
-  return node --[[@as Yat.Fs.CharNode]]
+  return node
 end
 
 ---@class Yat.Fs.BlockNode : Yat.Fs.FileNode, Yat.Fs.Node
@@ -216,9 +216,9 @@ end
 ---@param stat? uv_fs_stat
 ---@return Yat.Fs.BlockNode node
 local function block_node(dir, name, stat)
-  local node = file_node(dir, name, stat)
+  local node = file_node(dir, name, stat) --[[@as Yat.Fs.BlockNode]]
   node._type = "block"
-  return node --[[@as Yat.Fs.BlockNode]]
+  return node
 end
 
 ---@class Yat.Fs.LinkNodeMixin
@@ -253,12 +253,8 @@ local function link_node(dir, name, lstat)
   end
 
   -- stat here is for the target of the link
-  ---@type uv_fs_stat?
-  local stat
-  err, stat = async_uv.fs_stat(path)
-  if err then
-    log.error("cannot fs_stat path %q, %s", path, err)
-  end
+  ---@type string?, uv_fs_stat?
+  local _, stat = async_uv.fs_stat(path)
   local node
   if stat then
     local _type = stat.type
@@ -271,7 +267,7 @@ local function link_node(dir, name, lstat)
       node = file_node(dir, name, stat)
       node.link_name = link_name
       node.link_extension = link_extension
-      node._type = _type
+      node._type = _type --[[@as Luv.FileType]]
     else
       -- "link" or "unknown"
       return nil
@@ -337,12 +333,14 @@ end
 ---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
   dir = Path:new(dir):absolute() --[[@as string]]
-  ---@type Yat.Fs.Node[], string?, userdata?
-  local nodes, err, fd, entries = {}, nil, nil, nil
-  err, fd = fs_opendir(dir, 10)
-  if err then
+  ---@type string?, userdata?
+  local err, fd = fs_opendir(dir, 50)
+  if not fd then
     log.error("cannot fs_opendir path %q, %s", dir, err)
+    return {}
   else
+    ---@type Yat.Fs.Node[]
+    local nodes, entries = {}, nil
     while true do
       ---@type string?, Luv.Readdir[]?
       err, entries = async_uv.fs_readdir(fd)
@@ -374,17 +372,16 @@ function M.scan_dir(dir)
         end
       end
     end
+    async_uv.fs_closedir(fd)
+    return nodes
   end
-
-  return nodes
 end
 
----@async
 ---@param path string
 ---@return boolean whether the path exists.
 function M.exists(path)
   -- must use fs_lstat since fs_stat checks the target of links, not the link itself
-  local _, stat = async_uv.fs_lstat(path)
+  local stat = uv.fs_lstat(path)
   return stat ~= nil
 end
 
@@ -399,7 +396,7 @@ function M.copy_dir(source, destination, replace)
 
   ---@type userdata?, string?
   local fd, err = uv.fs_scandir(source_path)
-  if err then
+  if not fd then
     log.error("cannot fs_scandir path %q, %s", source_path, err)
     return false
   end
@@ -414,7 +411,7 @@ function M.copy_dir(source, destination, replace)
   local mode = stat.mode
   local continue = replace
   if not continue then
-    -- fs_mkdir returns nil if dir alrady exists
+    -- fs_mkdir returns nil if dir already exists
     continue, err = uv.fs_mkdir(destination_path, mode)
     if err then
       log.error("cannot fs_mkdir path %q, %s", destination_path, err)
@@ -458,7 +455,7 @@ function M.copy_file(source, destination, replace)
   destination = Path:new(destination):absolute()
   ---@type boolean?, string?
   local success, err = uv.fs_copyfile(source, destination, { excl = not replace })
-  if err then
+  if not success then
     log.error("cannot fs_copyfile path %q to %q, %s", source, destination, err)
   else
     log.debug("created file %q", destination)
@@ -475,7 +472,7 @@ function M.rename(old, new)
   new = Path:new(new):absolute()
   ---@type boolean?, string?
   local success, err = uv.fs_rename(old, new)
-  if err then
+  if not success then
     log.error("cannot fs_rename path %q to %q, %s", old, new, err)
   else
     log.debug("renamed file %q to %q", old, new)
@@ -520,11 +517,11 @@ function M.create_dir(path)
     else
       log.debug("directory %q already exists", abs_path)
     end
+    return true
   else
     log.error("cannot fs_mkdir path %q, %s", abs_path, err)
+    return false
   end
-
-  return true
 end
 
 ---Create a new file.
@@ -541,7 +538,7 @@ function M.create_file(file)
     end
     local success
     success, err = uv.fs_close(fd)
-    if err then
+    if not success then
       log.error("cannot fs_close path %q, %s", file, err)
     else
       log.debug("created file %q", file)
@@ -558,7 +555,7 @@ end
 function M.remove_dir(path)
   ---@type userdata?, string?
   local fd, err = uv.fs_scandir(path)
-  if err then
+  if not fd then
     log.error("cannot fs_scandir path %q, %s", path, err)
     return false
   end
@@ -583,7 +580,7 @@ function M.remove_dir(path)
 
   local success
   success, err = uv.fs_rmdir(path)
-  if err then
+  if not success then
     log.error("cannot fs_rmdir path %q, %s", path, err)
   else
     log.debug("removed directory %q", path)
@@ -596,7 +593,7 @@ end
 ---@return boolean success success or not.
 function M.remove_file(path)
   local success, err = uv.fs_unlink(path)
-  if err then
+  if not success then
     log.error("cannot fs_unlink path %q, %s", path, err)
   else
     log.debug("removed file %q", path)

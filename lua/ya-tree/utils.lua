@@ -115,13 +115,6 @@ function M.is_root_directory(path)
   return path == "/"
 end
 
----@param path string
----@return boolean is_directory
-function M.is_directory_sync(path)
-  local stat = uv.fs_stat(path) --[[@as uv_fs_stat]]
-  return stat and stat.type == "directory" or false
-end
-
 ---@param first string
 ---@param second string
 ---@return string path
@@ -161,11 +154,18 @@ do
   end
 end
 
+---@param path string
+---@return boolean is_directory
+local function is_directory(path)
+  local stat = uv.fs_stat(path) --[[@as uv_fs_stat?]]
+  return stat and stat.type == "directory" or false
+end
+
 ---@return boolean
 function M.is_buffer_directory()
   local bufnr = api.nvim_get_current_buf()
   local bufname = api.nvim_buf_get_name(bufnr)
-  if not M.is_directory_sync(bufname) then
+  if not is_directory(bufname) then
     return false
   end
   if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then

@@ -3,6 +3,7 @@ local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local config = require("ya-tree.config").config
+local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
 local Sidebar = require("ya-tree.sidebar")
 local Trees = require("ya-tree.trees")
@@ -309,12 +310,7 @@ local function on_buf_enter(bufnr, file)
   end
   local tabpage = api.nvim_get_current_tabpage()
 
-  -- Must use a synchronous directory check here, otherwise a scheduler call is required before any call to the ui,
-  -- which in turn will update the ui, and if the buffer was opened in the tree window, and the config option to move it to
-  -- the edit window is set, the buffer will first appear in the tree window and then visibly be moved to the edit window.
-  -- The same is true for `bprevious`.
-  -- Not very visually pleasing.
-  if config.hijack_netrw and utils.is_directory_sync(file) then
+  if config.hijack_netrw and fs.is_directory(file) then
     log.debug("the opened buffer is a directory with path %q", file)
 
     if ui.is_current_window_ui(tabpage) then
