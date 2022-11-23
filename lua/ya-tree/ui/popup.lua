@@ -82,7 +82,7 @@ local function create_window(relative, row, col, width, height, enter)
   })
   api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   api.nvim_buf_set_option(bufnr, "filetype", "YaTreePopup")
-  vim.wo.winhl = table.concat({
+  vim.wo[winid].winhl = table.concat({
     "Normal:YaTreeTextFloat",
     "FloatBorder:FloatBorder",
   }, ",")

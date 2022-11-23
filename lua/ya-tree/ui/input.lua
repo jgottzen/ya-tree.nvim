@@ -165,7 +165,7 @@ function Input:open()
 
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
   for k, v in pairs(win_options) do
-    vim.wo[k] = v
+    vim.wo[self.winid][k] = v
   end
 
   self:_create_title()
