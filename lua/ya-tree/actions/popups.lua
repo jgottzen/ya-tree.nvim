@@ -12,7 +12,7 @@ local api = vim.api
 local M = {}
 
 ---@type table<Luv.FileType, string>
-local node_type_map = {
+local NODE_TYPE_MAP = {
   directory = "Directory",
   file = "File",
   link = "Symbolic Link",
@@ -103,8 +103,8 @@ do
   end
 end
 
-local permissions_tbl = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
-local permission_hls = {
+local PERMISSIONS_TBL = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
+local PERMISSION_HLS = {
   ["-"] = hl.INFO_PERMISSION_NONE,
   r = hl.INFO_PERMISSION_READ,
   w = hl.INFO_PERMISSION_WRITE,
@@ -141,7 +141,7 @@ local function create_fs_info(node, stat)
   local lines = {
     string.format(format_string, "Name", node.name),
     "",
-    string.format(format_string, "Type", node:is_link() and "Symbolic Link" or node_type_map[node:type()] or "Unknown"),
+    string.format(format_string, "Type", node:is_link() and "Symbolic Link" or NODE_TYPE_MAP[node:type()] or "Unknown"),
     string.format(format_string, "Location", node.parent and node.parent.path or Path:new(node.path):parent().filename),
     string.format(format_string, "Size", is_directory and "-" or utils.format_size(stat.size)),
     "",
@@ -175,17 +175,17 @@ local function create_fs_info(node, stat)
   highlights[#highlights + 1] =
     { { name = "Label", from = 1, to = left_column_end }, { name = hl.INFO_GROUP, from = right_column_start, to = -1 } }
 
-  local user_perms = bit.band(fs.st_mode_masks.permissions_mask, bit.rshift(stat.mode, 6))
-  local group_perms = bit.band(fs.st_mode_masks.permissions_mask, bit.rshift(stat.mode, 3))
-  local others_perms = bit.band(fs.st_mode_masks.permissions_mask, stat.mode)
-  local permissions = string.format("%s %s %s", permissions_tbl[user_perms], permissions_tbl[group_perms], permissions_tbl[others_perms])
+  local user_perms = bit.band(fs.st_mode_masks.PERMISSIONS_MASK, bit.rshift(stat.mode, 6))
+  local group_perms = bit.band(fs.st_mode_masks.PERMISSIONS_MASK, bit.rshift(stat.mode, 3))
+  local others_perms = bit.band(fs.st_mode_masks.PERMISSIONS_MASK, stat.mode)
+  local permissions = string.format("%s %s %s", PERMISSIONS_TBL[user_perms], PERMISSIONS_TBL[group_perms], PERMISSIONS_TBL[others_perms])
   lines[#lines + 1] = string.format(format_string, "Permissions", permissions)
   lines[#lines + 1] = ""
   local permission_highligts = { { name = "Label", from = 1, to = left_column_end } }
   for i = 1, #permissions do
     local permission = permissions:sub(i, i)
     permission_highligts[#permission_highligts + 1] =
-      { name = permission_hls[permission] or "None", from = right_column_start - 1 + i, to = right_column_start + i }
+      { name = PERMISSION_HLS[permission] or "None", from = right_column_start - 1 + i, to = right_column_start + i }
   end
   highlights[#highlights + 1] = permission_highligts
   highlights[#highlights + 1] = {}

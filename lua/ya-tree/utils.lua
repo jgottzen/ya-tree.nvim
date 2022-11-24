@@ -38,29 +38,20 @@ M.is_windows = not M.is_macos and (fn.has("win32") == 1 or fn.has("win32unix") =
 
 do
   ---@type table<string, boolean>
-  local extensions
+  local EXTENSIONS
 
   ---@param extension string
   ---@return boolean
   function M.is_windows_exe(extension)
-    if not extensions then
+    if not EXTENSIONS then
       local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true }) --[=[@as string[]]=]
       for _, ext in pairs(splits) do
-        extensions[ext:upper()] = true
+        EXTENSIONS[ext:upper()] = true
       end
     end
 
-    return extensions[extension:upper()] or false
+    return EXTENSIONS[extension:upper()] or false
   end
-end
-
----@param path string
----@return boolean is_absolute
-function M.is_absolute_path(path)
-  if os_sep == "\\" then
-    return string.match(path, "^[%a]:\\.*$") ~= nil
-  end
-  return string.sub(path, 1, 1) == os_sep
 end
 
 ---@param paths string[]
@@ -108,6 +99,15 @@ function M.find_common_ancestor(paths)
 end
 
 ---@param path string
+---@return boolean is_absolute
+function M.is_absolute_path(path)
+  if os_sep == "\\" then
+    return string.match(path, "^[%a]:\\.*$") ~= nil
+  end
+  return string.sub(path, 1, 1) == os_sep
+end
+
+---@param path string
 ---@return boolean is_root
 function M.is_root_directory(path)
   if os_sep == "\\" then
@@ -135,23 +135,23 @@ function M.relative_path_for(path, root)
 end
 
 do
-  local units = { "B", "KB", "MB", "GB", "TB" }
-  local log1024 = math.log(1024)
+  local UNITS = { "B", "KB", "MB", "GB", "TB" }
+  local LOG_1024 = math.log(1024)
 
   -- taken from nvim-tree
   ---@param size integer
   ---@return string
   function M.format_size(size)
     size = math.max(size, 0)
-    local pow = math.floor((size and math.log(size) or 0) / log1024)
-    pow = math.min(pow, #units)
+    local pow = math.floor((size and math.log(size) or 0) / LOG_1024)
+    pow = math.min(pow, #UNITS)
 
     local value = size / (1024 ^ pow)
     value = math.floor((value * 10) + 0.5) / 10
 
     pow = pow + 1
 
-    return (units[pow] == nil) and (size .. " B") or (value .. " " .. units[pow])
+    return (UNITS[pow] == nil) and (size .. " B") or (value .. " " .. UNITS[pow])
   end
 end
 

@@ -225,7 +225,7 @@ function Tree:flatten_from(start, forward)
       if forward and node.path ~= start.path then
         nodes[#nodes + 1] = node
       end
-      if node._children and node.expanded then
+      if node:has_children() and node.expanded then
         for _, child in node:iterate_children({ reverse = not forward }) do
           flatten_children(child)
         end

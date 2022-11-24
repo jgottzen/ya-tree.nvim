@@ -40,7 +40,7 @@ end
 ---@overload async fun(tabpage: integer, sidebar_config?: Yat.Config.Sidebar): Yat.Sidebar
 ---@field class fun(self: Yat.Sidebar): Yat.Sidebar
 ---
----@field private canvas Yat.Ui.Canvas
+---@field package canvas Yat.Ui.Canvas
 ---@field private _tabpage integer
 ---@field private single_mode boolean
 ---@field package tree_order table<Yat.Trees.Type, integer>
@@ -128,7 +128,7 @@ function Sidebar:_sort_sections()
   end)
 end
 
----@private
+---@package
 ---@param index integer
 function Sidebar:_delete_section(index)
   local section = self._sections[index]
@@ -338,7 +338,7 @@ end
 ---@return integer? height, integer? width
 function Sidebar:get_window_size()
   if self.canvas:is_open() then
-    return self.canvas:get_size()
+    return self.canvas:size()
   end
 end
 
@@ -406,7 +406,7 @@ end
 ---@param file string the file path to open
 ---@param cmd Yat.Action.Files.Open.Mode
 function Sidebar:open_file(file, cmd)
-  local winid = self.canvas:get_edit_winid()
+  local winid = self.canvas:edit_winid()
   if not winid then
     -- only the tree window is open, e.g. netrw replacement
     -- create a new window for buffers
@@ -422,7 +422,7 @@ function Sidebar:open_file(file, cmd)
 end
 
 do
-  local supported_events = {
+  local SUPPORTED_EVENTS = {
     autocmd_event.BUFFER_NEW,
     autocmd_event.BUFFER_HIDDEN,
     autocmd_event.BUFFER_DISPLAYED,
@@ -436,7 +436,7 @@ do
   function Sidebar:_register_events_for_tree(tree)
     log.debug("registering events for tree %s", tostring(tree))
     for event in pairs(tree.supported_events.autocmd) do
-      if vim.tbl_contains(supported_events, event) then
+      if vim.tbl_contains(SUPPORTED_EVENTS, event) then
         self:_register_autocmd_event(event, function(bufnr, file, match)
           self:on_autocmd_event(event, bufnr, file, match)
         end)
@@ -703,7 +703,7 @@ end
 function Sidebar:render()
   local config = require("ya-tree.config").config
   local hl = require("ya-tree.ui.highlights")
-  local width = self.canvas:get_inner_width()
+  local width = self.canvas:inner_width()
 
   local sections = self.single_mode and { self._sections[1] } or self._sections
   if self.single_mode and #self._sections > 1 then
@@ -821,7 +821,7 @@ end
 ---@return Yat.Tree|nil current_tree
 ---@return Yat.Node|nil current_node
 function Sidebar:get_current_tree_and_node()
-  local row = api.nvim_win_get_cursor(self.canvas.winid)[1]
+  local row = api.nvim_win_get_cursor(self.canvas:winid())[1]
   local section = self:_get_section_for_row(row)
   if section then
     return section.tree, get_node(section.tree, section.path_lookup[row])

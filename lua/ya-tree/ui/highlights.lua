@@ -43,7 +43,6 @@ local M = {
   TEXT = "YaTreeText",
   DIM_TEXT = "YaTreeDimText",
   SEARCH_TERM = "YaTreeSearchTerm",
-  TEXT_FLOAT = "YaTreeTextFloat",
 
   NORMAL = "YaTreeNormal",
   NORMAL_NC = "YaTreeNormalNC",
@@ -52,6 +51,7 @@ local M = {
   WIN_SEPARATOR = "YaTreeWinSeparator",
   STATUS_LINE = "YaTreeStatusLine",
   STATUS_LINE_NC = "YaTreeStatusLineNC",
+  FLOAT_NORMAL = "YaTreeFloatNormal",
 
   GIT_REPO_TOPLEVEL = "YaTreeGitRepoToplevel",
   GIT_UNMERGED_COUNT = "YaTreeGitUnmergedCount",
@@ -176,7 +176,6 @@ function M.setup()
   create_highlight(M.TEXT, { "Normal" })
   create_highlight(M.DIM_TEXT, { "Comment" })
   create_highlight(M.SEARCH_TERM, { "SpecialChar" })
-  create_highlight(M.TEXT_FLOAT, { "NormalFloat" })
 
   create_highlight(M.NORMAL, { "Normal" })
   create_highlight(M.NORMAL_NC, { "NormalNC" })
@@ -185,6 +184,7 @@ function M.setup()
   create_highlight(M.WIN_SEPARATOR, { "WinSeparator" })
   create_highlight(M.STATUS_LINE, { "StatusLine" })
   create_highlight(M.STATUS_LINE_NC, { "StatusLineNC" })
+  create_highlight(M.FLOAT_NORMAL, { "NormalFloat" })
 
   create_highlight(M.GIT_REPO_TOPLEVEL, { "Character" }, nil, "#a9b665")
   create_highlight(M.GIT_UNMERGED_COUNT, { "GitSignsDelete", "GitGutterDelete" }, nil, "#ea6962")

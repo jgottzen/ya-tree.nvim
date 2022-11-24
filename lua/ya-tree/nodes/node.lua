@@ -48,7 +48,8 @@ Node.__eq = function(self, other)
 end
 
 Node.__tostring = function(self)
-  return string.format("(%s, %s)", self.__node_type, self.path)
+  local node_type = self.__lower and self.__lower.__node_type or self.__node_type
+  return string.format("(%s, %s)", node_type, self.path)
 end
 
 ---Creates a new node.

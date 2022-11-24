@@ -118,8 +118,8 @@ local function directory_node(dir, name)
 end
 
 M.st_mode_masks = {
-  executable = 0x49, -- octal 111, corresponding to S_IXUSR, S_IXGRP and S_IXOTH
-  permissions_mask = 0x7, -- octal 7, corresponding to S_IRWX
+  EXECUTABLE = 0x49, -- octal 111, corresponding to S_IXUSR, S_IXGRP and S_IXOTH
+  PERMISSIONS_MASK = 0x7, -- octal 7, corresponding to S_IRWX
 }
 
 ---@class Yat.Fs.FileNode : Yat.Fs.Node
@@ -147,7 +147,7 @@ local function file_node(dir, name, stat)
         log.error("cannot fs_lstat path %q, %s", path, err)
       end
     end
-    executable = stat and bit.band(M.st_mode_masks.executable, stat.mode) > 1 or false
+    executable = stat and bit.band(M.st_mode_masks.EXECUTABLE, stat.mode) > 1 or false
   end
 
   return {

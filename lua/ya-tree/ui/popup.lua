@@ -5,9 +5,7 @@ local api = vim.api
 local ns = api.nvim_create_namespace("YaTreePopUp")
 local auto_close_augroup = api.nvim_create_augroup("YaTreePopupAutoClose", { clear = true })
 
-local M = {
-  ns = ns,
-}
+local M = {}
 
 ---@param lines string[]
 ---@return integer max_width
@@ -83,7 +81,7 @@ local function create_window(relative, row, col, width, height, enter)
   api.nvim_buf_set_option(bufnr, "bufhidden", "wipe")
   api.nvim_buf_set_option(bufnr, "filetype", "YaTreePopup")
   vim.wo[winid].winhl = table.concat({
-    "Normal:YaTreeTextFloat",
+    "Normal:YaTreeFloatNormal",
     "FloatBorder:FloatBorder",
   }, ",")
 

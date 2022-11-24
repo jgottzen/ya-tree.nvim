@@ -4,6 +4,34 @@ local log = require("ya-tree.log")("ui")
 local api = vim.api
 local fn = vim.fn
 
+local BUF_OPTIONS = {
+  bufhidden = "wipe",
+  buflisted = false,
+  filetype = "YaTreeInput",
+  buftype = "prompt",
+  swapfile = false,
+}
+
+local WIN_OPTIONS = {
+  number = false,
+  relativenumber = false,
+  list = false,
+  winfixwidth = true,
+  winfixheight = true,
+  foldenable = false,
+  spell = false,
+  signcolumn = "no",
+  foldmethod = "manual",
+  foldcolumn = "0",
+  cursorcolumn = false,
+  cursorlineopt = "line",
+  wrap = false,
+  winhl = table.concat({
+    "Normal:YaTreeFloatNormal",
+    "FloatBorder:FloatBorder",
+  }, ","),
+}
+
 ---@class Yat.Ui.Input : Yat.Object
 ---@field new fun(self: Yat.Ui.Input, opts: Yat.Ui.InputOpts, callbacks: {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}): Yat.Ui.Input
 ---@overload fun(opts: Yat.Ui.InputOpts, callbacks: {on_submit?: fun(text: string), on_close?: fun(), on_change?: fun(text: string)}): Yat.Ui.Input
@@ -20,35 +48,6 @@ local fn = vim.fn
 ---@field package orig_row integer
 ---@field package orig_col integer
 local Input = meta.create_class("Yat.Ui.Input")
-
----@type {name: string, value: string|boolean}[]
-local buf_options = {
-  { name = "bufhidden", value = "wipe" },
-  { name = "buflisted", value = false },
-  { name = "filetype", value = "YaTreeInput" },
-  { name = "buftype", value = "prompt" },
-  { name = "swapfile", value = false },
-}
-
-local win_options = {
-  number = false,
-  relativenumber = false,
-  list = false,
-  winfixwidth = true,
-  winfixheight = true,
-  foldenable = false,
-  spell = false,
-  signcolumn = "no",
-  foldmethod = "manual",
-  foldcolumn = "0",
-  cursorcolumn = false,
-  cursorlineopt = "line",
-  wrap = false,
-  winhl = table.concat({
-    "Normal:YaTreeTextFloat",
-    "FloatBorder:FloatBorder",
-  }, ","),
-}
 
 ---@class Yat.Ui.InputOpts
 ---@field title string
@@ -149,8 +148,8 @@ function Input:open()
   self.orig_row, self.orig_col = unpack(api.nvim_win_get_cursor(self.win_config.win or 0))
 
   self.bufnr = api.nvim_create_buf(false, true)
-  for _, v in ipairs(buf_options) do
-    api.nvim_buf_set_option(self.bufnr, v.name, v.value)
+  for k, v in pairs(BUF_OPTIONS) do
+    vim.bo[self.bufnr][k] = v
   end
   if type(self.completion) == "string" then
     api.nvim_buf_set_option(self.bufnr, "completefunc", "v:lua._ya_tree_input_complete")
@@ -164,7 +163,7 @@ function Input:open()
   end
 
   self.winid = api.nvim_open_win(self.bufnr, true, self.win_config)
-  for k, v in pairs(win_options) do
+  for k, v in pairs(WIN_OPTIONS) do
     vim.wo[self.winid][k] = v
   end
 

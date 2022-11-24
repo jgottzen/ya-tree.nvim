@@ -6,7 +6,7 @@ local api = vim.api
 
 local M = {}
 
-local keys_section_width = 15
+local KEYS_SECTION_WIDTH = 15
 
 --Sort by description.
 ---@param a { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }
@@ -141,8 +141,8 @@ local function create_mappings_section(lines, highlight_groups, format_string, i
     local line = string.format(format_string, v.key, v.desc)
     lines[#lines + 1] = line
     highlight_groups[#highlight_groups + 1] = {
-      { name = hl.GIT_DIRTY, from = 0, to = keys_section_width },
-      { name = hl.SYMBOLIC_LINK_TARGET, from = keys_section_width, to = -1 },
+      { name = hl.GIT_DIRTY, from = 0, to = KEYS_SECTION_WIDTH },
+      { name = hl.SYMBOLIC_LINK_TARGET, from = KEYS_SECTION_WIDTH, to = -1 },
     }
   end
 
@@ -155,8 +155,8 @@ local function create_mappings_section(lines, highlight_groups, format_string, i
     local line = string.format(format_string, v.key, v.desc)
     lines[#lines + 1] = line
     highlight_groups[#highlight_groups + 1] = {
-      { name = hl.GIT_DIRTY, from = 0, to = keys_section_width },
-      { name = hl.SYMBOLIC_LINK_TARGET, from = keys_section_width, to = -1 },
+      { name = hl.GIT_DIRTY, from = 0, to = KEYS_SECTION_WIDTH },
+      { name = hl.SYMBOLIC_LINK_TARGET, from = KEYS_SECTION_WIDTH, to = -1 },
     }
   end
 end
@@ -173,7 +173,7 @@ local function render_mappings_for_for_tree(current_tab, all_tree_types, mapping
   local current_mappings = mappings[tree_type]
   local insert, visual, max_mapping_width, close_keys = parse_mappings(current_mappings)
 
-  local format_string = "%" .. keys_section_width .. "s : %-" .. max_mapping_width .. "s " -- with trailing space to match the left side
+  local format_string = "%" .. KEYS_SECTION_WIDTH .. "s : %-" .. max_mapping_width .. "s " -- with trailing space to match the left side
 
   local lines, highlight_groups = create_header(format_string, current_tab, all_tree_types, width)
   create_mappings_section(lines, highlight_groups, format_string, insert, visual)
