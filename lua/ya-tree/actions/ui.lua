@@ -2,9 +2,9 @@ local help = require("ya-tree.ui.help")
 
 local M = {}
 
----@param context Yat.Action.FnContext
-function M.close(_, _, context)
-  context.sidebar:close()
+---@param sidebar Yat.Sidebar
+function M.close(_, _, sidebar)
+  sidebar:close()
 end
 
 ---@async

@@ -171,8 +171,8 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.cd_to(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.cd_to(tree, node, sidebar)
   if not node:is_directory() then
     if not node.parent then
       return
@@ -180,40 +180,40 @@ function M.cd_to(tree, node, context)
     node = node.parent --[[@as Yat.Node]]
   end
   log.debug("cd to %q", node.path)
-  change_root(tree, node, node.path, context.sidebar)
+  change_root(tree, node, node.path, sidebar)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.cd_up(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.cd_up(tree, node, sidebar)
   local new_cwd = tree.root.parent and tree.root.parent.path or Path:new(tree.root.path):parent().filename
   log.debug("changing root directory one level up from %q to %q", tree.root.path, new_cwd)
 
-  change_root(tree, node, new_cwd, context.sidebar)
+  change_root(tree, node, new_cwd, sidebar)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.toggle_ignored(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.toggle_ignored(tree, node, sidebar)
   local config = require("ya-tree.config").config
   config.git.show_ignored = not config.git.show_ignored
   log.debug("toggling git ignored to %s", config.git.show_ignored)
-  context.sidebar:update(tree, node)
+  sidebar:update(tree, node)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.toggle_filter(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.toggle_filter(tree, node, sidebar)
   local config = require("ya-tree.config").config
   config.filters.enable = not config.filters.enable
   log.debug("toggling filter to %s", config.filters.enable)
-  context.sidebar:update(tree, node)
+  sidebar:update(tree, node)
 end
 
 ---@async

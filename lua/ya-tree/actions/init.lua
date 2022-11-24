@@ -6,11 +6,7 @@ local log = require("ya-tree.log")("actions")
 
 local api = vim.api
 
----@class Yat.Action.FnContext
----@field tabpage integer
----@field sidebar Yat.Sidebar
-
----@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, context: Yat.Action.FnContext)
+---@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, sidebar: Yat.Sidebar)
 
 ---@alias Yat.Actions.Mode "n" | "v" | "V"
 
@@ -71,20 +67,18 @@ local function create_keymap_function(mapping)
         local fn, node_independent
         if type(action) == "string" then
           local _action = M._actions[action]
-          fn = void(_action.fn)
+          fn = void(_action.fn) --[[@as Yat.Action.Fn]]
           node_independent = _action.node_independent
         else
-          ---@cast action Yat.Config.Mapping.Custom
-          fn = void(action.fn)
+          fn = void(action.fn) --[[@as Yat.Action.Fn]]
           node_independent = action.node_independent
         end
         if node or node_independent then
           if node then
             tree.current_node = node
           end
-          ---@cast fn Yat.Action.Fn
           ---@diagnostic disable-next-line:param-type-mismatch
-          fn(tree, node, { tabpage = tabpage, sidebar = sidebar })
+          fn(tree, node, sidebar)
         end
       end
     end

@@ -45,17 +45,17 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param _ Yat.Node
----@param context Yat.Action.FnContext
-function M.copy_node(tree, _, context)
-  cut_or_copy_nodes(context.sidebar, tree, "copy")
+---@param sidebar Yat.Sidebar
+function M.copy_node(tree, _, sidebar)
+  cut_or_copy_nodes(sidebar, tree, "copy")
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param _ Yat.Node
----@param context Yat.Action.FnContext
-function M.cut_node(tree, _, context)
-  cut_or_copy_nodes(context.sidebar, tree, "cut")
+---@param sidebar Yat.Sidebar
+function M.cut_node(tree, _, sidebar)
+  cut_or_copy_nodes(sidebar, tree, "cut")
 end
 
 local function clear_clipboard()
@@ -151,10 +151,10 @@ function M.paste_nodes(tree, node)
 end
 
 ---@async
----@param context Yat.Action.FnContext
-function M.clear_clipboard(_, _, context)
+---@param sidebar Yat.Sidebar
+function M.clear_clipboard(_, _, sidebar)
   clear_clipboard()
-  context.sidebar:update()
+  sidebar:update()
   utils.notify("Clipboard cleared!")
 end
 

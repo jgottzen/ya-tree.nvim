@@ -19,15 +19,15 @@ local M = {}
 ---@async
 ---@param tree Yat.Tree
 ---@param _ Yat.Node
----@param context Yat.Action.FnContext
-function M.open(tree, _, context)
-  local nodes = context.sidebar:get_selected_nodes()
+---@param sidebar Yat.Sidebar
+function M.open(tree, _, sidebar)
+  local nodes = sidebar:get_selected_nodes()
   if #nodes == 1 then
     local node = nodes[1]
     if node:has_children() then
-      node_actions.toggle_node(tree, node, context)
+      node_actions.toggle_node(tree, node, sidebar)
     elseif node:is_editable() then
-      context.sidebar:open_file(node.path, "edit")
+      sidebar:open_file(node.path, "edit")
     elseif node:node_type() == "Buffer" then
       ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
@@ -46,7 +46,7 @@ function M.open(tree, _, context)
   else
     for _, node in ipairs(nodes) do
       if node:is_editable() then
-        context.sidebar:open_file(node.path, "edit")
+        sidebar:open_file(node.path, "edit")
       end
     end
   end
@@ -55,20 +55,20 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.vsplit(_, node, context)
+---@param sidebar Yat.Sidebar
+function M.vsplit(_, node, sidebar)
   if node:is_editable() then
-    context.sidebar:open_file(node.path, "vsplit")
+    sidebar:open_file(node.path, "vsplit")
   end
 end
 
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.split(_, node, context)
+---@param sidebar Yat.Sidebar
+function M.split(_, node, sidebar)
   if node:is_editable() then
-    context.sidebar:open_file(node.path, "split")
+    sidebar:open_file(node.path, "split")
   end
 end
 
@@ -108,26 +108,26 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.preview(_, node, context)
-  preview(context.sidebar, node, false)
+---@param sidebar Yat.Sidebar
+function M.preview(_, node, sidebar)
+  preview(sidebar, node, false)
 end
 
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.preview_and_focus(_, node, context)
-  preview(context.sidebar, node, true)
+---@param sidebar Yat.Sidebar
+function M.preview_and_focus(_, node, sidebar)
+  preview(sidebar, node, true)
 end
 
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.tabnew(_, node, context)
+---@param sidebar Yat.Sidebar
+function M.tabnew(_, node, sidebar)
   if node:is_editable() then
-    context.sidebar:open_file(node.path, "tabnew")
+    sidebar:open_file(node.path, "tabnew")
   end
 end
 
@@ -153,8 +153,8 @@ end
 ---@async
 ---@param tree Yat.Trees.Filesystem
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.add(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.add(tree, node, sidebar)
   if not node:is_directory() then
     node = node.parent --[[@as Yat.Node]]
   end
@@ -176,7 +176,7 @@ function M.add(tree, node, context)
         path = path:sub(1, -2)
       end
 
-      prepare_add_rename(context.sidebar, tree, node, path)
+      prepare_add_rename(sidebar, tree, node, path)
       if is_directory and fs.create_dir(path) or fs.create_file(path) then
         utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
       else
@@ -191,8 +191,8 @@ end
 ---@async
 ---@param tree Yat.Trees.Filesystem|Yat.Trees.Git
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.rename(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.rename(tree, node, sidebar)
   -- prohibit renaming the root node
   if tree.root == node then
     return
@@ -207,7 +207,7 @@ function M.rename(tree, node, context)
   end
 
   if tree.TYPE == "filesystem" then
-    prepare_add_rename(context.sidebar, tree --[[@as Yat.Trees.Filesystem]], node, path)
+    prepare_add_rename(sidebar, tree --[[@as Yat.Trees.Filesystem]], node, path)
   end
   if node.repo then
     local err = node.repo:rename(node.path, path)
@@ -286,9 +286,9 @@ end
 ---@async
 ---@param tree Yat.Trees.Filesystem
 ---@param _ Yat.Node
----@param context Yat.Action.FnContext
-function M.delete(tree, _, context)
-  local nodes, node_to_focus = get_nodes_to_delete(context.sidebar:get_selected_nodes(), tree.root.path, true, "Delete")
+---@param sidebar Yat.Sidebar
+function M.delete(tree, _, sidebar)
+  local nodes, node_to_focus = get_nodes_to_delete(sidebar:get_selected_nodes(), tree.root.path, true, "Delete")
   if #nodes == 0 then
     return
   end
@@ -312,14 +312,14 @@ end
 ---@async
 ---@param tree Yat.Trees.Filesystem
 ---@param _ Yat.Node
----@param context Yat.Action.FnContext
-function M.trash(tree, _, context)
+---@param sidebar Yat.Sidebar
+function M.trash(tree, _, sidebar)
   local trash = require("ya-tree.config").config.trash
   if not trash.enable then
     return
   end
 
-  local nodes, node_to_focus = get_nodes_to_delete(context.sidebar:get_selected_nodes(), tree.root.path, trash.require_confirm, "Trash")
+  local nodes, node_to_focus = get_nodes_to_delete(sidebar:get_selected_nodes(), tree.root.path, trash.require_confirm, "Trash")
   if #nodes == 0 then
     return
   end

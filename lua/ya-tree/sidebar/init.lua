@@ -40,8 +40,8 @@ end
 ---@overload async fun(tabpage: integer, sidebar_config?: Yat.Config.Sidebar): Yat.Sidebar
 ---@field class fun(self: Yat.Sidebar): Yat.Sidebar
 ---
----@field tabpage integer
 ---@field private canvas Yat.Ui.Canvas
+---@field private _tabpage integer
 ---@field private single_mode boolean
 ---@field package tree_order table<Yat.Trees.Type, integer>
 ---@field package always_shown_trees Yat.Trees.Type[]
@@ -52,11 +52,11 @@ local Sidebar = meta.create_class("Yat.Sidebar")
 ---@param other Yat.Sidebar
 ---@return boolean
 function Sidebar.__eq(self, other)
-  return self.tabpage == other.tabpage
+  return self._tabpage == other._tabpage
 end
 
 function Sidebar.__tostring(self)
-  return string.format("Sidebar(%s, sections=[%s])", self.tabpage, table.concat(vim.tbl_map(section_tostring, self._sections), ", "))
+  return string.format("Sidebar(%s, sections=[%s])", self._tabpage, table.concat(vim.tbl_map(section_tostring, self._sections), ", "))
 end
 
 ---@param tree Yat.Tree
@@ -81,7 +81,7 @@ end
 function Sidebar:init(tabpage, sidebar_config)
   local config = require("ya-tree.config").config
   sidebar_config = sidebar_config or config.sidebar
-  self.tabpage = tabpage
+  self._tabpage = tabpage
   self.canvas = Canvas:new(config.view.position, config.view.size, function(row)
     return self:get_tree_and_row_for_row(row)
   end)
@@ -96,7 +96,7 @@ function Sidebar:init(tabpage, sidebar_config)
   local tree_types = self.single_mode and { self.always_shown_trees[1] } or self.always_shown_trees
   local cwd = uv.cwd() --[[@as string]]
   for _, tree_type in ipairs(tree_types) do
-    local tree = Trees.create_tree(self.tabpage, tree_type, cwd)
+    local tree = Trees.create_tree(self._tabpage, tree_type, cwd)
     if tree then
       self:_add_section(tree)
     end
@@ -104,6 +104,11 @@ function Sidebar:init(tabpage, sidebar_config)
   self:_sort_sections()
 
   log.info("created new sidebar %s", tostring(self))
+end
+
+---@return integer tabpage
+function Sidebar:tabpage()
+  return self._tabpage
 end
 
 ---@private
@@ -174,7 +179,7 @@ end
 function Sidebar:filesystem_tree(path)
   path = path or uv.cwd() --[[@as string]]
   return self:_get_or_create_tree("filesystem", function()
-    return FilesystemTree:new(self.tabpage, path)
+    return FilesystemTree:new(self._tabpage, path)
   end, path) --[[@as Yat.Trees.Filesystem]]
 end
 
@@ -183,7 +188,7 @@ end
 ---@return Yat.Trees.Git
 function Sidebar:git_tree(repo)
   return self:_get_or_create_tree("git", function()
-    return GitTree:new(self.tabpage, repo)
+    return GitTree:new(self._tabpage, repo)
   end, repo) --[[@as Yat.Trees.Git]]
 end
 
@@ -191,7 +196,7 @@ end
 ---@return Yat.Trees.Buffers
 function Sidebar:buffers_tree()
   return self:_get_or_create_tree("buffers", function()
-    return BuffersTree:new(self.tabpage, uv.cwd())
+    return BuffersTree:new(self._tabpage, uv.cwd())
   end) --[[@as Yat.Trees.Buffers]]
 end
 
@@ -200,7 +205,7 @@ end
 ---@return Yat.Trees.Search
 function Sidebar:search_tree(path)
   return self:_get_or_create_tree("search", function()
-    return SearchTree:new(self.tabpage, path) --[[@as Yat.Trees.Search]]
+    return SearchTree:new(self._tabpage, path) --[[@as Yat.Trees.Search]]
   end, path) --[[@as Yat.Trees.Search]]
 end
 
@@ -249,7 +254,7 @@ function Sidebar:close_tree(tree, force)
           self:_delete_section(i)
         end
         self._sections = {}
-        self:_add_section(FilesystemTree:new(self.tabpage, uv.cwd()))
+        self:_add_section(FilesystemTree:new(self._tabpage, uv.cwd()))
       end
       return self._sections[1].tree
     end
@@ -496,7 +501,7 @@ function Sidebar:on_autocmd_event(event, bufnr, file, match)
       update = callback(tree, bufnr, file, match) or update
     end
   end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
+  if update and tabpage == self._tabpage and self.canvas:is_open() then
     update_canvas(self, true)
   end
 end
@@ -516,7 +521,7 @@ function Sidebar:on_git_event(repo, fs_changes)
       update = callback(tree, repo, fs_changes) or update
     end
   end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
+  if update and tabpage == self._tabpage and self.canvas:is_open() then
     update_canvas(self, true)
   end
 end
@@ -534,7 +539,7 @@ function Sidebar:on_diagnostics_event(severity_changed)
       update = callback(tree, severity_changed) or update
     end
   end
-  if update and tabpage == self.tabpage and self.canvas:is_open() then
+  if update and tabpage == self._tabpage and self.canvas:is_open() then
     update_canvas(self)
   end
 end
@@ -689,7 +694,7 @@ end
 ---@param event integer
 ---@return string id
 function Sidebar:_create_event_id(event)
-  return string.format("YA_TREE_SIDEBAR_%s_%s", self.tabpage, events.get_event_name(event))
+  return string.format("YA_TREE_SIDEBAR_%s_%s", self._tabpage, events.get_event_name(event))
 end
 
 ---@private

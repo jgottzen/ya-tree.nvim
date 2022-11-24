@@ -27,9 +27,8 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
----@param context Yat.Action.FnContext
-function M.search_interactively(tree, node, context)
-  local sidebar = context.sidebar
+---@param sidebar Yat.Sidebar
+function M.search_interactively(tree, node, sidebar)
   node = node or tree.root
   -- if the node is a file, search in the directory
   if not node:is_directory() and node.parent then
@@ -85,7 +84,7 @@ function M.search_interactively(tree, node, context)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
         scheduler()
-        context.sidebar:focus_node(search_tree, search_tree.current_node)
+        sidebar:focus_node(search_tree, search_tree.current_node)
       end
       timer:close()
     end),
@@ -102,8 +101,8 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
----@param context Yat.Action.FnContext
-function M.search_once(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.search_once(tree, node, sidebar)
   node = node or tree.root
   -- if the node is a file, search in the directory
   if not node:is_directory() and node.parent then
@@ -112,15 +111,15 @@ function M.search_once(tree, node, context)
 
   local term = ui.input({ prompt = "Search:" })
   if term then
-    search(context.sidebar, context.sidebar:search_tree(node.path), term)
+    search(sidebar, sidebar:search_tree(node.path), term)
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node? Yat.Node
----@param context Yat.Action.FnContext
-function M.search_for_node_in_tree(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.search_for_node_in_tree(tree, node, sidebar)
   node = node or tree.root
   local completion = type(tree.complete_func) == "function" and function(bufnr)
     tree:complete_func(bufnr, node)
@@ -129,7 +128,7 @@ function M.search_for_node_in_tree(tree, node, context)
   local input = Input:new({ prompt = "Path:", completion = completion, border = border }, {
     on_submit = void(function(path)
       if path then
-        lib.search_for_node_in_tree(context.sidebar, tree, path)
+        lib.search_for_node_in_tree(sidebar, tree, path)
       end
     end),
   })

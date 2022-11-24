@@ -6,12 +6,12 @@ local M = {}
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.check_node_for_git(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.check_node_for_git(tree, node, sidebar)
   if not node.repo or node.repo:is_yadm() then
     local repo = lib.rescan_node_for_git(tree, node)
     if repo then
-      context.sidebar:update()
+      sidebar:update()
     else
       utils.notify(string.format("No Git repository found in %q.", node.path))
     end
@@ -23,14 +23,14 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.stage(_, node, context)
+---@param sidebar Yat.Sidebar
+function M.stage(_, node, sidebar)
   if node.repo then
     local err = node.repo:add(node.path)
     if err then
       utils.warn("Error staging path '" .. node.path .. "': " .. err)
     else
-      context.sidebar:update()
+      sidebar:update()
     end
   end
 end
@@ -38,14 +38,14 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.unstage(_, node, context)
+---@param sidebar Yat.Sidebar
+function M.unstage(_, node, sidebar)
   if node.repo then
     local err = node.repo:restore(node.path, true)
     if err then
       utils.warn("Error unstaging path '" .. node.path .. "': " .. err)
     else
-      context.sidebar:update()
+      sidebar:update()
     end
   end
 end
@@ -53,14 +53,14 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.revert(_, node, context)
+---@param sidebar Yat.Sidebar
+function M.revert(_, node, sidebar)
   if node.repo then
     local err = node.repo:restore(node.path, false)
     if err then
       utils.warn("Error reverting path '" .. node.path .. "': " .. err)
     else
-      context.sidebar:update()
+      sidebar:update()
     end
   end
 end

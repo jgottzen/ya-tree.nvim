@@ -5,23 +5,23 @@ local M = {}
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.toggle_node(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.toggle_node(tree, node, sidebar)
   if node:has_children() then
     if node.expanded then
       node:collapse()
     else
       node:expand()
     end
-    context.sidebar:update(tree, node)
+    sidebar:update(tree, node)
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.close_node(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.close_node(tree, node, sidebar)
   if node:has_children() and node.expanded then
     node:collapse()
   else
@@ -31,26 +31,26 @@ function M.close_node(tree, node, context)
       node = parent
     end
   end
-  context.sidebar:update(tree, node)
+  sidebar:update(tree, node)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param _ Yat.Node
----@param context Yat.Action.FnContext
-function M.close_all_nodes(tree, _, context)
+---@param sidebar Yat.Sidebar
+function M.close_all_nodes(tree, _, sidebar)
   tree.root:collapse({ recursive = true })
-  context.sidebar:update(tree, tree.root)
+  sidebar:update(tree, tree.root)
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.close_all_child_nodes(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.close_all_child_nodes(tree, node, sidebar)
   if node:has_children() then
     node:collapse({ recursive = true, children_only = true })
-    context.sidebar:update(tree, node)
+    sidebar:update(tree, node)
   end
 end
 
@@ -73,20 +73,20 @@ do
   ---@async
   ---@param tree Yat.Tree
   ---@param node Yat.Node
-  ---@param context Yat.Action.FnContext
-  function M.expand_all_nodes(tree, node, context)
+  ---@param sidebar Yat.Sidebar
+  function M.expand_all_nodes(tree, node, sidebar)
     expand(tree.root, 1, require("ya-tree.config").config)
-    context.sidebar:update(tree, node)
+    sidebar:update(tree, node)
   end
 
   ---@async
   ---@param tree Yat.Tree
   ---@param node Yat.Node
-  ---@param context Yat.Action.FnContext
-  function M.expand_all_child_nodes(tree, node, context)
+  ---@param sidebar Yat.Sidebar
+  function M.expand_all_child_nodes(tree, node, sidebar)
     if node:has_children() then
       expand(node, 1, require("ya-tree.config").config)
-      context.sidebar:update(tree, node)
+      sidebar:update(tree, node)
     end
   end
 end
@@ -94,10 +94,10 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_parent(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.focus_parent(tree, node, sidebar)
   if node.parent then
-    context.sidebar:focus_node(tree, node.parent)
+    sidebar:focus_node(tree, node.parent)
   end
 end
 
@@ -117,40 +117,40 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_prev_sibling(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.focus_prev_sibling(tree, node, sidebar)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(context.sidebar, tree, node.parent:iterate_children({ reverse = true, from = node }))
+    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children({ reverse = true, from = node }))
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_next_sibling(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.focus_next_sibling(tree, node, sidebar)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(context.sidebar, tree, node.parent:iterate_children({ from = node }))
+    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children({ from = node }))
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_first_sibling(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.focus_first_sibling(tree, node, sidebar)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(context.sidebar, tree, node.parent:iterate_children())
+    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children())
   end
 end
 
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_last_sibling(tree, node, context)
+---@param sidebar Yat.Sidebar
+function M.focus_last_sibling(tree, node, sidebar)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(context.sidebar, tree, node.parent:iterate_children({ reverse = true }))
+    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children({ reverse = true }))
   end
 end
 
@@ -169,10 +169,10 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param start Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_prev_git_item(tree, start, context)
+---@param sidebar Yat.Sidebar
+function M.focus_prev_git_item(tree, start, sidebar)
   local config = require("ya-tree.config").config
-  focus_first_node_that_matches(context.sidebar, tree, start, false, function(node)
+  focus_first_node_that_matches(sidebar, tree, start, false, function(node)
     return not node:is_hidden(config) and node:git_status() ~= nil
   end)
 end
@@ -180,10 +180,10 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param start Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_next_git_item(tree, start, context)
+---@param sidebar Yat.Sidebar
+function M.focus_next_git_item(tree, start, sidebar)
   local config = require("ya-tree.config").config
-  focus_first_node_that_matches(context.sidebar, tree, start, true, function(node)
+  focus_first_node_that_matches(sidebar, tree, start, true, function(node)
     return not node:is_hidden(config) and node:git_status() ~= nil
   end)
 end
@@ -191,12 +191,12 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param start Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_prev_diagnostic_item(tree, start, context)
+---@param sidebar Yat.Sidebar
+function M.focus_prev_diagnostic_item(tree, start, sidebar)
   local config = require("ya-tree.config").config
   local directory_min_diagnostic_severity = tree.renderers.extra.directory_min_diagnostic_severity
   local file_min_diagnostic_severity = tree.renderers.extra.file_min_diagnostic_severity
-  focus_first_node_that_matches(context.sidebar, tree, start, false, function(node)
+  focus_first_node_that_matches(sidebar, tree, start, false, function(node)
     if not node:is_hidden(config) then
       local severity = node:diagnostic_severity()
       if severity then
@@ -211,12 +211,12 @@ end
 ---@async
 ---@param tree Yat.Tree
 ---@param start Yat.Node
----@param context Yat.Action.FnContext
-function M.focus_next_diagnostic_item(tree, start, context)
+---@param sidebar Yat.Sidebar
+function M.focus_next_diagnostic_item(tree, start, sidebar)
   local config = require("ya-tree.config").config
   local directory_min_diagnostic_severity = tree.renderers.extra.directory_min_diagnostic_severity
   local file_min_diagnostic_severity = tree.renderers.extra.file_min_diagnostic_severity
-  focus_first_node_that_matches(context.sidebar, tree, start, true, function(node)
+  focus_first_node_that_matches(sidebar, tree, start, true, function(node)
     if not node:is_hidden(config) then
       local severity = node:diagnostic_severity()
       if severity then
@@ -231,12 +231,12 @@ end
 ---@async
 ---@param _ Yat.Tree
 ---@param node Yat.Node
----@param context Yat.Action.FnContext
-function M.goto_node_in_filesystem_tree(_, node, context)
-  local tree = context.sidebar:filesystem_tree()
+---@param sidebar Yat.Sidebar
+function M.goto_node_in_filesystem_tree(_, node, sidebar)
+  local tree = sidebar:filesystem_tree()
   local target_node = tree.root:expand({ to = node.path })
   scheduler()
-  context.sidebar:update(tree, target_node)
+  sidebar:update(tree, target_node)
 end
 
 return M
