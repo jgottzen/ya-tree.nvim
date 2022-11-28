@@ -28,7 +28,6 @@ local M = {
   CHAR_DEVICE_FILE_NAME = "YaTreeCharDeviceFileName",
   BLOCK_DEVICE_FILE_NAME = "YaTreeBlockDeviceFileName",
   EXECUTABLE_FILE_NAME = "YaTreeExecutableFileName",
-  OPENED_FILE_NAME = "YaTreeOpenedFileName",
   ERROR_FILE_NAME = "YaTreeErrorFileName",
 
   MODIFIED = "YaTreeFileModified",
@@ -161,7 +160,6 @@ function M.setup()
   create_highlight(M.CHAR_DEVICE_FILE_NAME, { M.CHAR_DEVICE_FILE_ICON })
   create_highlight(M.BLOCK_DEVICE_FILE_NAME, { M.BLOCK_DEVICE_FILE_ICON })
   create_highlight(M.EXECUTABLE_FILE_NAME, { M.FILE_NAME })
-  create_highlight(M.OPENED_FILE_NAME, { "TSKeyword" }, nil, "#d3869b")
   create_highlight(M.ERROR_FILE_NAME, nil, { fg = "#080808", bg = "#ff0000" })
 
   create_highlight(M.MODIFIED, nil, { fg = normal_fg, bold = true })
