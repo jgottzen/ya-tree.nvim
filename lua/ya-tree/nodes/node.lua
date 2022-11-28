@@ -15,6 +15,7 @@ local utils = require("ya-tree.utils")
 ---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
 ---@field class fun(self: Yat.Node): Yat.Node
 ---@field static Yat.Node
+---@field private __lower Yat.Node
 ---
 ---@field protected __node_type "FileSystem"
 ---@field public name string
