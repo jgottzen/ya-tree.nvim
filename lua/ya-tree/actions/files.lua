@@ -14,7 +14,7 @@ local api = vim.api
 
 local M = {}
 
----@alias Yat.Action.Files.Open.Mode "edit" | "vsplit" | "split" | "tabnew"
+---@alias Yat.Action.Files.Open.Mode "edit"|"vsplit"|"split"|"tabnew"
 
 ---@async
 ---@param tree Yat.Tree

@@ -8,7 +8,7 @@ local api = vim.api
 
 ---@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, sidebar: Yat.Sidebar)
 
----@alias Yat.Actions.Mode "n" | "v" | "V"
+---@alias Yat.Actions.Mode "n"|"v"|"V"
 
 ---@class Yat.Action
 ---@field fn Yat.Action.Fn

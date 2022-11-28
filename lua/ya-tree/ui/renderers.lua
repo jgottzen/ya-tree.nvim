@@ -27,7 +27,7 @@ local log = require("ya-tree.log")("ui")
 ---@field last_child boolean
 ---@field indent_markers table<integer, boolean>
 
----@alias Yat.Ui.Renderer.Name "indentation" | "icon" | "name" | "modified" | "repository" | "symlink_target" | "git_status" | "diagnostics" | "buffer_info" | "clipboard" | string
+---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|string
 ---@alias Yat.Ui.RendererFunction fun(node: Yat.Node, context: Yat.Ui.RenderContext, renderer: Yat.Config.BaseRendererConfig): Yat.Ui.RenderResult[]|nil
 
 ---@class Yat.Ui.Renderer.Renderer

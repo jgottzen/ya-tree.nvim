@@ -10,7 +10,7 @@ local M = {
   queue = {},
 }
 
----@alias Yat.Actions.Clipboard.Action "copy" | "cut"
+---@alias Yat.Actions.Clipboard.Action "copy"|"cut"
 
 ---@param sidebar Yat.Sidebar
 ---@param tree Yat.Tree

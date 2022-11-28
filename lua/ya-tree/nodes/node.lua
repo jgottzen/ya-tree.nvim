@@ -10,7 +10,7 @@ local utils = require("ya-tree.utils")
 
 ---@alias Yat.Nodes.SortBy "name"|"type"|"extension"
 
----@alias Yat.Nodes.Type "FileSystem" | "Search" | "Buffer" | "Git" | "Text"
+---@alias Yat.Nodes.Type "FileSystem"|"Search"|"Buffer"|"Git"|"Text"
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
@@ -383,7 +383,7 @@ function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self._type) or false
 end
 
----@alias Yat.Nodes.HiddenReason "filter" | "git"
+---@alias Yat.Nodes.HiddenReason "filter"|"git"
 
 ---@param config Yat.Config
 ---@return boolean hidden

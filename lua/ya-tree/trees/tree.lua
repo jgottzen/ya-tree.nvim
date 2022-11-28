@@ -9,7 +9,7 @@ local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 
----@alias Yat.Trees.Type "filesystem" | "buffers" | "git" | "search" | string
+---@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|string
 
 ---@class Yat.Trees.TreeRenderers
 ---@field directory Yat.Trees.Ui.Renderer[]
@@ -41,7 +41,7 @@ local api = vim.api
 ---@field section_icon string
 ---@field section_name string
 ---@field renderers Yat.Trees.TreeRenderers
----@field complete_func string | fun(self: Yat.Tree, bufnr: integer, node: Yat.Node) | false
+---@field complete_func string|fun(self: Yat.Tree, bufnr: integer, node: Yat.Node)|false
 local Tree = meta.create_class("Yat.Tree")
 
 ---@alias Yat.Trees.Tree.SupportedActions

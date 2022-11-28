@@ -11,7 +11,7 @@ local utils = require("ya-tree.utils")
 local api = vim.api
 local fn = vim.fn
 
----@alias Yat.Nodes.Buffer.Type Luv.FileType | "terminal"
+---@alias Yat.Nodes.Buffer.Type Luv.FileType|"terminal"
 
 ---@class Yat.Node.BufferData : Yat.Fs.Node
 ---@field public _type Yat.Nodes.Buffer.Type

@@ -67,7 +67,7 @@ end
 -- see: https://github.com/luvit/luv/blob/d2e235503f6cb5c86121cd70cdb5d17e368bab03/src/fs.c#L107=
 
 ---Excludes the link type since it's handled differently, and unknown.
----@alias Luv.FileType "directory" | "file" | "fifo" | "socket" | "char" | "block"
+---@alias Luv.FileType "directory"|"file"|"fifo"|"socket"|"char"|"block"
 
 ---@class Luv.Timespec
 ---@field sec integer
