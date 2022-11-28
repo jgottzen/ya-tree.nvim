@@ -8,8 +8,6 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
----@alias Yat.Nodes.SortBy "name"|"type"|"extension"
-
 ---@alias Yat.Nodes.Type "FileSystem"|"Search"|"Buffer"|"Git"|"Text"
 
 ---@class Yat.Node : Yat.Object

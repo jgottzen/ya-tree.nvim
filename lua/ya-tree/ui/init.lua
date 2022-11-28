@@ -2,8 +2,6 @@ local wrap = require("plenary.async").wrap
 
 local api = vim.api
 
----@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
-
 ---@class Yat.Ui.HighlightGroup
 ---@field name string
 ---@field from integer

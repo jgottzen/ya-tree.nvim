@@ -6,17 +6,6 @@ local log = require("ya-tree.log")("actions")
 
 local api = vim.api
 
----@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, sidebar: Yat.Sidebar)
-
----@alias Yat.Actions.Mode "n"|"v"|"V"
-
----@class Yat.Action
----@field fn Yat.Action.Fn
----@field desc string
----@field trees Yat.Trees.Type[]
----@field modes Yat.Actions.Mode[]
----@field node_independent boolean
-
 local M = {
   ---@private
   ---@type table<Yat.Actions.Name, Yat.Action>

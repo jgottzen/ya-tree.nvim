@@ -9,8 +9,6 @@ local log = require("ya-tree.log")("trees")
 
 local api = vim.api
 
----@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|string
-
 ---@class Yat.Trees.TreeRenderers
 ---@field directory Yat.Trees.Ui.Renderer[]
 ---@field file Yat.Trees.Ui.Renderer[]

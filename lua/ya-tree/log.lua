@@ -48,8 +48,6 @@ function logger_class.warn(msg, ...) end
 ---@diagnostic disable-next-line:unused-local
 function logger_class.error(msg, ...) end
 
----@alias Yat.Logger.Level "trace"|"debug"|"info"|"warn"|"error"
-
 ---@class Yat.Logger.Config
 ---@field namespaces string[]
 ---@field level Yat.Logger.Level

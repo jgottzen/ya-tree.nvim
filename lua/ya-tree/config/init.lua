@@ -2,13 +2,13 @@ local fn = vim.fn
 
 local M = {
   ---@class Yat.Config
-  ---@field close_if_last_window boolean Force closing Neovim when YaTree is the last window, default: `false`.
+  ---@field close_if_last_window boolean Force closing the YaTree window when it is the last window in the tabpage, default: `false`.
   ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
   ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
   ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
   ---@field hijack_netrw boolean Replace the `netrw` file explorer, default: `true`.
   ---@field expand_all_nodes_max_depth integer The maximum depth to expand when expanding nodes, default: 5.
-  ---@field load_sidebar_on_setup boolean Whether to load the sidebar and it's trees on setup, which can make the subsequent open faster, default: `false`.
+  ---@field load_sidebar_on_setup boolean Whether to load the sidebar and it's trees on setup, which makes the first open faster, default: `false`.
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
@@ -38,6 +38,8 @@ local M = {
 
     load_sidebar_on_setup = false,
 
+    ---@alias Yat.Logger.Level "trace"|"debug"|"info"|"warn"|"error"
+
     ---@class Yat.Config.Log
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
@@ -53,7 +55,7 @@ local M = {
     ---@class Yat.Config.AutoOpen
     ---@field on_setup boolean Automatically open the tree when running setup, default: `false`.
     ---@field on_new_tab boolean Automatically open the tree when opening a new tabpage, default: `false`.
-    ---@field focus_tree boolean Wether to focus the tree when automatically opened, default: `false`.
+    ---@field focus_tree boolean Whether to focus the tree when automatically opened, default: `false`.
     auto_open = {
       on_setup = false,
       on_new_tab = false,
@@ -70,11 +72,13 @@ local M = {
 
     ---@class Yat.Config.DirWatcher
     ---@field enable boolean Whether directory watching is enabled, default: `true`.
-    ---@field exclude string[] The directory names to exclude from watching, ".git" directories are always excluded.
+    ---@field exclude string[] The directory names to exclude from watching, `".git"` directories are always excluded.
     dir_watcher = {
       enable = true,
       exclude = {},
     },
+
+    ---@alias Yat.Nodes.SortBy "name"|"type"|"extension"
 
     ---@class Yat.Config.Sorting
     ---@field directories_first boolean Whether to sort directories first, default: `true`.
@@ -121,7 +125,7 @@ local M = {
       watch_git_dir_interval = 1000,
 
       ---@class Yat.Config.Git.Yadm
-      ---@field enable boolean Wether yadm is enabled, requires git to be enabled, default: `false`.
+      ---@field enable boolean Whether yadm is enabled, requires git to be enabled, default: `false`.
       yadm = {
         enable = false,
       },
@@ -146,18 +150,20 @@ local M = {
     },
 
     ---@class Yat.Config.Trash
-    ---@field enable boolean Wether to enable trashing in the tree (`trash-cli must be installed`), default: `true`.
-    ---@field require_confirm boolean Confirm before trashing file(s), default: `false`.
+    ---@field enable boolean Whether to enable trashing in the tree (`trash-cli must be installed`), default: `true`.
+    ---@field require_confirm boolean Confirm before trashing, default: `false`.
     trash = {
       enable = true,
       require_confirm = false,
     },
 
+    ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
+
     ---@class Yat.Config.View
     ---@field size integer Size of the tree panel, default: `40`.
-    ---@field position Yat.Ui.Position Where the tree panel is placed, default: `"left"`.
-    ---@field number boolean Wether to show the number column, default: `false`.
-    ---@field relativenumber boolean Wether to show relative numbers, default: `false`.
+    ---@field position Yat.Ui.Position Where the sidebar is placed, default: `"left"`.
+    ---@field number boolean Whether to show the number column, default: `false`.
+    ---@field relativenumber boolean Whether to show relative numbers, default: `false`.
     ---@field popups Yat.Config.View.Popups Popup window configuration.
     view = {
       size = 40,
@@ -171,6 +177,8 @@ local M = {
         border = "rounded",
       },
     },
+
+    ---@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|string
 
     ---@class Yat.Config.Sidebar
     ---@field single_mode boolean If the sidebar should be a single tree only, default: `false`.
@@ -207,7 +215,18 @@ local M = {
       },
     },
 
-    ---@class Yat.Config.Actions : { [Yat.Actions.Name]: Yat.Action }
+    ---@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, sidebar: Yat.Sidebar)
+
+    ---@alias Yat.Actions.Mode "n"|"v"|"V"
+
+    ---@class Yat.Action
+    ---@field fn Yat.Action.Fn
+    ---@field desc string
+    ---@field trees Yat.Trees.Type[]
+    ---@field modes Yat.Actions.Mode[]
+    ---@field node_independent boolean
+
+    ---@class Yat.Config.Actions : { [string]: Yat.Action }
     actions = {},
 
     ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
@@ -218,11 +237,11 @@ local M = {
 
     ---@class Yat.Config.Trees.GlobalMappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-    ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+    ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Mappings
     ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-    ---@field list table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+    ---@field list table<string, Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Renderer
     ---@field name Yat.Ui.Renderer.Name The name of the renderer.
@@ -282,8 +301,8 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
       ---@field section_name string The name of the the in the sidebar, default: `"Files"`.
+      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
       ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
       ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
@@ -291,7 +310,7 @@ local M = {
         section_name = "Files",
         section_icon = "",
         ---@class Yat.Config.Trees.Filesystem.Completion
-        ---@field on "root" | "node" Wether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
+        ---@field on "root"|"node" Whether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
         ---@field setup? fun(self: Yat.Trees.Filesystem, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
         completion = {
           on = "root",
@@ -299,7 +318,7 @@ local M = {
         },
         ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -363,7 +382,7 @@ local M = {
         section_icon = "",
         ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Search.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Trees.Search.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -416,7 +435,7 @@ local M = {
         section_icon = "",
         ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Git.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Trees.Git.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -467,7 +486,7 @@ local M = {
         section_icon = "",
         ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
         ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|""|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -530,7 +549,7 @@ local M = {
       builtin = {
         ---@class Yat.Config.Renderers.Builtin.Indentation : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `""`.
-        ---@field use_indent_marker boolean Wether to show indent markers, default: `false`.
+        ---@field use_indent_marker boolean Whether to show indent markers, default: `false`.
         ---@field indent_marker string The icon for the indentation marker, default: `"│"`.
         ---@field last_indent_marker string The icon for the last indentation marker, default: `"└"`.
         ---@field use_expander_marker boolean Whether to show expanded and collapsed markers, default: `false`.
@@ -591,8 +610,8 @@ local M = {
         ---@class Yat.Config.Renderers.Builtin.Name : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
         ---@field root_folder_format string The root folder format as per `fnamemodify`, default: `":~"`.
-        ---@field trailing_slash boolean Wether to show a trailing OS directory separator after directory names, default: `false`.
-        ---@field use_git_status_colors boolean Wether to color the name with the git status color, default: `false`.
+        ---@field trailing_slash boolean Whether to show a trailing OS directory separator after directory names, default: `false`.
+        ---@field use_git_status_colors boolean Whether to color the name with the git status color, default: `false`.
         name = {
           padding = " ",
           root_folder_format = ":~",
@@ -623,7 +642,7 @@ local M = {
           ---@field unmerged string The icon for the unmerged count, default: `"~"`.
           ---@field staged string The icon for the staged count, default: `"+"`.
           ---@field unstaged string The icon for the unstaged count, default: `"!"`.
-          ---@field untracked string The icon for the untracked cound, default: `"?"`.
+          ---@field untracked string The icon for the untracked count, default: `"?"`.
           ---@field remote Yat.Config.Renderers.Repository.Icons.Remote Repository remote host icons.
           icons = {
             behind = "⇣",
@@ -634,7 +653,7 @@ local M = {
             unstaged = "!",
             untracked = "?",
 
-            ---@class Yat.Config.Renderers.Repository.Icons.Remote
+            ---@class Yat.Config.Renderers.Repository.Icons.Remote : { [string]: string }
             ---@field default string The default icon for marking the git toplevel directory, default: `""`.
             remote = {
               default = "",
