@@ -43,7 +43,7 @@ local M = {
     ---@class Yat.Config.Log
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
-    ---@field to_file boolean Whether to log the the log file, default: `false`.
+    ---@field to_file boolean Whether to log to the log file, default: `false`.
     ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "sidebar", "lib" }`.
     log = {
       level = "warn",
@@ -236,12 +236,14 @@ local M = {
     ---@field node_independent? boolean If the action can be invoked without a `node`.
 
     ---@class Yat.Config.Trees.GlobalMappings
-    ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+    ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
     ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
     ---@class Yat.Config.Trees.Mappings
-    ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+    ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
     ---@field list table<string, Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+
+    ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|string
 
     ---@class Yat.Config.Trees.Renderer
     ---@field name Yat.Ui.Renderer.Name The name of the renderer.
@@ -252,8 +254,8 @@ local M = {
     ---@field file Yat.Config.Trees.Renderer[] Which renderers to use for files, in order
 
     ---@class Yat.Config.Trees.Tree
-    ---@field section_icon string The icon for the tree in the sidebar.
-    ---@field section_name string The name of the the in the sidebar.
+    ---@field section_icon string The icon for the section in the sidebar.
+    ---@field section_name string The name of section the in the sidebar.
     ---@field mappings Yat.Config.Trees.Mappings The tree specific mappings.
     ---@field renderers Yat.Config.Trees.Renderers The tree specific renderers.
 
@@ -301,8 +303,8 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
-      ---@field section_name string The name of the the in the sidebar, default: `"Files"`.
-      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
+      ---@field section_name string The name of the section in the sidebar, default: `"Files"`.
+      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
       ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
       ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
@@ -317,7 +319,7 @@ local M = {
           setup = nil,
         },
         ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+        ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -373,15 +375,15 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the tree in the sidebar, default" `""`.
-      ---@field section_name string The name of the the in the sidebar, default: `"Search"`.
+      ---@field section_icon string The icon for the section in the sidebar, default" `""`.
+      ---@field section_name string The name of the section in the sidebar, default: `"Search"`.
       ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       search = {
         section_name = "Search",
         section_icon = "",
         ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+        ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Search.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -426,15 +428,15 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
-      ---@field section_name string The name of the the in the sidebar, default: `"Git"`.
+      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
+      ---@field section_name string The name of the section in the sidebar, default: `"Git"`.
       ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Tree specific renderers.
       git = {
         section_name = "Git",
         section_icon = "",
         ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+        ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Git.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -477,15 +479,15 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
-      ---@field section_name string The name of the the in the sidebar, default: `"Buffers"`.
+      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
+      ---@field section_name string The name of the section in the sidebar, default: `"Buffers"`.
       ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       buffers = {
         section_name = "Buffers",
         section_icon = "",
         ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+        ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Trees.Buffers.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
@@ -665,7 +667,7 @@ local M = {
 
         ---@class Yat.Config.Renderers.Builtin.SymlinkTarget : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-        ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
+        ---@field arrow_icon string The icon to use before the symbolic link target, default: `"➛"`.
         symlink_target = {
           padding = " ",
           arrow_icon = "➛",

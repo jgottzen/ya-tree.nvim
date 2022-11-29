@@ -48,7 +48,7 @@ function M.search_interactively(tree, node, sidebar)
   local border = require("ya-tree.config").config.view.popups.border
   local term = ""
   scheduler()
-  local height, width = sidebar:get_window_size()
+  local height, width = sidebar:size()
   local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2, border = border }, {
     ---@param text string
     on_change = void(function(text)

@@ -336,7 +336,7 @@ function Sidebar:restore_window()
 end
 
 ---@return integer? height, integer? width
-function Sidebar:get_window_size()
+function Sidebar:size()
   if self.canvas:is_open() then
     return self.canvas:size()
   end

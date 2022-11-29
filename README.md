@@ -11,6 +11,7 @@ trees. Additional trees can easily be created.
 - Go to node with path completion.
 - Basic file operations.
 - One sidebar per tabpage.
+- LSP Diagnostics
 
 ## Requirements
 
@@ -75,7 +76,7 @@ Which path to open, or a file to expand to in the tree.
 :YaTreeOpen path=/path/to/directory
 ```
 
-If the path is located below the current tree root, the tree expands to the path, '%' expands to the current buffer.
+If the path is located below the current tree root, the tree expands to the path, `%` expands to the current buffer.
 If the path is not located in the tree the root is changed to the path.
 
 `position`
@@ -103,7 +104,7 @@ The size of the sidebar.
 Examples:
 
 - `YaTreeOpen size=20 focus tree=git position=top` Open the Git tree at the top with a heigh of 20, and focus it.
-- `YaTreeOpen` Open the last used tree or a filesystem tree, in the last used position and size, or the configured size.
+- `YaTreeOpen` Open the sidebar, in the last used position and size, or the configured size.
 - `YaTreeOpen tree=filesystem path=/path/to/directory` Open the filesystem tree and change the root directory to `/path/to/directory`.
 - `YaTreeOpen path=%` Open the current tree, or filesystem, and expand the tree to the path of the current buffer, if possible. If the path is not located in the current root directory, the root will change the directory containing the path.
 
@@ -204,7 +205,7 @@ local DEFAULT = {
   ---@class Yat.Config.Log
   ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
   ---@field to_console boolean Whether to log to the console, default: `false`.
-  ---@field to_file boolean Whether to log the the log file, default: `false`.
+  ---@field to_file boolean Whether to log to the log file, default: `false`.
   ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "sidebar", "lib" }`.
   log = {
     level = "warn",
@@ -397,12 +398,14 @@ local DEFAULT = {
   ---@field node_independent? boolean If the action can be invoked without a `node`.
 
   ---@class Yat.Config.Trees.GlobalMappings
-  ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+  ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
   ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
 
   ---@class Yat.Config.Trees.Mappings
-  ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+  ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
   ---@field list table<string, Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+
+  ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|string
 
   ---@class Yat.Config.Trees.Renderer
   ---@field name Yat.Ui.Renderer.Name The name of the renderer.
@@ -413,8 +416,8 @@ local DEFAULT = {
   ---@field file Yat.Config.Trees.Renderer[] Which renderers to use for files, in order
 
   ---@class Yat.Config.Trees.Tree
-  ---@field section_icon string The icon for the tree in the sidebar.
-  ---@field section_name string The name of the the in the sidebar.
+  ---@field section_icon string The icon for the section in the sidebar.
+  ---@field section_name string The name of section the in the sidebar.
   ---@field mappings Yat.Config.Trees.Mappings The tree specific mappings.
   ---@field renderers Yat.Config.Trees.Renderers The tree specific renderers.
 
@@ -462,8 +465,8 @@ local DEFAULT = {
       },
     },
     ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
-    ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
-    ---@field section_name string The name of the the in the sidebar, default: `"Files"`.
+    ---@field section_name string The name of the section in the sidebar, default: `"Files"`.
+    ---@field section_icon string The icon for the section in the sidebar, default: `""`.
     ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
     ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
     ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
@@ -478,7 +481,7 @@ local DEFAULT = {
         setup = nil,
       },
       ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
-      ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
       ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
@@ -534,15 +537,15 @@ local DEFAULT = {
       },
     },
     ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-    ---@field section_icon string The icon for the tree in the sidebar, default" `""`.
-    ---@field section_name string The name of the the in the sidebar, default: `"Search"`.
+    ---@field section_icon string The icon for the section in the sidebar, default" `""`.
+    ---@field section_name string The name of the section in the sidebar, default: `"Search"`.
     ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
     ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
     search = {
       section_name = "Search",
       section_icon = "",
       ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
-      ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
       ---@field list table<string, Yat.Trees.Search.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
@@ -587,15 +590,15 @@ local DEFAULT = {
       },
     },
     ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-    ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
-    ---@field section_name string The name of the the in the sidebar, default: `"Git"`.
+    ---@field section_icon string The icon for the section in the sidebar, default: `""`.
+    ---@field section_name string The name of the section in the sidebar, default: `"Git"`.
     ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
     ---@field renderers? Yat.Config.Trees.Renderers Tree specific renderers.
     git = {
       section_name = "Git",
       section_icon = "",
       ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
-      ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
       ---@field list table<string, Yat.Trees.Git.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
@@ -638,15 +641,15 @@ local DEFAULT = {
       },
     },
     ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
-    ---@field section_icon string The icon for the tree in the sidebar, default: `""`.
-    ---@field section_name string The name of the the in the sidebar, default: `"Buffers"`.
+    ---@field section_icon string The icon for the section in the sidebar, default: `""`.
+    ---@field section_name string The name of the section in the sidebar, default: `"Buffers"`.
     ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
     ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
     buffers = {
       section_name = "Buffers",
       section_icon = "",
       ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
-      ---@field disable_defaults boolean Whether to diasble all default mappings, default: `false`.
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
       ---@field list table<string, Yat.Trees.Buffers.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
@@ -814,7 +817,7 @@ local DEFAULT = {
           unstaged = "!",
           untracked = "?",
 
-          ---@class Yat.Config.Renderers.Repository.Icons.Remote
+          ---@class Yat.Config.Renderers.Repository.Icons.Remote : { [string]: string }
           ---@field default string The default icon for marking the git toplevel directory, default: `""`.
           remote = {
             default = "",
@@ -826,7 +829,7 @@ local DEFAULT = {
 
       ---@class Yat.Config.Renderers.Builtin.SymlinkTarget : Yat.Config.BaseRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field arrow_icon string The icon to use before the sybolic link target, default: `"➛"`.
+      ---@field arrow_icon string The icon to use before the symbolic link target, default: `"➛"`.
       symlink_target = {
         padding = " ",
         arrow_icon = "➛",
@@ -912,16 +915,22 @@ Mappings are constructed by associating the key(s) in question with an `action`.
 local utils = require("ya-tree.config.utils")
 require("ya-tree").setup({
   actions = {
-    print_node = utils.create_action(function(tree, node, sidebar)
-      print(node.path)
-    end, "Print node", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
+    special_action = utils.create_action(function(tree, node, sidebar)
+      -- this is what the "git_stage" action does
+      if node.repo then
+        local err = node.repo:add(node.path)
+        if not err then
+          sidebar:update()
+        end
+      end
+    end, "Add node to git", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
     print_tree = utils.create_action(function(tree, node, sidebar)
       print(tree.TYPE)
     end, "Print tree", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
   },
   trees = {
     global_mappings = {
-      ["A"] = "print_node",
+      ["A"] = "special_action",
     },
     filesystem = {
       mappings = {
@@ -1185,28 +1194,79 @@ require("ya-tree").setup({
 
 </details>
 
+## Async
+
+Git and file system operations are called using the `plenary.nvim` `plenary.async.wrap` function,
+turning callbacks into regular return values. The consequence of this is that calling those functions
+must be done in a coroutine. This bubbles up all the way, so all entry points to the plugin is done
+using the `plenary.async.void` function.
+
+For actions, this conceptually translates to:
+
+```lua
+local function rhs(key)
+  local sidebar = ...
+  local tree, node = ...
+  local action = ...
+  require("plenary.async").void(action)(tree, node, sidebar)
+end
+```
+
+This means that all actions are running inside a coroutine and special care has to be taken to handle
+[`api-fast`](https://neovim.io/doc/user/api.html#api-fast) calls. The easiest way is to call the sceduler:
+```lua
+  tree.root:refresh()
+  require("plenary.async.util").scheduler()
+   -- this can cause E5560 without the call to scheduler above
+  local height, width = sidebar:size()
+```
+
+The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make then easier to use.
+```lua
+  local response = require("ya-tree.ui").input({ promt = "My prompt", deault = "My value" })
+  local choice = require("ya-tree.ui").select({ "Yes", "No" }, { kind = "confirmation", prompt = "Choose" })
+```
+
 ## Renderers
 
 A custom renderer component can be created using the config helper:
 
 ```lua
+---@class Yat.Ui.RenderContext
+---@field tree_type Yat.Trees.Type
+---@field config Yat.Config
+---@field depth integer
+---@field last_child boolean
+---@field indent_markers table<integer, boolean>
+
+---@class Yat.Ui.RenderResult
+---@field padding string
+---@field text string
+---@field highlight string
+
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderer Yat.Config.BaseRendererConfig
+---@return Yat.Ui.RenderResult[]|nil result
+local function renderer(node, context, renderer)
+  -- the renderer parameter is the merged table of the second argument to utils.create_renderer
+  -- and the `override` table in the tree's renderers table
+  if renderer.prop and vim.startswith(node.name, "A") then
+    return {
+      {
+        padding = renderer.padding,
+        text = "WOO",
+        highlight = hl.ERROR_FILE_NAME,
+      },
+    }
+  end
+end
+
 local utils = require("ya-tree.config.utils")
 local hl = require("ya-tree.ui.highlights")
 require("ya-tree").setup({
   renderers = {
-    example_renderer = utils.create_renderer(function(node, config, renderer)
-      if renderer.prop and vim.startswith(node.name, "A") then
-        return {
-          {
-            padding = renderer.padding,
-            text = "WOO",
-            highlight = hl.ERROR_FILE_NAME,
-          },
-        }
-      else
-          return {}
-      end
-    end, { padding = " ", prop = false }),
+    example_renderer = utils.create_renderer(renderer, { padding = " ", prop = false }),
   },
   trees = {
     filesystem = {
@@ -1226,6 +1286,10 @@ require("ya-tree").setup({
   },
 })
 ```
+
+Renderers should only access already availble data on the `node` in question,
+or special helper functions in the `ya-tree.ui.renderers` module, and **not**
+initiate any further calls, if possible.
 
 ## Highlight Groups
 
@@ -1305,3 +1369,12 @@ require("ya-tree").setup({
 |YaTreeSecionSeparator              | YaTreeDimText                     |                                       |
 
 </details>
+
+## Acknowlegdements
+
+ - [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) for Git integration in Lua.
+ - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
+ - [nvim-tree.lua](https://github.com/nvim-tree/nvim-tree.lua) for tree plugin ideas.
+ - [neo-tree.nvim](https://github.com/nvim-neo-tree/neo-tree.nvim) for tree plugin ideas, and renderers.
+ - [yanil](https://github.com/Xuyuanp/yanil) for tree plugin ideas.
+ - [sidebar.nvim](https://github.com/sidebar-nvim/sidebar.nvim/) for the sidebar idea.
