@@ -10,12 +10,15 @@ trees. Additional trees can easily be created.
 - Search.
 - Go to node with path completion.
 - Basic file operations.
+- LSP Diagnostics.
 - One sidebar per tabpage.
-- LSP Diagnostics
+- One or more trees per sidebar.
 
 ## Requirements
 
-[neovim >= 0.7.0](https://github.com/neovim/neovim/wiki/Installing-Neovim)
+ - [neovim](https://github.com/neovim/neovim/wiki/Installing-Neovim) >= 0.7.0
+ - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
+ - [nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) (optional)
 
 ### Installation with Packer:
 ```lua
@@ -907,50 +910,26 @@ local DEFAULT = {
 
 </details>
 
+## Trees
+
+ya-tree uses trees to display each section in the sidebar. The builtin trees are:
+
+- `filesystem`
+- `git`
+- `search`
+- `buffers`
+
 ## Mappings & Actions
 
-Mappings are constructed by associating the key(s) in question with an `action`. Custom actions can easily be created using the config helper:
-
-```lua
-local utils = require("ya-tree.config.utils")
-require("ya-tree").setup({
-  actions = {
-    special_action = utils.create_action(function(tree, node, sidebar)
-      -- this is what the "git_stage" action does
-      if node.repo then
-        local err = node.repo:add(node.path)
-        if not err then
-          sidebar:update()
-        end
-      end
-    end, "Add node to git", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
-    print_tree = utils.create_action(function(tree, node, sidebar)
-      print(tree.TYPE)
-    end, "Print tree", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
-  },
-  trees = {
-    global_mappings = {
-      ["A"] = "special_action",
-    },
-    filesystem = {
-      mappings = {
-        ["T"] = "print_tree",
-      },
-    },
-    git = {
-      mappings = {
-        ["t"] = "print_tree",
-      },
-    },
-  },
-})
-```
+Mappings are constructed by associating the key(s) in question with an `action`.
 
 `?` toggles the help, showing the keymap.
 
+The actions supported by the trees are:
+
 <details>
 
-<summary><b>Builtin Actions:</b></summary>
+<summary><b>All builtin actions:</b></summary>
 
 ```lua
 ---@alias Yat.Actions.Name
@@ -1194,9 +1173,62 @@ require("ya-tree").setup({
 
 </details>
 
+### Custom actions
+
+Custom actions can easily be created using the config helper:
+
+```lua
+
+---@async
+---@param tree Yat.Tree
+---@param node Yat.Node
+---@param sidebar Yat.Sidebar
+local function special_action(tree, node, sidebar)
+  -- this is what the "git_stage" action does
+  if node.repo then
+    local err = node.repo:add(node.path)
+    if not err then
+      sidebar:update()
+    end
+  end
+end
+
+---@async
+---@param tree Yat.Tree
+---@param node Yat.Node
+---@param sidebar Yat.Sidebar
+local function print_tree_and_node(tree, node, sidebar)
+  print(tree.TYPE)
+  vim.pretty_print(node:get_debug_info())
+end
+
+local utils = require("ya-tree.config.utils")
+require("ya-tree").setup({
+  actions = {
+    special_action = utils.create_action(special_action, "Add node to git", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
+    print_tree = utils.create_action(print_tree_and_node, "Print tree and node", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
+  },
+  trees = {
+    global_mappings = {
+      ["A"] = "special_action",
+    },
+    filesystem = {
+      mappings = {
+        ["T"] = "print_tree_and_node",
+      },
+    },
+    git = {
+      mappings = {
+        ["t"] = "print_tree_and_node",
+      },
+    },
+  },
+})
+```
+
 ## Async
 
-Git and file system operations are called using the `plenary.nvim` `plenary.async.wrap` function,
+Git and file system operations are wrapped with the `plenary.nvim` `plenary.async.wrap` function,
 turning callbacks into regular return values. The consequence of this is that calling those functions
 must be done in a coroutine. This bubbles up all the way, so all entry points to the plugin is done
 using the `plenary.async.void` function.
@@ -1221,10 +1253,11 @@ This means that all actions are running inside a coroutine and special care has 
   local height, width = sidebar:size()
 ```
 
-The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make then easier to use.
+The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make them easier to use.
 ```lua
-  local response = require("ya-tree.ui").input({ promt = "My prompt", deault = "My value" })
-  local choice = require("ya-tree.ui").select({ "Yes", "No" }, { kind = "confirmation", prompt = "Choose" })
+  local ui = require("ya-tree.ui")
+  local response = ui.input({ promt = "My prompt", deault = "My value" })
+  local choice = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Choose" })
 ```
 
 ## Renderers
