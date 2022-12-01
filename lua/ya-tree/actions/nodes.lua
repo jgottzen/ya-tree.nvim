@@ -189,14 +189,15 @@ function M.focus_next_git_item(tree, start, sidebar)
 end
 
 ---@async
+---@param sidebar Yat.Sidebar
 ---@param tree Yat.Tree
 ---@param start Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_prev_diagnostic_item(tree, start, sidebar)
+---@param forward boolean
+local function focus_diagnostic_item(sidebar, tree, start, forward)
   local config = require("ya-tree.config").config
   local directory_min_diagnostic_severity = tree.renderers.extra.directory_min_diagnostic_severity
   local file_min_diagnostic_severity = tree.renderers.extra.file_min_diagnostic_severity
-  focus_first_node_that_matches(sidebar, tree, start, false, function(node)
+  focus_first_node_that_matches(sidebar, tree, start, forward, function(node)
     if not node:is_hidden(config) then
       local severity = node:diagnostic_severity()
       if severity then
@@ -210,22 +211,18 @@ end
 
 ---@async
 ---@param tree Yat.Tree
----@param start Yat.Node
+---@param node Yat.Node
 ---@param sidebar Yat.Sidebar
-function M.focus_next_diagnostic_item(tree, start, sidebar)
-  local config = require("ya-tree.config").config
-  local directory_min_diagnostic_severity = tree.renderers.extra.directory_min_diagnostic_severity
-  local file_min_diagnostic_severity = tree.renderers.extra.file_min_diagnostic_severity
-  focus_first_node_that_matches(sidebar, tree, start, true, function(node)
-    if not node:is_hidden(config) then
-      local severity = node:diagnostic_severity()
-      if severity then
-        local target_severity = node:is_directory() and directory_min_diagnostic_severity or file_min_diagnostic_severity
-        return severity <= target_severity
-      end
-    end
-    return false
-  end)
+function M.focus_prev_diagnostic_item(tree, node, sidebar)
+  focus_diagnostic_item(sidebar, tree, node, false)
+end
+
+---@async
+---@param tree Yat.Tree
+---@param node Yat.Node
+---@param sidebar Yat.Sidebar
+function M.focus_next_diagnostic_item(tree, node, sidebar)
+  focus_diagnostic_item(sidebar, tree, node, true)
 end
 
 ---@async

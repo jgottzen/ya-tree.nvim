@@ -210,10 +210,12 @@ function Tree:delete()
   log.info("deleting tree %s", tostring(self))
 end
 
----@param start Yat.Node
+---@generic T : Yat.Node
+---@param start T
 ---@param forward boolean
----@return Yat.Node[]
+---@return T[]
 function Tree:flatten_from(start, forward)
+  ---@cast start Yat.Node
   ---@type Yat.Node[]
   local nodes = {}
 
@@ -262,11 +264,13 @@ function Tree:flatten_from(start, forward)
   return nodes
 end
 
----@param start_node Yat.Node
+---@generic T : Yat.Node
+---@param start_node T
 ---@param forward boolean
----@param predicate fun(node: Yat.Node): boolean
----@return Yat.Node?
+---@param predicate fun(node: T): boolean
+---@return T?
 function Tree:get_first_node_that_matches(start_node, forward, predicate)
+  ---@cast start_node Yat.Node
   local nodes = self:flatten_from(start_node, forward)
   for _, node in ipairs(nodes) do
     if predicate(node) then

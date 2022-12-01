@@ -14,6 +14,7 @@ local log = require("ya-tree.log")("nodes")
 ---@field public parent? Yat.Nodes.Git
 ---@field private _children? Yat.Nodes.Git[]
 ---@field public repo Yat.Git.Repo
+---@field package editable boolean
 local GitNode = meta.create_class("Yat.Nodes.Git", Node)
 GitNode.__node_type = "Git"
 
@@ -23,6 +24,7 @@ GitNode.__node_type = "Git"
 ---@param parent? Yat.Nodes.Git the parent node.
 function GitNode:init(fs_node, parent)
   self.super:init(fs_node, parent)
+  self.editable = self._type == "file"
   if self:is_directory() then
     self.empty = true
     self.scanned = true
@@ -57,6 +59,12 @@ function GitNode:is_hidden(config)
   return false
 end
 
+
+---@return boolean editable
+function GitNode:is_editable()
+  return self.editable
+end
+
 ---@protected
 function GitNode:_scandir() end
 
@@ -81,7 +89,7 @@ function GitNode:refresh(opts)
   self.empty = true
   return self:populate_from_paths(paths, function(path, parent, directory)
     local fs_node = fs.node_for(path)
-    local is_editable = fs_node ~= nil
+    local exists = fs_node ~= nil
     if not fs_node then
       fs_node = {
         name = fs.get_file_name(path),
@@ -90,11 +98,7 @@ function GitNode:refresh(opts)
       }
     end
     local node = GitNode:new(fs_node, parent)
-    if not is_editable then
-      node.is_editable = function(_)
-        return false
-      end
-    end
+    node.editable = exists
     return node
   end)
 end

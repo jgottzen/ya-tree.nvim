@@ -17,8 +17,8 @@ local fn = vim.fn
 ---@field public _type Yat.Nodes.Buffer.Type
 
 ---@class Yat.Nodes.Buffer : Yat.Node
----@field new fun(self: Yat.Nodes.Buffer, node_data: Yat.Node.BufferData, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
----@overload fun(node_data: Yat.Node.BufferData, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
+---@field new fun(self: Yat.Nodes.Buffer, node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
+---@overload fun(node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
 ---@field class fun(self: Yat.Nodes.Buffer): Yat.Nodes.Buffer
 ---@field super Yat.Node
 ---

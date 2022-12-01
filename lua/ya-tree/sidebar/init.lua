@@ -155,7 +155,7 @@ end
 ---@private
 ---@param tree_type Yat.Trees.Type
 ---@param tree_creator fun(): Yat.Tree
----@param new_root_node? string|Yat.Git.Repo
+---@param new_root_node? string
 ---@return Yat.Tree
 function Sidebar:_get_or_create_tree(tree_type, tree_creator, new_root_node)
   local tree = self:get_tree(tree_type)
@@ -189,7 +189,7 @@ end
 function Sidebar:git_tree(repo)
   return self:_get_or_create_tree("git", function()
     return GitTree:new(self._tabpage, repo)
-  end, repo) --[[@as Yat.Trees.Git]]
+  end, repo.toplevel) --[[@as Yat.Trees.Git]]
 end
 
 ---@async

@@ -9,8 +9,8 @@ local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
 ---@class Yat.Trees.Git : Yat.Tree
----@field new async fun(self: Yat.Trees.Git, tabpage: integer, path?: string): Yat.Trees.Git
----@overload async fun(tabpage: integer, path?: string): Yat.Trees.Git
+---@field new async fun(self: Yat.Trees.Git, tabpage: integer, repo_or_path?: Yat.Git.Repo|string): Yat.Trees.Git
+---@overload async fun(tabpage: integer, repo_or_path?: Yat.Git.Repo|string): Yat.Trees.Git
 ---@field class fun(self: Yat.Trees.Git): Yat.Trees.Git
 ---@field super Yat.Tree
 ---@field static Yat.Trees.Git
@@ -172,11 +172,11 @@ function GitTree:on_buffer_saved(_, file)
 end
 
 ---@async
----@param repo_or_path Yat.Git.Repo|string
+---@param path string
 ---@return boolean
 ---@nodiscard
-function GitTree:change_root_node(repo_or_path)
-  local repo = get_repo(repo_or_path)
+function GitTree:change_root_node(path)
+  local repo = get_repo(path)
   if not repo or repo == self.root.repo then
     return false
   end
