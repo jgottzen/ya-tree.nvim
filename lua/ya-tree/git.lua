@@ -651,8 +651,8 @@ end
 ---@param path string
 ---@param new_path string
 ---@return string|nil error_message
-function Repo:rename(path, new_path)
-  local _, err = self:command({ "mv", "-k", path, new_path })
+function Repo:move(path, new_path)
+  local _, err = self:command({ "mv", path, new_path })
   return err
 end
 

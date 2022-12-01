@@ -208,20 +208,20 @@ function M.rename(tree, node, sidebar)
     prepare_add_rename(sidebar, tree --[[@as Yat.Trees.Filesystem]], node, path)
   end
   if node.repo then
-    local err = node.repo:rename(node.path, path)
+    local err = node.repo:move(node.path, path)
     if not err then
       utils.notify(string.format("Renamed %q to %q.", node.path, path))
-    else
-      utils.warn(string.format("Error renaming path %q: %s", node.path, err))
-      tree.focus_path_on_fs_event = nil
+      return
     end
+    -- if the `git mv` failed - probably due to the file not being under version control by git,
+    -- fall through to a regular fs rename
+  end
+
+  if fs.rename(node.path, path) then
+    utils.notify(string.format("Renamed %q to %q.", node.path, path))
   else
-    if fs.rename(node.path, path) then
-      utils.notify(string.format("Renamed %q to %q.", node.path, path))
-    else
-      tree.focus_path_on_fs_event = nil
-      utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
-    end
+    tree.focus_path_on_fs_event = nil
+    utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
   end
 end
 
