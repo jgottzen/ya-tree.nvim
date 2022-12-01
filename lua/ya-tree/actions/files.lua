@@ -1,4 +1,3 @@
-local void = require("plenary.async").void
 local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
@@ -6,7 +5,6 @@ local job = require("ya-tree.job")
 local fs = require("ya-tree.fs")
 local node_actions = require("ya-tree.actions.nodes")
 local ui = require("ya-tree.ui")
-local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("actions")
 
@@ -159,33 +157,33 @@ function M.add(tree, node, sidebar)
     node = node.parent --[[@as Yat.Node]]
   end
 
-  local border = require("ya-tree.config").config.view.popups.border
-  local title = "New file (an ending " .. utils.os_sep .. " will create a directory):"
-  local input = Input:new({ prompt = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4, border = border }, {
-    ---@param path string
-    on_submit = void(function(path)
-      if not path then
-        return
-      elseif fs.exists(path) then
-        utils.warn(string.format("%q already exists!", path))
-        return
-      end
+  local title = " New file (an ending " .. utils.os_sep .. " will create a directory): "
+  local path = ui.nui_input({ title = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4 })
+  if not path then
+    return
+  elseif fs.exists(path) then
+    utils.warn(string.format("%q already exists!", path))
+    return
+  end
 
-      local is_directory = path:sub(-1) == utils.os_sep
-      if is_directory then
-        path = path:sub(1, -2)
-      end
+  local is_directory = path:sub(-1) == utils.os_sep
+  if is_directory then
+    path = path:sub(1, -2)
+  end
 
-      prepare_add_rename(sidebar, tree, node, path)
-      if is_directory and fs.create_dir(path) or fs.create_file(path) then
-        utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
-      else
-        tree.focus_path_on_fs_event = nil
-        utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
-      end
-    end),
-  })
-  input:open()
+  prepare_add_rename(sidebar, tree, node, path)
+  local success
+  if is_directory then
+    success = fs.create_dir(path)
+  else
+    success = fs.create_file(path)
+  end
+  if success then
+    utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
+  else
+    tree.focus_path_on_fs_event = nil
+    utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
+  end
 end
 
 ---@async
@@ -198,7 +196,7 @@ function M.rename(tree, node, sidebar)
     return
   end
 
-  local path = ui.input({ prompt = "New name:", default = node.path, completion = "file" })
+  local path = ui.nui_input({ title = " New name: ", default = node.path, completion = "file" })
   if not path then
     return
   elseif fs.exists(path) then

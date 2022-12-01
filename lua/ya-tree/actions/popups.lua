@@ -4,7 +4,7 @@ local Path = require("plenary.path")
 
 local fs = require("ya-tree.fs")
 local hl = require("ya-tree.ui.highlights")
-local Popup = require("ya-tree.ui.popup")
+local nui = require("ya-tree.ui.nui")
 local utils = require("ya-tree.utils")
 
 local api = vim.api
@@ -121,7 +121,7 @@ local popup = nil
 
 local function close_popup()
   if popup ~= nil then
-    api.nvim_win_close(popup.winid, true)
+    popup:unmount()
     popup = nil
   end
 end
@@ -260,14 +260,25 @@ function M.show_node_info(_, node)
     end
     lines, highlight_groups = create_fs_info(node, stat)
   end
+  local max_width = 0
+  for _, line in ipairs(lines) do
+    max_width = math.max(max_width, api.nvim_strwidth(line))
+  end
 
-  popup = Popup.new(lines, highlight_groups)
-    :close_with({ "q", "<ESC>" })
-    :close_on_focus_loss()
-    :on_close(function()
+  popup = nui.popup({
+    title = " Info ",
+    row = 2,
+    col = 2,
+    width = max_width,
+    height = #lines,
+    close_keys = { "q", "<ESC>" },
+    close_on_focus_loss = true,
+    on_close = function()
       popup = nil
-    end)
-    :open() --[[@as Yat.Action.Popup.NodeInfo]]
+    end,
+    lines = lines,
+    highlight_groups = highlight_groups,
+  }) --[[@as Yat.Action.Popup.NodeInfo]]
   popup.path = node.path
 
   api.nvim_create_autocmd("CursorMoved", {

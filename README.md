@@ -18,6 +18,7 @@ trees. Additional trees can easily be created.
 
  - [neovim](https://github.com/neovim/neovim/wiki/Installing-Neovim) >= 0.7.0
  - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
+ - [nui.nvim](https://github.com/MunifTanjim/nui.nvim)
  - [nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) (optional)
 
 ### Installation with Packer:
@@ -29,6 +30,7 @@ use({
   end,
   requires = {
     "nvim-lua/plenary.nvim",
+    "MunifTanjim/nui.nvim",
     "nvim-tree/nvim-web-devicons", -- optional, used for displaying icons
   },
 })
@@ -1253,11 +1255,19 @@ This means that all actions are running inside a coroutine and special care has 
   local height, width = sidebar:size()
 ```
 
-The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make them easier to use.
+The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make them easier to use:
 ```lua
   local ui = require("ya-tree.ui")
   local response = ui.input({ promt = "My prompt", deault = "My value" })
   local choice = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Choose" })
+```
+
+The `nui.nvim` `Input` class is extended with completion using
+[`completefunc`](https://neovim.io/doc/user/options.html#'completefunc') and initialization parameters
+specific to `ya-tree`, in the `ya-tree.ui.nui` package. It is also `wrap`ped for when only a result is needed:
+```lua
+  local ui = require("ya-tree.ui")
+  local reponse = ui.nui_input({ title = "My Title", default = "some default", completion = "file" })
 ```
 
 ## Renderers
@@ -1411,3 +1421,4 @@ initiate any further calls, if possible.
  - [neo-tree.nvim](https://github.com/nvim-neo-tree/neo-tree.nvim) for tree plugin ideas, and renderers.
  - [yanil](https://github.com/Xuyuanp/yanil) for tree plugin ideas.
  - [sidebar.nvim](https://github.com/sidebar-nvim/sidebar.nvim/) for the sidebar idea.
+ - [nui.nvim](https://github.com/MunifTanjim/nui.nvim)

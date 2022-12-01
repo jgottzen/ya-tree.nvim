@@ -1,4 +1,4 @@
-local Popup = require("ya-tree.ui.popup")
+local nui = require("ya-tree.ui.nui")
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
 
@@ -194,33 +194,40 @@ function M.open(current_tree_type)
   local current_tab = 1
   local lines, highlight_groups, close_keys = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
 
-  ---@type Yat.Ui.Popup
-  local popup
-  local builder = Popup.new(lines, highlight_groups):size(width, "90%"):centered():close_with(close_keys):close_on_focus_loss()
+  local popup = nui.popup({
+    title = " Help ",
+    relative = "editor",
+    enter = true,
+    width = width,
+    height = "90%",
+    close_keys = close_keys,
+    close_on_focus_loss = true,
+    lines = lines,
+    highlight_groups = highlight_groups,
+  })
   for i in ipairs(tree_types) do
-    builder:map_keys("n", tostring(i), function()
+    popup:map("n", tostring(i), function()
       current_tab = i
       lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
       popup:set_content(lines, highlight_groups)
-    end)
+    end, { noremap = true })
   end
-  builder:map_keys("n", "<Tab>", function()
+  popup:map("n", "<Tab>", function()
     current_tab = current_tab + 1
     if current_tab > #tree_types then
       current_tab = 1
     end
     lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
     popup:set_content(lines, highlight_groups)
-  end)
-  builder:map_keys("n", "<S-Tab>", function()
+  end, { noremap = true })
+  popup:map("n", "<S-Tab>", function()
     current_tab = current_tab - 1
     if current_tab == 0 then
       current_tab = #tree_types
     end
     lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
     popup:set_content(lines, highlight_groups)
-  end)
-  popup = builder:open(true)
+  end, { noremap = true })
 end
 
 return M

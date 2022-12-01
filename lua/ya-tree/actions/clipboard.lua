@@ -90,7 +90,7 @@ function M.paste_nodes(tree, node)
             utils.notify(string.format("Will replace %q.", destination))
             replace = true
           elseif response == "Rename" then
-            local name = ui.input({ prompt = "New name: ", default = node_to_paste.name })
+            local name = ui.nui_input({ title = " New name: ", default = node_to_paste.name })
             if not name then
               utils.notify(string.format("No new name given, not pasting item %q to %q.", node_to_paste.name, destination))
               skip = true

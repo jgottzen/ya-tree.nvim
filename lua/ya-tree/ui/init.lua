@@ -1,5 +1,7 @@
 local wrap = require("plenary.async").wrap
 
+local nui = require("ya-tree.ui.nui")
+
 local api = vim.api
 
 ---@class Yat.Ui.HighlightGroup
@@ -15,6 +17,18 @@ function M.is_window_floating(winid)
   local win_config = api.nvim_win_get_config(winid or 0)
   return win_config.relative > "" or win_config.external
 end
+
+---@type async fun(opts: Yat.Ui.InputOpts): string|nil
+M.nui_input = wrap(function(opts, on_submit)
+  nui.input(opts, {
+    on_close = function()
+      on_submit(nil)
+    end,
+    on_submit = function(text)
+      on_submit(text)
+    end,
+  })
+end, 2)
 
 ---@type async fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
 M.input = wrap(function(opts, on_confirm)

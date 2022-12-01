@@ -2,8 +2,8 @@ local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 
 local lib = require("ya-tree.lib")
+local nui = require("ya-tree.ui.nui")
 local ui = require("ya-tree.ui")
-local Input = require("ya-tree.ui.input")
 local utils = require("ya-tree.utils")
 
 local uv = vim.loop
@@ -45,11 +45,10 @@ function M.search_interactively(tree, node, sidebar)
     end)
   end
 
-  local border = require("ya-tree.config").config.view.popups.border
   local term = ""
   scheduler()
   local height, width = sidebar:size()
-  local input = Input:new({ prompt = "Search:", relative = "win", row = height, col = 0, width = width - 2, border = border }, {
+  nui.input({ title = "Search:", relative = "win", row = height - 2, col = 0, width = width - 2 }, {
     ---@param text string
     on_change = void(function(text)
       if text == term or text == nil then
@@ -95,7 +94,6 @@ function M.search_interactively(tree, node, sidebar)
       sidebar:update()
     end),
   })
-  input:open()
 end
 
 ---@async
@@ -109,7 +107,7 @@ function M.search_once(tree, node, sidebar)
     node = node.parent --[[@as Yat.Node]]
   end
 
-  local term = ui.input({ prompt = "Search:" })
+  local term = ui.nui_input({ title = " Search: " })
   if term then
     search(sidebar, sidebar:search_tree(node.path), term)
   end
@@ -124,15 +122,10 @@ function M.search_for_node_in_tree(tree, node, sidebar)
   local completion = type(tree.complete_func) == "function" and function(bufnr)
     tree:complete_func(bufnr, node)
   end or type(tree.complete_func) == "string" and tree.complete_func or nil
-  local border = require("ya-tree.config").config.view.popups.border
-  local input = Input:new({ prompt = "Path:", completion = completion, border = border }, {
-    on_submit = void(function(path)
-      if path then
-        lib.search_for_node_in_tree(sidebar, tree, path)
-      end
-    end),
-  })
-  input:open()
+  local path = ui.nui_input({ title = " Path: ", completion = completion })
+  if path then
+    lib.search_for_node_in_tree(sidebar, tree, path)
+  end
 end
 
 return M
