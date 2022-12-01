@@ -181,9 +181,11 @@ local function render_mappings_for_for_tree(current_tab, all_tree_types, mapping
   return lines, highlight_groups, close_keys
 end
 
----@param current_tree_type Yat.Trees.Type
-function M.open(current_tree_type)
+---@async
+---@param tree Yat.Tree
+function M.open_help(tree)
   local mappings = require("ya-tree.actions")._tree_mappings
+  local current_tree_type = tree.TYPE
 
   local tree_types = vim.tbl_keys(mappings) --[=[@as Yat.Trees.Type[]]=]
   table.sort(tree_types)
