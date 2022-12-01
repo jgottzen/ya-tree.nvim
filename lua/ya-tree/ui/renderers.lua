@@ -582,7 +582,7 @@ do
     GIT_ICONS_AND_HL[".A"] = { { icon = icons.added, highlight = hl.GIT_NEW } }
     GIT_ICONS_AND_HL[".M"] = { { icon = icons.modified, highlight = hl.GIT_DIRTY } }
     GIT_ICONS_AND_HL[".T"] = { { icon = icons.type_changed, highlight = hl.GIT_DIRTY } }
-    GIT_ICONS_AND_HL[".D"] = { { icon = icons.deleted, highlight = hl.GIT_DIRTY } }
+    GIT_ICONS_AND_HL[".D"] = { { icon = icons.modified, highlight = hl.GIT_DIRTY }, { icon = icons.deleted, highlight = hl.GIT_DELETED } }
     GIT_ICONS_AND_HL[".R"] = { { icon = icons.renamed, highlight = hl.GIT_DIRTY } }
 
     GIT_ICONS_AND_HL["DD"] = {
