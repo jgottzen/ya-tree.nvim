@@ -489,7 +489,7 @@ function M.create_dir(path)
   -- directories that has to be created as well
   local abs_path = Path:new(path):absolute() --[[@as string]]
   local success, err = uv.fs_mkdir(abs_path, mode)
-  if not success then
+  if success == nil then
     if not M.exists(abs_path) then
       local dirs = vim.split(abs_path, os_sep, { plain = true }) --[=[@as string[]]=]
       local acc = ""
@@ -518,9 +518,12 @@ function M.create_dir(path)
       log.debug("directory %q already exists", abs_path)
     end
     return true
-  else
+  elseif success == false then
     log.error("cannot fs_mkdir path %q, %s", abs_path, err)
     return false
+  else
+    log.debug("created directory %q", abs_path)
+    return true
   end
 end
 
