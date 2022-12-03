@@ -87,8 +87,8 @@ local function create_header(format_string, current_tab, all_tree_types, width)
   local keys = "press <Tab>, <S-Tab> or <number> to navigate"
   local formatted_keys = string.format("%" .. math.floor((width / 2) + (#keys / 2)) .. "s", keys)
   local tabs_line = " " .. table.concat(tabs, " ")
-  local legend = string.format(format_string, "Key", "Action", "Tree")
-  local lines = { header, formatted_keys, "", tabs_line, "", legend, "", " Normal Mode:" }
+  local legend = string.format(format_string, "Key", "Action")
+  local lines = { header, formatted_keys, "", tabs_line, "", legend }
 
   ---@type Yat.Ui.HighlightGroup[]
   local tabs_highligt_group = {}
@@ -123,9 +123,7 @@ local function create_header(format_string, current_tab, all_tree_types, width)
     {},
     tabs_highligt_group,
     {},
-    { { name = hl.SEARCH_TERM, from = 0, to = -1 } },
-    {},
-    { { name = hl.ROOT_NAME, from = 0, to = -1 } },
+    { { name = hl.SEARCH_TERM, from = 0, to = KEYS_SECTION_WIDTH }, { name = hl.SEARCH_TERM, from = KEYS_SECTION_WIDTH + 2, to = -1 } },
   }
 
   return lines, highlight_groups
@@ -137,27 +135,32 @@ end
 ---@param insert { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }[]
 ---@param visual { key: string, action: Yat.Actions.Name|Yat.Config.Mapping.Custom, desc: string }[]
 local function create_mappings_section(lines, highlight_groups, format_string, insert, visual)
+  lines[#lines + 1] = ""
+  lines[#lines + 1] = " Normal Mode:"
+  highlight_groups[#highlight_groups + 1] = {}
+  highlight_groups[#highlight_groups + 1] = { { name = hl.ROOT_NAME, from = 0, to = -1 } }
   for _, v in ipairs(insert) do
     local line = string.format(format_string, v.key, v.desc)
     lines[#lines + 1] = line
     highlight_groups[#highlight_groups + 1] = {
       { name = hl.GIT_DIRTY, from = 0, to = KEYS_SECTION_WIDTH },
-      { name = hl.SYMBOLIC_LINK_TARGET, from = KEYS_SECTION_WIDTH, to = -1 },
+      { name = hl.SYMBOLIC_LINK_TARGET, from = KEYS_SECTION_WIDTH + 2, to = -1 },
     }
   end
 
-  lines[#lines + 1] = ""
-  lines[#lines + 1] = " Visual Mode:"
-  highlight_groups[#highlight_groups + 1] = {}
-  highlight_groups[#highlight_groups + 1] = { { name = hl.ROOT_NAME, from = 0, to = -1 } }
-
-  for _, v in ipairs(visual) do
-    local line = string.format(format_string, v.key, v.desc)
-    lines[#lines + 1] = line
-    highlight_groups[#highlight_groups + 1] = {
-      { name = hl.GIT_DIRTY, from = 0, to = KEYS_SECTION_WIDTH },
-      { name = hl.SYMBOLIC_LINK_TARGET, from = KEYS_SECTION_WIDTH, to = -1 },
-    }
+  if #visual > 0 then
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = " Visual Mode:"
+    highlight_groups[#highlight_groups + 1] = {}
+    highlight_groups[#highlight_groups + 1] = { { name = hl.ROOT_NAME, from = 0, to = -1 } }
+    for _, v in ipairs(visual) do
+      local line = string.format(format_string, v.key, v.desc)
+      lines[#lines + 1] = line
+      highlight_groups[#highlight_groups + 1] = {
+        { name = hl.GIT_DIRTY, from = 0, to = KEYS_SECTION_WIDTH },
+        { name = hl.SYMBOLIC_LINK_TARGET, from = KEYS_SECTION_WIDTH + 2, to = -1 },
+      }
+    end
   end
 end
 
