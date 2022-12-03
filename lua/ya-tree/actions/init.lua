@@ -105,8 +105,11 @@ function M.apply_mappings(bufnr)
   end
 end
 
----@param actions Yat.Config.Actions
-local function define_actions(actions)
+---@type table<Yat.Actions.Name, boolean>
+local disabled_actions = {}
+
+---@param config Yat.Config
+local function define_actions(config)
   M._actions = {}
 
   local builtin = require("ya-tree.actions.builtin")
@@ -130,7 +133,11 @@ local function define_actions(actions)
   M.define_action(builtin.general.focus_prev_tree, trees.focus_prev_tree, "Go to previous tree", { "n" }, true)
   M.define_action(builtin.general.focus_next_tree, trees.focus_next_tree, "Go to next tree", { "n" }, true)
 
-  M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
+  if config.git.enable then
+    M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
+  else
+    disabled_actions[builtin.general.open_git_tree] = true
+  end
   M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open or close the current buffers tree", { "n" }, true)
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
@@ -171,7 +178,11 @@ local function define_actions(actions)
   M.define_action(builtin.files.add, files.add, "Add file or directory", { "n" })
   M.define_action(builtin.files.rename, files.rename, "Rename file or directory", { "n" })
   M.define_action(builtin.files.delete, files.delete, "Delete files and directories", { "n", "v" })
-  M.define_action(builtin.files.trash, files.trash, "Trash files and directories", { "n", "v" })
+  if config.trash.enable then
+    M.define_action(builtin.files.trash, files.trash, "Trash files and directories", { "n", "v" })
+  else
+    disabled_actions[builtin.files.trash] = false
+  end
 
   M.define_action(builtin.files.copy_node, clipboard.copy_node, "Select files and directories for copy", { "n", "v" })
   M.define_action(builtin.files.cut_node, clipboard.cut_node, "Select files and directories for cut", { "n", "v" })
@@ -181,7 +192,11 @@ local function define_actions(actions)
   M.define_action(builtin.files.cd_to, lib.cd_to, "Set tree root to directory", { "n" })
   M.define_action(builtin.files.cd_up, lib.cd_up, "Set tree root one level up", { "n" })
 
-  M.define_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
+  if config.git.enable then
+    M.define_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
+  else
+    disabled_actions[builtin.files.toggle_ignored] = true
+  end
   M.define_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
   M.define_action(builtin.search.search_for_node_in_tree, search.search_for_node_in_tree, "Go to entered path in tree", { "n" }, true)
@@ -195,21 +210,41 @@ local function define_actions(actions)
     { "n" }
   )
 
-  M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
-  M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item", { "n" })
-  M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item", { "n" })
-  M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory", { "n" })
-  M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory", { "n" })
-  M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory", { "n" })
+  if config.git.enable then
+    M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
+    M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item", { "n" })
+    M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item", { "n" })
+    M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory", { "n" })
+    M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory", { "n" })
+    M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory", { "n" })
+  else
+    disabled_actions[builtin.git.check_node_for_git] = true
+    disabled_actions[builtin.git.focus_prev_git_item] = true
+    disabled_actions[builtin.git.focus_next_git_item] = true
+    disabled_actions[builtin.git.git_stage] = true
+    disabled_actions[builtin.git.git_unstage] = true
+    disabled_actions[builtin.git.git_revert] = true
+  end
 
-  M.define_action(
-    builtin.diagnostics.focus_prev_diagnostic_item,
-    nodes.focus_prev_diagnostic_item,
-    "Go to the previous diagnostic item",
-    { "n" }
-  )
-  M.define_action(builtin.diagnostics.focus_next_diagnostic_item, nodes.focus_next_diagnostic_item, "Go to the next diagnostic item", { "n" })
+  if config.diagnostics.enable then
+    M.define_action(
+      builtin.diagnostics.focus_prev_diagnostic_item,
+      nodes.focus_prev_diagnostic_item,
+      "Go to the previous diagnostic item",
+      { "n" }
+    )
+    M.define_action(
+      builtin.diagnostics.focus_next_diagnostic_item,
+      nodes.focus_next_diagnostic_item,
+      "Go to the next diagnostic item",
+      { "n" }
+    )
+  else
+    disabled_actions[builtin.diagnostics.focus_prev_diagnostic_item] = true
+    disabled_actions[builtin.diagnostics.focus_next_diagnostic_item] = true
+  end
 
+  local actions = config.actions
   for name, action in pairs(actions) do
     log.debug("defining user action %q", name)
     M.define_action(name, action.fn, action.desc, action.modes, action.node_independent, action.trees)
@@ -218,21 +253,36 @@ end
 
 ---@param trees Yat.Config.Trees
 local function validate_and_create_mappings(trees)
-  M._tree_mappings = {}
-  ---@type table<string, boolean>
-  local keys = {}
-  for key, value in pairs(trees.global_mappings.list) do
+  local function is_enabled(value)
     if value ~= "" then
+      if type(value) == "string" then
+        return not disabled_actions[value]
+      end
+    end
+    return true
+  end
+
+  ---@type table<string, boolean>, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>
+  local keys, global_mappings = {}, {}
+  for key, value in pairs(trees.global_mappings.list) do
+    if is_enabled(value) then
+      global_mappings[key] = value
       keys[key] = true
+    else
+      log.debug("global action %q is disabled due to dependent feature is disabled", value)
     end
   end
 
+  M._tree_mappings = {}
   for name, tree in pairs(trees) do
     if name ~= "global_mappings" then
-      M._tree_mappings[name] = vim.tbl_deep_extend("force", trees.global_mappings.list, tree.mappings.list)
+      M._tree_mappings[name] = vim.deepcopy(global_mappings)
       for key, value in pairs(tree.mappings.list) do
-        if value ~= "" then
+        if is_enabled(value) then
+          M._tree_mappings[name][key] = value
           keys[key] = true
+        else
+          log.debug("tree %q action %q is disabled due to dependent feature is disabled", name, value)
         end
       end
     end
@@ -243,40 +293,40 @@ local function validate_and_create_mappings(trees)
     ---@type table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
     local entry = {}
     for tree_type, list in pairs(M._tree_mappings) do
-      local mapping = list[key]
-      if type(mapping) == "string" then
-        if mapping == "" then
+      local action = list[key]
+      if type(action) == "string" then
+        if action == "" then
           log.debug("key %q is disabled by user config", key)
-        elseif not M._actions[mapping] then
-          log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, mapping)
-          utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, mapping))
+        elseif not M._actions[action] then
+          log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, action)
+          utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, action))
           list[key] = nil
-        elseif not vim.tbl_contains(M._actions[mapping].trees, tree_type) then
+        elseif not vim.tbl_contains(M._actions[action].trees, tree_type) then
           log.error(
             "key %q is mapped to 'action' %q, which does not support tree type %q, mapping %s ignored",
             key,
-            mapping,
+            action,
             tree_type,
-            M._actions[mapping]
+            M._actions[action]
           )
           utils.warn(
-            string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, mapping, tree_type)
+            string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, action, tree_type)
           )
           list[key] = nil
         else
-          entry[tree_type] = mapping
+          entry[tree_type] = action
         end
-      elseif type(mapping) == "table" then
-        ---@cast mapping Yat.Config.Mapping.Custom
-        if type(mapping.fn) ~= "function" then
-          log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, mapping.fn, mapping)
-          utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, mapping.fn))
+      elseif type(action) == "table" then
+        ---@cast action Yat.Config.Mapping.Custom
+        if type(action.fn) ~= "function" then
+          log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, action.fn, action)
+          utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, action.fn))
           list[key] = nil
         else
-          if mapping.modes == nil or #mapping.modes == 0 then
-            mapping.modes = { "n" }
+          if action.modes == nil or #action.modes == 0 then
+            action.modes = { "n" }
           end
-          entry[tree_type] = mapping
+          entry[tree_type] = action
         end
       end
     end
@@ -286,7 +336,7 @@ end
 
 ---@param config Yat.Config
 function M.setup(config)
-  define_actions(config.actions)
+  define_actions(config)
   validate_and_create_mappings(config.trees)
 end
 
