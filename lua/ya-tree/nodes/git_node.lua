@@ -59,7 +59,6 @@ function GitNode:is_hidden(config)
   return false
 end
 
-
 ---@return boolean editable
 function GitNode:is_editable()
   return self.editable

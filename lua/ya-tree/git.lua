@@ -112,6 +112,7 @@ end
 local GitIndex = {}
 GitIndex.__index = GitIndex
 
+---@private
 ---@param repo Yat.Git.Repo
 ---@return Yat.Git.IndexCommands
 function GitIndex:new(repo)
@@ -139,6 +140,7 @@ end
 local GitStatus = {}
 GitStatus.__index = GitStatus
 
+---@private
 ---@param class Yat.Git.StatusCommand
 ---@param repo Yat.Git.Repo
 ---@return Yat.Git.StatusCommand
