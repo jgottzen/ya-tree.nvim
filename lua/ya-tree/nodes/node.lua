@@ -405,7 +405,7 @@ end
 
 ---@return string|nil
 function Node:git_status()
-  return self.repo and self.repo:status_of(self.path, self._type)
+  return self.repo and self.repo:status():of(self.path, self._type)
 end
 
 ---@return boolean
@@ -748,7 +748,7 @@ do
   ---@param refreshed_git_repos table<string, boolean>
   local function refresh_directory_node(node, recurse, refresh_git, refreshed_git_repos)
     if refresh_git and node.repo and not refreshed_git_repos[node.repo.toplevel] then
-      node.repo:refresh_status({ ignored = true })
+      node.repo:status():refresh({ ignored = true })
       refreshed_git_repos[node.repo.toplevel] = true
     end
     if node.scanned then
@@ -791,7 +791,7 @@ do
         end
       end
       if refresh_git and self.repo then
-        self.repo:refresh_status_for_path(self.path)
+        self.repo:status():refresh_path(self.path)
       end
     end
   end

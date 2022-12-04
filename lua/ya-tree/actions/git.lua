@@ -26,7 +26,7 @@ end
 ---@param sidebar Yat.Sidebar
 function M.stage(_, node, sidebar)
   if node.repo then
-    local err = node.repo:add(node.path)
+    local err = node.repo:index():add(node.path)
     if err then
       utils.warn("Error staging path '" .. node.path .. "': " .. err)
     else
@@ -41,7 +41,7 @@ end
 ---@param sidebar Yat.Sidebar
 function M.unstage(_, node, sidebar)
   if node.repo then
-    local err = node.repo:restore(node.path, true)
+    local err = node.repo:index():restore(node.path, true)
     if err then
       utils.warn("Error unstaging path '" .. node.path .. "': " .. err)
     else
@@ -56,7 +56,7 @@ end
 ---@param sidebar Yat.Sidebar
 function M.revert(_, node, sidebar)
   if node.repo then
-    local err = node.repo:restore(node.path, false)
+    local err = node.repo:index():restore(node.path, false)
     if err then
       utils.warn("Error reverting path '" .. node.path .. "': " .. err)
     else

@@ -81,9 +81,9 @@ function GitNode:refresh(opts)
   local refresh_git = opts.refresh_git ~= false
   log.debug("refreshing git status node %q", self.path)
   if refresh_git then
-    self.repo:refresh_status({ ignored = true })
+    self.repo:status():refresh({ ignored = true })
   end
-  local paths = self.repo:working_tree_changed_paths()
+  local paths = self.repo:status():changed_paths()
 
   self._children = {}
   self.empty = true

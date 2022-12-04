@@ -320,7 +320,7 @@ function M.repository(node, context, renderer)
     } }
 
     if renderer.show_status then
-      local status = repo:meta_status()
+      local status = repo:status():meta()
       if status.behind > 0 and renderer.icons.behind ~= "" then
         results[#results + 1] = {
           padding = renderer.padding,

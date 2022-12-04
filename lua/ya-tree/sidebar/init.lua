@@ -555,7 +555,7 @@ function Sidebar:on_fs_changed_event(dir, filenames)
 
   local repo = git.get_repo_for_path(dir)
   if repo then
-    repo:refresh_status({ ignored = true })
+    repo:status():refresh({ ignored = true })
   end
   local git_tree = self:get_tree("git") --[[@as Yat.Trees.Git?]]
   if git_tree and (git_tree.root:is_ancestor_of(dir) or git_tree.root.path == dir) then

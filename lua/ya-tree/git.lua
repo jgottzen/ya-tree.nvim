@@ -82,6 +82,42 @@ end
 ---@field stop fun(self: Luv.Fs.Poll):0|nil, string?
 ---@field close fun(self: Luv.Fs.Poll)
 
+---@class Yat.Git.Repo : Yat.Object
+---@field protected new async fun(self: Yat.Git.Repo, toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo
+---@overload async fun(toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo
+---@field class fun(self: Yat.Git.Repo): Yat.Git.Repo
+---@field protected virtual fun(self: Yat.Git.Repo, method: string)
+---
+---@field public toplevel string
+---@field public remote_url string
+---@field public branch string
+---@field package _is_yadm boolean
+---@field private _git_dir string
+---@field private _git_dir_watcher? Luv.Fs.Poll
+---@field package _index Yat.Git.IndexCommands
+---@field private _status Yat.Git.StatusCommand
+local Repo = meta.create_class("Yat.Git.Repo")
+
+Repo.__tostring = function(self)
+  return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
+end
+
+---@param other Yat.Git.Repo
+Repo.__eq = function(self, other)
+  return self._git_dir == other._git_dir
+end
+
+---@class Yat.Git.IndexCommands
+---@field package repo Yat.Git.Repo
+local GitIndex = {}
+GitIndex.__index = GitIndex
+
+---@param repo Yat.Git.Repo
+---@return Yat.Git.IndexCommands
+function GitIndex:new(repo)
+  return setmetatable({ repo = repo }, self)
+end
+
 ---@class Yat.Git.Repo.MetaStatus
 ---@field public unmerged integer
 ---@field public stashed integer
@@ -97,59 +133,50 @@ end
 ---@field package _propagated_changed_entries table<string, string>
 ---@field package _ignored string[]
 
----@class Yat.Git.Repo : Yat.Object
----@field protected new async fun(self: Yat.Git.Repo, toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo?
----@overload async fun(toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo?
----@field class fun(self: Yat.Git.Repo): Yat.Git.Repo
----@field protected virtual fun(self: Yat.Git.Repo, method: string)
----
----@field public toplevel string
----@field public remote_url string
----@field public branch string
----@field private _status Yat.Git.Repo.Status
----@field package _is_yadm boolean
----@field private _git_dir string
----@field private _git_dir_watcher? Luv.Fs.Poll
-local Repo = meta.create_class("Yat.Git.Repo")
+---@class Yat.Git.StatusCommand
+---@field package repo Yat.Git.Repo
+---@field package status Yat.Git.Repo.Status
+local GitStatus = {}
+GitStatus.__index = GitStatus
 
-Repo.__tostring = function(self)
-  return string.format("(toplevel=%s, git_dir=%s, is_yadm=%s)", self.toplevel, self._git_dir, self._is_yadm)
+---@param class Yat.Git.StatusCommand
+---@param repo Yat.Git.Repo
+---@return Yat.Git.StatusCommand
+function GitStatus.new(class, repo)
+  ---@type Yat.Git.StatusCommand
+  local self = {
+    repo = repo,
+    status = {
+      unmerged = 0,
+      stashed = 0,
+      behind = 0,
+      ahead = 0,
+      staged = 0,
+      unstaged = 0,
+      untracked = 0,
+      _timestamp = 0,
+      _changed_entries = {},
+      _propagated_changed_entries = {},
+      _ignored = {},
+    },
+  }
+  return setmetatable(self, class)
 end
 
----@param other Yat.Git.Repo
-Repo.__eq = function(self, other)
-  return self._git_dir == other._git_dir
-end
-
----@async
 ---@private
 ---@param toplevel string
 ---@param git_dir string
 ---@param branch string
 ---@param is_yadm boolean
 function Repo:init(toplevel, git_dir, branch, is_yadm)
-  -- check if it's already cached
   self.toplevel = toplevel
   self.branch = branch
-  self._status = {
-    unmerged = 0,
-    stashed = 0,
-    behind = 0,
-    ahead = 0,
-    staged = 0,
-    unstaged = 0,
-    untracked = 0,
-    _timestamp = 0,
-    _changed_entries = {},
-    _propagated_changed_entries = {},
-    _ignored = {},
-  }
   self._is_yadm = is_yadm
   self._git_dir = git_dir
+  self._index = GitIndex:new(self)
+  self._status = GitStatus:new(self)
 
-  self:_read_remote_url()
-
-  M.repos[self.toplevel] = self
+  self:_get_remote_url()
 
   local config = require("ya-tree.config").config
   if config.git.watch_git_dir then
@@ -160,16 +187,6 @@ end
 ---@return boolean is_yadm
 function Repo:is_yadm()
   return self._is_yadm
-end
-
----@return string[] files
-function Repo:working_tree_changed_paths()
-  return vim.tbl_keys(self._status._changed_entries) --[=[@as string[]]=]
-end
-
----@return Yat.Git.Repo.MetaStatus status
-function Repo:meta_status()
-  return self._status
 end
 
 ---@private
@@ -186,7 +203,7 @@ function Repo:_add_git_watcher(config)
         return
       end
 
-      local fs_changes = self:refresh_status({ ignored = true })
+      local fs_changes = self._status:refresh({ ignored = true })
       events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
     end)
 
@@ -224,6 +241,27 @@ function Repo:_remove_git_watcher()
   end
 end
 
+---@param path string
+---@param _type Luv.FileType
+---@return boolean ignored
+function Repo:is_ignored(path, _type)
+  path = _type == "directory" and (path .. os_sep) or path
+  for _, ignored in ipairs(self._status.status._ignored) do
+    if ignored:sub(-1) == os_sep then
+      -- directory ignore
+      if vim.startswith(path, ignored) then
+        return true
+      end
+    else
+      -- file ignore
+      if path == ignored then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 ---@async
 ---@param args string[]
 ---@param null_terminated? boolean
@@ -244,23 +282,62 @@ end
 
 ---@async
 ---@private
-function Repo:_read_remote_url()
+function Repo:_get_remote_url()
   local result, err = self:command({ "ls-remote", "--get-url" })
   if not err then
     self.remote_url = result[1]
   end
 end
 
----@param status string
----@return boolean staged
-local function is_staged(status)
-  return status:sub(1, 1) ~= "."
+---@return Yat.Git.IndexCommands
+function Repo:index()
+  return self._index
 end
 
----@param status string
----@return boolean unstaged
-local function is_unstaged(status)
-  return status:sub(2, 2) ~= "."
+---@async
+---@param path string
+---@return string|nil error_message
+function GitIndex:add(path)
+  local _, err = self.repo:command({ "add", path })
+  return err
+end
+
+---@async
+---@param path string
+---@param staged? boolean
+---@return string|nil error_message
+function GitIndex:restore(path, staged)
+  local args = { "restore" }
+  if staged then
+    args[#args + 1] = "--staged"
+  end
+  args[#args + 1] = path
+  local _, err = self.repo:command(args)
+  return err
+end
+
+---@async
+---@param path string
+---@param new_path string
+---@return string|nil error_message
+function GitIndex:move(path, new_path)
+  local _, err = self.repo:command({ "mv", path, new_path })
+  return err
+end
+
+---@return Yat.Git.StatusCommand
+function Repo:status()
+  return self._status
+end
+
+---@return string[] files
+function GitStatus:changed_paths()
+  return vim.tbl_keys(self.status._changed_entries) --[=[@as string[]]=]
+end
+
+---@return Yat.Git.Repo.MetaStatus status
+function GitStatus:meta()
+  return self.status
 end
 
 ---@param opts { header?: boolean, ignored?: boolean, all_untracked?: boolean }
@@ -297,10 +374,22 @@ local function create_status_arguments(opts)
   return args
 end
 
+---@param status string
+---@return boolean staged
+local function is_staged(status)
+  return status:sub(1, 1) ~= "."
+end
+
+---@param status string
+---@return boolean unstaged
+local function is_unstaged(status)
+  return status:sub(2, 2) ~= "."
+end
+
 ---@async
 ---@param path string
 ---@return boolean changed
-function Repo:refresh_status_for_path(path)
+function GitStatus:refresh_path(path)
   if fs.is_directory(path) then
     log.error("only individual paths are supported by this method!")
     return true
@@ -308,22 +397,22 @@ function Repo:refresh_status_for_path(path)
   local args = create_status_arguments({ header = false, ignored = false })
   args[#args + 1] = path
   log.debug("git status for path %q", path)
-  local results, err = self:command(args, true)
+  local results, err = self.repo:command(args, true)
   if err then
     return false
   end
 
-  local old_status = self._status._changed_entries[path]
+  local old_status = self.status._changed_entries[path]
   if old_status then
     if is_staged(old_status) then
-      self._status.staged = self._status.staged - 1
+      self.status.staged = self.status.staged - 1
     end
     if is_unstaged(old_status) then
-      self._status.unstaged = self._status.unstaged - 1
+      self.status.unstaged = self.status.unstaged - 1
     end
   end
 
-  local relative_path = utils.relative_path_for(path, self.toplevel)
+  local relative_path = utils.relative_path_for(path, self.repo.toplevel)
   local i, found = 1, false
   while i <= #results do
     local line = results[i]
@@ -344,9 +433,9 @@ function Repo:refresh_status_for_path(path)
     i = i + 1
   end
   if not found then
-    self._status._changed_entries[path] = nil
-    self._status._propagated_changed_entries = {}
-    for _path, status in pairs(self._status._changed_entries) do
+    self.status._changed_entries[path] = nil
+    self.status._propagated_changed_entries = {}
+    for _path, status in pairs(self.status._changed_entries) do
       if status ~= "!" then
         local fully_staged = is_staged(status) and not is_unstaged(status)
         self:_propagate_status_to_parents(_path, fully_staged)
@@ -355,7 +444,7 @@ function Repo:refresh_status_for_path(path)
   end
 
   scheduler()
-  return old_status ~= self._status._changed_entries[path]
+  return old_status ~= self.status._changed_entries[path]
 end
 
 local ONE_SECOND_IN_NS = 1000 * 1000 * 1000
@@ -364,33 +453,34 @@ local ONE_SECOND_IN_NS = 1000 * 1000 * 1000
 ---@param opts? { ignored?: boolean }
 ---  - {opts.ignored?} `boolean`
 ---@return boolean fs_changes
-function Repo:refresh_status(opts)
+function GitStatus:refresh(opts)
   local now = uv.hrtime() --[[@as integer]]
-  if (self._status._timestamp + ONE_SECOND_IN_NS) > now then
+  if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
     log.debug("refresh_status status called within 1 second, returning")
     return false
   end
   opts = opts or {}
   local config = require("ya-tree.config").config
-  local args = create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self._is_yadm })
-  log.debug("git status for %q", self.toplevel)
-  local results, err = self:command(args, true)
+  local args =
+    create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self.repo._is_yadm })
+  log.debug("git status for %q", self.repo.toplevel)
+  local results, err = self.repo:command(args, true)
   if err then
     return false
   end
 
-  local old_changed_entries = self._status._changed_entries
-  self._status.unmerged = 0
-  self._status.stashed = 0
-  self._status.behind = 0
-  self._status.ahead = 0
-  self._status.staged = 0
-  self._status.unstaged = 0
-  self._status.untracked = 0
-  self._status._timestamp = now
-  self._status._changed_entries = {}
-  self._status._propagated_changed_entries = {}
-  self._status._ignored = {}
+  local old_changed_entries = self.status._changed_entries
+  self.status.unmerged = 0
+  self.status.stashed = 0
+  self.status.behind = 0
+  self.status.ahead = 0
+  self.status.staged = 0
+  self.status.unstaged = 0
+  self.status.untracked = 0
+  self.status._timestamp = now
+  self.status._changed_entries = {}
+  self.status._propagated_changed_entries = {}
+  self.status._ignored = {}
 
   local i, fs_changes = 1, false
   while i <= #results do
@@ -421,7 +511,7 @@ function Repo:refresh_status(opts)
 
   -- _parse_porcelainv2_change_row and _parse_porcelainv2_rename_row doens't detect all changes
   -- that signify a fs change, comparing the number of entries gives it a decent chance
-  fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self._status._changed_entries)
+  fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self.status._changed_entries)
 
   scheduler()
   return fs_changes
@@ -429,7 +519,7 @@ end
 
 ---@private
 ---@param line string
-function Repo:_parse_porcelainv2_header_row(line)
+function GitStatus:_parse_porcelainv2_header_row(line)
   -- FORMAT
   --
   -- Line                                     Notes
@@ -447,14 +537,14 @@ function Repo:_parse_porcelainv2_header_row(line)
   elseif _type == "branch.ab" then
     local ahead = parts[3]
     if ahead then
-      self._status.ahead = tonumber(ahead:sub(2)) or 0
+      self.status.ahead = tonumber(ahead:sub(2)) or 0
     end
     local behind = parts[4]
     if behind then
-      self._status.behind = tonumber(behind:sub(2)) or 0
+      self.status.behind = tonumber(behind:sub(2)) or 0
     end
   elseif _type == "stash" then
-    self._status.stashed = tonumber(parts[3]) or 0
+    self.status.stashed = tonumber(parts[3]) or 0
   end
 end
 
@@ -471,15 +561,15 @@ end
 ---@private
 ---@param line string
 ---@return boolean fs_changes
-function Repo:_parse_porcelainv2_change_row(line)
+function GitStatus:_parse_porcelainv2_change_row(line)
   -- FORMAT
   --
   -- 1 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <path>
 
   local status = line:sub(3, 4)
   local relative_path = line:sub(114)
-  local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._status._changed_entries[absolute_path] = status
+  local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
+  self.status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
   return status:sub(1, 1) == "D" or status:sub(2, 2) == "D"
@@ -488,14 +578,14 @@ end
 ---@private
 ---@param status string
 ---@return boolean fully_staged
-function Repo:_update_stage_counts(status)
+function GitStatus:_update_stage_counts(status)
   local staged = is_staged(status)
   local unstaged = is_unstaged(status)
   if staged then
-    self._status.staged = self._status.staged + 1
+    self.status.staged = self.status.staged + 1
   end
   if unstaged then
-    self._status.unstaged = self._status.unstaged + 1
+    self.status.unstaged = self.status.unstaged + 1
   end
 
   return staged and not unstaged
@@ -504,26 +594,26 @@ end
 ---@private
 ---@param path string
 ---@param fully_staged boolean
-function Repo:_propagate_status_to_parents(path, fully_staged)
+function GitStatus:_propagate_status_to_parents(path, fully_staged)
   local status = fully_staged and "staged" or "dirty"
-  local size = #self.toplevel
+  local size = #self.repo.toplevel
   for _, parent in next, Path:new(path):parents() do
     ---@cast parent string
     -- stop at directories below the toplevel directory
     if #parent <= size then
       break
     end
-    if self._status._propagated_changed_entries[parent] == "dirty" then
+    if self.status._propagated_changed_entries[parent] == "dirty" then
       -- if the status of a parent is already "dirty", don't overwrite it, and stop
       return
     end
-    self._status._propagated_changed_entries[parent] = status
+    self.status._propagated_changed_entries[parent] = status
   end
 end
 
 ---@private
 ---@param line string
-function Repo:_parse_porcelainv2_rename_row(line)
+function GitStatus:_parse_porcelainv2_rename_row(line)
   -- FORMAT
   --
   -- 2 <XY> <sub> <mH> <mI> <mW> <hH> <hI> <X><score> <path><sep><origPath>
@@ -535,46 +625,46 @@ function Repo:_parse_porcelainv2_rename_row(line)
   -- the score field is of variable length, and begins at col 114 and ends with space
   local end_of_score_pos = line:find(" ", 114, true)
   local relative_path = line:sub(end_of_score_pos + 1)
-  local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._status._changed_entries[absolute_path] = status
+  local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
+  self.status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
 end
 
 ---@private
 ---@param line string
-function Repo:_parse_porcelainv2_merge_row(line)
+function GitStatus:_parse_porcelainv2_merge_row(line)
   -- FORMAT
   -- u <XY> <sub> <m1> <m2> <m3> <mW> <h1> <h2> <h3> <path>
 
   local status = line:sub(3, 4)
   local relative_path = line:sub(162)
-  local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._status._changed_entries[absolute_path] = status
-  self._status.unmerged = self._status.unmerged + 1
+  local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
+  self.status._changed_entries[absolute_path] = status
+  self.status.unmerged = self.status.unmerged + 1
 end
 
 ---@private
 ---@param line string
-function Repo:_parse_porcelainv2_untracked_row(line)
+function GitStatus:_parse_porcelainv2_untracked_row(line)
   -- FORMAT
   --
   -- ? <path>
 
   -- if in a yadm managed repository/directory it's quite likely that _a lot_ of
   -- files will be untracked, so don't add untracked files in that case.
-  if not self._is_yadm then
+  if not self.repo._is_yadm then
     local status = line:sub(1, 1)
     local relative_path = line:sub(3)
-    local absolute_path = make_absolute_path(self.toplevel, relative_path)
-    self._status._changed_entries[absolute_path] = status
-    self._status.untracked = self._status.untracked + 1
+    local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
+    self.status._changed_entries[absolute_path] = status
+    self.status.untracked = self.status.untracked + 1
   end
 end
 
 ---@private
 ---@param line string
-function Repo:_parse_porcelainv2_ignored_row(line)
+function GitStatus:_parse_porcelainv2_ignored_row(line)
   -- FORMAT
   --
   -- ! path/to/directory/
@@ -582,19 +672,19 @@ function Repo:_parse_porcelainv2_ignored_row(line)
 
   local status = line:sub(1, 1)
   local relative_path = line:sub(3)
-  local absolute_path = make_absolute_path(self.toplevel, relative_path)
-  self._status._changed_entries[absolute_path] = status
-  self._status._ignored[#self._status._ignored + 1] = absolute_path
+  local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
+  self.status._changed_entries[absolute_path] = status
+  self.status._ignored[#self.status._ignored + 1] = absolute_path
 end
 
 ---@param path string
 ---@param _type Luv.FileType
 ---@return string|nil status
-function Repo:status_of(path, _type)
-  local status = self._status._changed_entries[path] or self._status._propagated_changed_entries[path]
+function GitStatus:of(path, _type)
+  local status = self.status._changed_entries[path] or self.status._propagated_changed_entries[path]
   if not status then
     path = _type == "directory" and (path .. os_sep) or path
-    for _path, _status in pairs(self._status._changed_entries) do
+    for _path, _status in pairs(self.status._changed_entries) do
       if _status == "?" and _path:sub(-1) == os_sep and vim.startswith(path, _path) then
         status = _status
         break
@@ -602,58 +692,6 @@ function Repo:status_of(path, _type)
     end
   end
   return status
-end
-
----@param path string
----@param _type Luv.FileType
----@return boolean ignored
-function Repo:is_ignored(path, _type)
-  path = _type == "directory" and (path .. os_sep) or path
-  for _, ignored in ipairs(self._status._ignored) do
-    if ignored:sub(-1) == os_sep then
-      -- directory ignore
-      if vim.startswith(path, ignored) then
-        return true
-      end
-    else
-      -- file ignore
-      if path == ignored then
-        return true
-      end
-    end
-  end
-  return false
-end
-
----@async
----@param path string
----@return string|nil error_message
-function Repo:add(path)
-  local _, err = self:command({ "add", path })
-  return err
-end
-
----@async
----@param path string
----@param staged? boolean
----@return string|nil error_message
-function Repo:restore(path, staged)
-  local args = { "restore" }
-  if staged then
-    args[#args + 1] = "--staged"
-  end
-  args[#args + 1] = path
-  local _, err = self:command(args)
-  return err
-end
-
----@async
----@param path string
----@param new_path string
----@return string|nil error_message
-function Repo:move(path, new_path)
-  local _, err = self:command({ "mv", path, new_path })
-  return err
 end
 
 ---@async
@@ -699,6 +737,7 @@ function M.create_repo(path)
   end
 
   local repo = Repo:new(toplevel, git_dir, branch, is_yadm)
+  M.repos[repo.toplevel] = repo
   log.info("created Repo %s for %q", tostring(repo), path)
   return repo
 end

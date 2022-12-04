@@ -410,7 +410,7 @@ function Tree:check_node_for_repo(node)
     local repo = git.create_repo(node.path)
     if repo then
       node:set_git_repo(repo)
-      repo:refresh_status({ ignored = true })
+      repo:status():refresh({ ignored = true })
       return true
     end
   end

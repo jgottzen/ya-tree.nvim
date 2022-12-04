@@ -166,7 +166,7 @@ function GitTree:on_buffer_saved(_, file)
     if node then
       node.modified = false
     end
-    local git_status = self.root.repo:status_of(file, "file")
+    local git_status = self.root.repo:status():of(file, "file")
     if not node and git_status then
       self.root:add_node(file)
     elseif node and not git_status then
