@@ -795,10 +795,7 @@ function M.setup(opts)
     M.config.git.enable = false
   end
   if M.config.git.yadm.enable then
-    if not M.config.git.enable then
-      utils.notify("git is not enabled. Disabling 'git.yadm.enable' in the configuration.")
-      M.config.git.yadm.enable = false
-    elseif fn.executable("yadm") == 0 then
+    if fn.executable("yadm") == 0 then
       utils.notify("yadm not in the PATH. Disabling 'git.yadm.enable' in the configuration.")
       M.config.git.yadm.enable = false
     end
