@@ -273,9 +273,10 @@ local function validate_and_create_mappings(trees)
     end
   end
 
+  local registered_tree_types = require("ya-tree.trees").get_registered_tree_types()
   M._tree_mappings = {}
   for name, tree in pairs(trees) do
-    if name ~= "global_mappings" then
+    if name ~= "global_mappings" and vim.tbl_contains(registered_tree_types, name) then
       M._tree_mappings[name] = vim.deepcopy(global_mappings)
       for key, value in pairs(tree.mappings.list) do
         if is_enabled(value) then

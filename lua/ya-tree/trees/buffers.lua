@@ -48,6 +48,7 @@ BuffersTree.TYPE = "buffers"
 ---| Yat.Trees.Tree.SupportedActions
 
 ---@param config Yat.Config
+---@return boolean enabled
 function BuffersTree.setup(config)
   BuffersTree.complete_func = "buffer"
   BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.static.TYPE, config)
@@ -97,6 +98,8 @@ function BuffersTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   BuffersTree.supported_events = supported_events
+
+  return true
 end
 
 ---@async

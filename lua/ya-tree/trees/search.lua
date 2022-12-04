@@ -48,6 +48,7 @@ SearchTree.TYPE = "search"
 ---| Yat.Trees.Tree.SupportedActions
 
 ---@param config Yat.Config
+---@return boolean enabled
 function SearchTree.setup(config)
   SearchTree.complete_func = Tree.static.complete_func_loaded_nodes
   SearchTree.renderers = tree_utils.create_renderers(SearchTree.static.TYPE, config)
@@ -95,6 +96,8 @@ function SearchTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   SearchTree.supported_events = supported_events
+
+  return true
 end
 
 ---@async

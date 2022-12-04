@@ -134,8 +134,10 @@ end
 -- selene: allow(unused_variable)
 
 ---@param config Yat.Config
----@diagnostic disable-next-line:unused-local
+---@return boolean enabled
+---@diagnostic disable-next-line:unused-local,missing-return
 function Tree.setup(config) end
+Tree:virtual("setup")
 
 ---@protected
 ---@param type Yat.Trees.Type

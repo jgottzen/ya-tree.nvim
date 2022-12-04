@@ -61,6 +61,7 @@ FilesystemTree.TYPE = "filesystem"
 ---| Yat.Trees.Tree.SupportedActions
 
 ---@param config Yat.Config
+---@return boolean enabled
 function FilesystemTree.setup(config)
   local completion = config.trees.filesystem.completion
   if type(completion.setup) == "function" then
@@ -138,6 +139,8 @@ function FilesystemTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   FilesystemTree.supported_events = supported_events
+
+  return true
 end
 
 ---Creates a new filesystem node tree root.

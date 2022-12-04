@@ -47,7 +47,12 @@ GitTree.TYPE = "git"
 ---| Yat.Trees.Tree.SupportedActions
 
 ---@param config Yat.Config
+---@return boolean enabled
 function GitTree.setup(config)
+  if not config.git.enable then
+    return false
+  end
+
   GitTree.complete_func = Tree.static.complete_func_loaded_nodes
   GitTree.renderers = tree_utils.create_renderers(GitTree.static.TYPE, config)
 
@@ -93,6 +98,8 @@ function GitTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   GitTree.supported_events = supported_events
+
+  return true
 end
 
 ---@async

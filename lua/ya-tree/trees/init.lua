@@ -37,16 +37,17 @@ function M.setup(config)
       local ok, tree = pcall(require, "ya-tree.trees." .. tree_name)
       if ok and tree and type(tree.static.setup) == "function" and type(tree.static.TYPE) == "string" and type(tree.new) == "function" then
         log.debug("registering tree %q", tree.static.TYPE)
-        tree.static.setup(config)
-        M._registered_trees[tree.static.TYPE] = tree
+        if tree.static.setup(config) then
+          M._registered_trees[tree.static.TYPE] = tree
 
-        for _, action in ipairs(tree.static.supported_actions) do
-          local trees = supported_actions[action]
-          if not trees then
-            trees = {}
-            supported_actions[action] = trees
+          for _, action in ipairs(tree.static.supported_actions) do
+            local trees = supported_actions[action]
+            if not trees then
+              trees = {}
+              supported_actions[action] = trees
+            end
+            trees[#trees + 1] = tree.static.TYPE
           end
-          trees[#trees + 1] = tree.static.TYPE
         end
       end
     end
