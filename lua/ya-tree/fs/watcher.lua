@@ -65,7 +65,7 @@ function M.watch_dir(dir)
     end, 200)
 
     watcher = {
-      handle = vim.loop.new_fs_event(), --[[@as Luv.Fs.Event]]
+      handle = vim.loop.new_fs_event() --[[@as Luv.Fs.Event]],
       number_of_watchers = 1,
     }
     log.debug("starting fs_event on %q", dir)
