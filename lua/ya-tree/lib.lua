@@ -251,6 +251,7 @@ function M.rescan_node_for_git(tree, node)
   return node.repo
 end
 
+---@async
 ---@param sidebar Yat.Sidebar
 ---@param tree Yat.Tree
 ---@param path string
@@ -260,26 +261,25 @@ function M.search_for_node_in_tree(sidebar, tree, path)
     return
   end
 
-  job.run({ cmd = cmd, args = args, cwd = tree.root.path, async_callback = true }, function(code, stdout, stderr)
-    if code == 0 then
-      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
-      log.debug("%q found %s matches for %q in %q", cmd, #lines, path, tree.root.path)
+  local code, stdout, stderr = job.async_run({ cmd = cmd, args = args, cwd = tree.root.path })
+  if code == 0 then
+    local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
+    log.debug("%q found %s matches for %q in %q", cmd, #lines, path, tree.root.path)
 
-      if #lines > 0 then
-        local first = lines[1]
-        if first:sub(-1) == utils.os_sep then
-          first = first:sub(1, -2)
-        end
-        local node = tree.root:expand({ to = first })
-        scheduler()
-        sidebar:update(tree, node)
-      else
-        utils.notify(string.format("%q cannot be found in the tree", path))
+    if #lines > 0 then
+      local first = lines[1]
+      if first:sub(-1) == utils.os_sep then
+        first = first:sub(1, -2)
       end
+      local node = tree.root:expand({ to = first })
+      scheduler()
+      sidebar:update(tree, node)
     else
-      log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
+      utils.notify(string.format("%q cannot be found in the tree", path))
     end
-  end)
+  else
+    log.error("%q with args %s failed with code %s and message %s", cmd, args, code, stderr)
+  end
 end
 
 ---@param config Yat.Config

@@ -330,13 +330,12 @@ function M.trash(tree, _, sidebar)
   if #files > 0 then
     tree.focus_path_on_fs_event = node_to_focus and node_to_focus.path
     log.debug("trashing files %s", files)
-    job.run({ cmd = "trash", args = files, async_callback = false }, function(code, _, stderr)
-      if code ~= 0 then
-        tree.focus_path_on_fs_event = nil
-        log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
-        utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
-      end
-    end)
+    local code, _, stderr = job.async_run({ cmd = "trash", args = files })
+    if code ~= 0 then
+      tree.focus_path_on_fs_event = nil
+      log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
+      utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
+    end
   end
 end
 
@@ -352,12 +351,11 @@ function M.system_open(_, node)
 
   local args = vim.deepcopy(config.system_open.args or {}) --[=[@as string[]]=]
   table.insert(args, node.absolute_link_to or node.path)
-  job.run({ cmd = config.system_open.cmd, args = args, detached = true }, function(code, _, stderr)
-    if code ~= 0 then
-      log.error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)
-      utils.warn(string.format("%q returned error code %q and message:\n\n%s", config.system_open.cmd, code, stderr))
-    end
-  end)
+  local code, _, stderr = job.async_run({ cmd = config.system_open.cmd, args = args, detached = true })
+  if code ~= 0 then
+    log.error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)
+    utils.warn(string.format("%q returned error code %q and message:\n\n%s", config.system_open.cmd, code, stderr))
+  end
 end
 
 return M

@@ -1,6 +1,5 @@
 local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
-local wrap = require("plenary.async").wrap
 local Path = require("plenary.path")
 
 local events = require("ya-tree.events")
@@ -19,24 +18,23 @@ local M = {
   repos = setmetatable({}, { __mode = "kv" }),
 }
 
+---@async
 ---@param args string[]
 ---@param null_terminated? boolean
 ---@param cmd? string
----@param callback fun(stdin: string[], stderr?: string)
----@type async fun(args: string[], null_terminated?: boolean, cmd?: string): string[], string?
-local command = wrap(function(args, null_terminated, cmd, callback)
+---@return string[], string?
+local function command(args, null_terminated, cmd)
   cmd = cmd or "git"
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
 
-  job.run({ cmd = cmd, args = args }, function(_, stdout, stderr)
-    local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true }) --[=[@as string[]]=]
-    if lines[#lines] == "" then
-      lines[#lines] = nil
-    end
+  local _, stdout, stderr = job.async_run({ cmd = cmd, args = args })
+  local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true }) --[=[@as string[]]=]
+  if lines[#lines] == "" then
+    lines[#lines] = nil
+  end
 
-    callback(lines, stderr)
-  end)
-end, 4)
+  return lines, stderr
+end
 
 ---@param path string
 ---@return string path

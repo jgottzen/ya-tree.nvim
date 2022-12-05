@@ -1,4 +1,4 @@
-local void = require("plenary.async").void
+local wrap = require("plenary.async").wrap
 
 local log = require("ya-tree.log")("job")
 
@@ -6,12 +6,11 @@ local uv = vim.loop
 
 local M = {}
 
----@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean, async_callback?: boolean}
+---@param opts {cmd: string, args: string[], cwd?: string, detached?: boolean}
 ---  - {opts.cmd} `string`
 ---  - {opts.args} `string[]`
 ---  - {opts.cwd?} `string`
 ---  - {opts.detached?} `boolean`
----  - {opts.async_callback?} `boolean`
 ---@param on_complete fun(code: integer, stdout?: string, stderr?: string)
 ---@return integer|nil pid
 function M.run(opts, on_complete)
@@ -27,8 +26,6 @@ function M.run(opts, on_complete)
     ---@type integer
     pid = nil,
   }
-  ---@type fun(code: integer, stdout?: string, stderr?: string)
-  local cb = opts.async_callback and void(on_complete) or on_complete
 
   state.handle, state.pid = uv.spawn(opts.cmd, {
     args = opts.args,
@@ -64,7 +61,7 @@ function M.run(opts, on_complete)
     local stdout = #state.stdout_data > 0 and table.concat(state.stdout_data) or nil
     local stderr = #state.stderr_data > 0 and table.concat(state.stderr_data) or nil
 
-    cb(code, stdout, stderr)
+    on_complete(code, stdout, stderr)
     state = nil
   end)
 
@@ -84,11 +81,22 @@ function M.run(opts, on_complete)
     state.stdout:close()
     state.stderr:close()
     vim.schedule(function()
-      cb(2, nil, tostring(state.pid))
+      on_complete(2, nil, tostring(state.pid))
       state = nil
     end)
     return nil
   end
 end
+
+---@type async fun(opts: {cmd: string, args: string[], cwd?: string, detached?: boolean}):integer, string?, string?
+---  - {opts.cmd} `string`
+---  - {opts.args} `string[]`
+---  - {opts.cwd?} `string`
+---  - {opts.detached?} `boolean`
+M.async_run = wrap(function(opts, callback)
+  M.run(opts, function(code, stdout, stderr)
+    callback(code, stdout, stderr)
+  end)
+end, 2)
 
 return M
