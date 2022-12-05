@@ -343,7 +343,7 @@ local function on_buf_enter(bufnr, file)
 
     M.open_window({ path = file, focus = true })
   elseif sidebar and sidebar:is_open() then
-    if sidebar:is_current_window_ui() and config.move_buffers_from_tree_window then
+    if sidebar:is_current_window_ui() and config.move_buffers_from_sidebar_window then
       log.debug("moving buffer %s to edit window", bufnr)
       sidebar:move_buffer_to_edit_window(bufnr)
     end
@@ -388,7 +388,7 @@ function M.setup(config)
     api.nvim_create_autocmd("TabNewEntered", {
       group = group,
       callback = void(function()
-        M.open_window({ focus = config.auto_open.focus_tree })
+        M.open_window({ focus = config.auto_open.focus_sidebar })
       end),
       desc = "Open tree on new tab",
     })
@@ -414,7 +414,7 @@ function M.setup(config)
       Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
       M._loading = false
       if open then
-        M.open_window({ focus = config.auto_open.focus_tree })
+        M.open_window({ focus = config.auto_open.focus_sidebar })
       end
     end)()
   end

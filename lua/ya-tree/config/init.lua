@@ -5,10 +5,10 @@ local M = {
   ---@field close_if_last_window boolean Force closing the YaTree window when it is the last window in the tabpage, default: `false`.
   ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
   ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
-  ---@field move_buffers_from_tree_window boolean Move buffers from the tree window to the last used window, default: `true`.
+  ---@field move_buffers_from_sidebar_window boolean Move buffers from the sidebar window to the last used window, default: `true`.
   ---@field hijack_netrw boolean Replace the `netrw` file explorer, default: `true`.
   ---@field expand_all_nodes_max_depth integer The maximum depth to expand when expanding nodes, default: 5.
-  ---@field load_sidebar_on_setup boolean Whether to load the sidebar and it's trees on setup, which makes the first open faster, default: `false`.
+  ---@field load_sidebar_on_setup boolean Whether to load the sidebar and its trees on setup, which makes the first open faster, default: `false`.
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
@@ -30,7 +30,7 @@ local M = {
 
     follow_focused_file = false,
     move_cursor_to_name = false,
-    move_buffers_from_tree_window = true,
+    move_buffers_from_sidebar_window = true,
 
     hijack_netrw = true,
 
@@ -53,13 +53,13 @@ local M = {
     },
 
     ---@class Yat.Config.AutoOpen
-    ---@field on_setup boolean Automatically open the tree when running setup, default: `false`.
-    ---@field on_new_tab boolean Automatically open the tree when opening a new tabpage, default: `false`.
-    ---@field focus_tree boolean Whether to focus the tree when automatically opened, default: `false`.
+    ---@field on_setup boolean Automatically open the sidebar when running setup, default: `false`.
+    ---@field on_new_tab boolean Automatically open the sidebar when opening a new tabpage, default: `false`.
+    ---@field focus_sidebar boolean Whether to focus the sidebar when automatically opened, default: `false`.
     auto_open = {
       on_setup = false,
       on_new_tab = false,
-      focus_tree = false,
+      focus_sidebar = false,
     },
 
     ---@class Yat.Config.Cwd
@@ -132,7 +132,7 @@ local M = {
     },
 
     ---@class Yat.Config.Diagnostics
-    ---@field enable boolean Show lsp diagnostics in the tree, default: `true`.
+    ---@field enable boolean Show lsp diagnostics in trees, default: `true`.
     ---@field debounce_time integer Debounce time in ms, for how often `DiagnosticChanged` is processed, default: `300`.
     ---@field propagate_to_parents boolean If the diagnostic status should be propagated to parents, default: `true`.
     diagnostics = {
@@ -150,7 +150,7 @@ local M = {
     },
 
     ---@class Yat.Config.Trash
-    ---@field enable boolean Whether to enable trashing in the tree (`trash-cli must be installed`), default: `true`.
+    ---@field enable boolean Whether to enable trashing in (`trash-cli must be installed`), default: `true`.
     ---@field require_confirm boolean Confirm before trashing, default: `false`.
     trash = {
       enable = true,
@@ -160,7 +160,7 @@ local M = {
     ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
 
     ---@class Yat.Config.View
-    ---@field size integer Size of the tree panel, default: `40`.
+    ---@field size integer Size of the sidebar panel, default: `40`.
     ---@field position Yat.Ui.Position Where the sidebar is placed, default: `"left"`.
     ---@field number boolean Whether to show the number column, default: `false`.
     ---@field relativenumber boolean Whether to show relative numbers, default: `false`.
