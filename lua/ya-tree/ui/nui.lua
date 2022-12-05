@@ -36,7 +36,7 @@ do
   ---  - {callbacks.on_close?} `function(): void`
   ---  - {callbacks.on_change?} `function(text: string): void`
   function M.input(opts, callbacks)
-    local border = require("ya-tree.config").config.view.popups.border
+    local border = require("ya-tree.config").config.popups.border
     local options = {
       relative = opts.relative or "cursor",
       position = { row = opts.row or 1, col = opts.col or 1 },
@@ -151,7 +151,7 @@ end
 ---@param opts Yat.Ui.PopupOpts
 ---@return Yat.Ui.Popup
 function M.popup(opts)
-  local border = require("ya-tree.config").config.view.popups.border
+  local border = require("ya-tree.config").config.popups.border
   local options = {
     size = {
       width = opts.width,

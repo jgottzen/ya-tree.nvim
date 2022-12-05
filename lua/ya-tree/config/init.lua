@@ -20,7 +20,7 @@ local M = {
   ---@field diagnostics Yat.Config.Diagnostics Lsp diagnostics configuration.
   ---@field system_open Yat.Config.SystemOpen Open file with system command configuration.
   ---@field trash Yat.Config.Trash `trash-cli` configuration.
-  ---@field view Yat.Config.View Tree view configuration.
+  ---@field popups Yat.Config.Popups Popup window configuration.
   ---@field sidebar Yat.Config.Sidebar Sidebar configuration.
   ---@field actions Yat.Config.Actions User actions.
   ---@field trees Yat.Config.Trees Tree configurations.
@@ -157,14 +157,10 @@ local M = {
       require_confirm = false,
     },
 
-    ---@class Yat.Config.View
-    ---@field popups Yat.Config.View.Popups Popup window configuration.
-    view = {
-      ---@class Yat.Config.View.Popups
-      ---@field border string|string[] The border type for floating windows, default: `"rounded"`.
-      popups = {
-        border = "rounded",
-      },
+    ---@class Yat.Config.Popups
+    ---@field border string|string[] The border type for floating windows, default: `"rounded"`.
+    popups = {
+      border = "rounded",
     },
 
     ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
