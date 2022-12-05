@@ -208,7 +208,7 @@ function M.rename(tree, node, sidebar)
     prepare_add_rename(sidebar, tree --[[@as Yat.Trees.Filesystem]], node, path)
   end
   if node.repo then
-    local err = node.repo:move(node.path, path)
+    local err = node.repo:index():move(node.path, path)
     if not err then
       utils.notify(string.format("Renamed %q to %q.", node.path, path))
       return

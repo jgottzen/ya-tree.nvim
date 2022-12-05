@@ -1188,7 +1188,7 @@ Custom actions can easily be created using the config helper:
 local function special_action(tree, node, sidebar)
   -- this is what the "git_stage" action does
   if node.repo then
-    local err = node.repo:add(node.path)
+    local err = node.repo:index():add(node.path)
     if not err then
       sidebar:update()
     end
