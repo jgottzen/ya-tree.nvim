@@ -1232,7 +1232,7 @@ require("ya-tree").setup({
 
 Git and file system operations are wrapped with the `plenary.nvim` `plenary.async.wrap` function,
 turning callbacks into regular return values. The consequence of this is that calling those functions
-must be done in a coroutine. This bubbles up all the way, so all entry points to the plugin is done
+must be done in a coroutine. This bubbles up all the way, so all entry points to the plugin are done
 using the `plenary.async.void` function.
 
 For actions, this conceptually translates to:
@@ -1247,7 +1247,8 @@ end
 ```
 
 This means that all actions are running inside a coroutine and special care has to be taken to handle
-[`api-fast`](https://neovim.io/doc/user/api.html#api-fast) calls. The easiest way is to call the sceduler:
+`vim.api` functions calls, since they cannot be called from a `vim.loop` callback. The is remedied by
+by using `vim.schedule(...)`, `plenary` variant:
 ```lua
   tree.root:refresh()
   require("plenary.async.util").scheduler()
@@ -1264,7 +1265,8 @@ The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make them
 
 The `nui.nvim` `Input` class is extended with completion using
 [`completefunc`](https://neovim.io/doc/user/options.html#'completefunc') and initialization parameters
-specific to `ya-tree`, in the `ya-tree.ui.nui` package. It is also `wrap`ped for when only a result is needed:
+specific to `ya-tree`, in the `ya-tree.ui.nui` package. It is also `wrap`ped for when only a simple 
+result is needed:
 ```lua
   local ui = require("ya-tree.ui")
   local reponse = ui.nui_input({ title = "My Title", default = "some default", completion = "file" })
