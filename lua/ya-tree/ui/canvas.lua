@@ -42,8 +42,8 @@ local WIN_OPTIONS = {
 }
 
 ---@class Yat.Ui.Canvas : Yat.Object
----@field new fun(self: Yat.Ui.Canvas, position: Yat.Ui.Position, size: integer, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
----@overload fun(position: Yat.Ui.Position, size: integer, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
+---@field new fun(self: Yat.Ui.Canvas, position: Yat.Ui.Position, size: integer, number: boolean, relativenumber: boolean, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
+---@overload fun(position: Yat.Ui.Position, size: integer, number: boolean, relativenumber: boolean, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
 ---@field class fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
 ---
 ---@field private _winid? integer
@@ -51,6 +51,8 @@ local WIN_OPTIONS = {
 ---@field private bufnr? integer
 ---@field private position Yat.Ui.Position
 ---@field private _size integer
+---@field private number boolean
+---@field private relativenumber boolean
 ---@field private window_augroup? integer
 ---@field private previous_row integer
 ---@field private pos_after_win_leave? integer[]
@@ -64,11 +66,15 @@ end
 ---@private
 ---@param position Yat.Ui.Position
 ---@param size integer
+---@param number boolean
+---@param relativenumber boolean
 ---@param tree_and_node_provider fun(row: integer): Yat.Tree?, Yat.Node?
-function Canvas:init(position, size, tree_and_node_provider)
+function Canvas:init(position, size, number, relativenumber, tree_and_node_provider)
   self.previous_row = 1
   self.position = position
   self._size = size
+  self.number = number
+  self.relativenumber = relativenumber
   self.tree_and_node_provider = tree_and_node_provider
 end
 
@@ -224,9 +230,8 @@ function Canvas:_set_window_options()
   for k, v in pairs(WIN_OPTIONS) do
     vim.wo[self._winid][k] = v
   end
-  local config = require("ya-tree.config").config
-  vim.wo[self._winid].number = config.view.number
-  vim.wo[self._winid].relativenumber = config.view.relativenumber
+  vim.wo[self._winid].number = self.number
+  vim.wo[self._winid].relativenumber = self.relativenumber
 
   self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self._winid, { clear = true })
   api.nvim_create_autocmd("WinLeave", {
@@ -248,7 +253,7 @@ function Canvas:_set_window_options()
     end,
     desc = "Cleaning up window specific settings",
   })
-  if config.move_cursor_to_name then
+  if require("ya-tree.config").config.move_cursor_to_name then
     api.nvim_create_autocmd("CursorMoved", {
       group = self.window_augroup,
       buffer = self.bufnr,

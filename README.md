@@ -324,20 +324,9 @@ local DEFAULT = {
     require_confirm = false,
   },
 
-  ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
-
   ---@class Yat.Config.View
-  ---@field size integer Size of the sidebar panel, default: `40`.
-  ---@field position Yat.Ui.Position Where the sidebar is placed, default: `"left"`.
-  ---@field number boolean Whether to show the number column, default: `false`.
-  ---@field relativenumber boolean Whether to show relative numbers, default: `false`.
   ---@field popups Yat.Config.View.Popups Popup window configuration.
   view = {
-    size = 40,
-    position = "left",
-    number = false,
-    relativenumber = false,
-
     ---@class Yat.Config.View.Popups
     ---@field border string|string[] The border type for floating windows, default: `"rounded"`.
     popups = {
@@ -345,14 +334,24 @@ local DEFAULT = {
     },
   },
 
+  ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
+
   ---@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|string
 
   ---@class Yat.Config.Sidebar
+  ---@field size integer Size of the sidebar panel, default: `40`.
+  ---@field position Yat.Ui.Position Where the sidebar is placed, default: `"left"`.
+  ---@field number boolean Whether to show the number column, default: `false`.
+  ---@field relativenumber boolean Whether to show relative numbers, default: `false`.
   ---@field single_mode boolean If the sidebar should be a single tree only, default: `false`.
   ---@field tree_order Yat.Trees.Type[] In which order the tree sections appear, default: `{ "filesystem", "search", "git", "buffers" }`.
   ---@field trees_always_shown Yat.Trees.Type[] Which trees are always present, default: `{ "filesystem" }`.
   ---@field section_layout Yat.Config.Sidebar.SectionLayout Layout configuration.
   sidebar = {
+    size = 40,
+    position = "left",
+    number = false,
+    relativenumber = false,
     single_mode = false,
     tree_order = { "filesystem", "search", "git", "buffers" },
     trees_always_shown = { "filesystem" },

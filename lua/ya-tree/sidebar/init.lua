@@ -82,7 +82,7 @@ function Sidebar:init(tabpage, sidebar_config)
   local config = require("ya-tree.config").config
   sidebar_config = sidebar_config or config.sidebar
   self._tabpage = tabpage
-  self.canvas = Canvas:new(config.view.position, config.view.size, function(row)
+  self.canvas = Canvas:new(sidebar_config.position, sidebar_config.size, sidebar_config.number, sidebar_config.relativenumber, function(row)
     return self:get_tree_and_row_for_row(row)
   end)
   self.single_mode = sidebar_config.single_mode
