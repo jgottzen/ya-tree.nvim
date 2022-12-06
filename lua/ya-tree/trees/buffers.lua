@@ -47,12 +47,7 @@ BuffersTree.TYPE = "buffers"
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
----@param config Yat.Config
----@return boolean enabled
-function BuffersTree.setup(config)
-  BuffersTree.complete_func = "buffer"
-  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.static.TYPE, config)
-
+do
   local builtin = require("ya-tree.actions.builtin")
   BuffersTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
@@ -75,6 +70,13 @@ function BuffersTree.setup(config)
 
     unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
+end
+
+---@param config Yat.Config
+---@return boolean enabled
+function BuffersTree.setup(config)
+  BuffersTree.complete_func = "buffer"
+  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
@@ -98,6 +100,8 @@ function BuffersTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   BuffersTree.supported_events = supported_events
+
+  BuffersTree.keymap = Tree.static.create_mappings(config, BuffersTree.static.TYPE, BuffersTree.static.supported_actions)
 
   return true
 end

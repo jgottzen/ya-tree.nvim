@@ -30,6 +30,7 @@ local api = vim.api
 ---@field static Yat.Tree
 ---
 ---@field TYPE Yat.Trees.Type
+---@field keymap table<string, Yat.Action>
 ---@field tabpage integer
 ---@field refreshing boolean
 ---@field root Yat.Node
@@ -138,6 +139,38 @@ end
 ---@diagnostic disable-next-line:unused-local,missing-return
 function Tree.setup(config) end
 Tree:virtual("setup")
+
+---@param config Yat.Config
+---@param tree_type Yat.Trees.Type
+---@param supported_actions Yat.Actions.Name[]
+---@return table<string, Yat.Action>
+function Tree.create_mappings(config, tree_type, supported_actions)
+  local actions = require("ya-tree.actions").actions
+
+  ---@type table<string, Yat.Action>
+  local keymap = {}
+  ---@type table<string, Yat.Actions.Name|string>
+  local mappings = vim.tbl_deep_extend("force", config.trees.global_mappings.list, config.trees[tree_type].mappings.list)
+  for key, name in pairs(mappings) do
+    if name == "" then
+      log.debug("key %q is disabled by user config", key)
+    else
+      local action = actions[name]
+      if not vim.tbl_contains(supported_actions, name) and not action.user_defined then
+        log.error("key %q is mapped to 'action' %q, which tree %q doesn't support, mapping ignored", key, name, tree_type)
+        utils.warn(string.format("Key %q is mapped to 'action' %q, which tree %q doesn't support, mapping ignored!", key, name, tree_type))
+      else
+        if action then
+          keymap[key] = action
+        else
+          log.debug("tree %q action %q is disabled due to dependent feature is disabled", tree_type, name)
+        end
+      end
+    end
+  end
+
+  return keymap
+end
 
 ---@protected
 ---@param type Yat.Trees.Type

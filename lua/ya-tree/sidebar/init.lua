@@ -16,6 +16,7 @@ local FilesystemTree = require("ya-tree.trees.filesystem")
 local GitTree = require("ya-tree.trees.git")
 local SearchTree = require("ya-tree.trees.search")
 local ui = require("ya-tree.ui")
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("sidebar")
 
 local api = vim.api
@@ -294,6 +295,7 @@ function Sidebar:open(tree, node, opts)
 
   opts = opts or {}
   self.canvas:open({ position = opts.position, size = opts.size })
+  self:apply_mappings()
   local lines, highlights = self:render()
   self.canvas:draw(lines, highlights)
   self.canvas:restore_previous_position()
@@ -306,6 +308,49 @@ function Sidebar:open(tree, node, opts)
     self.canvas:focus()
   elseif opts.focus_edit_window then
     self.canvas:focus_edit_window()
+  end
+end
+
+---@param sidebar Yat.Sidebar
+---@param mapping table<Yat.Trees.Type, Yat.Action>
+---@return function handler
+local function create_keymap_function(sidebar, mapping)
+  return function()
+    local tree, node = sidebar:get_current_tree_and_node()
+    if tree then
+      local action = mapping[tree.TYPE]
+      if action then
+        if node or action.node_independent then
+          if node then
+            tree.current_node = node
+          end
+          void(action.fn)(tree, node, sidebar)
+        end
+      end
+    end
+  end
+end
+
+---@private
+function Sidebar:apply_mappings()
+  local opts = { buffer = self.canvas:bufnr(), silent = true, nowait = true }
+  for key, mapping in pairs(Trees.mappings()) do
+    local rhs = create_keymap_function(self, mapping)
+
+    ---@type table<string, boolean>, string[]
+    local modes, descriptions = {}, {}
+    for _, action in pairs(mapping) do
+      for _, mode in ipairs(action.modes) do
+        modes[mode] = true
+      end
+      descriptions[#descriptions + 1] = action.desc
+    end
+    opts.desc = table.concat(utils.tbl_unique(descriptions), "/")
+    for mode in pairs(modes) do
+      if not pcall(vim.keymap.set, mode, key, rhs, opts) then
+        utils.warn(string.format("Cannot construct mapping for key %q!", key))
+      end
+    end
   end
 end
 

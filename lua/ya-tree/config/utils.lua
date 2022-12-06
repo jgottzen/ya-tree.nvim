@@ -4,15 +4,13 @@ local M = {}
 ---@param desc string
 ---@param node_independent boolean
 ---@param modes Yat.Actions.Mode[]
----@param trees Yat.Trees.Type[]
----@return Yat.Action action
-function M.create_action(fn, desc, node_independent, modes, trees)
-  ---@type Yat.Action
+---@return Yat.Config.Action action
+function M.create_action(fn, desc, node_independent, modes)
+  ---@type Yat.Config.Action
   local action = {
     fn = fn,
     desc = desc,
     modes = modes,
-    trees = trees,
     node_independent = node_independent,
   }
   return action

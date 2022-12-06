@@ -47,12 +47,7 @@ SearchTree.TYPE = "search"
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
----@param config Yat.Config
----@return boolean enabled
-function SearchTree.setup(config)
-  SearchTree.complete_func = Tree.static.complete_func_loaded_nodes
-  SearchTree.renderers = tree_utils.create_renderers(SearchTree.static.TYPE, config)
-
+do
   local builtin = require("ya-tree.actions.builtin")
   SearchTree.supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
@@ -77,6 +72,13 @@ function SearchTree.setup(config)
 
     unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
+end
+
+---@param config Yat.Config
+---@return boolean enabled
+function SearchTree.setup(config)
+  SearchTree.complete_func = Tree.static.complete_func_loaded_nodes
+  SearchTree.renderers = tree_utils.create_renderers(SearchTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
@@ -96,6 +98,8 @@ function SearchTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   SearchTree.supported_events = supported_events
+
+  SearchTree.keymap = Tree.static.create_mappings(config, SearchTree.static.TYPE, SearchTree.static.supported_actions)
 
   return true
 end

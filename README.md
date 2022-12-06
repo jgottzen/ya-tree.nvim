@@ -382,28 +382,23 @@ local DEFAULT = {
   ---@alias Yat.Actions.Mode "n"|"v"|"V"
 
   ---@class Yat.Action
+  ---@field name Yat.Actions.Name
   ---@field fn Yat.Action.Fn
   ---@field desc string
-  ---@field trees Yat.Trees.Type[]
   ---@field modes Yat.Actions.Mode[]
   ---@field node_independent boolean
+  ---@field user_defined boolean
 
   ---@class Yat.Config.Actions : { [string]: Yat.Action }
   actions = {},
 
-  ---@class Yat.Config.Mapping.Custom Key mapping for user functions configuration.
-  ---@field modes Yat.Actions.Mode[] The mode(s) for the keybinding.
-  ---@field fn Yat.Action.Fn User function.
-  ---@field desc? string Description of what the mapping does.
-  ---@field node_independent? boolean If the action can be invoked without a `node`.
-
   ---@class Yat.Config.Trees.GlobalMappings
   ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-  ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+  ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|string> Map of key mappings, an empty string, `""`, disables the mapping.
 
   ---@class Yat.Config.Trees.Mappings
   ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-  ---@field list table<string, Yat.Actions.Name|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+  ---@field list table<string, Yat.Actions.Name|string> Map of key mappings, an empty string, `""`, disables the mapping.
 
   ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|string
 
@@ -482,7 +477,7 @@ local DEFAULT = {
       },
       ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-      ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+      ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
         list = {
@@ -546,7 +541,7 @@ local DEFAULT = {
       section_icon = "",
       ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-      ---@field list table<string, Yat.Trees.Search.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+      ---@field list table<string, Yat.Trees.Search.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
         list = {
@@ -599,7 +594,7 @@ local DEFAULT = {
       section_icon = "",
       ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-      ---@field list table<string, Yat.Trees.Git.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+      ---@field list table<string, Yat.Trees.Git.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
         list = {
@@ -650,7 +645,7 @@ local DEFAULT = {
       section_icon = "",
       ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-      ---@field list table<string, Yat.Trees.Buffers.SupportedActions|string|Yat.Config.Mapping.Custom> Map of key mappings, an empty string, `""`, disables the mapping.
+      ---@field list table<string, Yat.Trees.Buffers.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
       mappings = {
         disable_defaults = false,
         list = {
@@ -1175,7 +1170,6 @@ The actions supported by the trees are:
 Custom actions can easily be created using the config helper:
 
 ```lua
-
 ---@async
 ---@param tree Yat.Tree
 ---@param node Yat.Node
@@ -1202,8 +1196,8 @@ end
 local utils = require("ya-tree.config.utils")
 require("ya-tree").setup({
   actions = {
-    special_action = utils.create_action(special_action, "Add node to git", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
-    print_tree = utils.create_action(print_tree_and_node, "Print tree and node", true, { "n" }, { "filesystem", "search", "buffers", "git" }),
+    special_action = utils.create_action(special_action, "Add node to git", true, { "n" }),
+    print_tree = utils.create_action(print_tree_and_node, "Print tree and node", true, { "n" }),
   },
   trees = {
     global_mappings = {

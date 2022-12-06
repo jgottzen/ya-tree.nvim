@@ -27,35 +27,56 @@ function M.create_tree(tabpage, tree_type, path, kwargs)
   end
 end
 
----@param config Yat.Config
-function M.setup(config)
-  ---@type table<Yat.Actions.Name, Yat.Trees.Type[]>
-  local supported_actions = {}
-  for tree_name in pairs(config.trees) do
-    if tree_name ~= "global_mappings" then
-      ---@type boolean, Yat.Tree?
-      local ok, tree = pcall(require, "ya-tree.trees." .. tree_name)
-      if ok and tree and type(tree.static.setup) == "function" and type(tree.static.TYPE) == "string" and type(tree.new) == "function" then
-        log.debug("registering tree %q", tree.static.TYPE)
-        if tree.static.setup(config) then
-          M._registered_trees[tree.static.TYPE] = tree
+do
+  ---@type table<Yat.Trees.Type, table<string, Yat.Action>>, table<string, table<Yat.Trees.Type, Yat.Action>>
+  local tree_mappings, mappings = {}, {}
 
-          for _, action in ipairs(tree.static.supported_actions) do
-            local trees = supported_actions[action]
-            if not trees then
-              trees = {}
-              supported_actions[action] = trees
-            end
-            trees[#trees + 1] = tree.static.TYPE
+  ---@param config Yat.Config
+  function M.setup(config)
+    tree_mappings, mappings = {}, {}
+
+    for tree_name in pairs(config.trees) do
+      if tree_name ~= "global_mappings" then
+        ---@type boolean, Yat.Tree?
+        local ok, tree = pcall(require, "ya-tree.trees." .. tree_name)
+        if
+          ok
+          and tree
+          and type(tree) == "table"
+          and type(tree.static) == "table"
+          and type(tree.static.setup) == "function"
+          and type(tree.static.TYPE) == "string"
+          and type(tree.new) == "function"
+        then
+          if tree.static.setup(config) then
+            log.debug("registered tree %q", tree.static.TYPE)
+            M._registered_trees[tree.static.TYPE] = tree
+            tree_mappings[tree.static.TYPE] = tree.static.keymap
           end
         end
       end
     end
+
+    for tree_type, list in pairs(tree_mappings) do
+      for key, action in pairs(list) do
+        local entry = mappings[key]
+        if not entry then
+          entry = {}
+          mappings[key] = entry
+        end
+        entry[tree_type] = action
+      end
+    end
   end
 
-  ---@return table<Yat.Actions.Name, Yat.Trees.Type[]>
-  function M.actions_supported_by_trees()
-    return supported_actions
+  ---@return table<Yat.Trees.Type, table<string, Yat.Action>>
+  function M.tree_mappings()
+    return tree_mappings
+  end
+
+  ---@return table<string, table<Yat.Trees.Type, Yat.Action>>
+  function M.mappings()
+    return mappings
   end
 end
 

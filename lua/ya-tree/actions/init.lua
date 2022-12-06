@@ -1,116 +1,43 @@
-local void = require("plenary.async").void
-
-local Sidebar = require("ya-tree.sidebar")
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("actions")
 
-local api = vim.api
-
 local M = {
-  ---@private
   ---@type table<Yat.Actions.Name, Yat.Action>
-  _actions = {},
-  ---@private
-  ---@type table<string, table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>>
-  _mappings = {},
-  ---@private
-  ---@type table<Yat.Trees.Type, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>>
-  _tree_mappings = {},
+  actions = {},
 }
+
+---@class Yat.Action
+---@field name Yat.Actions.Name
+---@field fn Yat.Action.Fn
+---@field desc string
+---@field modes Yat.Actions.Mode[]
+---@field node_independent boolean
+---@field user_defined boolean
 
 ---@param name Yat.Actions.Name
 ---@param fn Yat.Action.Fn
 ---@param desc string
 ---@param modes Yat.Actions.Mode[]
 ---@param node_independent? boolean
----@param trees? Yat.Trees.Type[]
-function M.define_action(name, fn, desc, modes, node_independent, trees)
-  local Trees = require("ya-tree.trees")
+---@param user_defined? boolean
+function M.define_action(name, fn, desc, modes, node_independent, user_defined)
   ---@type Yat.Action
   local action = {
+    name = name,
     fn = fn,
     desc = desc,
     modes = modes,
-    trees = trees or Trees.actions_supported_by_trees()[name] or {},
     node_independent = node_independent == true,
+    user_defined = user_defined == true,
   }
-  if M._actions[name] then
+  if M.actions[name] then
     log.info("overriding action %q with %s", name, action)
   end
-  M._actions[name] = action
+  M.actions[name] = action
 end
-
----@param mapping table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
----@return function handler
-local function create_keymap_function(mapping)
-  return function()
-    local tabpage = api.nvim_get_current_tabpage()
-    local sidebar = Sidebar.get_sidebar(tabpage)
-    if not sidebar then
-      return
-    end
-    local tree, node = sidebar:get_current_tree_and_node()
-    if tree then
-      local action = mapping[tree.TYPE]
-      if action then
-        local fn, node_independent
-        if type(action) == "string" then
-          local _action = M._actions[action]
-          fn = void(_action.fn) --[[@as Yat.Action.Fn]]
-          node_independent = _action.node_independent
-        else
-          fn = void(action.fn) --[[@as Yat.Action.Fn]]
-          node_independent = action.node_independent
-        end
-        if node or node_independent then
-          if node then
-            tree.current_node = node
-          end
-          ---@diagnostic disable-next-line:param-type-mismatch
-          fn(tree, node, sidebar)
-        end
-      end
-    end
-  end
-end
-
----@param bufnr integer
-function M.apply_mappings(bufnr)
-  local opts = { buffer = bufnr, silent = true, nowait = true }
-  for key, mapping in pairs(M._mappings) do
-    local rhs = create_keymap_function(mapping)
-
-    ---@type table<string, boolean>, string[]
-    local modes, descriptions = {}, {}
-    for _, action in pairs(mapping) do
-      if type(action) == "string" then
-        for _, mode in ipairs(M._actions[action].modes) do
-          modes[mode] = true
-        end
-        descriptions[#descriptions + 1] = M._actions[action].desc
-      else
-        ---@cast action Yat.Config.Mapping.Custom
-        for _, mode in ipairs(action.modes) do
-          modes[mode] = true
-        end
-        descriptions[#descriptions + 1] = action.desc
-      end
-    end
-    opts.desc = table.concat(utils.tbl_unique(descriptions), "/")
-    for mode in pairs(modes) do
-      if not pcall(vim.keymap.set, mode, key, rhs, opts) then
-        utils.warn(string.format("Cannot construct mapping for key %q!", key))
-      end
-    end
-  end
-end
-
----@type table<Yat.Actions.Name, boolean>
-local disabled_actions = {}
 
 ---@param config Yat.Config
 local function define_actions(config)
-  M._actions = {}
+  M.actions = {}
 
   local builtin = require("ya-tree.actions.builtin")
   local lib = require("ya-tree.lib")
@@ -135,8 +62,6 @@ local function define_actions(config)
 
   if config.git.enable then
     M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
-  else
-    disabled_actions[builtin.general.open_git_tree] = true
   end
   M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open or close the current buffers tree", { "n" }, true)
 
@@ -180,8 +105,6 @@ local function define_actions(config)
   M.define_action(builtin.files.delete, files.delete, "Delete files and directories", { "n", "v" })
   if config.trash.enable then
     M.define_action(builtin.files.trash, files.trash, "Trash files and directories", { "n", "v" })
-  else
-    disabled_actions[builtin.files.trash] = false
   end
 
   M.define_action(builtin.files.copy_node, clipboard.copy_node, "Select files and directories for copy", { "n", "v" })
@@ -194,8 +117,6 @@ local function define_actions(config)
 
   if config.git.enable then
     M.define_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
-  else
-    disabled_actions[builtin.files.toggle_ignored] = true
   end
   M.define_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
@@ -217,13 +138,6 @@ local function define_actions(config)
     M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory", { "n" })
     M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory", { "n" })
     M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory", { "n" })
-  else
-    disabled_actions[builtin.git.check_node_for_git] = true
-    disabled_actions[builtin.git.focus_prev_git_item] = true
-    disabled_actions[builtin.git.focus_next_git_item] = true
-    disabled_actions[builtin.git.git_stage] = true
-    disabled_actions[builtin.git.git_unstage] = true
-    disabled_actions[builtin.git.git_revert] = true
   end
 
   if config.diagnostics.enable then
@@ -239,106 +153,17 @@ local function define_actions(config)
       "Go to the next diagnostic item",
       { "n" }
     )
-  else
-    disabled_actions[builtin.diagnostics.focus_prev_diagnostic_item] = true
-    disabled_actions[builtin.diagnostics.focus_next_diagnostic_item] = true
   end
 
-  local actions = config.actions
-  for name, action in pairs(actions) do
+  for name, action in pairs(config.actions) do
     log.debug("defining user action %q", name)
-    M.define_action(name, action.fn, action.desc, action.modes, action.node_independent, action.trees)
-  end
-end
-
----@param trees Yat.Config.Trees
-local function validate_and_create_mappings(trees)
-  local function is_enabled(value)
-    if value ~= "" then
-      if type(value) == "string" then
-        return not disabled_actions[value]
-      end
-    end
-    return true
-  end
-
-  ---@type table<string, boolean>, table<string, Yat.Actions.Name|""|Yat.Config.Mapping.Custom>
-  local keys, global_mappings = {}, {}
-  for key, value in pairs(trees.global_mappings.list) do
-    if is_enabled(value) then
-      global_mappings[key] = value
-      keys[key] = true
-    else
-      log.debug("global action %q is disabled due to dependent feature is disabled", value)
-    end
-  end
-
-  local registered_tree_types = require("ya-tree.trees").get_registered_tree_types()
-  M._tree_mappings = {}
-  for name, tree in pairs(trees) do
-    if name ~= "global_mappings" and vim.tbl_contains(registered_tree_types, name) then
-      M._tree_mappings[name] = vim.deepcopy(global_mappings)
-      for key, value in pairs(tree.mappings.list) do
-        if is_enabled(value) then
-          M._tree_mappings[name][key] = value
-          keys[key] = true
-        else
-          log.debug("tree %q action %q is disabled due to dependent feature is disabled", name, value)
-        end
-      end
-    end
-  end
-
-  M._mappings = {}
-  for key in pairs(keys) do
-    ---@type table<Yat.Trees.Type, Yat.Actions.Name|Yat.Config.Mapping.Custom>
-    local entry = {}
-    for tree_type, list in pairs(M._tree_mappings) do
-      local action = list[key]
-      if type(action) == "string" then
-        if action == "" then
-          log.debug("key %q is disabled by user config", key)
-        elseif not M._actions[action] then
-          log.error("key %q is mapped to 'action' %q, which does not exist, mapping ignored", key, action)
-          utils.warn(string.format("Key %q is mapped to 'action' %q, which does not exist, mapping ignored!", key, action))
-          list[key] = nil
-        elseif not vim.tbl_contains(M._actions[action].trees, tree_type) then
-          log.error(
-            "key %q is mapped to 'action' %q, which does not support tree type %q, mapping %s ignored",
-            key,
-            action,
-            tree_type,
-            M._actions[action]
-          )
-          utils.warn(
-            string.format("Key %q is mapped to 'action' %q, which does not support tree type %q, mapping ignored!", key, action, tree_type)
-          )
-          list[key] = nil
-        else
-          entry[tree_type] = action
-        end
-      elseif type(action) == "table" then
-        ---@cast action Yat.Config.Mapping.Custom
-        if type(action.fn) ~= "function" then
-          log.error("key %q is mapped to 'fn' %s, which is not a function, mapping %s ignored", key, action.fn, action)
-          utils.warn(string.format("Key %q is mapped to 'fn' %s, which is not a function, mapping ignored!", key, action.fn))
-          list[key] = nil
-        else
-          if action.modes == nil or #action.modes == 0 then
-            action.modes = { "n" }
-          end
-          entry[tree_type] = action
-        end
-      end
-    end
-    M._mappings[key] = entry
+    M.define_action(name, action.fn, action.desc, action.modes, action.node_independent, true)
   end
 end
 
 ---@param config Yat.Config
 function M.setup(config)
   define_actions(config)
-  validate_and_create_mappings(config.trees)
 end
 
 return M

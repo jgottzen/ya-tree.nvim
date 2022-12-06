@@ -60,32 +60,7 @@ FilesystemTree.TYPE = "filesystem"
 ---
 ---| Yat.Trees.Tree.SupportedActions
 
----@param config Yat.Config
----@return boolean enabled
-function FilesystemTree.setup(config)
-  local completion = config.trees.filesystem.completion
-  if type(completion.setup) == "function" then
-    function FilesystemTree:complete_func(bufnr, node)
-      local completefunc = completion.setup(self, node)
-      if completefunc then
-        api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
-        api.nvim_buf_set_option(bufnr, "omnifunc", "")
-      end
-    end
-  else
-    if completion.on == "node" then
-      FilesystemTree.complete_func = Tree.static.complete_func_file_in_path
-    else
-      if completion.on ~= "root" then
-        utils.warn(string.format("'trees.filesystem.completion.on' is not a recognized value (%q), using 'root'", completion.on))
-      end
-      function FilesystemTree:complete_func(bufnr)
-        return self:complete_func_file_in_path(bufnr)
-      end
-    end
-  end
-  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.static.TYPE, config)
-
+do
   local builtin = require("ya-tree.actions.builtin")
   FilesystemTree.supported_actions = utils.tbl_unique({
     builtin.files.add,
@@ -120,6 +95,33 @@ function FilesystemTree.setup(config)
 
     unpack(vim.deepcopy(Tree.static.supported_actions)),
   })
+end
+
+---@param config Yat.Config
+---@return boolean enabled
+function FilesystemTree.setup(config)
+  local completion = config.trees.filesystem.completion
+  if type(completion.setup) == "function" then
+    function FilesystemTree:complete_func(bufnr, node)
+      local completefunc = completion.setup(self, node)
+      if completefunc then
+        api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
+        api.nvim_buf_set_option(bufnr, "omnifunc", "")
+      end
+    end
+  else
+    if completion.on == "node" then
+      FilesystemTree.complete_func = Tree.static.complete_func_file_in_path
+    else
+      if completion.on ~= "root" then
+        utils.warn(string.format("'trees.filesystem.completion.on' is not a recognized value (%q), using 'root'", completion.on))
+      end
+      function FilesystemTree:complete_func(bufnr)
+        return self:complete_func_file_in_path(bufnr)
+      end
+    end
+  end
+  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
@@ -139,6 +141,8 @@ function FilesystemTree.setup(config)
     supported_events.yatree[ye.DIAGNOSTICS_CHANGED] = Tree.static.on_diagnostics_event
   end
   FilesystemTree.supported_events = supported_events
+
+  FilesystemTree.keymap = Tree.static.create_mappings(config, FilesystemTree.static.TYPE, FilesystemTree.static.supported_actions)
 
   return true
 end

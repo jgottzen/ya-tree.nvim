@@ -42,13 +42,13 @@ local WIN_OPTIONS = {
 }
 
 ---@class Yat.Ui.Canvas : Yat.Object
----@field new fun(self: Yat.Ui.Canvas, position: Yat.Ui.Position, size: integer, number: boolean, relativenumber: boolean, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
----@overload fun(position: Yat.Ui.Position, size: integer, number: boolean, relativenumber: boolean, tree_and_node_provider: fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
+---@field new fun(self: Yat.Ui.Canvas, position: Yat.Ui.Position, size: integer, number: boolean, relativenumber: boolean, tree_and_node_for_row : fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
+---@overload fun(position: Yat.Ui.Position, size: integer, number: boolean, relativenumber: boolean, tree_and_node_for_row : fun(row: integer): Yat.Tree?, Yat.Node?): Yat.Ui.Canvas
 ---@field class fun(self: Yat.Ui.Canvas): Yat.Ui.Canvas
 ---
 ---@field private _winid? integer
 ---@field private _edit_winid? integer
----@field private bufnr? integer
+---@field private _bufnr? integer
 ---@field private position Yat.Ui.Position
 ---@field private _size integer
 ---@field private number boolean
@@ -56,11 +56,11 @@ local WIN_OPTIONS = {
 ---@field private window_augroup? integer
 ---@field private previous_row integer
 ---@field private pos_after_win_leave? integer[]
----@field private tree_and_node_provider fun(row: integer): Yat.Tree?, Yat.Node?
+---@field private tree_and_node_for_row fun(row: integer): Yat.Tree?, Yat.Node?
 local Canvas = meta.create_class("Yat.Ui.Canvas")
 
 Canvas.__tostring = function(self)
-  return string.format("(winid=%s, bufnr=%s, edit_winid=%s", self._winid, self.bufnr, self._edit_winid)
+  return string.format("(winid=%s, bufnr=%s, edit_winid=%s", self._winid, self._bufnr, self._edit_winid)
 end
 
 ---@private
@@ -68,14 +68,14 @@ end
 ---@param size integer
 ---@param number boolean
 ---@param relativenumber boolean
----@param tree_and_node_provider fun(row: integer): Yat.Tree?, Yat.Node?
-function Canvas:init(position, size, number, relativenumber, tree_and_node_provider)
+---@param tree_and_node_for_row fun(row: integer): Yat.Tree?, Yat.Node?
+function Canvas:init(position, size, number, relativenumber, tree_and_node_for_row)
   self.previous_row = 1
   self.position = position
   self._size = size
   self.number = number
   self.relativenumber = relativenumber
-  self.tree_and_node_provider = tree_and_node_provider
+  self.tree_and_node_for_row = tree_and_node_for_row
 end
 
 ---@return boolean
@@ -86,6 +86,11 @@ end
 ---@return integer winid
 function Canvas:winid()
   return self._winid
+end
+
+---@return integer bufnr
+function Canvas:bufnr()
+  return self._bufnr
 end
 
 ---@return integer height, integer width
@@ -134,15 +139,13 @@ end
 
 ---@private
 function Canvas:_create_buffer()
-  self.bufnr = api.nvim_create_buf(false, false)
-  log.debug("created buffer %s", self.bufnr)
-  api.nvim_buf_set_name(self.bufnr, "YaTree://YaTree" .. self.bufnr)
+  self._bufnr = api.nvim_create_buf(false, false)
+  log.debug("created buffer %s", self._bufnr)
+  api.nvim_buf_set_name(self._bufnr, "YaTree://YaTree" .. self._bufnr)
 
   for k, v in pairs(BUF_OPTIONS) do
-    vim.bo[self.bufnr][k] = v
+    vim.bo[self._bufnr][k] = v
   end
-
-  require("ya-tree.actions").apply_mappings(self.bufnr)
 end
 
 ---@param winid integer
@@ -155,15 +158,15 @@ local function win_set_buf_noautocmd(winid, bufnr)
 end
 
 function Canvas:restore()
-  if self._winid and self.bufnr then
-    log.debug("restoring canvas buffer to buffer %s", self.bufnr)
-    win_set_buf_noautocmd(self._winid, self.bufnr)
+  if self._winid and self._bufnr then
+    log.debug("restoring canvas buffer to buffer %s", self._bufnr)
+    win_set_buf_noautocmd(self._winid, self._bufnr)
   end
 end
 
 ---@param bufnr integer
 function Canvas:move_buffer_to_edit_window(bufnr)
-  if self._winid and self.bufnr then
+  if self._winid and self._bufnr then
     if not self._edit_winid then
       self:create_edit_window()
     end
@@ -225,7 +228,7 @@ end
 
 ---@private
 function Canvas:_set_window_options()
-  win_set_buf_noautocmd(self._winid, self.bufnr)
+  win_set_buf_noautocmd(self._winid, self._bufnr)
 
   for k, v in pairs(WIN_OPTIONS) do
     vim.wo[self._winid][k] = v
@@ -236,7 +239,7 @@ function Canvas:_set_window_options()
   self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self._winid, { clear = true })
   api.nvim_create_autocmd("WinLeave", {
     group = self.window_augroup,
-    buffer = self.bufnr,
+    buffer = self._bufnr,
     callback = function()
       self.pos_after_win_leave = api.nvim_win_get_cursor(self._winid)
       if self._edit_winid then
@@ -256,7 +259,7 @@ function Canvas:_set_window_options()
   if require("ya-tree.config").config.move_cursor_to_name then
     api.nvim_create_autocmd("CursorMoved", {
       group = self.window_augroup,
-      buffer = self.bufnr,
+      buffer = self._bufnr,
       callback = function()
         self:_move_cursor_to_name()
       end,
@@ -278,17 +281,17 @@ function Canvas:_on_win_closed()
 
   self.window_augroup = nil
   self._winid = nil
-  if self.bufnr then
+  if self._bufnr then
     -- Deleting the buffer will inhibit TabClosed autocmds from firing...
     -- Deferring it works...
-    local bufnr = self.bufnr
+    local bufnr = self._bufnr
     vim.defer_fn(function()
       ok = pcall(api.nvim_buf_delete, bufnr, { force = true })
       if not ok then
         log.error("error deleting buffer %s", bufnr)
       end
     end, 100)
-    self.bufnr = nil
+    self._bufnr = nil
   end
 end
 
@@ -321,7 +324,7 @@ local function set_cursor_position(winid, row, col)
   end)
 end
 
----@param opts? { position?: Yat.Ui.Position, size?: integer }
+---@param opts { position?: Yat.Ui.Position, size?: integer }
 ---  - {opts.position?} `Yat.Ui.Position`
 ---  - {opts.size?} `integer`
 function Canvas:open(opts)
@@ -384,20 +387,20 @@ end
 ---@param lines string[]
 ---@param highlights Yat.Ui.HighlightGroup[][]
 function Canvas:draw(lines, highlights)
-  api.nvim_buf_set_option(self.bufnr, "modifiable", true)
-  api.nvim_buf_clear_namespace(self.bufnr, ns, 0, -1)
-  api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
+  api.nvim_buf_set_option(self._bufnr, "modifiable", true)
+  api.nvim_buf_clear_namespace(self._bufnr, ns, 0, -1)
+  api.nvim_buf_set_lines(self._bufnr, 0, -1, false, lines)
   for linenr, line_highlights in ipairs(highlights) do
     for _, highlight in ipairs(line_highlights) do
       -- guard against bugged out renderer highlights, which will cause an avalanche of errors...
       if not highlight.name then
         log.error("missing highlight name for line=%s, hl=%s", tostring(lines[linenr]), highlight)
       else
-        api.nvim_buf_add_highlight(self.bufnr, ns, highlight.name, linenr - 1, highlight.from, highlight.to)
+        api.nvim_buf_add_highlight(self._bufnr, ns, highlight.name, linenr - 1, highlight.from, highlight.to)
       end
     end
   end
-  api.nvim_buf_set_option(self.bufnr, "modifiable", false)
+  api.nvim_buf_set_option(self._bufnr, "modifiable", false)
 end
 
 do
@@ -428,7 +431,7 @@ function Canvas:_move_cursor_to_name()
     return
   end
   local row, col = unpack(api.nvim_win_get_cursor(self._winid))
-  local tree, node = self.tree_and_node_provider(row)
+  local tree, node = self.tree_and_node_for_row(row)
   if not tree or not node or row == self.previous_row then
     return
   end
