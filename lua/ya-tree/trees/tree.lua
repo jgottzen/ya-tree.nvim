@@ -1,7 +1,6 @@
 local Path = require("plenary.path")
 
 local git = require("ya-tree.git")
-local tree_utils = require("ya-tree.trees.utils")
 local meta = require("ya-tree.meta")
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
@@ -139,6 +138,75 @@ end
 ---@diagnostic disable-next-line:unused-local,missing-return
 function Tree.setup(config) end
 Tree:virtual("setup")
+
+---@class Yat.Trees.Ui.Renderer
+---@field name Yat.Ui.Renderer.Name
+---@field fn Yat.Ui.RendererFunction
+---@field config? Yat.Config.BaseRendererConfig
+
+---@param tree_type Yat.Trees.Type
+---@param config Yat.Config
+---@return Yat.Trees.TreeRenderers
+function Tree.create_renderers(tree_type, config)
+  local renderers = require("ya-tree.ui.renderers")
+
+  ---@param renderer_type string
+  ---@param raw_renderer Yat.Config.Trees.Renderer
+  ---@return Yat.Trees.Ui.Renderer|nil renderer
+  local function create_renderer(renderer_type, raw_renderer)
+    local name = raw_renderer.name
+    if type(name) == "string" then
+      local renderer_info = renderers.get_renderer(name)
+      if renderer_info then
+        ---@type Yat.Trees.Ui.Renderer
+        local renderer = { name = name, fn = renderer_info.fn, config = vim.deepcopy(renderer_info.config) }
+        if raw_renderer.override then
+          for k, v in pairs(raw_renderer.override) do
+            if type(k) == "string" then
+              log.debug("overriding tree_type %s %q renderer %q config value for %q with %s", tree_type, renderer_type, renderer.name, k, v)
+              renderer.config[k] = v
+            end
+          end
+        end
+        return renderer
+      end
+    end
+    utils.warn("Invalid renderer:\n" .. vim.inspect(raw_renderer))
+  end
+
+  local dconf = config.renderers.builtin.diagnostics
+  ---@type Yat.Trees.TreeRenderers
+  local tree_renderers = {
+    directory = {},
+    file = {},
+    extra = { directory_min_diagnstic_severrity = dconf.directory_min_severity, file_min_diagnostic_severity = dconf.file_min_severity },
+  }
+  local tree_renderer_config = config.trees[tree_type].renderers
+
+  for _, directory_renderer in ipairs(tree_renderer_config.directory) do
+    local renderer = create_renderer("directory", directory_renderer)
+    if renderer then
+      tree_renderers.directory[#tree_renderers.directory + 1] = renderer
+      if renderer.name == "diagnostics" then
+        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
+        tree_renderers.extra.directory_min_diagnostic_severity = renderer_config.directory_min_severity
+      end
+    end
+  end
+
+  for _, file_renderer in ipairs(tree_renderer_config.file) do
+    local renderer = create_renderer("file", file_renderer)
+    if renderer then
+      tree_renderers.file[#tree_renderers.file + 1] = renderer
+      if renderer.name == "diagnostics" then
+        local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
+        tree_renderers.extra.file_min_diagnostic_severity = renderer_config.file_min_severity
+      end
+    end
+  end
+
+  return tree_renderers
+end
 
 ---@param config Yat.Config
 ---@param tree_type Yat.Trees.Type
@@ -397,6 +465,47 @@ function Tree:render_header()
     { { name = hl.SECTION_ICON, from = 0, to = 3 }, { name = hl.SECTION_NAME, from = 5, to = -1 } }
 end
 
+---@param pos integer
+---@param padding string
+---@param text string
+---@param highlight string
+---@return integer end_position, string content, Yat.Ui.HighlightGroup highlight
+local function line_part(pos, padding, text, highlight)
+  local from = pos + #padding
+  local size = #text
+  local group = {
+    name = highlight,
+    from = from,
+    to = from + size,
+  }
+  return group.to, string.format("%s%s", padding, text), group
+end
+
+---@param node Yat.Node
+---@param context Yat.Ui.RenderContext
+---@param renderers Yat.Trees.Ui.Renderer[]
+---@return string text, Yat.Ui.HighlightGroup[] highlights
+local function render_node(node, context, renderers)
+  ---@type string[], Yat.Ui.HighlightGroup[]
+  local content, highlights, pos = {}, {}, 0
+
+  for _, renderer in ipairs(renderers) do
+    local results = renderer.fn(node, context, renderer.config)
+    if results then
+      for _, result in ipairs(results) do
+        if result.text then
+          if not result.highlight then
+            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
+          end
+          pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
+        end
+      end
+    end
+  end
+
+  return table.concat(content), highlights
+end
+
 ---@param config Yat.Config
 ---@param offset integer
 ---@return string[] lines
@@ -417,7 +526,7 @@ function Tree:render(config, offset)
     path_lookup[node.path] = linenr + offset
     path_lookup[linenr + offset] = node.path
     local has_children = node:has_children()
-    lines[linenr], highlights[linenr] = tree_utils.render_node(node, context, has_children and directory_renderers or file_renderers)
+    lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
 
     if has_children and node.expanded then
       local children = vim.tbl_filter(function(child)

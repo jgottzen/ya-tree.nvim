@@ -4,7 +4,6 @@ local GitNode = require("ya-tree.nodes.git_node")
 local meta = require("ya-tree.meta")
 local TextNode = require("ya-tree.nodes.text_node")
 local Tree = require("ya-tree.trees.tree")
-local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -80,7 +79,7 @@ function GitTree.setup(config)
   end
 
   GitTree.complete_func = Tree.static.complete_func_loaded_nodes
-  GitTree.renderers = tree_utils.create_renderers(GitTree.static.TYPE, config)
+  GitTree.renderers = Tree.static.create_renderers(GitTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git

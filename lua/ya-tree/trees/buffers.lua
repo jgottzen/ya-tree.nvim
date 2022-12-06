@@ -3,7 +3,6 @@ local git = require("ya-tree.git")
 local BufferNode = require("ya-tree.nodes.buffer_node")
 local meta = require("ya-tree.meta")
 local Tree = require("ya-tree.trees.tree")
-local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -76,7 +75,7 @@ end
 ---@return boolean enabled
 function BuffersTree.setup(config)
   BuffersTree.complete_func = "buffer"
-  BuffersTree.renderers = tree_utils.create_renderers(BuffersTree.static.TYPE, config)
+  BuffersTree.renderers = Tree.static.create_renderers(BuffersTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git

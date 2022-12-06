@@ -5,7 +5,6 @@ local fs_watcher = require("ya-tree.fs.watcher")
 local Node = require("ya-tree.nodes.node")
 local meta = require("ya-tree.meta")
 local Tree = require("ya-tree.trees.tree")
-local tree_utils = require("ya-tree.trees.utils")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
 
@@ -121,7 +120,7 @@ function FilesystemTree.setup(config)
       end
     end
   end
-  FilesystemTree.renderers = tree_utils.create_renderers(FilesystemTree.static.TYPE, config)
+  FilesystemTree.renderers = Tree.static.create_renderers(FilesystemTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git

@@ -3,7 +3,6 @@ local git = require("ya-tree.git")
 local meta = require("ya-tree.meta")
 local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
-local tree_utils = require("ya-tree.trees.utils")
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("trees")
@@ -78,7 +77,7 @@ end
 ---@return boolean enabled
 function SearchTree.setup(config)
   SearchTree.complete_func = Tree.static.complete_func_loaded_nodes
-  SearchTree.renderers = tree_utils.create_renderers(SearchTree.static.TYPE, config)
+  SearchTree.renderers = Tree.static.create_renderers(SearchTree.static.TYPE, config)
 
   local ae = require("ya-tree.events.event").autocmd
   local ge = require("ya-tree.events.event").git
