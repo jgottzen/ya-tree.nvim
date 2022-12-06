@@ -6,14 +6,14 @@ local M = {
 }
 
 ---@class Yat.Action
----@field name Yat.Actions.Name
+---@field name Yat.Actions.Name|string
 ---@field fn Yat.Action.Fn
 ---@field desc string
 ---@field modes Yat.Actions.Mode[]
 ---@field node_independent boolean
 ---@field user_defined boolean
 
----@param name Yat.Actions.Name
+---@param name Yat.Actions.Name|string
 ---@param fn Yat.Action.Fn
 ---@param desc string
 ---@param modes Yat.Actions.Mode[]
