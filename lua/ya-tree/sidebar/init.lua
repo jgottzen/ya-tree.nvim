@@ -260,7 +260,7 @@ function Sidebar:close_tree(tree, force)
       return self._sections[1].tree
     end
   else
-    if force or not vim.tbl_contains(self.always_shown_trees, tree.TYPE) then
+    if (force or not vim.tbl_contains(self.always_shown_trees, tree.TYPE)) and #self._sections > 1 then
       for i = #self._sections, 1, -1 do
         if self._sections[i].tree == tree then
           self:_delete_section(i)
