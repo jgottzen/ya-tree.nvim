@@ -97,7 +97,9 @@ function GitNode:refresh(opts)
       }
     end
     local node = GitNode:new(fs_node, parent)
-    node.editable = exists
+    if not exists then
+      node.editable = false
+    end
     return node
   end)
 end
