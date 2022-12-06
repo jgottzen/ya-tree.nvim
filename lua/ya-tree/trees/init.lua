@@ -52,6 +52,8 @@ do
             log.debug("registered tree %q", tree.static.TYPE)
             M._registered_trees[tree.static.TYPE] = tree
             tree_mappings[tree.static.TYPE] = tree.static.keymap
+          else
+            log.warn("tree %q failed to setup", tree_name)
           end
         end
       end

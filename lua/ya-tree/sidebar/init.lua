@@ -296,8 +296,7 @@ function Sidebar:open(tree, node, opts)
   opts = opts or {}
   self.canvas:open({ position = opts.position, size = opts.size })
   self:apply_mappings()
-  local lines, highlights = self:render()
-  self.canvas:draw(lines, highlights)
+  self:render()
   self.canvas:restore_previous_position()
 
   if node then
@@ -416,8 +415,7 @@ end
 function Sidebar:update(tree, node, opts)
   opts = opts or {}
   if self.canvas:is_open() then
-    local lines, highlights = self:render()
-    self.canvas:draw(lines, highlights)
+    self:render()
     if opts.focus_window then
       self.canvas:focus()
     end
@@ -743,8 +741,6 @@ function Sidebar:_create_event_id(event)
 end
 
 ---@private
----@return string[] lines
----@return Yat.Ui.HighlightGroup[][] highlights
 function Sidebar:render()
   local config = require("ya-tree.config").config
   local hl = require("ya-tree.ui.highlights")
@@ -804,7 +800,7 @@ function Sidebar:render()
     from = section.to + 1
   end
 
-  return lines, highlights
+  self.canvas:draw(lines, highlights)
 end
 
 ---@private
