@@ -133,6 +133,7 @@ end
 
 -- selene: allow(unused_variable)
 
+---@virtual
 ---@param config Yat.Config
 ---@return boolean enabled
 ---@diagnostic disable-next-line:unused-local,missing-return
@@ -546,28 +547,25 @@ end
 
 ---@async
 ---@param node Yat.Node
----@return boolean
+---@return Yat.Git.Repo|nil repo
 function Tree:check_node_for_repo(node)
   if require("ya-tree.config").config.git.enable then
     local repo = git.create_repo(node.path)
     if repo then
       node:set_git_repo(repo)
       repo:status():refresh({ ignored = true })
-      return true
+      return repo
     end
   end
-  return false
 end
 
 -- selene: allow(unused_variable)
 
 ---@async
+---@virtual
 ---@param path string
----@return boolean
----@nodiscard
 ---@diagnostic disable-next-line:unused-local
-function Tree:change_root_node(path)
-  return true
-end
+function Tree:change_root_node(path) end
+Tree:virtual("change_root_node")
 
 return Tree

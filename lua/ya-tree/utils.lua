@@ -185,7 +185,7 @@ do
     return not test:match("^error:")
   end
   ---@type boolean?, boolean?
-  local fd_has_max_results, fdfind_has_max_results
+  local FD_HAS_MAX_RESULTS, FDFIND_HAS_MAX_RESULTS
 
   ---@param term string
   ---@param path string
@@ -200,12 +200,12 @@ do
       args = config.search.args(cmd, term, path, config)
     else
       if cmd == "fd" or cmd == "fdfind" then
-        if not fd_has_max_results or not fdfind_has_max_results then
+        if not FD_HAS_MAX_RESULTS or not FDFIND_HAS_MAX_RESULTS then
           if coroutine.running() then
             require("plenary.async.util").scheduler()
           end
-          fd_has_max_results = fn.executable("fd") == 1 and has_max_results("fd")
-          fdfind_has_max_results = fn.executable("fdfind") == 1 and has_max_results("fdfind")
+          FD_HAS_MAX_RESULTS = fn.executable("fd") == 1 and has_max_results("fd")
+          FDFIND_HAS_MAX_RESULTS = fn.executable("fdfind") == 1 and has_max_results("fdfind")
         end
 
         args = { "--color=never" }
@@ -221,7 +221,7 @@ do
         if config.git.show_ignored then
           table.insert(args, "--no-ignore")
         end
-        if (fd_has_max_results or fdfind_has_max_results) and config.search.max_results > 0 then
+        if (FD_HAS_MAX_RESULTS or FDFIND_HAS_MAX_RESULTS) and config.search.max_results > 0 then
           table.insert(args, "--max-results=" .. config.search.max_results)
         end
         if glob then

@@ -265,14 +265,12 @@ end
 
 ---@async
 ---@param new_root string
----@return boolean
----@nodiscard
 function FilesystemTree:change_root_node(new_root)
   if not fs.is_directory(new_root) then
     new_root = Path:new(new_root):parent():absolute() --[[@as string]]
   end
   if new_root == self.root.path then
-    return true
+    return
   end
   local old_root = self.root
   log.debug("setting new tree root to %q", new_root)
@@ -293,7 +291,6 @@ function FilesystemTree:change_root_node(new_root)
     self:check_node_for_repo(self.root)
   end
   log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
-  return true
 end
 
 return FilesystemTree

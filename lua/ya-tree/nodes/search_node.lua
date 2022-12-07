@@ -29,13 +29,17 @@ function SearchNode:init(fs_node, parent)
   self.super:init(fs_node, parent)
   if self:is_directory() then
     self.empty = true
-    self.scanned = true
     self.expanded = true
   end
 end
 
 ---@protected
 function SearchNode:_scandir() end
+
+---@return boolean hidden
+function SearchNode:is_hidden()
+  return false
+end
 
 ---@async
 ---@param term? string

@@ -27,7 +27,6 @@ function GitNode:init(fs_node, parent)
   self.editable = self._type == "file"
   if self:is_directory() then
     self.empty = true
-    self.scanned = true
     self.expanded = true
   end
 end

@@ -85,7 +85,7 @@ function M.refresh_tree(tree, node, sidebar)
   tree.refreshing = true
   log.debug("refreshing current tree")
 
-  tree.root:refresh({ recurse = true, refresh_git = require("ya-tree.config").config.git.enable })
+  tree.root:refresh({ recurse = true, refresh_git = true })
   sidebar:update(tree, node, { focus_node = true })
   tree.refreshing = false
 end

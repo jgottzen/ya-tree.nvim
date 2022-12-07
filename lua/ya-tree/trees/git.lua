@@ -183,18 +183,15 @@ end
 
 ---@async
 ---@param path string
----@return boolean
----@nodiscard
 function GitTree:change_root_node(path)
   local repo = get_repo(path)
   if not repo or repo == self.root.repo then
-    return false
+    return
   end
   local old_root = self.root
   self.root = create_root_node(repo)
   self.current_node = self.root:refresh() --[[@as Yat.Nodes.Git]]
   log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
-  return true
 end
 
 return GitTree

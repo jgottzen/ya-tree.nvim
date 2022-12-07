@@ -35,7 +35,7 @@ local utils = require("ya-tree.utils")
 ---@field public modified boolean
 ---@field public repo? Yat.Git.Repo
 ---@field protected _clipboard_status Yat.Actions.Clipboard.Action|nil
----@field protected scanned? boolean
+---@field package scanned? boolean
 ---@field public expanded? boolean
 ---@field package _fs_event_registered boolean
 local Node = meta.create_class("Yat.Node")
@@ -596,7 +596,6 @@ function Node.populate_from_paths(self, paths, node_creator)
     add_node(path, parent, false)
   end
 
-  -- FIXME: doesn't take node:is_hidden into account
   local first_leaf_node = self
   while first_leaf_node and first_leaf_node._children do
     if first_leaf_node._children[1] then
@@ -752,6 +751,7 @@ do
       refreshed_git_repos[node.repo.toplevel] = true
     end
     if node.scanned then
+      ---@diagnostic disable-next-line:invisible
       node:_scandir()
 
       if recurse then

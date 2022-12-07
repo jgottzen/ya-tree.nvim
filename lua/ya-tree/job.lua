@@ -21,9 +21,8 @@ function M.run(opts, on_complete)
     stdout_data = {},
     ---@type string[]
     stderr_data = {},
-    ---@type userdata
     handle = nil,
-    ---@type integer
+    ---@type integer|nil
     pid = nil,
   }
 
@@ -69,11 +68,15 @@ function M.run(opts, on_complete)
     log.debug("spawned %q with arguments=%q, pid %s", opts.cmd, table.concat(opts.args, " "), state.pid)
     ---@param data string
     state.stdout:read_start(function(_, data)
-      state.stdout_data[#state.stdout_data + 1] = data
+      if data then
+        state.stdout_data[#state.stdout_data + 1] = data
+      end
     end)
     ---@param data string
     state.stderr:read_start(function(_, data)
-      state.stderr_data[#state.stderr_data + 1] = data
+      if data then
+        state.stderr_data[#state.stderr_data + 1] = data
+      end
     end)
     return state.pid
   else

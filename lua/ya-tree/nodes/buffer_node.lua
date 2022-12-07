@@ -60,7 +60,6 @@ function BufferNode:init(node_data, parent, bufname, bufnr, modified, hidden)
   self.bufhidden = hidden
   if self:is_directory() then
     self.empty = true
-    self._scanned = true
     self.expanded = true
   end
 end
@@ -245,7 +244,6 @@ function BufferNode:refresh(opts)
     log.debug("setting new root path to %q", root_path)
     local fs_node = fs.node_for(root_path) --[[@as Yat.Fs.Node]]
     self:_merge_new_data(fs_node)
-    self._scanned = true
     self.expanded = true
   end
 

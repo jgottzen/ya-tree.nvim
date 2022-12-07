@@ -154,8 +154,6 @@ end
 
 ---@async
 ---@param path string
----@return boolean
----@nodiscard
 function SearchTree:change_root_node(path)
   if self.root.path ~= path then
     local old_root = self.root
@@ -163,7 +161,6 @@ function SearchTree:change_root_node(path)
     self.current_node = self.root
     log.debug("updated tree to %s, old root was %s", tostring(self), tostring(old_root))
   end
-  return true
 end
 
 ---@async

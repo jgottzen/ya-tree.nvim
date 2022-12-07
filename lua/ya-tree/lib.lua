@@ -221,8 +221,7 @@ end
 ---@param node Yat.Node
 ---@return Yat.Git.Repo? repo
 function M.rescan_node_for_git(tree, node)
-  local config = require("ya-tree.config").config
-  if not config.git.enable then
+  if not require("ya-tree.config").config.git.enable then
     utils.notify("Git is not enabled.")
     return
   end
@@ -234,21 +233,22 @@ function M.rescan_node_for_git(tree, node)
   tree.refreshing = true
   log.debug("checking if %s is in a git repository", node.path)
 
-  if not node:is_directory() and node.parent then
-    node = node.parent --[[@as Yat.Node]]
-  end
-  if not node.repo or node.repo:is_yadm() then
-    if tree:check_node_for_repo(node) then
-      Sidebar.for_each_tree(function(_tree)
-        local tree_node = _tree.root:get_child_if_loaded(node.path)
-        if tree_node then
-          tree_node:set_git_repo(node.repo)
+  local repo = tree:check_node_for_repo(node)
+  if repo then
+    Sidebar.for_each_tree(function(_tree)
+      if _tree ~= tree then
+        local tree_node = _tree.root:get_child_if_loaded(node.path) or _tree.root:get_child_if_loaded(repo.toplevel)
+        if not tree_node then
+          tree_node = node.parent and _tree.root:get_child_if_loaded(node.parent.path)
         end
-      end)
-    end
+        if tree_node and tree_node.repo ~= repo then
+          tree_node:set_git_repo(repo)
+        end
+      end
+    end)
   end
   tree.refreshing = false
-  return node.repo
+  return repo
 end
 
 ---@async
