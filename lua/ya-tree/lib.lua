@@ -235,7 +235,7 @@ function M.rescan_node_for_git(tree, node)
 
   local repo = tree:check_node_for_repo(node)
   if repo then
-    Sidebar.for_each_tree(function(_tree)
+    Sidebar.for_each_sidebar_and_tree(function(_tree)
       if _tree ~= tree then
         local tree_node = _tree.root:get_child_if_loaded(node.path) or _tree.root:get_child_if_loaded(repo.toplevel)
         if not tree_node then
@@ -332,7 +332,7 @@ local function on_buf_enter(bufnr, file)
     if not sidebar then
       sidebar = Sidebar.get_or_create_sidebar(tabpage)
     end
-    if sidebar:is_current_window_ui() then
+    if sidebar:is_current_window() then
       sidebar:restore_window()
     else
       -- switch back to the previous buffer so the window isn't closed
@@ -343,7 +343,7 @@ local function on_buf_enter(bufnr, file)
 
     M.open_window({ path = file, focus = true })
   elseif sidebar and sidebar:is_open() then
-    if sidebar:is_current_window_ui() and config.move_buffers_from_sidebar_window then
+    if sidebar:is_current_window() and config.move_buffers_from_sidebar_window then
       log.debug("moving buffer %s to edit window", bufnr)
       sidebar:move_buffer_to_edit_window(bufnr)
     end

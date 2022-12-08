@@ -24,11 +24,11 @@ local uv = vim.loop
 
 ---@class Yat.Sidebar.Section
 ---@field tree Yat.Tree
----@field directory_min_diagnostic_severity integer
----@field file_min_diagnostic_severity integer
 ---@field from integer
 ---@field to integer
 ---@field path_lookup { [integer]: string, [integer]: string }
+---@field directory_min_diagnostic_severity integer
+---@field file_min_diagnostic_severity integer
 
 ---@param section Yat.Sidebar.Section
 ---@return string
@@ -44,10 +44,10 @@ end
 ---@field package canvas Yat.Ui.Canvas
 ---@field private _tabpage integer
 ---@field private single_mode boolean
----@field package tree_order table<Yat.Trees.Type, integer>
----@field package always_shown_trees Yat.Trees.Type[]
----@field package _sections Yat.Sidebar.Section[]
----@field package _registered_events { autocmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
+---@field private tree_order table<Yat.Trees.Type, integer>
+---@field private always_shown_trees Yat.Trees.Type[]
+---@field private sections Yat.Sidebar.Section[]
+---@field private registered_events { autocmd: table<Yat.Events.AutocmdEvent, integer>, git: table<Yat.Events.GitEvent, integer>, yatree: table<Yat.Events.YaTreeEvent, integer> }
 local Sidebar = meta.create_class("Yat.Sidebar")
 
 ---@param other Yat.Sidebar
@@ -57,7 +57,7 @@ function Sidebar.__eq(self, other)
 end
 
 function Sidebar.__tostring(self)
-  return string.format("Sidebar(%s, sections=[%s])", self._tabpage, table.concat(vim.tbl_map(section_tostring, self._sections), ", "))
+  return string.format("Sidebar(%s, sections=[%s])", self._tabpage, table.concat(vim.tbl_map(section_tostring, self.sections), ", "))
 end
 
 ---@param tree Yat.Tree
@@ -82,7 +82,7 @@ function Sidebar:init(tabpage)
   local config = require("ya-tree.config").config.sidebar
   self._tabpage = tabpage
   self.canvas = Canvas:new(config.position, config.size, config.number, config.relativenumber, function(row)
-    return self:get_tree_and_row_for_row(row)
+    return self:get_tree_and_node(row)
   end)
   self.single_mode = config.single_mode
   self.tree_order = {}
@@ -90,19 +90,43 @@ function Sidebar:init(tabpage)
     self.tree_order[tree_type] = i
   end
   self.always_shown_trees = config.trees_always_shown
-  self._registered_events = { autocmd = {}, git = {}, yatree = {} }
-  self._sections = {}
+  self.registered_events = { autocmd = {}, git = {}, yatree = {} }
+  self.sections = {}
   local tree_types = self.single_mode and { self.always_shown_trees[1] } or self.always_shown_trees
   local cwd = uv.cwd() --[[@as string]]
   for _, tree_type in ipairs(tree_types) do
     local tree = Trees.create_tree(self._tabpage, tree_type, cwd)
     if tree then
-      self:_add_section(tree)
+      self:add_section(tree)
     end
   end
-  self:_sort_sections()
+  self:sort_sections()
 
   log.info("created new sidebar %s", tostring(self))
+end
+
+---@package
+function Sidebar:delete()
+  self.canvas:close()
+  for i = #self.sections, 1, -1 do
+    self:delete_section(i)
+  end
+  for event, count in pairs(self.registered_events.autocmd) do
+    if count > 0 then
+      log.error("autocmd event %s is still registered with count %s", events.get_event_name(event), count)
+    end
+  end
+  for event, count in pairs(self.registered_events.git) do
+    if count > 0 then
+      log.error("git event %s is still registered with count %s", events.get_event_name(event), count)
+    end
+  end
+  for event, count in pairs(self.registered_events.yatree) do
+    if count > 0 then
+      log.error("yatree event %s is still registered with count %s", events.get_event_name(event), count)
+    end
+  end
+  log.info("deleted sidebar %s for tabpage %s", tostring(self), self._tabpage)
 end
 
 ---@return integer tabpage
@@ -113,41 +137,41 @@ end
 ---@private
 ---@param tree Yat.Tree
 ---@param pos? integer
-function Sidebar:_add_section(tree, pos)
-  table.insert(self._sections, pos or (#self._sections + 1), create_section(tree))
-  self:_register_events_for_tree(tree)
+function Sidebar:add_section(tree, pos)
+  table.insert(self.sections, pos or (#self.sections + 1), create_section(tree))
+  self:register_events_for_tree(tree)
 end
 
 ---@private
-function Sidebar:_sort_sections()
-  table.sort(self._sections, function(a, b)
+function Sidebar:sort_sections()
+  table.sort(self.sections, function(a, b)
     local a_order = self.tree_order[a.tree.TYPE] or 1000
     local b_order = self.tree_order[b.tree.TYPE] or 1000
     return a_order < b_order
   end)
 end
 
----@package
+---@private
 ---@param index integer
-function Sidebar:_delete_section(index)
-  local section = self._sections[index]
+function Sidebar:delete_section(index)
+  local section = self.sections[index]
   log.info("deleteing section %s", section_tostring(section))
   local tree = section.tree
   for event in pairs(tree.supported_events.autocmd) do
-    self:_remove_autocmd_event(event)
+    self:remove_autocmd_event(event)
   end
   for event in pairs(tree.supported_events.git) do
-    self:_remove_git_event(event)
+    self:remove_git_event(event)
   end
   for event in pairs(tree.supported_events.yatree) do
-    self:_remove_yatree_event(event)
+    self:remove_yatree_event(event)
   end
   local config = require("ya-tree.config").config
   if tree.TYPE == "filesystem" and config.dir_watcher.enable then
-    self:_remove_yatree_event(yatree_event.FS_CHANGED)
+    self:remove_yatree_event(yatree_event.FS_CHANGED)
   end
   tree:delete()
-  table.remove(self._sections, index)
+  table.remove(self.sections, index)
 end
 
 ---@async
@@ -156,14 +180,14 @@ end
 ---@param tree_creator fun(): Yat.Tree
 ---@param new_root_node? string
 ---@return Yat.Tree
-function Sidebar:_get_or_create_tree(tree_type, tree_creator, new_root_node)
+function Sidebar:get_or_create_tree(tree_type, tree_creator, new_root_node)
   local tree = self:get_tree(tree_type)
   if tree then
     if new_root_node then
       tree:change_root_node(new_root_node)
     end
-    if self.single_mode and self._sections[1].tree.TYPE ~= tree.TYPE then
-      self:_delete_section(1)
+    if self.single_mode and self.sections[1].tree.TYPE ~= tree.TYPE then
+      self:delete_section(1)
     end
   else
     tree = tree_creator()
@@ -177,7 +201,7 @@ end
 ---@return Yat.Trees.Filesystem
 function Sidebar:filesystem_tree(path)
   path = path or uv.cwd() --[[@as string]]
-  return self:_get_or_create_tree("filesystem", function()
+  return self:get_or_create_tree("filesystem", function()
     return FilesystemTree:new(self._tabpage, path)
   end, path) --[[@as Yat.Trees.Filesystem]]
 end
@@ -186,7 +210,7 @@ end
 ---@param repo Yat.Git.Repo
 ---@return Yat.Trees.Git
 function Sidebar:git_tree(repo)
-  return self:_get_or_create_tree("git", function()
+  return self:get_or_create_tree("git", function()
     return GitTree:new(self._tabpage, repo)
   end, repo.toplevel) --[[@as Yat.Trees.Git]]
 end
@@ -194,7 +218,7 @@ end
 ---@async
 ---@return Yat.Trees.Buffers
 function Sidebar:buffers_tree()
-  return self:_get_or_create_tree("buffers", function()
+  return self:get_or_create_tree("buffers", function()
     return BuffersTree:new(self._tabpage, uv.cwd())
   end) --[[@as Yat.Trees.Buffers]]
 end
@@ -203,7 +227,7 @@ end
 ---@param path string
 ---@return Yat.Trees.Search
 function Sidebar:search_tree(path)
-  return self:_get_or_create_tree("search", function()
+  return self:get_or_create_tree("search", function()
     return SearchTree:new(self._tabpage, path) --[[@as Yat.Trees.Search]]
   end, path) --[[@as Yat.Trees.Search]]
 end
@@ -211,7 +235,7 @@ end
 ---@param tree_type Yat.Trees.Type
 ---@return Yat.Tree|nil tree
 function Sidebar:get_tree(tree_type)
-  local section = self:_get_section(tree_type)
+  local section = self:get_section(tree_type)
   return section and section.tree
 end
 
@@ -219,23 +243,23 @@ end
 ---@param tree Yat.Tree
 function Sidebar:add_tree(tree)
   if self.single_mode then
-    if self._sections[1].tree == tree then
+    if self.sections[1].tree == tree then
       return
     end
     -- don't delete the filesystem tree section
-    if self._sections[1].tree.TYPE ~= "filesystem" then
-      self:_delete_section(1)
+    if self.sections[1].tree.TYPE ~= "filesystem" then
+      self:delete_section(1)
     end
-    self:_add_section(tree, 1)
+    self:add_section(tree, 1)
   else
-    for _, section in pairs(self._sections) do
+    for _, section in pairs(self.sections) do
       if section.tree == tree then
         section.tree = tree
         return
       end
     end
-    self:_add_section(tree)
-    self:_sort_sections()
+    self:add_section(tree)
+    self:sort_sections()
   end
 end
 
@@ -246,30 +270,37 @@ end
 function Sidebar:close_tree(tree, force)
   if self.single_mode then
     if tree.TYPE ~= "filesystem" then
-      self:_delete_section(1)
+      self:delete_section(1)
       -- the filesystem tree is never deleted, reuse it if it's present
-      if not (self._sections[1] and self._sections[1].tree.TYPE == "filesystem") then
-        for i = #self._sections, 1, -1 do
-          self:_delete_section(i)
+      if not (self.sections[1] and self.sections[1].tree.TYPE == "filesystem") then
+        for i = #self.sections, 1, -1 do
+          self:delete_section(i)
         end
-        self._sections = {}
-        self:_add_section(FilesystemTree:new(self._tabpage, uv.cwd()))
+        self.sections = {}
+        self:add_section(FilesystemTree:new(self._tabpage, uv.cwd()))
       end
-      return self._sections[1].tree
+      return self.sections[1].tree
     end
   else
-    if (force or not vim.tbl_contains(self.always_shown_trees, tree.TYPE)) and #self._sections > 1 then
-      for i = #self._sections, 1, -1 do
-        if self._sections[i].tree == tree then
-          self:_delete_section(i)
-          if i >= #self._sections then
-            return self._sections[#self._sections].tree
+    if (force or not vim.tbl_contains(self.always_shown_trees, tree.TYPE)) and #self.sections > 1 then
+      for i = #self.sections, 1, -1 do
+        if self.sections[i].tree == tree then
+          self:delete_section(i)
+          if i >= #self.sections then
+            return self.sections[#self.sections].tree
           else
-            return self._sections[i].tree
+            return self.sections[i].tree
           end
         end
       end
     end
+  end
+end
+
+---@param callback fun(tree: Yat.Tree)
+function Sidebar:for_each_tree(callback)
+  for _, section in ipairs(self.sections) do
+    callback(section.tree)
   end
 end
 
@@ -385,7 +416,7 @@ function Sidebar:size()
 end
 
 ---@return boolean
-function Sidebar:is_current_window_ui()
+function Sidebar:is_current_window()
   return self.canvas:is_current_window_canvas()
 end
 
@@ -474,11 +505,11 @@ do
 
   ---@private
   ---@param tree Yat.Tree
-  function Sidebar:_register_events_for_tree(tree)
+  function Sidebar:register_events_for_tree(tree)
     log.debug("registering events for tree %s", tostring(tree))
     for event in pairs(tree.supported_events.autocmd) do
       if vim.tbl_contains(SUPPORTED_EVENTS, event) then
-        self:_register_autocmd_event(event, function(bufnr, file, match)
+        self:register_autocmd_event(event, function(bufnr, file, match)
           self:on_autocmd_event(event, bufnr, file, match)
         end)
       else
@@ -487,7 +518,7 @@ do
     end
     for event in pairs(tree.supported_events.git) do
       if event == git_event.DOT_GIT_DIR_CHANGED then
-        self:_register_git_event(event, function(repo, fs_changes)
+        self:register_git_event(event, function(repo, fs_changes)
           self:on_git_event(repo, fs_changes)
         end)
       else
@@ -497,7 +528,7 @@ do
     for event in pairs(tree.supported_events.yatree) do
       if event == yatree_event.DIAGNOSTICS_CHANGED then
         ---@param severity_changed boolean
-        self:_register_yatree_event(event, function(severity_changed)
+        self:register_yatree_event(event, function(severity_changed)
           self:on_diagnostics_event(severity_changed)
         end)
       else
@@ -508,7 +539,7 @@ do
     if tree.TYPE == "filesystem" and config.dir_watcher.enable then
       ---@param dir string
       ---@param filenames string[]
-      self:_register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
+      self:register_yatree_event(yatree_event.FS_CHANGED, function(dir, filenames)
         self:on_fs_changed_event(dir, filenames)
       end)
     end
@@ -535,7 +566,7 @@ end
 function Sidebar:on_autocmd_event(event, bufnr, file, match)
   local tabpage = api.nvim_get_current_tabpage()
   local update = false
-  for _, section in pairs(self._sections) do
+  for _, section in pairs(self.sections) do
     local tree = section.tree
     local callback = tree.supported_events.autocmd[event]
     if callback then
@@ -555,7 +586,7 @@ function Sidebar:on_git_event(repo, fs_changes)
   scheduler()
   local tabpage = api.nvim_get_current_tabpage()
   local update = false
-  for _, section in pairs(self._sections) do
+  for _, section in pairs(self.sections) do
     local tree = section.tree
     local callback = tree.supported_events.git[git_event.DOT_GIT_DIR_CHANGED]
     if callback then
@@ -573,7 +604,7 @@ end
 function Sidebar:on_diagnostics_event(severity_changed)
   local tabpage = api.nvim_get_current_tabpage()
   local update = false
-  for _, section in pairs(self._sections) do
+  for _, section in pairs(self.sections) do
     local tree = section.tree
     local callback = tree.supported_events.yatree[yatree_event.DIAGNOSTICS_CHANGED]
     if callback then
@@ -665,76 +696,76 @@ end
 ---@private
 ---@param event Yat.Events.AutocmdEvent
 ---@param callback fun(bufnr: integer, file: string, match: string)
-function Sidebar:_register_autocmd_event(event, callback)
-  local count = self._registered_events.autocmd[event] or 0
+function Sidebar:register_autocmd_event(event, callback)
+  local count = self.registered_events.autocmd[event] or 0
   count = count + 1
-  self._registered_events.autocmd[event] = count
+  self.registered_events.autocmd[event] = count
   if count == 1 then
-    events.on_autocmd_event(event, self:_create_event_id(event), true, callback)
+    events.on_autocmd_event(event, self:create_event_id(event), true, callback)
   end
 end
 
 ---@private
 ---@param event Yat.Events.AutocmdEvent
-function Sidebar:_remove_autocmd_event(event)
-  local count = self._registered_events.autocmd[event] or 0
+function Sidebar:remove_autocmd_event(event)
+  local count = self.registered_events.autocmd[event] or 0
   count = count - 1
-  self._registered_events.autocmd[event] = count
+  self.registered_events.autocmd[event] = count
   if count < 1 then
-    events.remove_autocmd_event(event, self:_create_event_id(event))
+    events.remove_autocmd_event(event, self:create_event_id(event))
   end
 end
 
 ---@private
 ---@param event Yat.Events.GitEvent
 ---@param callback fun(repo: Yat.Git.Repo, fs_changes: boolean)
-function Sidebar:_register_git_event(event, callback)
-  local count = self._registered_events.git[event] or 0
+function Sidebar:register_git_event(event, callback)
+  local count = self.registered_events.git[event] or 0
   count = count + 1
-  self._registered_events.git[event] = count
+  self.registered_events.git[event] = count
   if count == 1 then
-    events.on_git_event(event, self:_create_event_id(event), callback)
+    events.on_git_event(event, self:create_event_id(event), callback)
   end
 end
 
 ---@private
 ---@param event Yat.Events.GitEvent
-function Sidebar:_remove_git_event(event)
-  local count = self._registered_events.git[event] or 0
+function Sidebar:remove_git_event(event)
+  local count = self.registered_events.git[event] or 0
   count = count - 1
-  self._registered_events.git[event] = count
+  self.registered_events.git[event] = count
   if count < 1 then
-    events.remove_git_event(event, self:_create_event_id(event))
+    events.remove_git_event(event, self:create_event_id(event))
   end
 end
 
 ---@private
 ---@param event Yat.Events.YaTreeEvent
 ---@param callback fun(...)
-function Sidebar:_register_yatree_event(event, callback)
-  local count = self._registered_events.yatree[event] or 0
+function Sidebar:register_yatree_event(event, callback)
+  local count = self.registered_events.yatree[event] or 0
   count = count + 1
-  self._registered_events.yatree[event] = count
+  self.registered_events.yatree[event] = count
   if count == 1 then
-    events.on_yatree_event(event, self:_create_event_id(event), true, callback)
+    events.on_yatree_event(event, self:create_event_id(event), true, callback)
   end
 end
 
 ---@private
 ---@param event Yat.Events.YaTreeEvent
-function Sidebar:_remove_yatree_event(event)
-  local count = self._registered_events.yatree[event] or 0
+function Sidebar:remove_yatree_event(event)
+  local count = self.registered_events.yatree[event] or 0
   count = count - 1
-  self._registered_events.yatree[event] = count
+  self.registered_events.yatree[event] = count
   if count < 1 then
-    events.remove_yatree_event(event, self:_create_event_id(event))
+    events.remove_yatree_event(event, self:create_event_id(event))
   end
 end
 
 ---@private
 ---@param event integer
 ---@return string id
-function Sidebar:_create_event_id(event)
+function Sidebar:create_event_id(event)
   return string.format("YA_TREE_SIDEBAR_%s_%s", self._tabpage, events.get_event_name(event))
 end
 
@@ -744,17 +775,17 @@ function Sidebar:render()
   local hl = require("ya-tree.ui.highlights")
   local width = self.canvas:inner_width()
 
-  local sections = self.single_mode and { self._sections[1] } or self._sections
-  if self.single_mode and #self._sections > 1 then
-    for i = 2, #self._sections do
-      self._sections[i].from = 0
-      self._sections[i].to = 0
-      self._sections[i].path_lookup = {}
+  local sections = self.single_mode and { self.sections[1] } or self.sections
+  if self.single_mode and #self.sections > 1 then
+    for i = 2, #self.sections do
+      self.sections[i].from = 0
+      self.sections[i].to = 0
+      self.sections[i].path_lookup = {}
     end
   end
 
   local layout = config.sidebar.section_layout
-  local header_enabled = not (self.single_mode or #self._sections == 1) and layout.header.enable
+  local header_enabled = not (self.single_mode or #self.sections == 1) and layout.header.enable
   local pad_header = layout.header.empty_line_before_tree
   local offset = not header_enabled and -1 or pad_header and 1 or 0
   local footer_enabled = layout.footer.enable
@@ -804,8 +835,8 @@ end
 ---@private
 ---@param tree_type Yat.Trees.Type
 ---@return Yat.Sidebar.Section? section
-function Sidebar:_get_section(tree_type)
-  for _, section in pairs(self._sections) do
+function Sidebar:get_section(tree_type)
+  for _, section in pairs(self.sections) do
     if section.tree.TYPE == tree_type then
       return section
     end
@@ -815,8 +846,8 @@ end
 ---@private
 ---@param row integer
 ---@return Yat.Sidebar.Section|nil
-function Sidebar:_get_section_for_row(row)
-  for _, section in pairs(self._sections) do
+function Sidebar:get_section_for_row(row)
+  for _, section in pairs(self.sections) do
     if row >= section.from and row <= section.to then
       return section
     end
@@ -827,16 +858,16 @@ end
 ---@return boolean is_rendered
 function Sidebar:is_tree_rendered(tree)
   if self.single_mode then
-    return self._sections[1].tree.TYPE == tree.TYPE
+    return self.sections[1].tree.TYPE == tree.TYPE
   end
-  return self:_get_section(tree.TYPE) ~= nil
+  return self:get_section(tree.TYPE) ~= nil
 end
 
 ---@param tree Yat.Tree
 ---@param node Yat.Node
 ---@return boolean is_rendered
 function Sidebar:is_node_rendered(tree, node)
-  local section = self:_get_section(tree.TYPE)
+  local section = self:get_section(tree.TYPE)
   return section and section.path_lookup[node.path] ~= nil or false
 end
 
@@ -850,8 +881,8 @@ end
 ---@param row integer
 ---@return Yat.Tree|nil current_tree
 ---@return Yat.Node|nil current_node
-function Sidebar:get_tree_and_row_for_row(row)
-  local section = self:_get_section_for_row(row)
+function Sidebar:get_tree_and_node(row)
+  local section = self:get_section_for_row(row)
   if section then
     return section.tree, get_node(section.tree, section.path_lookup[row])
   end
@@ -861,7 +892,7 @@ end
 ---@return Yat.Node|nil current_node
 function Sidebar:get_current_tree_and_node()
   local row = api.nvim_win_get_cursor(self.canvas:winid())[1]
-  local section = self:_get_section_for_row(row)
+  local section = self:get_section_for_row(row)
   if section then
     return section.tree, get_node(section.tree, section.path_lookup[row])
   end
@@ -870,10 +901,10 @@ end
 ---@param tree Yat.Tree
 ---@return Yat.Tree|nil next_tree `nil` if the current tree is the first one.
 function Sidebar:get_prev_tree(tree)
-  for i, section in pairs(self._sections) do
+  for i, section in pairs(self.sections) do
     if section.tree.TYPE == tree.TYPE then
       local index = i - 1
-      return index <= #self._sections and self._sections[index].tree or nil
+      return index <= #self.sections and self.sections[index].tree or nil
     end
   end
 end
@@ -881,10 +912,10 @@ end
 ---@param tree Yat.Tree
 ---@return Yat.Tree|nil next_tree `nil` if the current tree is the last one.
 function Sidebar:get_next_tree(tree)
-  for i, section in pairs(self._sections) do
+  for i, section in pairs(self.sections) do
     if section.tree.TYPE == tree.TYPE then
       local index = i + 1
-      return index <= #self._sections and self._sections[index].tree or nil
+      return index <= #self.sections and self.sections[index].tree or nil
     end
   end
 end
@@ -892,7 +923,7 @@ end
 ---@param row integer
 ---@return Yat.Node|nil
 function Sidebar:get_node(row)
-  local section = self:_get_section_for_row(row)
+  local section = self:get_section_for_row(row)
   return section and get_node(section.tree, section.path_lookup[row])
 end
 
@@ -902,7 +933,7 @@ end
 function Sidebar:get_nodes(from, to)
   ---@type Yat.Node[]
   local nodes = {}
-  local section = self:_get_section_for_row(from)
+  local section = self:get_section_for_row(from)
   if section and section.tree.root then
     for row = from, math.min(to, section.to) do
       local path = section.path_lookup[row]
@@ -927,14 +958,14 @@ end
 ---@param node Yat.Node
 ---@return integer|nil row
 function Sidebar:get_row_of_node(tree, node)
-  local section = self:_get_section(tree.TYPE)
+  local section = self:get_section(tree.TYPE)
   return section and section.path_lookup[node.path]
 end
 
 ---@async
 ---@param new_cwd string
 function Sidebar:change_cwd(new_cwd)
-  for _, section in pairs(self._sections) do
+  for _, section in pairs(self.sections) do
     section.tree:on_cwd_changed(new_cwd)
   end
 end
@@ -964,11 +995,9 @@ function M.get_or_create_sidebar(tabpage)
 end
 
 ---@param callback fun(tree: Yat.Tree)
-function M.for_each_tree(callback)
+function M.for_each_sidebar_and_tree(callback)
   for _, sidebar in ipairs(M._sidebars) do
-    for _, section in pairs(sidebar._sections) do
-      callback(section.tree)
-    end
+    sidebar:for_each_tree(callback)
   end
 end
 
@@ -1009,29 +1038,10 @@ function M.delete_sidebars_for_nonexisting_tabpages()
   for tabpage, sidebar in pairs(M._sidebars) do
     if not vim.tbl_contains(tabpages, tabpage) then
       M._sidebars[tabpage] = nil
-      sidebar.canvas:close()
-      for i = #sidebar._sections, 1, -1 do
-        sidebar:_delete_section(i)
-      end
-      for event, count in pairs(sidebar._registered_events.autocmd) do
-        if count > 0 then
-          log.error("autocmd event %s is still registered with count %s", events.get_event_name(event), count)
-        end
-      end
-      for event, count in pairs(sidebar._registered_events.git) do
-        if count > 0 then
-          log.error("git event %s is still registered with count %s", events.get_event_name(event), count)
-        end
-      end
-      for event, count in pairs(sidebar._registered_events.yatree) do
-        if count > 0 then
-          log.error("yatree event %s is still registered with count %s", events.get_event_name(event), count)
-        end
-      end
-      log.info("deleted sidebar %s for tabpage %s", tostring(sidebar), tabpage)
+      sidebar:delete()
     else
-      for _, section in pairs(sidebar._sections) do
-        section.tree.root:walk(function(node)
+      sidebar:for_each_tree(function(tree)
+        tree.root:walk(function(node)
           if node.repo then
             if not found_toplevels[node.repo.toplevel] then
               found_toplevels[node.repo.toplevel] = true
@@ -1041,7 +1051,7 @@ function M.delete_sidebars_for_nonexisting_tabpages()
             end
           end
         end)
-      end
+      end)
     end
   end
 
