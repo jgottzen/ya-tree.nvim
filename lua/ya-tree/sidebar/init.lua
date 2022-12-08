@@ -37,8 +37,8 @@ local function section_tostring(section)
 end
 
 ---@class Yat.Sidebar : Yat.Object
----@field new async fun(self: Yat.Sidebar, tabpage: integer, sidebar_config?: Yat.Config.Sidebar): Yat.Sidebar
----@overload async fun(tabpage: integer, sidebar_config?: Yat.Config.Sidebar): Yat.Sidebar
+---@field new async fun(self: Yat.Sidebar, tabpage: integer): Yat.Sidebar
+---@overload async fun(tabpage: integer): Yat.Sidebar
 ---@field class fun(self: Yat.Sidebar): Yat.Sidebar
 ---
 ---@field package canvas Yat.Ui.Canvas
@@ -78,20 +78,18 @@ end
 ---@async
 ---@private
 ---@param tabpage integer
----@param sidebar_config? Yat.Config.Sidebar
-function Sidebar:init(tabpage, sidebar_config)
-  local config = require("ya-tree.config").config
-  sidebar_config = sidebar_config or config.sidebar
+function Sidebar:init(tabpage)
+  local config = require("ya-tree.config").config.sidebar
   self._tabpage = tabpage
-  self.canvas = Canvas:new(sidebar_config.position, sidebar_config.size, sidebar_config.number, sidebar_config.relativenumber, function(row)
+  self.canvas = Canvas:new(config.position, config.size, config.number, config.relativenumber, function(row)
     return self:get_tree_and_row_for_row(row)
   end)
-  self.single_mode = sidebar_config.single_mode
+  self.single_mode = config.single_mode
   self.tree_order = {}
-  for i, tree_type in ipairs(sidebar_config.tree_order) do
+  for i, tree_type in ipairs(config.tree_order) do
     self.tree_order[tree_type] = i
   end
-  self.always_shown_trees = sidebar_config.trees_always_shown
+  self.always_shown_trees = config.trees_always_shown
   self._registered_events = { autocmd = {}, git = {}, yatree = {} }
   self._sections = {}
   local tree_types = self.single_mode and { self.always_shown_trees[1] } or self.always_shown_trees
@@ -955,12 +953,11 @@ end
 
 ---@async
 ---@param tabpage integer
----@param sidebar_config? Yat.Config.Sidebar
 ---@return Yat.Sidebar sidebar
-function M.get_or_create_sidebar(tabpage, sidebar_config)
+function M.get_or_create_sidebar(tabpage)
   local sidebar = M._sidebars[tabpage]
   if not sidebar then
-    sidebar = Sidebar:new(tabpage, sidebar_config)
+    sidebar = Sidebar:new(tabpage)
     M._sidebars[tabpage] = sidebar
   end
   return sidebar

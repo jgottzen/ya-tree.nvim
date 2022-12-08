@@ -49,7 +49,7 @@ function M.open_window(opts)
   scheduler()
   local config = require("ya-tree.config").config
   local tabpage = api.nvim_get_current_tabpage()
-  local sidebar = Sidebar.get_or_create_sidebar(tabpage, config.sidebar)
+  local sidebar = Sidebar.get_or_create_sidebar(tabpage)
 
   local current_cwd = uv.cwd() --[[@as string]]
   local path = opts.path and resolve_path(opts.path)
@@ -411,7 +411,7 @@ function M.setup(config)
     M._loading = true
     log.info(config.auto_open.on_setup and "auto opening sidebar on setup" or "loading sidebar on setup")
     void(function()
-      Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
+      Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage())
       M._loading = false
       if config.auto_open.on_setup then
         M.open_window({ focus = config.auto_open.focus_sidebar })
