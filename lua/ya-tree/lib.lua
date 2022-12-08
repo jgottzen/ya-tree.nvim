@@ -406,14 +406,14 @@ function M.setup(config)
     desc = "Handle buffers opened in the tree window",
   })
 
-  local open = config.auto_open.on_setup and not (utils.is_buffer_directory() and config.hijack_netrw)
-  if open or config.load_sidebar_on_setup then
+  local autocmd_will_open = utils.is_buffer_directory() and config.hijack_netrw
+  if not autocmd_will_open and (config.auto_open.on_setup or config.load_sidebar_on_setup) then
     M._loading = true
-    log.info(open and "auto opening sidebar on setup" or "loading sidebar on setup")
+    log.info(config.auto_open.on_setup and "auto opening sidebar on setup" or "loading sidebar on setup")
     void(function()
       Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage(), config.sidebar)
       M._loading = false
-      if open then
+      if config.auto_open.on_setup then
         M.open_window({ focus = config.auto_open.focus_sidebar })
       end
     end)()
