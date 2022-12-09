@@ -176,10 +176,11 @@ end
 
 ---@async
 ---@private
+---@generic T : Yat.Tree
 ---@param tree_type Yat.Trees.Type
----@param tree_creator fun(): Yat.Tree
+---@param tree_creator fun(): T
 ---@param new_root_node? string
----@return Yat.Tree
+---@return T
 function Sidebar:get_or_create_tree(tree_type, tree_creator, new_root_node)
   local tree = self:get_tree(tree_type)
   if tree then
@@ -203,7 +204,7 @@ function Sidebar:filesystem_tree(path)
   path = path or uv.cwd() --[[@as string]]
   return self:get_or_create_tree("filesystem", function()
     return FilesystemTree:new(self._tabpage, path)
-  end, path) --[[@as Yat.Trees.Filesystem]]
+  end, path)
 end
 
 ---@async
@@ -212,7 +213,7 @@ end
 function Sidebar:git_tree(repo)
   return self:get_or_create_tree("git", function()
     return GitTree:new(self._tabpage, repo)
-  end, repo.toplevel) --[[@as Yat.Trees.Git]]
+  end, repo.toplevel)
 end
 
 ---@async
@@ -220,7 +221,7 @@ end
 function Sidebar:buffers_tree()
   return self:get_or_create_tree("buffers", function()
     return BuffersTree:new(self._tabpage, uv.cwd())
-  end) --[[@as Yat.Trees.Buffers]]
+  end)
 end
 
 ---@async
@@ -228,8 +229,8 @@ end
 ---@return Yat.Trees.Search
 function Sidebar:search_tree(path)
   return self:get_or_create_tree("search", function()
-    return SearchTree:new(self._tabpage, path) --[[@as Yat.Trees.Search]]
-  end, path) --[[@as Yat.Trees.Search]]
+    return SearchTree:new(self._tabpage, path)
+  end, path)
 end
 
 ---@param tree_type Yat.Trees.Type

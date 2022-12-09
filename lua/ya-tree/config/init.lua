@@ -44,12 +44,12 @@ local M = {
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
     ---@field to_file boolean Whether to log to the log file, default: `false`.
-    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "sidebar", "lib" }`.
+    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" }`.
     log = {
       level = "warn",
       to_console = false,
       to_file = false,
-      namespaces = { "ya-tree", "actions", "events", "fs", "nodes", "trees", "ui", "git", "job", "sidebar", "lib" },
+      namespaces = { "ya-tree", "actions", "events", "fs", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" },
     },
 
     ---@class Yat.Config.AutoOpen
@@ -363,8 +363,8 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the section in the sidebar, default" `""`.
       ---@field section_name string The name of the section in the sidebar, default: `"Search"`.
+      ---@field section_icon string The icon for the section in the sidebar, default" `""`.
       ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       search = {
@@ -416,8 +416,8 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
       ---@field section_name string The name of the section in the sidebar, default: `"Git"`.
+      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
       ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
       ---@field renderers? Yat.Config.Trees.Renderers Tree specific renderers.
       git = {
@@ -467,8 +467,8 @@ local M = {
         },
       },
       ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
-      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
       ---@field section_name string The name of the section in the sidebar, default: `"Buffers"`.
+      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
       ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
       ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
       buffers = {

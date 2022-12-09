@@ -27,6 +27,7 @@ function TextNode:init(text, path, container, parent)
   }, parent)
 end
 
+---@return false
 function TextNode:is_editable()
   return false
 end

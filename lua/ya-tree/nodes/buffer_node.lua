@@ -56,7 +56,7 @@ function BufferNode:init(node_data, parent, bufname, bufnr, modified, hidden)
   self.bufname = bufname
   self.bufnr = bufnr
   self.modified = modified or false
-  self.bufhidden = hidden
+  self.bufhidden = hidden or false
   if self:is_directory() then
     self.empty = true
     self.expanded = true

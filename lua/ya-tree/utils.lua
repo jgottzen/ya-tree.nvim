@@ -64,10 +64,8 @@ function M.find_common_ancestor(paths)
   table.sort(paths, function(a, b)
     return #a < #b
   end)
-  ---@type string[]
-  local common_ancestor = {}
-  ---@type string[][]
-  local splits = {}
+  ---@type string[], string[][]
+  local common_ancestor, splits = {}, {}
   for i, path in ipairs(paths) do
     splits[i] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
   end
@@ -172,10 +170,8 @@ end
 
 ---@return table<string, Yat.Nodes.Buffer.FileData> paths, Yat.Nodes.Buffer.TerminalData[] terminal
 function M.get_current_buffers()
-  ---@type table<string, Yat.Nodes.Buffer.FileData>
-  local buffers = {}
-  ---@type Yat.Nodes.Buffer.TerminalData[]
-  local terminals = {}
+  ---@type table<string, Yat.Nodes.Buffer.FileData>, Yat.Nodes.Buffer.TerminalData[]
+  local buffers, terminals = {}, {}
   for _, bufnr in ipairs(api.nvim_list_bufs()) do
     ---@cast bufnr integer
     local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")

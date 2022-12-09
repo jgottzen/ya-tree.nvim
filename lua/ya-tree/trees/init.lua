@@ -55,6 +55,8 @@ do
           else
             log.warn("tree %q failed to setup", tree_name)
           end
+        else
+          log.warn(tree)
         end
       end
     end

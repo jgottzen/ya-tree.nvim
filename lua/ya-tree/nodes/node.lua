@@ -96,7 +96,7 @@ function Node:get_debug_info(output_to_log)
   ---@type table<string, any>
   local t = {
     __class = self:class():name(),
-    __node_type = self.__node_type,
+    __node_type = self:node_type(),
   }
   local object = self --[[@as Yat.Object]]
   local ignored_props = { "super", "__class", "__lower" }
