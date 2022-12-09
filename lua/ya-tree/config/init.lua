@@ -301,7 +301,7 @@ local M = {
         section_icon = "",
         ---@class Yat.Config.Trees.Filesystem.Completion
         ---@field on "root"|"node" Whether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
-        ---@field setup? fun(self: Yat.Trees.Filesystem, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
+        ---@field setup? fun(tree: Yat.Trees.Filesystem, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
         completion = {
           on = "root",
           setup = nil,

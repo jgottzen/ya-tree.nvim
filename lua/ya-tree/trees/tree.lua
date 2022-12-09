@@ -305,9 +305,16 @@ end
 ---@param bufnr integer
 ---@param node? Yat.Node
 function Tree:complete_func_file_in_path(bufnr, node)
+  local home = os.getenv("HOME") --[[@as string]]
+  local path = node and node.path or self.root.path
   api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_trees_tree_file_in_path_complete")
   api.nvim_buf_set_option(bufnr, "omnifunc", "")
-  api.nvim_buf_set_option(bufnr, "path", (node and node.path or self.root.path) .. "/**")
+  -- only complete on _all_ files if the node is located below the home dir
+  if #path > #home then
+    api.nvim_buf_set_option(bufnr, "path", path .. "/**")
+  else
+    api.nvim_buf_set_option(bufnr, "path", path .. "/*")
+  end
 end
 
 function Tree:delete()
