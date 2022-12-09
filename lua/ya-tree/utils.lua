@@ -162,6 +162,41 @@ local function is_directory(path)
   return stat and stat.type == "directory" or false
 end
 
+---@class Yat.Nodes.Buffer.FileData
+---@field bufnr integer
+---@field modified boolean
+
+---@class Yat.Nodes.Buffer.TerminalData
+---@field bufnr integer
+---@field name string
+
+---@return table<string, Yat.Nodes.Buffer.FileData> paths, Yat.Nodes.Buffer.TerminalData[] terminal
+function M.get_current_buffers()
+  ---@type table<string, Yat.Nodes.Buffer.FileData>
+  local buffers = {}
+  ---@type Yat.Nodes.Buffer.TerminalData[]
+  local terminals = {}
+  for _, bufnr in ipairs(api.nvim_list_bufs()) do
+    ---@cast bufnr integer
+    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+    if ok then
+      local path = api.nvim_buf_get_name(bufnr)
+      if buftype == "terminal" then
+        terminals[#terminals + 1] = {
+          name = path,
+          bufnr = bufnr,
+        }
+      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+        buffers[path] = {
+          bufnr = bufnr,
+          modified = api.nvim_buf_get_option(bufnr, "modified"), --[[@as boolean]]
+        }
+      end
+    end
+  end
+  return buffers, terminals
+end
+
 ---@return boolean
 function M.is_buffer_directory()
   local bufnr = api.nvim_get_current_buf()

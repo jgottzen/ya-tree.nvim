@@ -8,7 +8,6 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
-local api = vim.api
 local fn = vim.fn
 
 ---@alias Yat.Nodes.Buffer.Type Luv.FileType|"terminal"
@@ -141,41 +140,6 @@ end
 ---@protected
 function BufferNode:_scandir() end
 
----@class Yat.Nodes.Buffer.FileData
----@field bufnr integer
----@field modified boolean
-
----@class Yat.Nodes.Buffer.TerminalData
----@field bufnr integer
----@field name string
-
----@return table<string, Yat.Nodes.Buffer.FileData> paths, Yat.Nodes.Buffer.TerminalData[] terminal
-local function get_current_buffers()
-  ---@type table<string, Yat.Nodes.Buffer.FileData>
-  local buffers = {}
-  ---@type Yat.Nodes.Buffer.TerminalData[]
-  local terminals = {}
-  for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    ---@cast bufnr integer
-    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
-    if ok then
-      local path = api.nvim_buf_get_name(bufnr)
-      if buftype == "terminal" then
-        terminals[#terminals + 1] = {
-          name = path,
-          bufnr = bufnr,
-        }
-      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
-        buffers[path] = {
-          bufnr = bufnr,
-          modified = api.nvim_buf_get_option(bufnr, "modified"), --[[@as boolean]]
-        }
-      end
-    end
-  end
-  return buffers, terminals
-end
-
 ---@param tree_root_path string
 ---@param paths string[]
 ---@return string root_path
@@ -237,7 +201,7 @@ function BufferNode:refresh(opts)
 
   opts = opts or {}
   scheduler()
-  local buffers, terminals = get_current_buffers()
+  local buffers, terminals = utils.get_current_buffers()
   local paths = vim.tbl_keys(buffers) --[=[@as string[]]=]
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
   if root_path ~= self.path then

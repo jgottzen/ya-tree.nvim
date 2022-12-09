@@ -256,6 +256,12 @@ function Node:_scandir()
   end
 
   scheduler()
+
+  local buffers = utils.get_current_buffers()
+  for _, child in ipairs(self._children) do
+    local buffer = buffers[child.path]
+    child.modified = buffer and buffer.modified or false
+  end
 end
 Node:virtual("_scandir")
 
