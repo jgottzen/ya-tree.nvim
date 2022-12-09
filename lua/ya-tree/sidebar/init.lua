@@ -565,6 +565,12 @@ end
 ---@param match string
 function Sidebar:on_autocmd_event(event, bufnr, file, match)
   local tabpage = api.nvim_get_current_tabpage()
+  if event == autocmd_event.BUFFER_SAVED then
+    local repo = git.get_repo_for_path(file)
+    if repo then
+      repo:status():refresh_path(file)
+    end
+  end
   local update = false
   for _, section in pairs(self.sections) do
     local tree = section.tree
