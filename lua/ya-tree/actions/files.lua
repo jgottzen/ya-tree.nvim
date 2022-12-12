@@ -25,26 +25,12 @@ function M.open(tree, _, sidebar)
     if node:has_children() then
       node_actions.toggle_node(tree, node, sidebar)
     elseif node:is_editable() then
-      sidebar:open_file(node.path, "edit")
-    elseif node:node_type() == "Buffer" then
-      ---@cast node Yat.Nodes.Buffer
-      if node:is_terminal() then
-        for _, win in ipairs(api.nvim_list_wins()) do
-          if api.nvim_win_get_buf(win) == node.bufnr then
-            api.nvim_set_current_win(win)
-            return
-          end
-        end
-        local id = node:toggleterm_id()
-        if id then
-          pcall(vim.cmd, id .. "ToggleTerm")
-        end
-      end
+      sidebar:open_node(node, "edit")
     end
   else
     for _, node in ipairs(nodes) do
       if node:is_editable() then
-        sidebar:open_file(node.path, "edit")
+        sidebar:open_node(node, "edit")
       end
     end
   end
@@ -56,7 +42,7 @@ end
 ---@param sidebar Yat.Sidebar
 function M.vsplit(_, node, sidebar)
   if node:is_editable() then
-    sidebar:open_file(node.path, "vsplit")
+    sidebar:open_node(node, "vsplit")
   end
 end
 
@@ -66,7 +52,7 @@ end
 ---@param sidebar Yat.Sidebar
 function M.split(_, node, sidebar)
   if node:is_editable() then
-    sidebar:open_file(node.path, "split")
+    sidebar:open_node(node, "split")
   end
 end
 
@@ -77,7 +63,7 @@ end
 local function preview(sidebar, node, focus)
   if node:is_editable() then
     local already_loaded = vim.fn.bufloaded(node.path) > 0
-    sidebar:open_file(node.path, "edit")
+    sidebar:open_node(node, "edit")
 
     -- taken from nvim-tree
     if not already_loaded then
@@ -125,7 +111,7 @@ end
 ---@param sidebar Yat.Sidebar
 function M.tabnew(_, node, sidebar)
   if node:is_editable() then
-    sidebar:open_file(node.path, "tabnew")
+    sidebar:open_node(node, "tabnew")
   end
 end
 

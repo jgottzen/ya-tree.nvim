@@ -365,7 +365,7 @@ end
 ---@param path string
 ---@return boolean
 function Node:is_ancestor_of(path)
-  return self:is_directory() and #self.path < #path and path:find(self.path .. utils.os_sep, 1, true) ~= nil
+  return self:has_children() and #self.path < #path and path:find(self.path .. utils.os_sep, 1, true) ~= nil
 end
 
 ---@return boolean
@@ -445,6 +445,11 @@ end
 function Node.children(self)
   ---@cast self Yat.Node
   return self._children
+end
+
+---@param cmd Yat.Action.Files.Open.Mode
+function Node:edit(cmd)
+  vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(self.path) } })
 end
 
 ---@async
@@ -562,6 +567,7 @@ function Node:add_child(node)
 end
 
 ---@async
+---@protected
 ---@generic T : Yat.Node
 ---@param self T
 ---@param paths string[]
@@ -691,7 +697,7 @@ function Node.expand(self, opts)
   ---@cast self Yat.Node
   log.debug("expanding %q", self.path)
   opts = opts or {}
-  if self:is_directory() then
+  if self._children then
     if not self.scanned or opts.force_scan then
       self:_scandir()
     end
@@ -708,7 +714,7 @@ function Node.expand(self, opts)
           log.debug("child node %q is parent of %q", child.path, opts.to)
           return child:expand(opts)
         elseif child.path == opts.to then
-          if child:is_directory() then
+          if child._children then
             child:expand(opts)
           end
           return child
@@ -726,11 +732,11 @@ end
 ---@param path string
 ---@return T|nil
 function Node.get_child_if_loaded(self, path)
-  local self_path = self.path --[[@as string]]
-  if self_path == path then
+  ---@cast self Yat.Node
+  if self.path == path then
     return self
   end
-  if not self:is_directory() then
+  if not self._children then
     return
   end
 

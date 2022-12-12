@@ -8,6 +8,7 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
+local api = vim.api
 local fn = vim.fn
 
 ---@alias Yat.Nodes.Buffer.Type Luv.FileType|"terminal"
@@ -63,6 +64,11 @@ function BufferNode:init(node_data, parent, bufname, bufnr, modified, hidden)
   end
 end
 
+---@return boolean editable
+function BufferNode:is_editable()
+  return self._type == "file" or self._type == "terminal"
+end
+
 ---@return boolean hidden
 function BufferNode:is_hidden()
   return false
@@ -77,6 +83,24 @@ end
 function BufferNode:toggleterm_id()
   if self._type == "terminal" then
     return self.bufname:match("#toggleterm#(%d+)$")
+  end
+end
+
+---@param cmd Yat.Action.Files.Open.Mode
+function BufferNode:edit(cmd)
+  if self._type == "file" then
+    self.super:edit(cmd)
+  end
+
+  for _, win in ipairs(api.nvim_list_wins()) do
+    if api.nvim_win_get_buf(win) == self.bufnr then
+      api.nvim_set_current_win(win)
+      return
+    end
+  end
+  local id = self:toggleterm_id()
+  if id then
+    pcall(vim.cmd, id .. "ToggleTerm")
   end
 end
 

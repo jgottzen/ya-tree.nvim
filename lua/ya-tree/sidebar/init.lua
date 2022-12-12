@@ -476,9 +476,9 @@ function Sidebar:focus_node(tree, node)
   end
 end
 
----@param file string the file path to open
+---@param node Yat.Node the node to open
 ---@param cmd Yat.Action.Files.Open.Mode
-function Sidebar:open_file(file, cmd)
+function Sidebar:open_node(node, cmd)
   local winid = self.canvas:edit_winid()
   if not winid then
     -- only the tree window is open, e.g. netrw replacement
@@ -491,7 +491,7 @@ function Sidebar:open_file(file, cmd)
     api.nvim_set_current_win(winid)
   end
 
-  vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(file) } })
+  node:edit(cmd)
 end
 
 do
