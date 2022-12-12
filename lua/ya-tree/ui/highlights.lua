@@ -1,6 +1,8 @@
 local api = vim.api
 
 local M = {
+  NS = api.nvim_create_namespace("YaTreeHighlights"),
+
   ROOT_NAME = "YaTreeRootName",
 
   INDENT_MARKER = "YaTreeIndentMarker",
@@ -113,15 +115,14 @@ local function create_highlight(name, links, highlight, fallback)
     for _, link in ipairs(links) do
       local ok = pcall(api.nvim_get_hl_by_name, link, true)
       if ok then
-        api.nvim_set_hl(0, name, { default = true, link = link })
-        return
+        highlight = { link = link }
+        break
       end
     end
     if not fallback then
-      api.nvim_set_hl(0, name, { default = true, link = links[1] })
-      return
+      highlight = { link = links[1] }
     else
-      highlight = { fg = fallback, default = true }
+      highlight = { fg = fallback }
     end
   end
 

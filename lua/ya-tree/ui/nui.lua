@@ -38,6 +38,7 @@ do
   function M.input(opts, callbacks)
     local border = require("ya-tree.config").config.popups.border
     local options = {
+      ns_id = require("ya-tree.ui.highlights").NS,
       relative = opts.relative or "cursor",
       position = { row = opts.row or 1, col = opts.col or 1 },
       size = opts.width or 30,
@@ -153,6 +154,7 @@ end
 function M.popup(opts)
   local border = require("ya-tree.config").config.popups.border
   local options = {
+    ns_id = require("ya-tree.ui.highlights").NS,
     size = {
       width = opts.width,
       height = opts.height,

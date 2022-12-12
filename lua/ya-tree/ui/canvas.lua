@@ -6,8 +6,6 @@ local log = require("ya-tree.log")("ui")
 local api = vim.api
 local fn = vim.fn
 
-local ns = api.nvim_create_namespace("YaTreeHighlights")
-
 local BUF_OPTIONS = {
   bufhidden = "hide", -- must be hide and not wipe for Canvas:restore and particularly Canvas:move_buffer_to_edit_window to work
   buflisted = false,
@@ -49,6 +47,7 @@ local WIN_OPTIONS = {
 ---@field private _winid? integer
 ---@field private _edit_winid? integer
 ---@field private _bufnr? integer
+---@field private ns integer
 ---@field private position Yat.Ui.Position
 ---@field private _size integer
 ---@field private number boolean
@@ -70,6 +69,7 @@ end
 ---@param relativenumber boolean
 ---@param tree_and_node_for_row fun(row: integer): Yat.Tree?, Yat.Node?
 function Canvas:init(position, size, number, relativenumber, tree_and_node_for_row)
+  self.ns = require("ya-tree.ui.highlights").NS
   self.previous_row = 1
   self.position = position
   self._size = size
@@ -236,6 +236,8 @@ function Canvas:_set_window_options()
   vim.wo[self._winid].number = self.number
   vim.wo[self._winid].relativenumber = self.relativenumber
 
+  api.nvim_win_set_hl_ns(self._winid, self.ns)
+
   self.window_augroup = api.nvim_create_augroup("YaTreeCanvas_Window_" .. self._winid, { clear = true })
   api.nvim_create_autocmd("WinLeave", {
     group = self.window_augroup,
@@ -388,7 +390,7 @@ end
 ---@param highlights Yat.Ui.HighlightGroup[][]
 function Canvas:draw(lines, highlights)
   api.nvim_buf_set_option(self._bufnr, "modifiable", true)
-  api.nvim_buf_clear_namespace(self._bufnr, ns, 0, -1)
+  api.nvim_buf_clear_namespace(self._bufnr, self.ns, 0, -1)
   api.nvim_buf_set_lines(self._bufnr, 0, -1, false, lines)
   for linenr, line_highlights in ipairs(highlights) do
     for _, highlight in ipairs(line_highlights) do
@@ -396,7 +398,7 @@ function Canvas:draw(lines, highlights)
       if not highlight.name then
         log.error("missing highlight name for line=%s, hl=%s", tostring(lines[linenr]), highlight)
       else
-        api.nvim_buf_add_highlight(self._bufnr, ns, highlight.name, linenr - 1, highlight.from, highlight.to)
+        api.nvim_buf_add_highlight(self._bufnr, self.ns, highlight.name, linenr - 1, highlight.from, highlight.to)
       end
     end
   end
