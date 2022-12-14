@@ -8,11 +8,11 @@ local meta = require("ya-tree.meta")
 ---@field super Yat.Node
 ---
 ---@field add_node fun(self: Yat.Nodes.Text, path: string): Yat.Nodes.Text?
----@field protected __node_type "Text"
+---@field protected __node_type "text"
 ---@field public parent? Yat.Nodes.Text
 ---@field private _children? Yat.Nodes.Text[]
 local TextNode = meta.create_class("Yat.Nodes.Text", Node)
-TextNode.__node_type = "Text"
+TextNode.__node_type = "text"
 
 ---@protected
 ---@param text string

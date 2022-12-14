@@ -23,7 +23,7 @@ local fn = vim.fn
 ---@field super Yat.Node
 ---
 ---@field type fun(self: Yat.Nodes.Buffer): Yat.Nodes.Buffer.Type
----@field protected __node_type "Buffer"
+---@field protected __node_type "buffer"
 ---@field public parent? Yat.Nodes.Buffer
 ---@field private _type Yat.Nodes.Buffer.Type
 ---@field private _children? Yat.Nodes.Buffer[]
@@ -31,7 +31,7 @@ local fn = vim.fn
 ---@field public bufnr? integer
 ---@field public bufhidden? boolean
 local BufferNode = meta.create_class("Yat.Nodes.Buffer", Node)
-BufferNode.__node_type = "Buffer"
+BufferNode.__node_type = "buffer"
 
 ---@param other Yat.Nodes.Buffer
 BufferNode.__eq = function(self, other)

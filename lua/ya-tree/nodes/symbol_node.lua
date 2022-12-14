@@ -13,7 +13,7 @@ local api = vim.api
 ---@field class fun(self: Yat.Nodes.Symbol): Yat.Nodes.Symbol
 ---@field super Yat.Node
 ---
----@field protected __node_type "Symbol"
+---@field protected __node_type "symbol"
 ---@field public parent? Yat.Nodes.Symbol
 ---@field private _children? Yat.Nodes.Symbol[]
 ---@field private file string
@@ -22,7 +22,7 @@ local api = vim.api
 ---@field public detail? string
 ---@field public position Yat.Document.Range
 local SymbolNode = meta.create_class("Yat.Nodes.Symbol", Node)
-SymbolNode.__node_type = "Symbol"
+SymbolNode.__node_type = "symbol"
 
 ---@private
 ---@param name string

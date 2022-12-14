@@ -13,13 +13,13 @@ local utils = require("ya-tree.utils")
 ---@field super Yat.Node
 ---
 ---@field add_node fun(self: Yat.Nodes.Search, path: string): Yat.Nodes.Search?
----@field protected __node_type "Search"
+---@field protected __node_type "search"
 ---@field public parent? Yat.Nodes.Search
 ---@field private _children? Yat.Nodes.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
 local SearchNode = meta.create_class("Yat.Nodes.Search", Node)
-SearchNode.__node_type = "Search"
+SearchNode.__node_type = "search"
 
 ---Creates a new search node.
 ---@protected

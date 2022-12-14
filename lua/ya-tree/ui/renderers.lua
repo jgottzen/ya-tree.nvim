@@ -152,11 +152,11 @@ function M.icon(node, context, renderer)
 
   local icon, highlight
   if
-    node:node_type() == "Buffer" and node--[[@as Yat.Nodes.Buffer]]:is_terminals_container()
+    node:node_type() == "buffer" and node--[[@as Yat.Nodes.Buffer]]:is_terminals_container()
   then
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
-  elseif node:node_type() == "Symbol" then
+  elseif node:node_type() == "symbol" then
     ---@cast node Yat.Nodes.Symbol
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
@@ -221,11 +221,11 @@ end
 function M.name(node, context, renderer)
   if context.depth == 0 then
     local padding, text, highlight = "", nil, hl.ROOT_NAME
-    if node:node_type() == "Text" then
+    if node:node_type() == "text" then
       padding = renderer.padding
       text = node.name
       highlight = hl.DIM_TEXT
-    elseif node:node_type() == "Symbol" then
+    elseif node:node_type() == "symbol" then
       text = node.name
     else
       text = fn.fnamemodify(node.path, renderer.root_folder_format)
@@ -261,7 +261,7 @@ function M.name(node, context, renderer)
       highlight = hl.CHAR_DEVICE_FILE_NAME
     elseif node:is_block_device() then
       highlight = hl.BLOCK_DEVICE_FILE_NAME
-    elseif node:node_type() == "Buffer" then
+    elseif node:node_type() == "buffer" then
       ---@cast node Yat.Nodes.Buffer
       if node:is_terminal() then
         highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
@@ -468,7 +468,7 @@ end
 function M.buffer_info(node, _, renderer)
   local bufnr = -1
   local hidden = false
-  if node:node_type() == "Buffer" then
+  if node:node_type() == "buffer" then
     ---@cast node Yat.Nodes.Buffer
     bufnr = node.bufnr or -1
     hidden = node.bufhidden or false

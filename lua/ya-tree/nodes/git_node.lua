@@ -11,13 +11,13 @@ local log = require("ya-tree.log")("nodes")
 ---@field super Yat.Node
 ---
 ---@field add_node fun(self: Yat.Nodes.Git, path: string): Yat.Nodes.Git?
----@field protected __node_type "Git"
+---@field protected __node_type "git"
 ---@field public parent? Yat.Nodes.Git
 ---@field private _children? Yat.Nodes.Git[]
 ---@field public repo Yat.Git.Repo
 ---@field package editable boolean
 local GitNode = meta.create_class("Yat.Nodes.Git", Node)
-GitNode.__node_type = "Git"
+GitNode.__node_type = "git"
 
 ---Creates a new git status node.
 ---@protected

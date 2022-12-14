@@ -8,7 +8,7 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
----@alias Yat.Nodes.Type "FileSystem"|"Search"|"Buffer"|"Git"|"Text"|"Symbol"
+---@alias Yat.Nodes.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
@@ -17,7 +17,7 @@ local utils = require("ya-tree.utils")
 ---@field static Yat.Node
 ---@field private __lower Yat.Node
 ---
----@field protected __node_type "FileSystem"
+---@field protected __node_type "filesystem"
 ---@field public name string
 ---@field public path string
 ---@field public parent? Yat.Node
@@ -39,7 +39,7 @@ local utils = require("ya-tree.utils")
 ---@field public expanded? boolean
 ---@field package _fs_event_registered boolean
 local Node = meta.create_class("Yat.Node")
-Node.__node_type = "FileSystem"
+Node.__node_type = "filesystem"
 
 ---@param other Yat.Node
 Node.__eq = function(self, other)
@@ -129,7 +129,7 @@ end
 ---@package
 ---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
-  if self.__node_type == "FileSystem" then
+  if self.__node_type == "filesystem" then
     if self:is_directory() and fs_node._type ~= "directory" and self._fs_event_registered then
       self._fs_event_registered = false
       fs_watcher.remove_watcher(self.path)
@@ -459,7 +459,7 @@ end
 function Node:add_node(path)
   return self:_add_node(path, function(fs_node, parent)
     local node = self:class():new(fs_node, parent)
-    if node:node_type() == "FileSystem" then
+    if node:node_type() == "filesystem" then
       maybe_add_watcher(node)
     end
     return node
@@ -535,7 +535,7 @@ function Node:_remove_node(path, remove_empty_parents)
         local child = node.parent._children[i]
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
-          if child.__node_type == "FileSystem" then
+          if child.__node_type == "filesystem" then
             maybe_remove_watcher(child)
           end
           table.remove(node.parent._children, i)
