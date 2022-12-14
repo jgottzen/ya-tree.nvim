@@ -2,7 +2,6 @@ local scheduler = require("plenary.async.util").scheduler
 local void = require("plenary.async").void
 local Path = require("plenary.path")
 
-local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
 local Sidebar = require("ya-tree.sidebar")
 local Trees = require("ya-tree.trees")
@@ -313,62 +312,6 @@ local function on_win_closed(winid)
   end, 100)
 end
 
----@async
----@param bufnr integer
----@param file string
-local function on_buf_enter(bufnr, file)
-  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  local is_file_buffer, is_terminal_buffer = buftype == "", buftype == "terminal"
-  if not ((is_file_buffer and file ~= "") or is_terminal_buffer) then
-    return
-  end
-  local config = require("ya-tree.config").config
-  local tabpage = api.nvim_get_current_tabpage()
-  local sidebar = Sidebar.get_sidebar(tabpage)
-
-  if config.hijack_netrw and is_file_buffer and fs.is_directory(file) then
-    log.debug("the opened buffer is a directory with path %q", file)
-
-    if not sidebar then
-      sidebar = Sidebar.get_or_create_sidebar(tabpage)
-    end
-    if sidebar:is_current_window() then
-      sidebar:restore_window()
-    else
-      -- switch back to the previous buffer so the window isn't closed
-      vim.cmd.bprevious()
-    end
-    log.debug("deleting buffer %s with file %q", bufnr, file)
-    api.nvim_buf_delete(bufnr, { force = true })
-
-    M.open_window({ path = file, focus = true })
-  elseif sidebar and sidebar:is_open() then
-    if sidebar:is_current_window() and config.move_buffers_from_sidebar_window then
-      log.debug("moving buffer %s to edit window", bufnr)
-      sidebar:move_buffer_to_edit_window(bufnr)
-    end
-
-    if config.follow_focused_file then
-      local tree = sidebar:get_current_tree_and_node()
-      if tree then
-        if is_terminal_buffer and tree.TYPE == "buffers" then
-          local root = tree.root --[[@as Yat.Nodes.Buffer]]
-          file = root:terminal_name_to_path(file)
-        end
-        if tree.root:is_ancestor_of(file) then
-          log.debug("focusing on node %q", file)
-          local node = tree.root:expand({ to = file })
-          if node then
-            -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-            scheduler()
-            sidebar:update(tree, node, { focus_node = true })
-          end
-        end
-      end
-    end
-  end
-end
-
 ---@param config Yat.Config
 function M.setup(config)
   setup_netrw(config)
@@ -397,13 +340,6 @@ function M.setup(config)
     group = group,
     callback = void(M.redraw),
     desc = "Redraw tree on tabpage switch",
-  })
-  api.nvim_create_autocmd("BufEnter", {
-    group = group,
-    callback = void(function(input)
-      on_buf_enter(input.buf, input.file)
-    end),
-    desc = "Handle buffers opened in the tree window",
   })
 
   local autocmd_will_open = utils.is_buffer_directory() and config.hijack_netrw

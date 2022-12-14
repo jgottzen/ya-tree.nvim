@@ -44,12 +44,12 @@ local M = {
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
     ---@field to_console boolean Whether to log to the console, default: `false`.
     ---@field to_file boolean Whether to log to the log file, default: `false`.
-    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" }`.
+    ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "lsp", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" }`.
     log = {
       level = "warn",
       to_console = false,
       to_file = false,
-      namespaces = { "ya-tree", "actions", "events", "fs", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" },
+      namespaces = { "ya-tree", "actions", "events", "fs", "lsp", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" },
     },
 
     ---@class Yat.Config.AutoOpen
@@ -165,7 +165,7 @@ local M = {
 
     ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
 
-    ---@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|string
+    ---@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|"symbols"|string
 
     ---@class Yat.Config.Sidebar
     ---@field size integer Size of the sidebar panel, default: `40`.
@@ -173,7 +173,7 @@ local M = {
     ---@field number boolean Whether to show the number column, default: `false`.
     ---@field relativenumber boolean Whether to show relative numbers, default: `false`.
     ---@field single_mode boolean If the sidebar should be a single tree only, default: `false`.
-    ---@field tree_order Yat.Trees.Type[] In which order the tree sections appear, default: `{ "filesystem", "search", "git", "buffers" }`.
+    ---@field tree_order Yat.Trees.Type[] In which order the tree sections appear, default: `{ "filesystem", "search", "symbols", "git", "buffers" }`.
     ---@field trees_always_shown Yat.Trees.Type[] Which trees are always present, default: `{ "filesystem" }`.
     ---@field section_layout Yat.Config.Sidebar.SectionLayout Layout configuration.
     sidebar = {
@@ -182,7 +182,7 @@ local M = {
       number = false,
       relativenumber = false,
       single_mode = false,
-      tree_order = { "filesystem", "search", "git", "buffers" },
+      tree_order = { "filesystem", "search", "symbols", "git", "buffers" },
       trees_always_shown = { "filesystem" },
 
       ---@class Yat.Config.Sidebar.SectionLayout
@@ -231,7 +231,7 @@ local M = {
     ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
     ---@field list table<string, Yat.Actions.Name|string> Map of key mappings, an empty string, `""`, disables the mapping.
 
-    ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|string
+    ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|"symbol_details"|string
 
     ---@class Yat.Config.Trees.Renderer
     ---@field name Yat.Ui.Renderer.Name The name of the renderer.
@@ -251,6 +251,7 @@ local M = {
     ---@field global_mappings Yat.Config.Trees.GlobalMappings Mappings that applies to all trees.
     ---@field filesystem Yat.Config.Trees.Filesystem Filesystem tree configuration.
     ---@field search Yat.Config.Trees.Search Search tree configuration.
+    ---@field symbols Yat.Config.Trees.Symbols Symbols tree configuration.
     ---@field git Yat.Config.Trees.Git Git tree configuration.
     ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
     trees = {
@@ -264,6 +265,7 @@ local M = {
           ["<C-x>"] = "close_tree",
           ["gT"] = "focus_prev_tree",
           ["gt"] = "focus_next_tree",
+          ["gs"] = "open_symbols_tree",
           ["<C-g>"] = "open_git_tree",
           ["b"] = "open_buffers_tree",
           ["<CR>"] = "open",
@@ -415,6 +417,44 @@ local M = {
           },
         },
       },
+      ---@class Yat.Config.Trees.Symbols
+      ---@field section_name string The name of the section in the sidebar, default: `"Lsp Symbols"`.
+      ---@field section_icon string The icon for the section in the sidebar, default" `""`.
+      ---@field scroll_buffer_to_symbol boolean Whether to scroll the file to the current symbol, default: `true`.
+      ---@field mappings Yat.Config.Trees.Symbols.Mappings Tree specific mappings.
+      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
+      symbols = {
+        section_name = "Lsp Symbols",
+        section_icon = "",
+        scroll_buffer_to_symbol = true,
+        ---@class Yat.Config.Trees.Symbols.Mappings : Yat.Config.Trees.Mappings
+        ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
+        ---@field list table<string, Yat.Trees.Symbols.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+        mappings = {
+          disable_defaults = false,
+          list = {
+            ["S"] = "search_for_node_in_tree",
+            ["[e"] = "focus_prev_diagnostic_item",
+            ["]e"] = "focus_next_diagnostic_item",
+          },
+        },
+        renderers = {
+          directory = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "symbol_details" },
+            { name = "diagnostics" },
+          },
+          file = {
+            { name = "indentation" },
+            { name = "icon" },
+            { name = "name" },
+            { name = "symbol_details" },
+            { name = "diagnostics" },
+          },
+        },
+      },
       ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
       ---@field section_name string The name of the section in the sidebar, default: `"Git"`.
       ---@field section_icon string The icon for the section in the sidebar, default: `""`.
@@ -536,6 +576,7 @@ local M = {
       ---@field diagnostics Yat.Config.Renderers.Builtin.Diagnostics Lsp diagnostics rendering configuration.
       ---@field buffer_info Yat.Config.Renderers.Builtin.BufferInfo Buffer info rendering configuration.
       ---@field clipboard Yat.Config.Renderers.Builtin.Clipboard Clipboard rendering configuration.
+      ---@field symbol_details Yat.Config.Renderers.Builtin.SymbolDetails Symbol details rendering configuration.
       builtin = {
         ---@class Yat.Config.Renderers.Builtin.Indentation : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `""`.
@@ -724,6 +765,12 @@ local M = {
         ---@class Yat.Config.Renderers.Builtin.Clipboard : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
         clipboard = {
+          padding = " ",
+        },
+
+        ---@class Yat.Config.Renderers.Builtin.SymbolDetails : Yat.Config.BaseRendererConfig
+        ---@field padding string The padding to use to the left of the renderer, default: `" "`.
+        symbol_details = {
           padding = " ",
         },
       },

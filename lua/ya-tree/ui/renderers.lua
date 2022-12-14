@@ -17,6 +17,7 @@ do
 end
 
 local hl = require("ya-tree.ui.highlights")
+local symbol_kind = require("ya-tree.lsp.symbol_kind")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("ui")
 
@@ -155,6 +156,10 @@ function M.icon(node, context, renderer)
   then
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
+  elseif node:node_type() == "Symbol" then
+    ---@cast node Yat.Nodes.Symbol
+    icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
+    highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
   elseif node:is_directory() then
     icon = renderer.directory.custom[node.name]
     if not icon then
@@ -215,21 +220,23 @@ end
 ---@return Yat.Ui.RenderResult[] results
 function M.name(node, context, renderer)
   if context.depth == 0 then
+    local padding, text, highlight = "", nil, hl.ROOT_NAME
     if node:node_type() == "Text" then
-      return { {
-        padding = renderer.padding,
-        text = node.name,
-        highlight = hl.DIM_TEXT,
-      } }
-    end
-    local text = fn.fnamemodify(node.path, renderer.root_folder_format)
-    if text:sub(-1) ~= utils.os_sep then
-      text = text .. utils.os_sep
+      padding = renderer.padding
+      text = node.name
+      highlight = hl.DIM_TEXT
+    elseif node:node_type() == "Symbol" then
+      text = node.name
+    else
+      text = fn.fnamemodify(node.path, renderer.root_folder_format)
+      if text:sub(-1) ~= utils.os_sep then
+        text = text .. utils.os_sep
+      end
     end
     return { {
-      padding = "",
+      padding = padding,
       text = text,
-      highlight = hl.ROOT_NAME,
+      highlight = highlight,
     } }
   end
 
@@ -504,6 +511,22 @@ function M.clipboard(node, _, renderer)
   end
 end
 
+---@param node Yat.Nodes.Symbol
+---@param _ Yat.Ui.RenderContext
+---@param renderer Yat.Config.Renderers.Builtin.SymbolDetails
+---@return Yat.Ui.RenderResult[]|nil result
+function M.symbol_details(node, _, renderer)
+  if node.detail then
+    return {
+      {
+        padding = renderer.padding,
+        text = node.detail,
+        highlight = hl.DIM_TEXT,
+      },
+    }
+  end
+end
+
 do
   ---@type table<string, string>
   local GIT_STATUS_TO_HL = {}
@@ -534,6 +557,74 @@ do
   ---@return Yat.Ui.IconAndHighlight
   function M.helpers.get_diagnostic_icon_and_highligt(severity)
     return DIAGNOSTIC_ICONS_AND_HL[severity]
+  end
+
+  ---@type table<Lsp.Symbol.Kind, string>
+  local LSP_KIND_ICONS = {
+    [2] = "",
+    [3] = "",
+    [4] = "",
+    [5] = "𝓒",
+    [6] = "ƒ",
+    [7] = "",
+    [8] = "",
+    [9] = "",
+    [10] = "ℰ",
+    [11] = "",
+    [12] = "",
+    [13] = "",
+    [14] = "",
+    [15] = "",
+    [16] = "",
+    [17] = "⊨",
+    [18] = "",
+    [19] = "⦿",
+    [20] = "",
+    [21] = "ﳠ",
+    [22] = "",
+    [23] = "𝓢",
+    [24] = "",
+    [25] = "",
+    [26] = "",
+  }
+
+  ---@param kind Lsp.Symbol.Kind
+  function M.helpers.get_lsp_symbols_kind_icon(kind)
+    return LSP_KIND_ICONS[kind]
+  end
+
+  ---@type table<Lsp.Symbol.Kind, string>
+  local LSP_KIND_HIGHLIGHTS = {
+    [2] = "@namespace",
+    [3] = "@namespace",
+    [4] = "@namespace",
+    [5] = "@type",
+    [6] = "@method",
+    [7] = "@property",
+    [8] = "@field",
+    [9] = "@constructor",
+    [10] = "@type",
+    [11] = "@type",
+    [12] = "@function",
+    [13] = "@constant",
+    [14] = "@constant",
+    [15] = "@string",
+    [16] = "@number",
+    [17] = "@boolean",
+    [18] = "@type",
+    [19] = "@type",
+    [20] = "@type",
+    [21] = "@type",
+    [22] = "@field",
+    [23] = "@type",
+    [24] = "@type",
+    [25] = "@operator",
+    [26] = "@type",
+  }
+
+  ---@param kind Lsp.Symbol.Kind
+  function M.helpers.get_lsp_symbol_highlight(kind)
+    return LSP_KIND_HIGHLIGHTS[kind]
   end
 
   ---@param icons Yat.Config.Renderers.GitStatus.Icons
@@ -655,6 +746,7 @@ do
     M.define_renderer("diagnostics", M.diagnostics, renderers.builtin.diagnostics)
     M.define_renderer("buffer_info", M.buffer_info, renderers.builtin.buffer_info)
     M.define_renderer("clipboard", M.clipboard, renderers.builtin.clipboard)
+    M.define_renderer("symbol_details", M.symbol_details, renderers.builtin.symbol_details)
 
     for name, renderer in pairs(renderers) do
       if name ~= "builtin" then

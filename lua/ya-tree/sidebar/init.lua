@@ -15,6 +15,7 @@ local BuffersTree = require("ya-tree.trees.buffers")
 local FilesystemTree = require("ya-tree.trees.filesystem")
 local GitTree = require("ya-tree.trees.git")
 local SearchTree = require("ya-tree.trees.search")
+local SymbolsTree = require("ya-tree.trees.symbols")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("sidebar")
@@ -208,6 +209,15 @@ function Sidebar:filesystem_tree(path)
 end
 
 ---@async
+---@param path string
+---@return Yat.Trees.Symbols
+function Sidebar:symbols_tree(path)
+  return self:get_or_create_tree("symbols", function()
+    return SymbolsTree:new(self._tabpage, path)
+  end, path)
+end
+
+---@async
 ---@param repo Yat.Git.Repo
 ---@return Yat.Trees.Git
 function Sidebar:git_tree(repo)
@@ -325,6 +335,7 @@ function Sidebar:open(tree, node, opts)
 
   opts = opts or {}
   self.canvas:open({ position = opts.position, size = opts.size })
+  self:register_canvas_autocmds()
   self:apply_mappings()
   self:render()
   self.canvas:restore_previous_position()
@@ -338,6 +349,22 @@ function Sidebar:open(tree, node, opts)
   elseif opts.focus_edit_window then
     self.canvas:focus_edit_window()
   end
+end
+
+---@private
+function Sidebar:register_canvas_autocmds()
+  local augroup = api.nvim_create_augroup("YaTreeSidebar_" .. self._tabpage, { clear = true })
+  api.nvim_create_autocmd("CursorHold", {
+    group = augroup,
+    buffer = self.canvas:bufnr(),
+    callback = function()
+      local tree, node = self:get_current_tree_and_node()
+      local winid = self.canvas:edit_winid()
+      if tree and tree.on_cursor_hold and node and winid then
+        tree:on_cursor_hold(node, winid)
+      end
+    end,
+  })
 end
 
 ---@param sidebar Yat.Sidebar
@@ -394,11 +421,13 @@ function Sidebar:is_open(tree)
 end
 
 function Sidebar:close()
-  local tree, node = self:get_current_tree_and_node()
-  if tree and node then
-    tree.current_node = node
+  if self:is_open() then
+    local tree, node = self:get_current_tree_and_node()
+    if tree and node then
+      tree.current_node = node
+    end
+    self.canvas:close()
   end
-  self.canvas:close()
 end
 
 function Sidebar:focus()
@@ -495,6 +524,7 @@ function Sidebar:open_node(node, cmd)
 end
 
 do
+  ---@type Yat.Events.AutocmdEvent[]
   local SUPPORTED_EVENTS = {
     autocmd_event.BUFFER_NEW,
     autocmd_event.BUFFER_HIDDEN,
@@ -697,6 +727,51 @@ function Sidebar:on_fs_changed_event(dir, filenames)
       log.debug("resetting focus_path_on_fs_event=%q dir=%q, filenames=%s", tree.focus_path_on_fs_event, dir, filenames)
       tree.focus_path_on_fs_event = nil
     end
+  end
+end
+
+---@async
+---@package
+---@param bufnr integer
+---@param file string
+---@param is_terminal_buffer boolean
+function Sidebar:on_buf_enter(bufnr, file, is_terminal_buffer)
+  local config = require("ya-tree.config").config
+  if self:is_current_window() and config.move_buffers_from_sidebar_window then
+    log.debug("moving buffer %s to edit window", bufnr)
+    self:move_buffer_to_edit_window(bufnr)
+  end
+
+  local update = false
+  for _, section in ipairs(self.sections) do
+    if section.tree.on_buffer_enter then
+      update = section.tree:on_buffer_enter(bufnr, file, is_terminal_buffer) or update
+    end
+  end
+
+  if config.follow_focused_file then
+    local tree = self:get_current_tree_and_node()
+    if tree then
+      if is_terminal_buffer and tree.TYPE == "buffers" then
+        local root = tree.root --[[@as Yat.Nodes.Buffer]]
+        file = root:terminal_name_to_path(file)
+      end
+      if tree.root:is_ancestor_of(file) then
+        log.debug("focusing on node %q", file)
+        local node = tree.root:expand({ to = file })
+        if node then
+          update = false
+          -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+          scheduler()
+          self:update(tree, node, { focus_node = true })
+        end
+      end
+    end
+  end
+
+  if update then
+    local tree, node = self:get_current_tree_and_node()
+    self:update(tree, node, { focus_node = true })
   end
 end
 
@@ -1038,6 +1113,57 @@ local function on_cwd_changed(scope, new_cwd)
   end
 end
 
+---@async
+---@param bufnr integer
+---@param file string
+local function on_buf_enter(bufnr, file)
+  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  local is_file_buffer, is_terminal_buffer = buftype == "", buftype == "terminal"
+  if not ((is_file_buffer and file ~= "") or is_terminal_buffer) then
+    return
+  end
+  local config = require("ya-tree.config").config
+  local tabpage = api.nvim_get_current_tabpage()
+  local sidebar = M.get_sidebar(tabpage)
+
+  if config.hijack_netrw and is_file_buffer and fs.is_directory(file) then
+    log.debug("the opened buffer is a directory with path %q", file)
+
+    if not sidebar then
+      sidebar = M.get_or_create_sidebar(tabpage)
+    end
+    if sidebar:is_current_window() then
+      sidebar:restore_window()
+    else
+      -- switch back to the previous buffer so the window isn't closed
+      vim.cmd.bprevious()
+    end
+    log.debug("deleting buffer %s with file %q", bufnr, file)
+    api.nvim_buf_delete(bufnr, { force = true })
+
+    require("ya-tree.lib").open_window({ path = file, focus = true })
+  elseif sidebar and sidebar:is_open() then
+    sidebar:on_buf_enter(bufnr, file, is_terminal_buffer)
+  end
+end
+
+---@async
+---@param bufnr integer
+---@param file string
+local function on_lsp_attach(bufnr, file)
+  local sidebar = M.get_sidebar(api.nvim_get_current_tabpage())
+  if sidebar then
+    local symbols_tree = sidebar:get_tree("symbols") --[[@as Yat.Trees.Symbols?]]
+    if symbols_tree then
+      log.debug("lsp attached to file %q and bufnr %s", file, bufnr)
+      if symbols_tree:on_lsp_attach(bufnr, file) and sidebar:is_open() then
+        local tree, node = sidebar:get_current_tree_and_node()
+        sidebar:update(tree, node)
+      end
+    end
+  end
+end
+
 function M.delete_sidebars_for_nonexisting_tabpages()
   ---@type table<string, boolean>
   local found_toplevels = {}
@@ -1085,6 +1211,15 @@ local function on_win_leave(bufnr)
   end
 end
 
+---@param tabpage integer
+local function on_repaint(tabpage)
+  local sidebar = M.get_sidebar(tabpage)
+  if sidebar and sidebar:is_open() then
+    local tree, node = sidebar:get_current_tree_and_node()
+    sidebar:update(tree, node, { focus_node = true })
+  end
+end
+
 ---@param config Yat.Config
 function M.setup(config)
   local group = api.nvim_create_augroup("YaTreeSidebar", { clear = true })
@@ -1103,6 +1238,20 @@ function M.setup(config)
       desc = "Handle changed cwd",
     })
   end
+  api.nvim_create_autocmd("BufEnter", {
+    group = group,
+    callback = void(function(input)
+      on_buf_enter(input.buf, input.file)
+    end),
+    desc = "Handle buffers opened in the tree window",
+  })
+  api.nvim_create_autocmd("LspAttach", {
+    group = group,
+    callback = void(function(input)
+      on_lsp_attach(input.buf, input.file)
+    end),
+    desc = "Refresh symbols tree",
+  })
   api.nvim_create_autocmd("TabClosed", {
     group = group,
     callback = M.delete_sidebars_for_nonexisting_tabpages,
@@ -1113,6 +1262,10 @@ function M.setup(config)
     callback = on_win_leave,
     desc = "Save the last used window id",
   })
+
+  events.on_yatree_event(yatree_event.REQUEST_SIDEBAR_REPAINT, "YA_TREE_SIDEBAR_REPAINT", true, function(tabpage)
+    on_repaint(tabpage)
+  end)
 end
 
 return M

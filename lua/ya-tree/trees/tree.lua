@@ -40,6 +40,8 @@ local api = vim.api
 ---@field section_name string
 ---@field renderers Yat.Trees.TreeRenderers
 ---@field complete_func string|fun(self: Yat.Tree, bufnr: integer, node: Yat.Node)|false
+---@field on_buffer_enter? async fun(self: Yat.Tree, bufnr: integer, file: string, is_terminal_buffer: boolean): boolean
+---@field on_cursor_hold? async fun(self: Yat.Tree, node: Yat.Node, winid: integer)
 local Tree = meta.create_class("Yat.Tree")
 
 ---@alias Yat.Trees.Tree.SupportedActions
@@ -52,6 +54,7 @@ local Tree = meta.create_class("Yat.Tree")
 ---| "focus_prev_tree"
 ---| "focus_next_tree"
 ---
+---| "open_symbols_tree"
 ---| "open_git_tree"
 ---| "open_buffers_tree"
 ---
@@ -92,6 +95,7 @@ do
     builtin.general.focus_prev_tree,
     builtin.general.focus_next_tree,
 
+    builtin.general.open_symbols_tree,
     builtin.general.open_git_tree,
     builtin.general.open_buffers_tree,
 

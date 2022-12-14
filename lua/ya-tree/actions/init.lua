@@ -60,6 +60,7 @@ local function define_actions(config)
   M.define_action(builtin.general.focus_prev_tree, trees.focus_prev_tree, "Go to previous tree", { "n" }, true)
   M.define_action(builtin.general.focus_next_tree, trees.focus_next_tree, "Go to next tree", { "n" }, true)
 
+  M.define_action(builtin.general.open_symbols_tree, trees.open_symbols_tree, "Open the Symbols tree", { "n" }, false)
   if config.git.enable then
     M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
   end

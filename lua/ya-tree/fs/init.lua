@@ -159,16 +159,6 @@ local function file_node(dir, name, stat)
   }
 end
 
----@param path string
----@return string name
-function M.get_file_name(path)
-  if path:sub(-1) == os_sep then
-    path = path:sub(1, -2)
-  end
-  local splits = vim.split(path, os_sep, { plain = true }) --[=[@as string[]]=]
-  return splits[#splits]
-end
-
 ---@class Yat.Fs.FifoNode : Yat.Fs.FileNode, Yat.Fs.Node
 
 ---@async
@@ -261,7 +251,7 @@ local function link_node(dir, name, lstat)
     if _type == "directory" then
       node = directory_node(dir, name)
     elseif _type == "file" or _type == "fifo" or _type == "socket" or _type == "char" or _type == "block" then
-      local link_name = M.get_file_name(abs_link_to)
+      local link_name = utils.get_file_name(abs_link_to)
       local link_extension = link_name:match(".?[^.]+%.(.*)") or "" --[[@as string]]
 
       node = file_node(dir, name, stat)
@@ -302,7 +292,7 @@ function M.node_for(path)
   end
 
   local parent_path = p:parent():absolute() --[[@as string]]
-  local name = M.get_file_name(path)
+  local name = utils.get_file_name(path)
   if lstat.type == "directory" then
     return directory_node(parent_path, name)
   elseif lstat.type == "file" then

@@ -7,6 +7,7 @@
 ---| "delete_tree"
 ---| "focus_prev_tree"
 ---| "focus_next_tree"
+---| "open_symbols_tree",
 ---| "open_git_tree"
 ---| "open_buffers_tree"
 ---| "open"
@@ -70,6 +71,7 @@ local M = {
     focus_prev_tree = "focus_prev_tree",
     focus_next_tree = "focus_next_tree",
 
+    open_symbols_tree = "open_symbols_tree",
     open_git_tree = "open_git_tree",
     open_buffers_tree = "open_buffers_tree",
 

@@ -8,7 +8,7 @@ local meta = require("ya-tree.meta")
 local log = require("ya-tree.log")("nodes")
 local utils = require("ya-tree.utils")
 
----@alias Yat.Nodes.Type "FileSystem"|"Search"|"Buffer"|"Git"|"Text"
+---@alias Yat.Nodes.Type "FileSystem"|"Search"|"Buffer"|"Git"|"Text"|"Symbol"
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node

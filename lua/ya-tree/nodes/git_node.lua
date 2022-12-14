@@ -1,6 +1,7 @@
 local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.fs")
 local meta = require("ya-tree.meta")
+local utils = require("ya-tree.utils")
 local log = require("ya-tree.log")("nodes")
 
 ---@class Yat.Nodes.Git : Yat.Node
@@ -90,7 +91,7 @@ function GitNode:refresh(opts)
     local exists = fs_node ~= nil
     if not fs_node then
       fs_node = {
-        name = fs.get_file_name(path),
+        name = utils.get_file_name(path),
         path = path,
         _type = directory and "directory" or "file",
       }

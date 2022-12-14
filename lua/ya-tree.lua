@@ -188,6 +188,7 @@ function M.setup(opts)
 
   require("ya-tree.debounce").setup()
   require("ya-tree.fs.watcher").setup(config)
+  require("ya-tree.lsp").setup()
   require("ya-tree.ui").setup(config)
   require("ya-tree.actions").setup(config)
   require("ya-tree.trees").setup(config)

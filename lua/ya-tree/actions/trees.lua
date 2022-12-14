@@ -50,6 +50,17 @@ end
 
 ---@async
 ---@param tree Yat.Tree
+---@param node Yat.Node
+---@param sidebar Yat.Sidebar
+function M.open_symbols_tree(tree, node, sidebar)
+  if tree.TYPE ~= "symbols" then
+    tree = sidebar:symbols_tree(node.path)
+    sidebar:update(tree, tree.current_node)
+  end
+end
+
+---@async
+---@param tree Yat.Tree
 ---@param node? Yat.Node
 ---@param sidebar Yat.Sidebar
 function M.open_git_tree(tree, node, sidebar)

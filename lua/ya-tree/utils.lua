@@ -132,6 +132,16 @@ function M.relative_path_for(path, root)
   return Path:new(path):make_relative(root)
 end
 
+---@param path string
+---@return string name
+function M.get_file_name(path)
+  if path:sub(-1) == os_sep then
+    path = path:sub(1, -2)
+  end
+  local splits = vim.split(path, os_sep, { plain = true }) --[=[@as string[]]=]
+  return splits[#splits]
+end
+
 do
   local UNITS = { "B", "KB", "MB", "GB", "TB" }
   local LOG_1024 = math.log(1024)
