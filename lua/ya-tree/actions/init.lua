@@ -62,9 +62,9 @@ local function define_actions(config)
 
   M.define_action(builtin.general.open_symbols_tree, trees.open_symbols_tree, "Open the Symbols tree", { "n" }, false)
   if config.git.enable then
-    M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open or close the current git status tree", { "n" }, true)
+    M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open the Git tree", { "n" }, true)
   end
-  M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open or close the current buffers tree", { "n" }, true)
+  M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open the Buffers tree", { "n" }, true)
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
   M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
