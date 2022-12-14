@@ -69,8 +69,8 @@ local function define_actions(config)
   M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
   M.define_action(builtin.general.split, files.split, "Open file in a split", { "n" })
   M.define_action(builtin.general.tabnew, files.tabnew, "Open file in a new tabpage", { "n" })
-  M.define_action(builtin.general.preview, files.preview, "Open file (keep cursor in tree)", { "n" })
-  M.define_action(builtin.general.preview_and_focus, files.preview_and_focus, "Open file (keep cursor in tree)", { "n" })
+  M.define_action(builtin.general.preview, files.preview, "Preview file (keep cursor in tree)", { "n" })
+  M.define_action(builtin.general.preview_and_focus, files.preview_and_focus, "Preview file", { "n" })
 
   M.define_action(builtin.general.copy_name_to_clipboard, clipboard.copy_name_to_clipboard, "Copy node name to system clipboard", { "n" })
   M.define_action(
