@@ -206,17 +206,18 @@ local DEFAULT = {
   load_sidebar_on_setup = false,
 
   ---@alias Yat.Logger.Level "trace"|"debug"|"info"|"warn"|"error"
+  ---@alias Yat.Logger.Namespace "all"|"actions"|"events"|"fs"|"lsp"|"nodes"|"sidebar"|"trees"|"ui"|"git"|"job"|"lib"|string
 
   ---@class Yat.Config.Log
   ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
   ---@field to_console boolean Whether to log to the console, default: `false`.
   ---@field to_file boolean Whether to log to the log file, default: `false`.
-  ---@field namespaces string[] For which namespaces logging is enabled, default: `{ "ya-tree", "actions", "events", "fs", "lsp", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" }`.
+  ---@field namespaces Yat.Logger.Namespace[] For which namespaces logging is enabled, default: `{ "all" }`.
   log = {
     level = "warn",
     to_console = false,
     to_file = false,
-    namespaces = { "ya-tree", "actions", "events", "fs", "lsp", "nodes", "sidebar", "trees", "ui", "git", "job", "lib" },
+    namespaces = { "all" },
   },
 
   ---@class Yat.Config.AutoOpen

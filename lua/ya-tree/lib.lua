@@ -7,7 +7,7 @@ local Sidebar = require("ya-tree.sidebar")
 local Trees = require("ya-tree.trees")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("lib")
+local log = require("ya-tree.log").get("lib")
 
 local api = vim.api
 local fn = vim.fn

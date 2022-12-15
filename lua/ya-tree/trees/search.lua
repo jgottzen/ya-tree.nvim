@@ -5,7 +5,7 @@ local SearchNode = require("ya-tree.nodes.search_node")
 local Tree = require("ya-tree.trees.tree")
 local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("trees")
+local log = require("ya-tree.log").get("trees")
 
 ---@class Yat.Trees.Search : Yat.Tree
 ---@field new async fun(self: Yat.Trees.Search, tabpage: integer, path?: string): Yat.Trees.Search?

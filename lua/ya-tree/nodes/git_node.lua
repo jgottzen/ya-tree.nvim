@@ -2,7 +2,7 @@ local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.fs")
 local meta = require("ya-tree.meta")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("nodes")
+local log = require("ya-tree.log").get("nodes")
 
 ---@class Yat.Nodes.Git : Yat.Node
 ---@field new fun(self: Yat.Nodes.Git, fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Git): Yat.Nodes.Git

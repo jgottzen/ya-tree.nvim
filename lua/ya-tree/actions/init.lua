@@ -1,4 +1,4 @@
-local log = require("ya-tree.log")("actions")
+local log = require("ya-tree.log").get("actions")
 
 local M = {
   ---@type table<Yat.Actions.Name, Yat.Action>

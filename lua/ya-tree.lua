@@ -1,6 +1,5 @@
 local void = require("plenary.async").void
 
-local log = require("ya-tree.log")("ya-tree")
 local utils = require("ya-tree.utils")
 
 local api = vim.api
@@ -43,33 +42,35 @@ end
 ---@param level Yat.Logger.Level
 function M.set_log_level(level)
   require("ya-tree.config").config.log.level = level
-  log.config.level = level
+  require("ya-tree.log").set_level(level)
 end
 
----@param namespace string
+---@param namespace Yat.Logger.Namespace
 function M.add_logged_namespace(namespace)
-  if not vim.tbl_contains(require("ya-tree.config").config.log.namespaces, namespace) then
-    require("ya-tree.config").config.log.namespaces[#require("ya-tree.config").config.log.namespaces + 1] = namespace
-    log.config.namespaces = require("ya-tree.config").config.log.namespaces
+  local namespaces = require("ya-tree.config").config.log.namespaces
+  if not vim.tbl_contains(namespaces, namespace) then
+    namespaces[#namespaces + 1] = namespace
+    require("ya-tree.log").set_logged_namespaces(namespaces)
   end
 end
 
----@param namespace string
+---@param namespace Yat.Logger.Namespace
 function M.remove_logged_namespace(namespace)
-  utils.tbl_remove(require("ya-tree.config").config.log.namespaces, namespace)
-  log.config.namespaces = require("ya-tree.config").config.log.namespaces
+  local namespaces = require("ya-tree.config").config.log.namespaces
+  utils.tbl_remove(namespaces, namespace)
+  require("ya-tree.log").set_logged_namespaces(namespaces)
 end
 
 ---@param to_console boolean
 function M.set_log_to_console(to_console)
   require("ya-tree.config").config.log.to_console = to_console
-  log.config.to_console = to_console
+  require("ya-tree.log").set_log_to_console(to_console)
 end
 
 ---@param to_file boolean
 function M.set_log_to_file(to_file)
   require("ya-tree.config").config.log.to_file = to_file
-  log.config.to_file = to_file
+  require("ya-tree.log").set_log_to_file(to_file)
 end
 
 ---@param arg_lead string
@@ -179,12 +180,11 @@ end
 function M.setup(opts)
   local config = require("ya-tree.config").setup(opts)
 
-  log.config.level = config.log.level
-  log.config.to_console = config.log.to_console
-  log.config.to_file = config.log.to_file
-  log.config.namespaces = config.log.namespaces
-
-  log.trace("using config=%s", config)
+  local log = require("ya-tree.log")
+  log.set_level(config.log.level)
+  log.set_log_to_console(config.log.to_console)
+  log.set_log_to_file(config.log.to_file)
+  log.set_logged_namespaces(config.log.namespaces)
 
   require("ya-tree.debounce").setup()
   require("ya-tree.fs.watcher").setup(config)

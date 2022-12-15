@@ -18,7 +18,7 @@ local SearchTree = require("ya-tree.trees.search")
 local SymbolsTree = require("ya-tree.trees.symbols")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("sidebar")
+local log = require("ya-tree.log").get("sidebar")
 
 local api = vim.api
 local uv = vim.loop

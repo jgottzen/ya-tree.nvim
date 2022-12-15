@@ -1,6 +1,6 @@
 local wrap = require("plenary.async").wrap
 
-local log = require("ya-tree.log")("job")
+local log = require("ya-tree.log").get("job")
 
 local uv = vim.loop
 

@@ -1,6 +1,6 @@
 local wrap = require("plenary.async").wrap
 
-local log = require("ya-tree.log")("lsp")
+local log = require("ya-tree.log").get("lsp")
 
 local lsp = vim.lsp
 

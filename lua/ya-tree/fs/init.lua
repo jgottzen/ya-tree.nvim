@@ -4,7 +4,7 @@ local async_uv = require("plenary.async").uv
 local wrap = require("plenary.async").wrap
 
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("fs")
+local log = require("ya-tree.log").get("fs")
 
 local uv = vim.loop
 

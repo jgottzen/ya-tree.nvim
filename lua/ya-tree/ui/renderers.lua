@@ -17,9 +17,8 @@ do
 end
 
 local hl = require("ya-tree.ui.highlights")
-local symbol_kind = require("ya-tree.lsp.symbol_kind")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("ui")
+local log = require("ya-tree.log").get("ui")
 
 ---@class Yat.Ui.RenderContext
 ---@field tree_type Yat.Trees.Type

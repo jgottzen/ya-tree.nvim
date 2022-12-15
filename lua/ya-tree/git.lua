@@ -7,7 +7,7 @@ local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
 local meta = require("ya-tree.meta")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("git")
+local log = require("ya-tree.log").get("git")
 
 local os_sep = Path.path.sep
 

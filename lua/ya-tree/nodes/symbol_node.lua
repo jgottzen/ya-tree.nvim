@@ -3,7 +3,7 @@ local lsp = require("ya-tree.lsp")
 local symbol_kind = require("ya-tree.lsp.symbol_kind")
 local Node = require("ya-tree.nodes.node")
 local meta = require("ya-tree.meta")
-local log = require("ya-tree.log")("nodes")
+local log = require("ya-tree.log").get("nodes")
 
 local api = vim.api
 

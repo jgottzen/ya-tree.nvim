@@ -5,7 +5,6 @@ local fn = vim.fn
 local uv = vim.loop
 
 ---@class Yat.Logger
----@field config Yat.Logger.Config
 local logger_class = {}
 
 -- selene: allow(unused_variable)
@@ -49,7 +48,7 @@ function logger_class.warn(msg, ...) end
 function logger_class.error(msg, ...) end
 
 ---@class Yat.Logger.Config
----@field namespaces string[]
+---@field namespaces Yat.Logger.Namespace[]
 ---@field level Yat.Logger.Level
 ---@field levels {level: Yat.Logger.Level, highlight: string}[]
 local config = {
@@ -106,14 +105,14 @@ do
   end
 
   ---@param ... any
-  ---@return any[]
+  ---@return string[]
   local function pack(...)
-    local rest = {}
+    local args = {}
     local list = { n = select("#", ...), ... }
     for i = 1, list.n do
-      rest[i] = str(list[i])
+      args[i] = str(list[i])
     end
-    return rest
+    return args
   end
 
   ---@param arg any
@@ -144,14 +143,18 @@ do
     return concat(arg, ...)
   end
 
-  ---@param namespace string
+  ---@param namespace Yat.Logger.Namespace
   ---@param level integer
-  ---@param level_name string
+  ---@param level_name Yat.Logger.Level
   ---@param highlight string
   ---@param arg any
   ---@param ... any
   log = function(namespace, level, level_name, highlight, arg, ...)
-    if level < levels[config.level] or not (config.to_console or config.to_file) or not vim.tbl_contains(config.namespaces, namespace) then
+    if
+      level < levels[config.level]
+      or not (config.to_console or config.to_file)
+      or not (config.namespaces[1] == "all" or vim.tbl_contains(config.namespaces, namespace))
+    then
       return
     end
 
@@ -164,10 +167,10 @@ do
 
     if config.to_console then
       vim.schedule(function()
+        local hl = config.highlight and highlight or nil
         for _, m in ipairs(vim.split(fmt_message, "\n", { plain = true })) do
           m = fmt("[%s] [%s] %s", config.name, namespace, m)
-          local chunk = (config.highlight and highlight) and { m, highlight } or { m }
-          api.nvim_echo({ chunk }, true, {})
+          api.nvim_echo({ { m, hl } }, true, {})
         end
       end)
     end
@@ -186,18 +189,46 @@ do
   end
 end
 
----@param namespace string
----@return Yat.Logger
-return function(namespace)
-  ---@type Yat.Logger
-  local logger = { config = config }
+---@type table<Yat.Logger.Namespace, Yat.Logger>
+local loggers = {}
 
-  for i, v in ipairs(config.levels) do
-    local name = v.level
-    logger[name] = function(arg, ...)
-      return log(namespace, i, name:upper(), v.highlight, arg, ...)
+return {
+  ---@param level Yat.Logger.Level
+  set_level = function(level)
+    config.level = level
+  end,
+
+  ---@param to_console boolean
+  set_log_to_console = function(to_console)
+    config.to_console = to_console
+  end,
+
+  ---@param to_file boolean
+  set_log_to_file = function(to_file)
+    config.to_file = to_file
+  end,
+
+  ---@param namespaces Yat.Logger.Namespace[]
+  set_logged_namespaces = function(namespaces)
+    config.namespaces = namespaces
+  end,
+
+  ---@param namespace Yat.Logger.Namespace
+  ---@return Yat.Logger
+  get = function(namespace)
+    local logger = loggers[namespace]
+    if not logger then
+      ---@type Yat.Logger
+      logger = {}
+      for i, v in ipairs(config.levels) do
+        local name = v.level
+        logger[name] = function(arg, ...)
+          log(namespace, i, name:upper(), v.highlight, arg, ...)
+        end
+      end
+      loggers[namespace] = logger
     end
-  end
 
-  return logger
-end
+    return logger
+  end,
+}

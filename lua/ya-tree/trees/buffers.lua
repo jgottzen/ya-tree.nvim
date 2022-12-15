@@ -4,7 +4,7 @@ local BufferNode = require("ya-tree.nodes.buffer_node")
 local meta = require("ya-tree.meta")
 local Tree = require("ya-tree.trees.tree")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log")("trees")
+local log = require("ya-tree.log").get("trees")
 
 local api = vim.api
 local uv = vim.loop

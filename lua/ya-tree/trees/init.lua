@@ -1,4 +1,4 @@
-local log = require("ya-tree.log")("trees")
+local log = require("ya-tree.log").get("trees")
 
 local M = {
   ---@private
