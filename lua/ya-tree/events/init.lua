@@ -179,6 +179,13 @@ local function remove_listener(event_name, listeners, id)
       table.remove(listeners, i)
     end
   end
+  if #listeners == 0 then
+    local autocmd_id = M._autocmd_ids_and_event_names[event_name]
+    api.nvim_del_autocmd(autocmd_id)
+    M._autocmd_ids_and_event_names[event_name] = nil
+    M._autocmd_ids_and_event_names[autocmd_id] = nil
+    log.debug("removed autocmd for %q", event_name)
+  end
 end
 
 ---@param event Yat.Events.AutocmdEvent
