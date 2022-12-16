@@ -749,29 +749,31 @@ function Sidebar:on_buf_enter(bufnr, file, is_terminal_buffer)
     end
   end
 
-  if config.follow_focused_file then
-    local tree = self:get_current_tree_and_node()
-    if tree then
-      if is_terminal_buffer and tree.TYPE == "buffers" then
-        local root = tree.root --[[@as Yat.Nodes.Buffer]]
-        file = root:terminal_name_to_path(file)
-      end
-      if tree.root:is_ancestor_of(file) then
-        log.debug("focusing on node %q", file)
-        local node = tree.root:expand({ to = file })
-        if node then
-          update = false
-          -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-          scheduler()
-          self:update(tree, node, { focus_node = true })
+  if self:is_open() then
+    if config.follow_focused_file then
+      local tree = self:get_current_tree_and_node()
+      if tree then
+        if is_terminal_buffer and tree.TYPE == "buffers" then
+          local root = tree.root --[[@as Yat.Nodes.Buffer]]
+          file = root:terminal_name_to_path(file)
+        end
+        if tree.root:is_ancestor_of(file) then
+          log.debug("focusing on node %q", file)
+          local node = tree.root:expand({ to = file })
+          if node then
+            update = false
+            -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+            scheduler()
+            self:update(tree, node, { focus_node = true })
+          end
         end
       end
     end
-  end
 
-  if update then
-    local tree, node = self:get_current_tree_and_node()
-    self:update(tree, node, { focus_node = true })
+    if update then
+      local tree, node = self:get_current_tree_and_node()
+      self:update(tree, node, { focus_node = true })
+    end
   end
 end
 
@@ -1142,7 +1144,7 @@ local function on_buf_enter(bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
     require("ya-tree.lib").open_window({ path = file, focus = true })
-  elseif sidebar and sidebar:is_open() then
+  elseif sidebar then
     sidebar:on_buf_enter(bufnr, file, is_terminal_buffer)
   end
 end
