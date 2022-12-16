@@ -1,4 +1,3 @@
-local bit = require("plenary.bit")
 local Path = require("plenary.path")
 
 local fs = require("ya-tree.fs")
