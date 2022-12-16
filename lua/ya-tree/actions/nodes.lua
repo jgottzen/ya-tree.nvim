@@ -1,4 +1,4 @@
-local scheduler = require("plenary.async.util").scheduler
+local scheduler = require("ya-tree.async").scheduler
 
 local M = {}
 

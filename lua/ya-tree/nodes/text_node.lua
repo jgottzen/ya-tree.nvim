@@ -1,5 +1,5 @@
-local Node = require("ya-tree.nodes.node")
 local meta = require("ya-tree.meta")
+local Node = require("ya-tree.nodes.node")
 
 ---@class Yat.Nodes.Text : Yat.Node
 ---@field new fun(self: Yat.Nodes.Text, text: string, path: string, container: boolean, parent?: Yat.Nodes.Text): Yat.Nodes.Text

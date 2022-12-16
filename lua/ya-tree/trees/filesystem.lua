@@ -2,11 +2,11 @@ local Path = require("plenary.path")
 
 local fs = require("ya-tree.fs")
 local fs_watcher = require("ya-tree.fs.watcher")
-local Node = require("ya-tree.nodes.node")
+local log = require("ya-tree.log").get("trees")
 local meta = require("ya-tree.meta")
+local Node = require("ya-tree.nodes.node")
 local Tree = require("ya-tree.trees.tree")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log").get("trees")
 
 local api = vim.api
 local uv = vim.loop

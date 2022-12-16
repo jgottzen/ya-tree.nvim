@@ -1,11 +1,11 @@
-local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local diagnostics = require("ya-tree.diagnostics")
 local fs = require("ya-tree.fs")
 local fs_watcher = require("ya-tree.fs.watcher")
-local meta = require("ya-tree.meta")
 local log = require("ya-tree.log").get("nodes")
+local meta = require("ya-tree.meta")
+local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Nodes.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"

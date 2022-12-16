@@ -1,8 +1,8 @@
 local accumulate = require("ya-tree.debounce").accumulate_trailing
 local event = require("ya-tree.events.event")
 local events = require("ya-tree.events")
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log").get("fs")
+local utils = require("ya-tree.utils")
 
 local M = {
   ---@private

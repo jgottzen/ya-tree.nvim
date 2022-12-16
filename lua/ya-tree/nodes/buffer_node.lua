@@ -1,11 +1,11 @@
-local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
-local Node = require("ya-tree.nodes.node")
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
-local meta = require("ya-tree.meta")
 local log = require("ya-tree.log").get("nodes")
+local meta = require("ya-tree.meta")
+local Node = require("ya-tree.nodes.node")
+local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
 local api = vim.api

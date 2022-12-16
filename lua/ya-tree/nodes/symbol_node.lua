@@ -1,9 +1,9 @@
 local diagnostics = require("ya-tree.diagnostics")
-local lsp = require("ya-tree.lsp")
-local symbol_kind = require("ya-tree.lsp.symbol_kind")
-local Node = require("ya-tree.nodes.node")
-local meta = require("ya-tree.meta")
 local log = require("ya-tree.log").get("nodes")
+local lsp = require("ya-tree.lsp")
+local meta = require("ya-tree.meta")
+local Node = require("ya-tree.nodes.node")
+local symbol_kind = require("ya-tree.lsp.symbol_kind")
 
 local api = vim.api
 

@@ -1,13 +1,13 @@
-local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local job = require("ya-tree.job")
+local log = require("ya-tree.log").get("lib")
+local scheduler = require("ya-tree.async").scheduler
 local Sidebar = require("ya-tree.sidebar")
 local Trees = require("ya-tree.trees")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log").get("lib")
+local void = require("ya-tree.async").void
 
 local api = vim.api
 local fn = vim.fn

@@ -1,10 +1,10 @@
 local bit = require("plenary.bit")
-local scheduler = require("plenary.async.util").scheduler
 local Path = require("plenary.path")
 
 local fs = require("ya-tree.fs")
 local hl = require("ya-tree.ui.highlights")
 local nui = require("ya-tree.ui.nui")
+local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
 local api = vim.api

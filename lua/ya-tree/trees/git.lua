@@ -1,11 +1,11 @@
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
+local log = require("ya-tree.log").get("trees")
 local meta = require("ya-tree.meta")
 local TextNode = require("ya-tree.nodes.text_node")
 local Tree = require("ya-tree.trees.tree")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log").get("trees")
 
 ---@class Yat.Trees.Git : Yat.Tree
 ---@field new async fun(self: Yat.Trees.Git, tabpage: integer, repo_or_path?: Yat.Git.Repo|string): Yat.Trees.Git

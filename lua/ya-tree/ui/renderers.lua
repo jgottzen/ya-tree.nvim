@@ -17,8 +17,8 @@ do
 end
 
 local hl = require("ya-tree.ui.highlights")
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log").get("ui")
+local utils = require("ya-tree.utils")
 
 ---@class Yat.Ui.RenderContext
 ---@field tree_type Yat.Trees.Type

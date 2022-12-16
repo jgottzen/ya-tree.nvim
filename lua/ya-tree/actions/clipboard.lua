@@ -1,7 +1,7 @@
 local fs = require("ya-tree.fs")
+local log = require("ya-tree.log").get("actions")
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log").get("actions")
 
 local fn = vim.fn
 

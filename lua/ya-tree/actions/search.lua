@@ -1,10 +1,9 @@
-local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async").void
-
 local lib = require("ya-tree.lib")
 local nui = require("ya-tree.ui.nui")
+local scheduler = require("ya-tree.async").scheduler
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
+local void = require("ya-tree.async").void
 
 local uv = vim.loop
 

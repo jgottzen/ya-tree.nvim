@@ -1,6 +1,5 @@
-local wrap = require("plenary.async").wrap
-
 local log = require("ya-tree.log").get("job")
+local wrap = require("ya-tree.async").wrap
 
 local uv = vim.loop
 
@@ -100,6 +99,6 @@ M.async_run = wrap(function(opts, callback)
   M.run(opts, function(code, stdout, stderr)
     callback(code, stdout, stderr)
   end)
-end, 2)
+end, 2, false)
 
 return M

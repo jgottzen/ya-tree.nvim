@@ -1,7 +1,7 @@
-local events = require("ya-tree.events")
 local event = require("ya-tree.events.event").ya_tree
-local meta = require("ya-tree.meta")
+local events = require("ya-tree.events")
 local log = require("ya-tree.log").get("ui")
+local meta = require("ya-tree.meta")
 
 local api = vim.api
 local fn = vim.fn

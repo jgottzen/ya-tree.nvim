@@ -1,5 +1,4 @@
-local wrap = require("plenary.async").wrap
-
+local wrap = require("ya-tree.async").wrap
 local log = require("ya-tree.log").get("lsp")
 
 local lsp = vim.lsp
@@ -43,7 +42,7 @@ local buf_request_all = wrap(function(bufnr, method, params, callback)
   lsp.buf_request_all(bufnr, method, params, function(response)
     callback(response)
   end)
-end, 4)
+end, 4, false)
 
 ---@async
 ---@param bufnr integer

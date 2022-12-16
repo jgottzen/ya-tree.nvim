@@ -243,7 +243,7 @@ do
       if cmd == "fd" or cmd == "fdfind" then
         if not FD_HAS_MAX_RESULTS or not FDFIND_HAS_MAX_RESULTS then
           if coroutine.running() then
-            require("plenary.async.util").scheduler()
+            require("ya-tree.async").scheduler()
           end
           FD_HAS_MAX_RESULTS = fn.executable("fd") == 1 and has_max_results("fd")
           FDFIND_HAS_MAX_RESULTS = fn.executable("fdfind") == 1 and has_max_results("fdfind")

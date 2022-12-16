@@ -1,6 +1,5 @@
-local void = require("plenary.async").void
-
 local utils = require("ya-tree.utils")
+local void = require("ya-tree.async").void
 
 local api = vim.api
 local fn = vim.fn

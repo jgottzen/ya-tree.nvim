@@ -1,6 +1,5 @@
-local wrap = require("plenary.async").wrap
-
 local nui = require("ya-tree.ui.nui")
+local wrap = require("ya-tree.async").wrap
 
 local api = vim.api
 
@@ -28,17 +27,17 @@ M.nui_input = wrap(function(opts, on_submit)
       on_submit(text)
     end,
   })
-end, 2)
+end, 2, false)
 
 ---@type async fun(opts: {prompt: string|nil, default: string|nil, completion: string|nil, highlight: fun()|nil}): string|nil
 M.input = wrap(function(opts, on_confirm)
   vim.ui.input(opts, on_confirm)
-end, 2)
+end, 2, false)
 
 ---@type async fun(items: table, opts: {prompt: string|nil, format_item: fun(item: any), kind: string|nil}): string?, integer?
 M.select = wrap(function(items, opts, on_choice)
   vim.ui.select(items, opts, on_choice)
-end, 3)
+end, 3, false)
 
 ---@param config Yat.Config
 function M.setup(config)

@@ -1267,10 +1267,10 @@ require("ya-tree").setup({
 
 ## Async
 
-Git and file system operations are wrapped with the `plenary.nvim` `plenary.async.wrap` function,
-turning callbacks into regular return values. The consequence of this is that calling those functions
-must be done in a coroutine. This bubbles up all the way, so all entry points to the plugin are done
-using the `plenary.async.void` function.
+Git and file system operations are wrapped with in coroutines, based on [async.nvim](https://github.com/lewis6991/async.nvim)
+and the `wrap` function, turning callbacks into regular return values. The consequence of this is
+that calling those functions must also be done in a coroutine. This bubbles up all the way, so all
+entry points to the plugin are called using the `ya-tree.async.void` function.
 
 For actions, this conceptually translates to:
 
@@ -1279,16 +1279,16 @@ local function rhs(key)
   local sidebar = ...
   local tree, node = ...
   local action = ...
-  require("plenary.async").void(action)(tree, node, sidebar)
+  require("ya-tree.async").void(action)(tree, node, sidebar)
 end
 ```
 
 This means that all actions are running inside a coroutine and special care has to be taken to handle
 `vim.api` functions calls, since they cannot be called from a `vim.loop` callback. The is remedied by
-by using `vim.schedule(...)`, `plenary` variant:
+by using `vim.schedule(...)`, `async` variant:
 ```lua
   tree.root:refresh()
-  require("plenary.async.util").scheduler()
+  require("ya-tree.async").scheduler()
    -- this can cause E5560 without the call to scheduler above
   local height, width = sidebar:size()
 ```
@@ -1302,8 +1302,8 @@ The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make them
 
 The `nui.nvim` `Input` class is extended with completion using
 [`completefunc`](https://neovim.io/doc/user/options.html#'completefunc') and initialization parameters
-specific to `ya-tree`, in the `ya-tree.ui.nui` package. It is also `wrap`ped for when only a simple 
-result is needed:
+specific to `ya-tree`, in the `ya-tree.ui.nui` package. There is also `wrap`ped variant for when only
+a simple result is needed:
 ```lua
   local ui = require("ya-tree.ui")
   local reponse = ui.nui_input({ title = "My Title", default = "some default", completion = "file" })
@@ -1344,8 +1344,8 @@ local function renderer(node, context, renderer)
   end
 end
 
-local utils = require("ya-tree.config.utils")
 local hl = require("ya-tree.ui.highlights")
+local utils = require("ya-tree.config.utils")
 require("ya-tree").setup({
   renderers = {
     example_renderer = utils.create_renderer(renderer, { padding = " ", prop = false }),
@@ -1455,7 +1455,7 @@ initiate any further calls, if possible.
 ## Acknowlegdements
 
  - [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) for Git integration in Lua.
- - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim) for async.
+ - [async.nvim](https://github.com/lewis6991/async.nvim) for async.
  - [nvim-tree.lua](https://github.com/nvim-tree/nvim-tree.lua) for tree plugin ideas.
  - [neo-tree.nvim](https://github.com/nvim-neo-tree/neo-tree.nvim) for tree plugin ideas, and renderers.
  - [yanil](https://github.com/Xuyuanp/yanil) for tree plugin ideas.

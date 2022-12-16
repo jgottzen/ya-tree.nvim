@@ -1,15 +1,15 @@
-local scheduler = require("plenary.async.util").scheduler
-
+local defer = require("ya-tree.async").defer
 local events = require("ya-tree.events")
-local ye = require("ya-tree.events.event").ya_tree
 local fs = require("ya-tree.fs")
+local log = require("ya-tree.log").get("trees")
 local lsp = require("ya-tree.lsp")
 local meta = require("ya-tree.meta")
-local symbol_kind = require("ya-tree.lsp.symbol_kind")
+local scheduler = require("ya-tree.async").scheduler
 local SymbolNode = require("ya-tree.nodes.symbol_node")
+local symbol_kind = require("ya-tree.lsp.symbol_kind")
 local Tree = require("ya-tree.trees.tree")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log").get("trees")
+local ye = require("ya-tree.events.event").ya_tree
 
 local api = vim.api
 
@@ -106,10 +106,10 @@ local function create_root_node(path, bufnr, tabpage)
 
   if bufnr then
     if do_schedule then
-      require("plenary.async").void(function()
+      defer(function()
         root:refresh({ bufnr = bufnr, use_cache = true })
         events.fire_yatree_event(ye.REQUEST_SIDEBAR_REPAINT, tabpage)
-      end)()
+      end)
     else
       root:refresh({ bufnr = bufnr, use_cache = true })
     end

@@ -1,10 +1,10 @@
+local BufferNode = require("ya-tree.nodes.buffer_node")
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
-local BufferNode = require("ya-tree.nodes.buffer_node")
+local log = require("ya-tree.log").get("trees")
 local meta = require("ya-tree.meta")
 local Tree = require("ya-tree.trees.tree")
 local utils = require("ya-tree.utils")
-local log = require("ya-tree.log").get("trees")
 
 local api = vim.api
 local uv = vim.loop

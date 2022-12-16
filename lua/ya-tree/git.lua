@@ -1,13 +1,13 @@
-local scheduler = require("plenary.async.util").scheduler
-local void = require("plenary.async").void
 local Path = require("plenary.path")
 
 local events = require("ya-tree.events")
 local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
-local meta = require("ya-tree.meta")
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log").get("git")
+local meta = require("ya-tree.meta")
+local scheduler = require("ya-tree.async").scheduler
+local utils = require("ya-tree.utils")
+local void = require("ya-tree.async").void
 
 local os_sep = Path.path.sep
 

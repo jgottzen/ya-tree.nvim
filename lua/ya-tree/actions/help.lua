@@ -1,5 +1,5 @@
-local nui = require("ya-tree.ui.nui")
 local hl = require("ya-tree.ui.highlights")
+local nui = require("ya-tree.ui.nui")
 local utils = require("ya-tree.utils")
 
 local api = vim.api

@@ -1,66 +1,15 @@
 local bit = require("plenary.bit")
 local Path = require("plenary.path")
-local async_uv = require("plenary.async").uv
-local wrap = require("plenary.async").wrap
 
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log").get("fs")
+local utils = require("ya-tree.utils")
+local wrap = require("ya-tree.async").wrap
 
 local uv = vim.loop
 
 local os_sep = Path.path.sep
 
 local M = {}
-
----@param path string
----@return boolean is_directory
-function M.is_directory(path)
-  ---@type Luv.Fs.Stat?, string?
-  local stat, err = uv.fs_stat(path)
-  if not stat then
-    log.error("cannot fs_stat path %q, %s", path, err)
-  end
-  return stat and stat.type == "directory" or false
-end
-
----@async
----@param path string
----@return Luv.Fs.Stat|nil stat
-function M.lstat(path)
-  ---@type string?, Luv.Fs.Stat?
-  local err, stat = async_uv.fs_lstat(path)
-  if not stat then
-    log.error("cannot fs_lstat path %q, %s", path, err)
-  end
-  return stat
-end
-
----@param path string
----@param entries integer
----@param callback fun(err: string|nil, dir: userdata|nil)
----@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: userdata|nil
-local fs_opendir = wrap(function(path, entries, callback)
-  uv.fs_opendir(path, callback, entries)
-end, 3)
-
----@async
----@param path string
----@return boolean empty
-local function is_empty(path)
-  local err, fd = fs_opendir(path, 1)
-  if not fd then
-    log.error("cannot fs_opendir path %q, %s", path, err)
-    return false
-  else
-    local entries
-    err, entries = async_uv.fs_readdir(fd)
-    if err then
-      log.error("cannot fs_readdir path %q, %s", path, err)
-    end
-    async_uv.fs_closedir(fd)
-    return entries == nil
-  end
-end
 
 -- types defined by luv are:
 -- file, directory, link, fifo, socket, char, block and unknown
@@ -91,6 +40,71 @@ end
 ---@field ctime Luv.Timespec
 ---@field birthtime Luv.Timespec
 ---@field type Luv.FileType|"unknown"
+
+---@type async fun(path: string): err: string|, stat: Luv.Fs.Stat|nil
+local fs_stat = wrap(uv.fs_stat, 2, false)
+
+---@type async fun(path: string): err: string|, stat: Luv.Fs.Stat|nil
+local fs_lstat = wrap(uv.fs_lstat, 2, false)
+
+---@param path string
+---@param entries integer
+---@param callback fun(err: string|nil, dir: userdata|nil)
+---@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: userdata|nil
+local fs_opendir = wrap(function(path, entries, callback)
+  uv.fs_opendir(path, callback, entries)
+end, 3, false)
+
+---@type async fun(luv_dir_t: userdata): string?, Luv.Fs.Readdir[]?
+local fs_readdir = wrap(uv.fs_readdir, 2, false)
+
+---@type async fun(luv_dir_t: userdata): err: string|nil, success: boolean|nil
+local fs_closedir = wrap(uv.fs_closedir, 2, false)
+
+---@type async fun(path: string): err: string|nil, path: string|nil
+local fs_readlink = wrap(uv.fs_readlink, 2, false)
+
+---@param path string
+---@return boolean is_directory
+function M.is_directory(path)
+  ---@type Luv.Fs.Stat?, string?
+  local stat, err = uv.fs_stat(path)
+  if not stat then
+    log.error("cannot fs_stat path %q, %s", path, err)
+  end
+  return stat and stat.type == "directory" or false
+end
+
+---@async
+---@param path string
+---@return Luv.Fs.Stat|nil stat
+function M.lstat(path)
+  ---@type string?, Luv.Fs.Stat?
+  local err, stat = fs_lstat(path)
+  if not stat then
+    log.error("cannot fs_lstat path %q, %s", path, err)
+  end
+  return stat
+end
+
+---@async
+---@param path string
+---@return boolean empty
+local function is_empty(path)
+  local err, fd = fs_opendir(path, 1)
+  if not fd then
+    log.error("cannot fs_opendir path %q, %s", path, err)
+    return false
+  else
+    local entries
+    err, entries = fs_readdir(fd)
+    if err then
+      log.error("cannot fs_readdir path %q, %s", path, err)
+    end
+    fs_closedir(fd)
+    return entries == nil
+  end
+end
 
 ---@class Yat.Fs.Node
 ---@field public name string
@@ -142,7 +156,7 @@ local function file_node(dir, name, stat)
     if not stat then
       local err
       ---@type string?, Luv.Fs.Stat?
-      err, stat = async_uv.fs_lstat(path)
+      err, stat = fs_lstat(path)
       if err then
         log.error("cannot fs_lstat path %q, %s", path, err)
       end
@@ -231,12 +245,12 @@ end
 local function link_node(dir, name, lstat)
   local path = utils.join_path(dir, name)
   local rel_link_to, err, abs_link_to
-  err, abs_link_to = async_uv.fs_readlink(path)
+  err, abs_link_to = fs_readlink(path)
   if err then
     log.error("cannot fs_readlink path %q, %s", path, err)
   end
-  if not utils.is_absolute_path(abs_link_to) then
-    rel_link_to = abs_link_to
+  if not abs_link_to or not utils.is_absolute_path(abs_link_to) then
+    rel_link_to = abs_link_to or ""
     abs_link_to = dir .. os_sep .. abs_link_to
   else
     rel_link_to = Path:new(abs_link_to):make_relative(dir) --[[@as string]]
@@ -244,7 +258,7 @@ local function link_node(dir, name, lstat)
 
   -- stat here is for the target of the link
   ---@type string?, Luv.Fs.Stat?
-  local _, stat = async_uv.fs_stat(path)
+  local _, stat = fs_stat(path)
   local node
   if stat then
     local _type = stat.type
@@ -285,7 +299,7 @@ function M.node_for(path)
   path = p:absolute() --[[@as string]]
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type string?, Luv.Fs.Stat?
-  local err, lstat = async_uv.fs_lstat(path)
+  local err, lstat = fs_lstat(path)
   if not lstat then
     log.warn("cannot fs_lstat path %q, %s", path, err)
     return nil
@@ -333,7 +347,7 @@ function M.scan_dir(dir)
     local nodes, entries = {}, nil
     while true do
       ---@type string?, Luv.Fs.Readdir[]?
-      err, entries = async_uv.fs_readdir(fd)
+      err, entries = fs_readdir(fd)
       if err then
         log.error("cannot fs_readdir path %q, %s", dir, err)
       end
@@ -362,7 +376,7 @@ function M.scan_dir(dir)
         end
       end
     end
-    async_uv.fs_closedir(fd)
+    fs_closedir(fd)
     return nodes
   end
 end

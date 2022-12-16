@@ -1,6 +1,6 @@
 local lib = require("ya-tree.lib")
-local utils = require("ya-tree.utils")
 local log = require("ya-tree.log").get("actions")
+local utils = require("ya-tree.utils")
 
 local M = {}
 
