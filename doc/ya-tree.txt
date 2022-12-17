@@ -1443,7 +1443,6 @@ Ya-Tree defines the following highligh groups: ~
 │YaTreeNormal                    │Normal                         │                                      │
 │YaTreeNormalNC                  │NormalNC                       │                                      │
 │YaTreeCursorLine                │CursorLine                     │                                      │
-│YaTreeVertSplit                 │VertSplit                      │                                      │
 │YaTreeWinSeparator              │WinSeparator                   │                                      │
 │YaTreeStatusLine                │StatusLine                     │                                      │
 │YaTreeStatusLineNC              │StatusLineNC                   │                                      │
