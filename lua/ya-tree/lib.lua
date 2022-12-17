@@ -1,7 +1,6 @@
-local Path = require("plenary.path")
-
 local job = require("ya-tree.job")
 local log = require("ya-tree.log").get("lib")
+local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local Sidebar = require("ya-tree.sidebar")
 local Trees = require("ya-tree.trees")

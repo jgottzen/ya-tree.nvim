@@ -1,6 +1,5 @@
-local Path = require("plenary.path")
-
 local log = require("ya-tree.log").get("fs")
+local Path = require("ya-tree.path")
 local utils = require("ya-tree.utils")
 local wrap = require("ya-tree.async").wrap
 
@@ -248,7 +247,7 @@ local function link_node(dir, name, lstat)
   if err then
     log.error("cannot fs_readlink path %q, %s", path, err)
   end
-  if not abs_link_to or not utils.is_absolute_path(abs_link_to) then
+  if not abs_link_to or not Path.is_absolute_path(abs_link_to) then
     rel_link_to = abs_link_to or ""
     abs_link_to = dir .. os_sep .. abs_link_to
   else
@@ -536,7 +535,7 @@ end
 function M.create_file(file)
   local path = Path:new(file)
 
-  if M.create_dir(path:parent()) then
+  if M.create_dir(path:parent().filename) then
     local fd, err = uv.fs_open(file, "w", 420) -- 644 in octal
     if not fd or err then
       log.error("cannot fs_open path %q, %s", file, err)

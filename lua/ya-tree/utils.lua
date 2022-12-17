@@ -1,4 +1,4 @@
-local Path = require("plenary.path")
+local Path = require("ya-tree.path")
 
 local api = vim.api
 local fn = vim.fn
@@ -96,29 +96,11 @@ function M.find_common_ancestor(paths)
   end
 end
 
----@param path string
----@return boolean is_absolute
-function M.is_absolute_path(path)
-  if os_sep == "\\" then
-    return string.match(path, "^[%a]:\\.*$") ~= nil
-  end
-  return string.sub(path, 1, 1) == os_sep
-end
-
----@param path string
----@return boolean is_root
-function M.is_root_directory(path)
-  if os_sep == "\\" then
-    return string.match(path, "^[A-Z]:\\?$")
-  end
-  return path == "/"
-end
-
 ---@param first string
 ---@param second string
 ---@return string path
 function M.join_path(first, second)
-  if M.is_root_directory(first) then
+  if Path.is_root(first) then
     return string.format("%s%s", first, second)
   else
     return string.format("%s%s%s", first, os_sep, second)

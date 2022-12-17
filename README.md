@@ -17,7 +17,6 @@ trees. Additional trees can easily be created.
 ## Requirements
 
  - [neovim](https://github.com/neovim/neovim/wiki/Installing-Neovim) >= 0.7.0
- - [plenary.nvim](https://github.com/nvim-lua/plenary.nvim)
  - [nui.nvim](https://github.com/MunifTanjim/nui.nvim)
  - [nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) (optional)
 
@@ -29,7 +28,6 @@ use({
     require("ya-tree").setup()
   end,
   requires = {
-    "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     "nvim-tree/nvim-web-devicons", -- optional, used for displaying icons
   },

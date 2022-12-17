@@ -3,7 +3,6 @@
         "library": {
             "plugins": [
                 "nvim-notify",
-                "plenary.nvim",
                 "nui.nvim"
             ]
         }

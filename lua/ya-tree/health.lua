@@ -10,11 +10,11 @@ function M.check()
   end
 
   vim.health.report_start("checking for required plugins")
-  local plenary = pcall(require, "plenary.async")
-  if plenary then
-    report_ok("**plugins:** `plenary.nvim` installed")
+  local nui = pcall(require, "nui.nvim")
+  if nui then
+    report_ok("**plugins:** `nui.nvim` installed")
   else
-    report_error("**plugins:** `plenary.nvim` not installed")
+    report_error("**plugins:** `nui.nvim` not installed")
   end
 
   vim.health.report_start("checking for optional plugins")

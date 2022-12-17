@@ -1,10 +1,9 @@
-local Path = require("plenary.path")
-
 local events = require("ya-tree.events")
 local fs = require("ya-tree.fs")
 local job = require("ya-tree.job")
 local log = require("ya-tree.log").get("git")
 local meta = require("ya-tree.meta")
+local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 local void = require("ya-tree.async").void
@@ -717,8 +716,7 @@ function M.create_repo(path)
   local toplevel, git_dir, branch = get_repo_info(path)
   local is_yadm = false
   if not toplevel and config.git.yadm.enable then
-    local home = os.getenv("HOME") --[[@as string]]
-    if vim.startswith(path, home) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
+    if vim.startswith(path, Path.path.home) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
       toplevel, git_dir, branch = get_repo_info(path, "yadm")
       is_yadm = toplevel ~= nil
     end

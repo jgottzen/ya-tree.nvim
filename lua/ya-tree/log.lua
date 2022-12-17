@@ -1,4 +1,4 @@
-local Path = require("plenary.path")
+local Path = require("ya-tree.path")
 
 local api = vim.api
 local fn = vim.fn
@@ -83,7 +83,7 @@ do
   local log_file = fmt("%s/%s.log", fn.stdpath("log"), config.name)
   local dir = Path:new(log_file):parent()
   if not dir:exists() then
-    dir:mkdir({ parents = true })
+    config.log_file = false
   end
 
   ---@param value any

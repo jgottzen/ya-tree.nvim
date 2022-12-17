@@ -1,7 +1,6 @@
-local Path = require("plenary.path")
-
 local event = require("ya-tree.events.event").ya_tree
 local events = require("ya-tree.events")
+local Path = require("ya-tree.path")
 
 local api = vim.api
 

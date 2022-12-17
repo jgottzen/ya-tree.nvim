@@ -1,5 +1,3 @@
-local Path = require("plenary.path")
-
 local autocmd_event = require("ya-tree.events.event").autocmd
 local BuffersTree = require("ya-tree.trees.buffers")
 local Canvas = require("ya-tree.ui.canvas")
@@ -11,6 +9,7 @@ local GitTree = require("ya-tree.trees.git")
 local git_event = require("ya-tree.events.event").git
 local log = require("ya-tree.log").get("sidebar")
 local meta = require("ya-tree.meta")
+local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local SearchTree = require("ya-tree.trees.search")
 local SymbolsTree = require("ya-tree.trees.symbols")

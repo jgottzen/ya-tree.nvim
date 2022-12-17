@@ -1,8 +1,7 @@
-local Path = require("plenary.path")
-
 local fs = require("ya-tree.fs")
 local hl = require("ya-tree.ui.highlights")
 local nui = require("ya-tree.ui.nui")
+local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
