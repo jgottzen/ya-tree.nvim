@@ -32,7 +32,6 @@ local WIN_OPTIONS = {
     "Normal:YaTreeNormal",
     "NormalNC:YaTreeNormalNC",
     "CursorLine:YaTreeCursorLine",
-    "VertSplit:YaTreeVertSplit",
     "WinSeparator:YaTreeWinSeparator",
     "StatusLine:YaTreeStatusLine",
     "StatusLineNC:YaTreeStatuslineNC",

@@ -1413,7 +1413,6 @@ initiate any further calls, if possible.
 |YaTreeNormal                       | Normal                            |                                       |
 |YaTreeNormalNC                     | NormalNC                          |                                       |
 |YaTreeCursorLine                   | CursorLine                        |                                       |
-|YaTreeVertSplit                    | VertSplit                         |                                       |
 |YaTreeWinSeparator                 | WinSeparator                      |                                       |
 |YaTreeStatusLine                   | StatusLine                        |                                       |
 |YaTreeStatusLineNC                 | StatusLineNC                      |                                       |
