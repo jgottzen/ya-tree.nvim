@@ -16,7 +16,7 @@ trees. Additional trees can easily be created.
 
 ## Requirements
 
- - [neovim](https://github.com/neovim/neovim/wiki/Installing-Neovim) >= 0.7.0
+ - [neovim](https://github.com/neovim/neovim/wiki/Installing-Neovim) >= 0.8.0
  - [nui.nvim](https://github.com/MunifTanjim/nui.nvim)
  - [nvim-web-devicons](https://github.com/nvim-tree/nvim-web-devicons) (optional)
 

@@ -3,10 +3,10 @@ local M = {}
 function M.check()
   local report_ok, report_warn, report_error = vim.health.report_ok, vim.health.report_warn, vim.health.report_error
 
-  if vim.fn.has("nvim-0.7.0") == 1 then
-    report_ok("Neovim version >= 0.7.0")
+  if vim.fn.has("nvim-0.8.0") == 1 then
+    report_ok("Neovim version >= 0.8.0")
   else
-    report_error("Neovim version < 0.7.0")
+    report_error("Neovim version < 0.8.0")
   end
 
   vim.health.report_start("checking for required plugins")
