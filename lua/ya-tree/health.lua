@@ -10,7 +10,7 @@ function M.check()
   end
 
   vim.health.report_start("checking for required plugins")
-  local nui = pcall(require, "nui.nvim")
+  local nui = pcall(require, "nui.input")
   if nui then
     report_ok("**plugins:** `nui.nvim` installed")
   else
