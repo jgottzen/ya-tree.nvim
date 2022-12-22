@@ -159,7 +159,7 @@ do
     end
 
     local message = format(arg, ...)
-    local info = debug.getinfo(2, "nSl")
+    local info = debug.getinfo(3, "nSl")
     local _, ms = uv.gettimeofday() --[[@as integer]]
     local timestamp = fmt("%s:%03d", os.date("%H:%M:%S"), ms / 1000)
     local fun_name = info.name ~= "" and info.name or "<anonymous>"
