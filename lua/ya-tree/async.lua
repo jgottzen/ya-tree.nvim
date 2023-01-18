@@ -1,32 +1,91 @@
 ----------------------------------------------------------------------------------------------------
 -- Based on: https://github.com/lewis6991/async.nvim
+-- at commit: https://github.com/lewis6991/async.nvim/tree/f903979044d7a393ab90e8c9546b89b4957e962f
 ----------------------------------------------------------------------------------------------------
 
 --- Small async library for Neovim plugins
+
+--- Store all the async threads in a weak table so we don't prevent them from being garbage collected
+---@type table<thread, Yat.Async>
+local HANDLES = setmetatable({}, { __mode = "k" })
 
 local M = {}
 
 -- Coroutine.running() was changed between Lua 5.1 and 5.2:
 -- - 5.1: Returns the running coroutine, or nil when called by the main thread.
--- - 5.2: Returns the running coroutine plus a boolean, true when the running
---   coroutine is the main one.
+-- - 5.2: Returns the running coroutine plus a boolean, true when the running coroutine is the main one.
 --
 -- For LuaJIT, 5.2 behaviour is enabled with LUAJIT_ENABLE_LUA52COMPAT
 --
 -- We need to handle both.
-local main_co_or_nil = coroutine.running()
+
+--- Returns whether the current execution context is async.
+---
+---@return boolean?
+function M.running()
+  local current = coroutine.running()
+  if current and HANDLES[current] then
+    return true
+  end
+end
+
+---@param handle any
+---@return boolean?
+local function is_Async_T(handle)
+  if handle and type(handle) == "table" and vim.is_callable(handle.cancel) and vim.is_callable(handle.is_cancelled) then
+    return true
+  end
+end
+
+---@class Yat.Async.Current
+---@field is_cancelled fun(_: any): boolean
+---@field cancel fun(_: any, cb: fun())
+
+---@class Yat.Async
+---@field _current? Yat.Async.Current
+local Async_T = {}
+
+---@param co thread
+---@return Yat.Async
+function Async_T.new(co)
+  local handle = setmetatable({}, { __index = Async_T })
+  HANDLES[co] = handle
+  return handle
+end
+
+-- Analogous to uv.close
+---@param cb function
+function Async_T:cancel(cb)
+  -- Cancel anything running on the event loop
+  if self._current and not self._current:is_cancelled() then
+    self._current:cancel(cb)
+  end
+end
+
+-- Analogous to uv.is_closing
+function Async_T:is_cancelled()
+  return self._current and self._current:is_cancelled()
+end
 
 ---@param fn fun(...)
 ---@param callback? fun(...)
 ---@param ... any
-local function execute(fn, callback, ...)
+---@return Yat.Async
+function M.run(fn, callback, ...)
+  vim.validate({
+    fn = { fn, "function" },
+    callback = { callback, "function", true },
+  })
+
   local co = coroutine.create(fn)
+  local handle = Async_T.new(co)
 
   local function step(...)
     local ret = { coroutine.resume(co, ...) }
-    local stat, nargs, protected, err_or_fn = unpack(ret)
+    ---@type boolean, integer, string|fun(...):any
+    local ok, nargs, err_or_fn = unpack(ret)
 
-    if not stat then
+    if not ok then
       error(string.format("The coroutine failed with this message: %s\n%s", err_or_fn, debug.traceback(co)))
     end
 
@@ -39,74 +98,138 @@ local function execute(fn, callback, ...)
 
     assert(type(err_or_fn) == "function", "type error :: expected function")
 
-    local args = { select(5, unpack(ret)) }
+    local args = { select(4, unpack(ret)) }
+    args[nargs] = step
 
-    if protected then
-      args[nargs] = function(...)
-        step(true, ...)
-      end
-      local ok, err = pcall(err_or_fn, unpack(args, 1, nargs))
-      if not ok then
-        step(false, err)
-      end
-    else
-      args[nargs] = step
-      err_or_fn(unpack(args, 1, nargs))
+    local r = err_or_fn(unpack(args, 1, nargs))
+    if is_Async_T(r) then
+      handle._current = r --[[@as Yat.Async.Current]]
     end
   end
 
   step(...)
+  return handle
 end
 
---- Use this to create a function which executes in an async context but
---- called from a non-async context. Inherently this cannot return anything
---- since it is non-blocking
+---@param argc integer
+---@param fn fun(...)
+---@param ... any
+---@return ... any
+local function wait(argc, fn, ...)
+  vim.validate({
+    argc = { argc, "number" },
+    fn = { fn, "function" },
+  })
+
+  -- Always run the wrapped functions in xpcall and re-raise the error in the
+  -- coroutine. This makes pcall work as normal.
+  local function pfunc(...)
+    local args = { ... }
+    local cb = args[argc]
+    args[argc] = function(...)
+      cb(true, ...)
+    end
+    xpcall(fn, function(err)
+      cb(false, err, debug.traceback())
+    end, unpack(args, 1, argc))
+  end
+
+  local ret = { coroutine.yield(argc, pfunc, ...) }
+
+  local ok = ret[1]
+  if not ok then
+    local _, err, traceback = unpack(ret)
+    error(string.format("Wrapped function failed: %s\n%s", err, traceback))
+  end
+
+  return unpack(ret, 2, table.maxn(ret))
+end
+
+--- Wait on a callback style function
+---
+---@param ... any Arguments for func
+---@return any ...
+function M.wait(...)
+  if type(select(1, ...)) == "number" then
+    return wait(...)
+  end
+
+  -- Assume argc is equal to the number of passed arguments.
+  return wait(select("#", ...) - 1, ...)
+end
+
+--- Use this to create a function which executes in an async context but called from a non-async context.
+--- Inherently this cannot return anything since it is non-blocking.
+---
 ---@param fn function
----@param argc integer The number of arguments of func. Defaults to 0
-function M.sync(fn, argc)
+---@param argc? number The number of arguments of func. Defaults to 0
+---@param strict? boolean Error when called in non-async context
+---@return fun(...):Yat.Async
+function M.create(fn, argc, strict)
+  vim.validate({
+    fc = { fn, "function" },
+    argc = { argc, "number", true },
+  })
+
   argc = argc or 0
   return function(...)
-    if coroutine.running() ~= main_co_or_nil then
+    if M.running() then
+      if strict then
+        error("This function must run in a non-async context")
+      end
       return fn(...)
     end
     local callback = select(argc + 1, ...)
-    execute(fn, callback, unpack({ ... }, 1, argc))
+    return M.run(fn, callback, unpack({ ... }, 1, argc))
   end
 end
 
---- Create a function which executes in an async context but
---- called from a non-async context.
+--- Create a function which executes in an async context but called from a non-async context.
+---
 ---@param fn function
-function M.void(fn)
+---@param strict? boolean Error when called in a non-async context.
+---@return fun(...): Yat.Async
+function M.void(fn, strict)
+  vim.validate({ fn = { fn, "function" } })
+
   return function(...)
-    if coroutine.running() ~= main_co_or_nil then
+    if M.running() then
+      if strict then
+        error("This function must run in a non-async context")
+      end
       return fn(...)
     end
-    execute(fn, nil, ...)
+    return M.run(fn, nil, ...)
   end
 end
 
 --- Creates an async function with a callback style function.
+--=
 ---@param fn function A callback style function to be converted. The last argument must be the callback.
 ---@param argc integer The number of arguments of func. Must be included.
----@param protected boolean call the function in protected mode (like pcall)
+---@param strict boolean Error when called in a non-async context.
 ---@return fun(...) Returns an async function
-function M.wrap(fn, argc, protected)
-  assert(argc, "argc must not be nil")
+function M.wrap(fn, argc, strict)
+  vim.validate({ argc = { argc, "number" } })
+
   return function(...)
-    if coroutine.running() == main_co_or_nil then
+    if not M.running() then
+      if strict then
+        error("This function must run in an async context")
+      end
       return fn(...)
     end
-    return coroutine.yield(argc, protected, fn, ...)
+    return M.wait(argc, fn, ...)
   end
 end
 
---- Run a collection of async functions (`thunks`) concurrently and return when
---- all have finished.
----@param n integer Max number of thunks to run concurrently
----@param interrupt_check function Function to abort thunks between calls
+--- Run a collection of async functions (`thunks`) concurrently and return when all have finished.
+---
 ---@param thunks function[]
-function M.join(n, interrupt_check, thunks)
+---@param n integer Max number of thunks to run concurrently.
+---@param interrupt_check function Function to abort thunks between calls.
+---@return ... any
+function M.join(thunks, n, interrupt_check)
   local function run(finish)
     if #thunks == 0 then
       return finish()
@@ -135,11 +258,15 @@ function M.join(n, interrupt_check, thunks)
     end
   end
 
-  return coroutine.yield(1, false, run)
+  if not M.running() then
+    return run
+  end
+  return M.wait(1, false, run)
 end
 
 --- Partially applying arguments to an async function
----@param fn function
+---
+---@param fn fun(...)
 ---@param ... any arguments to apply to `fn`
 ---@return fun(...)
 function M.curry(fn, ...)
@@ -154,15 +281,15 @@ function M.curry(fn, ...)
   end
 end
 
---- An async function that when called will yield to the Neovim scheduler to be
---- able to call the API.
+--- An async function that when called will yield to the Neovim scheduler to be able to call the API.
 ---@type fun()
 M.scheduler = M.wrap(vim.schedule, 1, false)
 
---- Schedules `fn` to run on vim loop in an async context.
+--- Schedules `fn` to run soon on the nvim loop, in an async context.
+---
 ---@param fn async fun()
 function M.defer(fn)
-  vim.schedule(function ()
+  vim.schedule(function()
     M.void(fn)()
   end)
 end

@@ -65,6 +65,7 @@ function FilesPanel:init(sidebar, config, keymap, renderers)
   self.super:init("files", sidebar, config.title, config.icon, keymap, renderers, root)
   defer(function()
     self.root:expand({ force_scan = true })
+    self:draw(self.current_node)
   end)
   self.mode = "files"
   self.files_root = self.root
