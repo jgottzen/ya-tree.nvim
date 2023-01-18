@@ -67,6 +67,7 @@ function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
     if renderer.name == "diagnostics" then
       local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
       self._file_min_diagnostic_severity = renderer_config.file_min_severity
+      break
     end
   end
   self._file_min_diagnostic_severity = self._file_min_diagnostic_severity or vim.diagnostic.severity.HINT
@@ -134,6 +135,7 @@ function TreePanel:on_buffer_saved(bufnr, file, match)
       local node = parent:get_child_if_loaded(file)
       if node then
         node.modified = false
+        scheduler()
         self:draw()
       end
     end
@@ -163,16 +165,14 @@ function TreePanel:on_buffer_enter(bufnr, file, match)
   end
 
   local config = require("ya-tree.config").config
-  if config.follow_focused_file then
-    if self:is_open() then
-      if self.root:is_ancestor_of(file) then
-        log.debug("focusing on node %q", file)
-        local node = self.root:expand({ to = file })
-        if node then
-          -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-          scheduler()
-          self:draw(node)
-        end
+  if config.follow_focused_file and self:is_open() then
+    if self.root:is_ancestor_of(file) then
+      log.debug("focusing on node %q", file)
+      local node = self.root:expand({ to = file })
+      if node then
+        -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+        scheduler()
+        self:draw(node)
       end
     end
   end

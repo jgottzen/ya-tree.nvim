@@ -109,9 +109,6 @@ end
 
 ---@return boolean is_open
 function Panel:is_open()
-  if self._winid and not api.nvim_win_is_valid(self._winid) then
-    self._winid = nil
-  end
   return self._winid ~= nil
 end
 
