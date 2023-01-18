@@ -65,11 +65,8 @@ local fs_readlink = wrap(uv.fs_readlink, 2, false)
 ---@param path string
 ---@return boolean is_directory
 function M.is_directory(path)
-  ---@type Luv.Fs.Stat?, string?
-  local stat, err = uv.fs_stat(path)
-  if not stat then
-    log.error("cannot fs_stat path %q, %s", path, err)
-  end
+  ---@type Luv.Fs.Stat?
+  local stat = uv.fs_stat(path)
   return stat and stat.type == "directory" or false
 end
 
@@ -299,7 +296,7 @@ function M.node_for(path)
   ---@type string?, Luv.Fs.Stat?
   local err, lstat = fs_lstat(path)
   if not lstat then
-    log.warn("cannot fs_lstat path %q, %s", path, err)
+    log.info("cannot fs_lstat path %q, %s", path, err)
     return nil
   end
 
