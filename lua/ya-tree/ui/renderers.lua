@@ -21,7 +21,7 @@ local log = require("ya-tree.log").get("ui")
 local utils = require("ya-tree.utils")
 
 ---@class Yat.Ui.RenderContext
----@field tree_type Yat.Trees.Type
+---@field panel_type Yat.Panel.Type
 ---@field config Yat.Config
 ---@field depth integer
 ---@field last_child boolean
@@ -471,8 +471,6 @@ function M.buffer_info(node, _, renderer)
     ---@cast node Yat.Nodes.Buffer
     bufnr = node.bufnr or -1
     hidden = node.bufhidden or false
-  elseif fn.bufloaded(node.path) > 0 then
-    bufnr = fn.bufnr(node.path)
   end
 
   local results = {}
@@ -757,8 +755,8 @@ do
 
   ---@param config Yat.Config
   function M.setup(config)
-    define_renderers(config.renderers)
     setup_highlights(config.renderers.builtin.git_status.icons)
+    define_renderers(config.renderers)
   end
 end
 

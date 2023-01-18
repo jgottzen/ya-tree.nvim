@@ -59,13 +59,13 @@ end
 
 ---@param format_string string
 ---@param current_tab integer
----@param all_tree_types Yat.Trees.Type[]
+---@param all_panel_types Yat.Panel.Type[]
 ---@param width integer
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlight_groups
-local function create_header(format_string, current_tab, all_tree_types, width)
+local function create_header(format_string, current_tab, all_panel_types, width)
   local tabs = {}
-  for index, tree_type in ipairs(all_tree_types) do
+  for index, tree_type in ipairs(all_panel_types) do
     tabs[index] = string.format(" (%s) %s ", index, tree_type)
   end
   local header = string.format("%" .. math.floor((width / 2) + 6) .. "s", "KEY MAPPINGS")
@@ -144,40 +144,40 @@ local function create_mappings_section(lines, highlight_groups, format_string, i
   end
 end
 
----@param all_tree_types Yat.Trees.Type[]
----@param mappings table<Yat.Trees.Type, table<string, Yat.Action>>
 ---@param current_tab integer
+---@param all_panel_types Yat.Panel.Type[]
+---@param keymaps table<Yat.Panel.Type, table<string, Yat.Action>>
 ---@param width integer
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlight_groups
 ---@return string[] close_keys
-local function render_mappings_for_for_tree(current_tab, all_tree_types, mappings, width)
-  local tree_type = all_tree_types[current_tab]
-  local current_mappings = mappings[tree_type]
+local function render_mappings_for_for_panel(current_tab, all_panel_types, keymaps, width)
+  local tree_type = all_panel_types[current_tab]
+  local current_mappings = keymaps[tree_type]
   local insert, visual, max_mapping_width, close_keys = parse_mappings(current_mappings)
 
   local format_string = "%" .. KEYS_SECTION_WIDTH .. "s : %-" .. max_mapping_width .. "s " -- with trailing space to match the left side
 
-  local lines, highlight_groups = create_header(format_string, current_tab, all_tree_types, width)
+  local lines, highlight_groups = create_header(format_string, current_tab, all_panel_types, width)
   create_mappings_section(lines, highlight_groups, format_string, insert, visual)
 
   return lines, highlight_groups, close_keys
 end
 
 ---@async
----@param tree Yat.Tree
-function M.open_help(tree)
-  local mappings = require("ya-tree.trees").tree_mappings()
-  local current_tree_type = tree.TYPE
+---@param panel Yat.Panel.Tree
+function M.open_help(panel)
+  local keymaps = require("ya-tree.panels").keymaps()
+  local current_panel_type = panel.TYPE
 
-  local tree_types = vim.tbl_keys(mappings) --[=[@as Yat.Trees.Type[]]=]
-  table.sort(tree_types)
-  utils.tbl_remove(tree_types, current_tree_type)
-  table.insert(tree_types, 1, current_tree_type)
+  local panel_types = vim.tbl_keys(keymaps) --[=[@as Yat.Panel.Type[]]=]
+  table.sort(panel_types)
+  utils.tbl_remove(panel_types, current_panel_type)
+  table.insert(panel_types, 1, current_panel_type)
 
   local width = math.min(vim.o.columns - 2, 90)
   local current_tab = 1
-  local lines, highlight_groups, close_keys = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
+  local lines, highlight_groups, close_keys = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
 
   local popup = nui.popup({
     title = " Help ",
@@ -190,27 +190,27 @@ function M.open_help(tree)
     lines = lines,
     highlight_groups = highlight_groups,
   })
-  for i in ipairs(tree_types) do
+  for i in ipairs(panel_types) do
     popup:map("n", tostring(i), function()
       current_tab = i
-      lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
+      lines, highlight_groups = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
       popup:set_content(lines, highlight_groups)
     end, { noremap = true })
   end
   popup:map("n", "<Tab>", function()
     current_tab = current_tab + 1
-    if current_tab > #tree_types then
+    if current_tab > #panel_types then
       current_tab = 1
     end
-    lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
+    lines, highlight_groups = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
     popup:set_content(lines, highlight_groups)
   end, { noremap = true })
   popup:map("n", "<S-Tab>", function()
     current_tab = current_tab - 1
     if current_tab == 0 then
-      current_tab = #tree_types
+      current_tab = #panel_types
     end
-    lines, highlight_groups = render_mappings_for_for_tree(current_tab, tree_types, mappings, width)
+    lines, highlight_groups = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
     popup:set_content(lines, highlight_groups)
   end, { noremap = true })
 end

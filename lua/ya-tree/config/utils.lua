@@ -1,11 +1,11 @@
 local M = {}
 
----@param fn Yat.Action.Fn
+---@param fn Yat.Action.TreePanelFn
 ---@param desc string
 ---@param node_independent boolean
 ---@param modes Yat.Actions.Mode[]
 ---@return Yat.Config.Action action
-function M.create_action(fn, desc, node_independent, modes)
+function M.create_tree_panel_action(fn, desc, node_independent, modes)
   ---@type Yat.Config.Action
   local action = {
     fn = fn,
@@ -19,7 +19,7 @@ end
 ---@param fn Yat.Ui.RendererFunction
 ---@param config Yat.Config.BaseRendererConfig
 ---@return Yat.Ui.Renderer.Renderer renderer
-function M.create_renderer(fn, config)
+function M.create_tree_panel_renderer(fn, config)
   ---@type Yat.Ui.Renderer.Renderer
   local renderer = {
     fn = fn,

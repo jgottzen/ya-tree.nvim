@@ -7,10 +7,15 @@ local M = {
     BUFFER_DELETED = 104,
     BUFFER_MODIFIED = 105,
     BUFFER_SAVED = 106,
+    BUFFER_ENTER = 107,
 
     COLORSCHEME = 201,
 
     LEAVE_PRE = 301,
+
+    DIR_CHANGED = 401,
+
+    LSP_ATTACH = 501,
   },
 
   ---@enum Yat.Events.GitEvent
@@ -26,8 +31,6 @@ local M = {
     DIAGNOSTICS_CHANGED = 20101, -- fun(severity_changed: boolean)
 
     FS_CHANGED = 20201, -- fun(dir: string, filenames: string[])
-
-    REQUEST_SIDEBAR_REPAINT = 20301, -- fun(tabpage: integer)
   },
 }
 

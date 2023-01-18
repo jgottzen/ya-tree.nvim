@@ -1,4 +1,3 @@
-local lib = require("ya-tree.lib")
 local nui = require("ya-tree.ui.nui")
 local scheduler = require("ya-tree.async").scheduler
 local ui = require("ya-tree.ui")
@@ -10,43 +9,50 @@ local uv = vim.loop
 local M = {}
 
 ---@async
----@param sidebar Yat.Sidebar
----@param tree Yat.Trees.Search
+---@param panel Yat.Panel.Tree
+---@param node? Yat.Node
+function M.search_for_node_in_panel(panel, node)
+  panel:search_for_node(node or panel.root)
+end
+
+---@async
+---@param panel Yat.Panel.Files
+---@param root string
 ---@param term string
-local function search(sidebar, tree, term)
-  local matches_or_error = tree:search(term)
+---@param focus_node? boolean
+local function search(panel, root, term, focus_node)
+  local matches_or_error = panel:search(root, term)
   if type(matches_or_error) == "number" then
-    utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, tree.root.path))
-    sidebar:update(tree, tree.current_node)
+    if focus_node then
+      panel:focus_node(panel.current_node)
+    end
+    utils.notify(string.format("Found %s matches for %q in %q", matches_or_error, term, panel.root.path))
   else
     utils.warn(string.format("Failed with message:\n\n%s", matches_or_error))
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Files
 ---@param node? Yat.Node
----@param sidebar Yat.Sidebar
-function M.search_interactively(tree, node, sidebar)
-  node = node or tree.root
+function M.search_interactively(panel, node)
+  node = node or panel.root
   -- if the node is a file, search in the directory
   if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
   local timer = uv.new_timer() --[[@as Luv.Timer]]
-  local search_tree = sidebar:search_tree(node.path)
 
   ---@param ms integer
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()
-      void(search)(sidebar, search_tree, term)
+      void(search)(panel, node.path, term)
     end)
   end
 
   local term = ""
-  scheduler()
-  local height, width = sidebar:size()
+  local height, width = panel:size()
   nui.input({ title = "Search:", relative = "win", row = height - 2, col = 0, width = width - 2 }, {
     ---@param text string
     on_change = void(function(text)
@@ -56,9 +62,7 @@ function M.search_interactively(tree, node, sidebar)
         -- reset search
         term = text
         timer:stop()
-        search_tree:reset()
-        scheduler()
-        sidebar:update()
+        panel:close_search(true)
       else
         term = text
         local length = #term
@@ -78,29 +82,27 @@ function M.search_interactively(tree, node, sidebar)
     on_submit = void(function(text)
       if text ~= term or timer:is_active() then
         timer:stop()
-        search(sidebar, search_tree, text)
+        search(panel, node.path, text)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
         scheduler()
-        sidebar:focus_node(search_tree, search_tree.current_node)
+        panel:focus_node(panel.current_node)
       end
       timer:close()
     end),
     on_close = void(function()
       timer:stop()
       timer:close()
-      sidebar:close_tree(search_tree)
-      sidebar:update()
+      panel:close_search(true)
     end),
   })
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Files
 ---@param node? Yat.Node
----@param sidebar Yat.Sidebar
-function M.search_once(tree, node, sidebar)
-  node = node or tree.root
+function M.search_once(panel, node)
+  node = node or panel.root
   -- if the node is a file, search in the directory
   if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
@@ -108,23 +110,14 @@ function M.search_once(tree, node, sidebar)
 
   local term = ui.nui_input({ title = " Search: " })
   if term then
-    search(sidebar, sidebar:search_tree(node.path), term)
+    search(panel, node.path, term, true)
   end
 end
 
 ---@async
----@param tree Yat.Tree
----@param node? Yat.Node
----@param sidebar Yat.Sidebar
-function M.search_for_node_in_tree(tree, node, sidebar)
-  node = node or tree.root
-  local completion = type(tree.complete_func) == "function" and function(bufnr)
-    tree:complete_func(bufnr, node)
-  end or type(tree.complete_func) == "string" and tree.complete_func or nil
-  local path = ui.nui_input({ title = " Path: ", completion = completion })
-  if path then
-    lib.search_for_node_in_tree(sidebar, tree, path)
-  end
+---@param panel Yat.Panel.Files
+function M.close_search(panel)
+  panel:close_search(true)
 end
 
 return M

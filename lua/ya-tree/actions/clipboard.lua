@@ -12,13 +12,12 @@ local M = {
 
 ---@alias Yat.Actions.Clipboard.Action "copy"|"cut"
 
----@param sidebar Yat.Sidebar
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param action Yat.Actions.Clipboard.Action
-local function cut_or_copy_nodes(sidebar, tree, action)
-  for _, node in ipairs(sidebar:get_selected_nodes()) do
+local function cut_or_copy_nodes(panel, action)
+  for _, node in ipairs(panel:get_selected_nodes()) do
     -- copying the root node will not work
-    if tree.root ~= node then
+    if panel.root ~= node then
       local skip = false
       for i = #M.queue, 1, -1 do
         local item = M.queue[i]
@@ -39,23 +38,19 @@ local function cut_or_copy_nodes(sidebar, tree, action)
       end
     end
   end
-  sidebar:update()
+  panel:draw()
 end
 
 ---@async
----@param tree Yat.Tree
----@param _ Yat.Node
----@param sidebar Yat.Sidebar
-function M.copy_node(tree, _, sidebar)
-  cut_or_copy_nodes(sidebar, tree, "copy")
+---@param panel Yat.Panel.Tree
+function M.copy_node(panel)
+  cut_or_copy_nodes(panel, "copy")
 end
 
 ---@async
----@param tree Yat.Tree
----@param _ Yat.Node
----@param sidebar Yat.Sidebar
-function M.cut_node(tree, _, sidebar)
-  cut_or_copy_nodes(sidebar, tree, "cut")
+---@param panel Yat.Panel.Tree
+function M.cut_node(panel)
+  cut_or_copy_nodes(panel, "cut")
 end
 
 local function clear_clipboard()
@@ -66,9 +61,9 @@ local function clear_clipboard()
 end
 
 ---@async
----@param tree Yat.Trees.Filesystem
+---@param panel Yat.Panel.Files
 ---@param node Yat.Node
-function M.paste_nodes(tree, node)
+function M.paste_nodes(panel, node)
   ---@async
   ---@param dir string
   ---@param nodes_to_paste Yat.Node[]
@@ -120,7 +115,7 @@ function M.paste_nodes(tree, node)
   if #M.queue > 0 then
     local nodes = get_nodes_to_paste(node.path, M.queue)
     local pasted = false
-    tree.focus_path_on_fs_event = "expand"
+    panel.focus_path_on_fs_event = "expand"
     for _, item in ipairs(nodes) do
       local ok = false
       if item.node:clipboard_status() == "copy" then
@@ -151,10 +146,10 @@ function M.paste_nodes(tree, node)
 end
 
 ---@async
----@param sidebar Yat.Sidebar
-function M.clear_clipboard(_, _, sidebar)
+---@param panel Yat.Panel.Tree
+function M.clear_clipboard(panel)
   clear_clipboard()
-  sidebar:update()
+  panel:draw()
   utils.notify("Clipboard cleared!")
 end
 
@@ -166,17 +161,17 @@ local function copy_to_system_clipboard(content)
 end
 
 ---@async
----@param _ Yat.Tree
+---@param _ Yat.Panel.Tree
 ---@param node Yat.Node
 function M.copy_name_to_clipboard(_, node)
   copy_to_system_clipboard(node.name)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
-function M.copy_root_relative_path_to_clipboard(tree, node)
-  local relative = utils.relative_path_for(node.path, tree.root.path)
+function M.copy_root_relative_path_to_clipboard(panel, node)
+  local relative = utils.relative_path_for(node.path, panel.root.path)
   if node:is_directory() then
     relative = relative .. utils.os_sep
   end
@@ -184,7 +179,7 @@ function M.copy_root_relative_path_to_clipboard(tree, node)
 end
 
 ---@async
----@param _ Yat.Tree
+---@param _ Yat.Panel.Tree
 ---@param node Yat.Node
 function M.copy_absolute_path_to_clipboard(_, node)
   copy_to_system_clipboard(node.path)

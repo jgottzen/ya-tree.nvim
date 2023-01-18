@@ -2,13 +2,12 @@ local fn = vim.fn
 
 local M = {
   ---@class Yat.Config
-  ---@field close_if_last_window boolean Force closing the YaTree window when it is the last window in the tabpage, default: `false`.
-  ---@field follow_focused_file boolean Update the focused file in the tree on `BufEnter`, default: `false`.
-  ---@field move_cursor_to_name boolean Keep the cursor on the name in tree, default: `false`.
+  ---@field close_if_last_window boolean Close the sidebar when it is the last window in the tabpage, default: `false`.
+  ---@field follow_focused_file boolean Update the focused file in the panel on `BufEnter`, default: `false`.
+  ---@field move_cursor_to_name boolean Keep the cursor on the name in panel, default: `false`.
   ---@field move_buffers_from_sidebar_window boolean Move buffers from the sidebar window to the last used window, default: `true`.
   ---@field hijack_netrw boolean Replace the `netrw` file explorer, default: `true`.
   ---@field expand_all_nodes_max_depth integer The maximum depth to expand when expanding nodes, default: 5.
-  ---@field load_sidebar_on_setup boolean Whether to load the sidebar and its trees on setup, which makes the first open faster, default: `false`.
   ---@field log Yat.Config.Log Logging configuration.
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
@@ -23,7 +22,7 @@ local M = {
   ---@field popups Yat.Config.Popups Popup window configuration.
   ---@field sidebar Yat.Config.Sidebar Sidebar configuration.
   ---@field actions Yat.Config.Actions User actions.
-  ---@field trees Yat.Config.Trees Tree configurations.
+  ---@field panels Yat.Config.Panels Panel configurations.
   ---@field renderers Yat.Config.Renderers Renderer configurations.
   default = {
     close_if_last_window = false,
@@ -36,10 +35,8 @@ local M = {
 
     expand_all_nodes_max_depth = 5,
 
-    load_sidebar_on_setup = false,
-
     ---@alias Yat.Logger.Level "trace"|"debug"|"info"|"warn"|"error"
-    ---@alias Yat.Logger.Namespace "all"|"actions"|"events"|"fs"|"lsp"|"nodes"|"sidebar"|"trees"|"ui"|"git"|"job"|"lib"|string
+    ---@alias Yat.Logger.Namespace "all"|"actions"|"events"|"fs"|"lsp"|"nodes"|"panels"|"sidebar"|"ui"|"git"|"job"|"lib"|string
 
     ---@class Yat.Config.Log
     ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
@@ -64,11 +61,11 @@ local M = {
     },
 
     ---@class Yat.Config.Cwd
-    ---@field follow boolean Update the tree root directory on `DirChanged`, default: `false`.
-    ---@field update_from_tree boolean Update the *tabpage* cwd when changing root directory in the tree, default: `false`.
+    ---@field follow boolean Update the Files panel root directory on `DirChanged`, default: `false`.
+    ---@field update_from_panel boolean Update the *tabpage* cwd when changing root directory in a panel, default: `false`.
     cwd = {
       follow = false,
-      update_from_tree = false,
+      update_from_panel = false,
     },
 
     ---@class Yat.Config.DirWatcher
@@ -114,7 +111,7 @@ local M = {
     ---@class Yat.Config.Git
     ---@field enable boolean If git should be enabled, default: `true`.
     ---@field all_untracked boolean If `git status` checks should include all untracked files: default: `false`.
-    ---@field show_ignored boolean Whether to show git ignored files in the tree, toggleable, default: `true`.
+    ---@field show_ignored boolean Whether to show git ignored files in panels, toggleable, default: `true`.
     ---@field watch_git_dir boolean Whether to watch the repository `.git` directory for changes, using `fs_poll`, default: `true`.
     ---@field watch_git_dir_interval integer Interval for polling, in milliseconds, default: `1000`.
     ---@field yadm Yat.Config.Git.Yadm `yadm` configuration.
@@ -133,7 +130,7 @@ local M = {
     },
 
     ---@class Yat.Config.Diagnostics
-    ---@field enable boolean Show lsp diagnostics in trees, default: `true`.
+    ---@field enable boolean Show lsp diagnostics in panels, default: `true`.
     ---@field debounce_time integer Debounce time in ms, for how often `DiagnosticChanged` is processed, default: `300`.
     ---@field propagate_to_parents boolean If the diagnostic status should be propagated to parents, default: `true`.
     diagnostics = {
@@ -164,59 +161,43 @@ local M = {
       border = "rounded",
     },
 
-    ---@alias Yat.Ui.Position "left"|"right"|"top"|"bottom"
-
-    ---@alias Yat.Trees.Type "filesystem"|"buffers"|"git"|"search"|"symbols"|string
+    ---@alias Yat.Panel.Type "files"|"git_status"|"symbols"|"buffers"|string
 
     ---@class Yat.Config.Sidebar
-    ---@field size integer Size of the sidebar panel, default: `40`.
-    ---@field position Yat.Ui.Position Where the sidebar is placed, default: `"left"`.
-    ---@field number boolean Whether to show the number column, default: `false`.
-    ---@field relativenumber boolean Whether to show relative numbers, default: `false`.
-    ---@field single_mode boolean If the sidebar should be a single tree only, default: `false`.
-    ---@field tree_order Yat.Trees.Type[] In which order the tree sections appear, default: `{ "filesystem", "search", "symbols", "git", "buffers" }`.
-    ---@field trees_always_shown Yat.Trees.Type[] Which trees are always present, default: `{ "filesystem" }`.
-    ---@field section_layout Yat.Config.Sidebar.SectionLayout Layout configuration.
+    ---@field layout Yat.Config.Sidebar.Layout
     sidebar = {
-      size = 40,
-      position = "left",
-      number = false,
-      relativenumber = false,
-      single_mode = false,
-      tree_order = { "filesystem", "search", "symbols", "git", "buffers" },
-      trees_always_shown = { "filesystem" },
+      ---@class Yat.Config.Sidebar.PanelLayout.Panel
+      ---@field panel Yat.Panel.Type
+      ---@field height? integer|string
 
-      ---@class Yat.Config.Sidebar.SectionLayout
-      ---@field header Yat.Config.Sidebar.SectionLayout.Header Header configuration.
-      ---@field footer Yat.Config.Sidebar.SectionLayout.Footer Footer configuration.
-      section_layout = {
-        ---@class Yat.Config.Sidebar.SectionLayout.Header
-        ---@field enable boolean Whether to show the section header, e.g. `trees.filesystem.section_icon` and `trees.filesystem.section_name`, default: `true`.
-        ---@field empty_line_before_tree boolean Whether to show an empty line before the tree, default: `true`.
-        header = {
-          enable = true,
-          empty_line_before_tree = true,
+      ---@class Yat.Config.Sidebar.PanelLayout
+      ---@field panels Yat.Config.Sidebar.PanelLayout.Panel[]
+      ---@field width integer
+      ---@field auto_open boolean
+
+      ---@class Yat.Config.Sidebar.Layout
+      ---@field left Yat.Config.Sidebar.PanelLayout
+      ---@field right Yat.Config.Sidebar.PanelLayout
+      layout = {
+        left = {
+          panels = { { panel = "files", height = 30 } },
+          width = 40,
+          auto_open = true,
         },
-        ---@class Yat.Config.Sidebar.SectionLayout.Footer
-        ---@field enable boolean Whether to show the section footer, i.e. the divider, default: `true`.
-        ---@field divider_char string The divider used between sections, default: `"─"`.
-        ---@field empty_line_after_tree boolean Whether to show an empty line between the tree and the divider, default: `true`.
-        ---@field empty_line_after_divider boolean Whether to show an empty line after the divider, default: `true`.
-        footer = {
-          enable = true,
-          divider_char = "─",
-          empty_line_after_tree = true,
-          empty_line_after_divider = true,
+        right = {
+          panels = {},
+          width = 40,
+          auto_open = false,
         },
       },
     },
 
-    ---@alias Yat.Action.Fn async fun(tree: Yat.Tree, node: Yat.Node, sidebar: Yat.Sidebar)
+    ---@alias Yat.Action.TreePanelFn async fun(panel: Yat.Panel.Tree, node: Yat.Node)
 
     ---@alias Yat.Actions.Mode "n"|"v"|"V"
 
     ---@class Yat.Config.Action
-    ---@field fn Yat.Action.Fn
+    ---@field fn Yat.Action.TreePanelFn
     ---@field desc string
     ---@field modes Yat.Actions.Mode[]
     ---@field node_independent boolean
@@ -224,51 +205,45 @@ local M = {
     ---@class Yat.Config.Actions : { [string]: Yat.Config.Action }
     actions = {},
 
-    ---@class Yat.Config.Trees.GlobalMappings
-    ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-    ---@field list table<string, Yat.Trees.Tree.SupportedActions|Yat.Actions.Name|string> Map of key mappings, an empty string, `""`, disables the mapping.
-
-    ---@class Yat.Config.Trees.Mappings
+    ---@class Yat.Config.Panels.Mappings
     ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
     ---@field list table<string, Yat.Actions.Name|string> Map of key mappings, an empty string, `""`, disables the mapping.
 
-    ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|"symbol_details"|string
-
-    ---@class Yat.Config.Trees.Renderer
+    ---@class Yat.Config.Panels.TreeRenderer
     ---@field name Yat.Ui.Renderer.Name The name of the renderer.
     ---@field override Yat.Config.BaseRendererConfig The renderer specific configuration.
 
-    ---@class Yat.Config.Trees.Renderers
-    ---@field directory Yat.Config.Trees.Renderer[] Which renderers to use for directories, in order.
-    ---@field file Yat.Config.Trees.Renderer[] Which renderers to use for files, in order
+    ---@class Yat.Config.Panels.TreeRenderers
+    ---@field directory Yat.Config.Panels.TreeRenderer[] Which renderers to use for directories, in order.
+    ---@field file Yat.Config.Panels.TreeRenderer[] Which renderers to use for files, in order
 
-    ---@class Yat.Config.Trees.Tree
-    ---@field section_icon string The icon for the section in the sidebar.
-    ---@field section_name string The name of section the in the sidebar.
-    ---@field mappings Yat.Config.Trees.Mappings The tree specific mappings.
-    ---@field renderers Yat.Config.Trees.Renderers The tree specific renderers.
+    ---@class Yat.Config.Panels.Panel
+    ---@field title string The name of panel.
+    ---@field icon string The icon for the panel.
+    ---@field mappings Yat.Config.Panels.Mappings The panel specific mappings.
+    ---@field renderers Yat.Config.Panels.TreeRenderers The panel specific renderers.
 
-    ---@class Yat.Config.Trees : { [Yat.Trees.Type] : Yat.Config.Trees.Tree }
-    ---@field global_mappings Yat.Config.Trees.GlobalMappings Mappings that applies to all trees.
-    ---@field filesystem Yat.Config.Trees.Filesystem Filesystem tree configuration.
-    ---@field search Yat.Config.Trees.Search Search tree configuration.
-    ---@field symbols Yat.Config.Trees.Symbols Symbols tree configuration.
-    ---@field git Yat.Config.Trees.Git Git tree configuration.
-    ---@field buffers Yat.Config.Trees.Buffers Buffers tree configuration.
-    trees = {
+    ---@class Yat.Config.Panels : { [Yat.Panel.Type] : Yat.Config.Panels.Panel }
+    ---@field global_mappings Yat.Config.Panels.GlobalMappings Mappings that applies to all panels.
+    ---@field files Yat.Config.Panels.Files Files panel configuration.
+    ---@field symbols Yat.Config.Panels.Symbols Lsp Symbols panel configuration.
+    ---@field git_status Yat.Config.Panels.GitStatus Git Status panel configuration.
+    ---@field buffers Yat.Config.Panels.Buffers Buffers panel configuration.
+    panels = {
+      ---@class Yat.Config.Panels.GlobalMappings
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
+      ---@field list table<string, Yat.Panel.Tree.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
       global_mappings = {
         disable_defaults = false,
         list = {
-          ["q"] = "close_window",
-          ["gx"] = "system_open",
+          ["q"] = "close_sidebar",
+          ["<C-x>"] = "close_panel",
           ["?"] = "open_help",
+          ["gs"] = "open_symbols_panel",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gx"] = "system_open",
           ["<C-i>"] = "show_node_info",
-          ["<C-x>"] = "close_tree",
-          ["gT"] = "focus_prev_tree",
-          ["gt"] = "focus_next_tree",
-          ["gs"] = "open_symbols_tree",
-          ["<C-g>"] = "open_git_tree",
-          ["b"] = "open_buffers_tree",
           ["<CR>"] = "open",
           ["o"] = "open",
           ["<2-LeftMouse>"] = "open",
@@ -285,7 +260,7 @@ local M = {
           ["z"] = "close_all_child_nodes",
           ["E"] = "expand_all_nodes",
           ["e"] = "expand_all_child_nodes",
-          ["R"] = "refresh_tree",
+          ["R"] = "refresh_panel",
           ["P"] = "focus_parent",
           ["<"] = "focus_prev_sibling",
           [">"] = "focus_next_sibling",
@@ -293,25 +268,25 @@ local M = {
           ["J"] = "focus_last_sibling",
         },
       },
-      ---@class Yat.Config.Trees.Filesystem : Yat.Config.Trees.Tree
-      ---@field section_name string The name of the section in the sidebar, default: `"Files"`.
-      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
-      ---@field completion Yat.Config.Trees.Filesystem.Completion Path completion for tree search.
-      ---@field mappings Yat.Config.Trees.Filesystem.Mappings Tree specific mappings.
-      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
-      filesystem = {
-        section_name = "Files",
-        section_icon = "",
-        ---@class Yat.Config.Trees.Filesystem.Completion
-        ---@field on "root"|"node" Whether to complete on the tree root directory or the current node, ignored if `setup` is set, default: `"root"`.
-        ---@field setup? fun(tree: Yat.Trees.Filesystem, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
+
+      ---@class Yat.Config.Panels.Files : Yat.Config.Panels.Panel
+      ---@field title string The name of the panel, default: `"Files"`.
+      ---@field icon string The icon for the panel, default: `""`.
+      ---@field mappings Yat.Config.Panels.Files.Mappings Panel specific mappings.
+      ---@field renderers Yat.Config.Panels.Files.Renderers Panel specific renderers.
+      files = {
+        title = "Files",
+        icon = "",
+        ---@class Yat.Config.Panels.Files.Completion
+        ---@field on "root"|"node" Whether to complete on the panel root directory or the current node, ignored if `setup` is set, default: `"root"`.
+        ---@field setup? fun(panel: Yat.Panel.Files, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
         completion = {
           on = "root",
           setup = nil,
         },
-        ---@class Yat.Config.Trees.Filesystem.Mappings : Yat.Config.Trees.Mappings
+        ---@class Yat.Config.Panels.Files.Mappings : Yat.Config.Panels.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Filesystem.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Panel.Files.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -329,9 +304,11 @@ local M = {
             ["-"] = "cd_up",
             ["I"] = "toggle_ignored",
             ["H"] = "toggle_filter",
-            ["S"] = "search_for_node_in_tree",
+            ["S"] = "search_for_node_in_panel",
             ["/"] = "search_interactively",
             ["f"] = "search_once",
+            ["<C-x>"] = "close_search",
+            ["gn"] = "goto_node_in_files_panel",
             ["ga"] = "git_stage",
             ["gu"] = "git_unstage",
             ["gr"] = "git_revert",
@@ -342,6 +319,12 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+        ---@alias Yat.Config.Panels.Files.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
+        ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
+
+        ---@class Yat.Config.Panels.Files.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@field directory { name : Yat.Config.Panels.Files.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@field file { name : Yat.Config.Panels.Files.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
           directory = {
             { name = "indentation" },
@@ -365,85 +348,40 @@ local M = {
           },
         },
       },
-      ---@class Yat.Config.Trees.Search : Yat.Config.Trees.Tree
-      ---@field section_name string The name of the section in the sidebar, default: `"Search"`.
-      ---@field section_icon string The icon for the section in the sidebar, default" `""`.
-      ---@field mappings Yat.Config.Trees.Search.Mappings Tree specific mappings.
-      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
-      search = {
-        section_name = "Search",
-        section_icon = "",
-        ---@class Yat.Config.Trees.Search.Mappings : Yat.Config.Trees.Mappings
-        ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Search.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
-        mappings = {
-          disable_defaults = false,
-          list = {
-            ["<C-]>"] = "cd_to",
-            ["."] = "cd_to",
-            ["I"] = "toggle_ignored",
-            ["H"] = "toggle_filter",
-            ["S"] = "search_for_node_in_tree",
-            ["/"] = "search_interactively",
-            ["f"] = "search_once",
-            ["gn"] = "goto_node_in_filesystem_tree",
-            ["ga"] = "git_stage",
-            ["gu"] = "git_unstage",
-            ["gr"] = "git_revert",
-            ["<C-r>"] = "check_node_for_git",
-            ["[c"] = "focus_prev_git_item",
-            ["]c"] = "focus_next_git_item",
-            ["[e"] = "focus_prev_diagnostic_item",
-            ["]e"] = "focus_next_diagnostic_item",
-          },
-        },
-        renderers = {
-          directory = {
-            { name = "indentation" },
-            { name = "icon" },
-            { name = "name" },
-            { name = "repository", override = { show_status = false } },
-            { name = "symlink_target" },
-            { name = "git_status" },
-            { name = "diagnostics" },
-          },
-          file = {
-            { name = "indentation" },
-            { name = "icon" },
-            { name = "name", override = { use_git_status_colors = true } },
-            { name = "symlink_target" },
-            { name = "modified" },
-            { name = "git_status" },
-            { name = "diagnostics" },
-          },
-        },
-      },
-      ---@class Yat.Config.Trees.Symbols
-      ---@field section_name string The name of the section in the sidebar, default: `"Lsp Symbols"`.
-      ---@field section_icon string The icon for the section in the sidebar, default" `""`.
+
+      ---@class Yat.Config.Panels.Symbols : Yat.Config.Panels.Panel
+      ---@field title string The name of the panel, default: `"Lsp Symbols"`.
+      ---@field icon string The icon for the panel, default" `""`.
       ---@field scroll_buffer_to_symbol boolean Whether to scroll the file to the current symbol, default: `true`.
-      ---@field mappings Yat.Config.Trees.Symbols.Mappings Tree specific mappings.
-      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
+      ---@field mappings Yat.Config.Panels.Symbols.Mappings Panel specific mappings.
+      ---@field renderers Yat.Config.Panels.Symbols.Renderers Panel specific renderers.
       symbols = {
-        section_name = "Lsp Symbols",
-        section_icon = "",
+        title = "Lsp Symbols",
+        icon = "",
         scroll_buffer_to_symbol = true,
-        ---@class Yat.Config.Trees.Symbols.Mappings : Yat.Config.Trees.Mappings
+        ---@class Yat.Config.Panels.Symbols.Mappings : Yat.Config.Panels.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Symbols.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Panel.Symbols.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
-            ["S"] = "search_for_node_in_tree",
+            ["S"] = "search_for_node_in_panel",
             ["[e"] = "focus_prev_diagnostic_item",
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+        ---@alias Yat.Config.Panels.Symbols.DirectoryRendererName "indentation"|"icon"|"name"|"modified"|"symbol_details"|"diagnostics"|string
+        ---@alias Yat.Config.Panels.Symbols.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|"diagnostics"|string
+
+        ---@class Yat.Config.Panels.Symbols.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@field directory { name : Yat.Config.Panels.Symbols.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@field file { name : Yat.Config.Panels.Symbols.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
           directory = {
             { name = "indentation" },
             { name = "icon" },
             { name = "name" },
+            { name = "modified" },
             { name = "symbol_details" },
             { name = "diagnostics" },
           },
@@ -456,17 +394,18 @@ local M = {
           },
         },
       },
-      ---@class Yat.Config.Trees.Git : Yat.Config.Trees.Tree
-      ---@field section_name string The name of the section in the sidebar, default: `"Git"`.
-      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
-      ---@field mappings Yat.Config.Trees.Git.Mappings Tree specific mappings.
-      ---@field renderers? Yat.Config.Trees.Renderers Tree specific renderers.
-      git = {
-        section_name = "Git",
-        section_icon = "",
-        ---@class Yat.Config.Trees.Git.Mappings : Yat.Config.Trees.Mappings
+
+      ---@class Yat.Config.Panels.GitStatus : Yat.Config.Panels.Panel
+      ---@field title string The name of the panel, default: `"Git"`.
+      ---@field icon string The icon for the panel, default: `""`.
+      ---@field mappings Yat.Config.Panels.GitStatus.Mappings Panel specific mappings.
+      ---@field renderers Yat.Config.Panels.GitStatus.Renderers Panel specific renderers.
+      git_status = {
+        title = "Git Status",
+        icon = "",
+        ---@class Yat.Config.Panels.GitStatus.Mappings : Yat.Config.Panels.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Git.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Panel.GitStatus.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -474,8 +413,8 @@ local M = {
             ["."] = "cd_to",
             ["I"] = "toggle_ignored",
             ["H"] = "toggle_filter",
-            ["S"] = "search_for_node_in_tree",
-            ["gn"] = "goto_node_in_filesystem_tree",
+            ["S"] = "search_for_node_in_panel",
+            ["gn"] = "goto_node_in_files_panel",
             ["ga"] = "git_stage",
             ["gu"] = "git_unstage",
             ["gr"] = "git_revert",
@@ -486,6 +425,12 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+        ---@alias Yat.Config.Panels.GitStatus.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
+        ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+
+        ---@class Yat.Config.Panels.GitStatus.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@field directory { name : Yat.Config.Panels.GitStatus.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@field file { name : Yat.Config.Panels.GitStatus.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
           directory = {
             { name = "indentation" },
@@ -507,17 +452,19 @@ local M = {
           },
         },
       },
-      ---@class Yat.Config.Trees.Buffers : Yat.Config.Trees.Tree
-      ---@field section_name string The name of the section in the sidebar, default: `"Buffers"`.
-      ---@field section_icon string The icon for the section in the sidebar, default: `""`.
-      ---@field mappings Yat.Config.Trees.Buffers.Mappings Tree specific mappings.
-      ---@field renderers Yat.Config.Trees.Renderers Tree specific renderers.
+
+      ---@class Yat.Config.Panels.Buffers : Yat.Config.Panels.Panel
+      ---@field title string The name of the panel, default: `"Buffers"`.
+      ---@field icon string The icon for the panel, default: `""`.
+      ---@field mappings Yat.Config.Panels.Buffers.Mappings Panel specific mappings.
+      ---@field renderers Yat.Config.Panels.Buffers.Renderers Panel specific renderers.
       buffers = {
-        section_name = "Buffers",
-        section_icon = "",
-        ---@class Yat.Config.Trees.Buffers.Mappings: Yat.Config.Trees.Mappings
+        title = "Buffers",
+        icon = "",
+
+        ---@class Yat.Config.Panels.Buffers.Mappings: Yat.Config.Panels.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-        ---@field list table<string, Yat.Trees.Buffers.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+        ---@field list table<string, Yat.Panel.Buffers.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
           disable_defaults = false,
           list = {
@@ -525,8 +472,8 @@ local M = {
             ["."] = "cd_to",
             ["I"] = "toggle_ignored",
             ["H"] = "toggle_filter",
-            ["S"] = "search_for_node_in_tree",
-            ["gn"] = "goto_node_in_filesystem_tree",
+            ["S"] = "search_for_node_in_panel",
+            ["gn"] = "goto_node_in_files_panel",
             ["ga"] = "git_stage",
             ["gu"] = "git_unstage",
             ["gr"] = "git_revert",
@@ -537,6 +484,12 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+        ---@alias Yat.Config.Panels.Buffers.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
+        ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+
+        ---@class Yat.Config.Panels.Buffers.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@field directory { name : Yat.Config.Panels.Buffers.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@field file { name : Yat.Config.Panels.Buffers.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
           directory = {
             { name = "indentation" },
@@ -559,6 +512,8 @@ local M = {
         },
       },
     },
+
+    ---@alias Yat.Ui.Renderer.Name "indentation"|"icon"|"name"|"modified"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"buffer_info"|"clipboard"|"symbol_details"|string
 
     ---@class Yat.Config.BaseRendererConfig : { [string]: any }
     ---@field padding string The padding to use to the left of the renderer.
@@ -789,25 +744,25 @@ function M.setup(opts)
 
   local utils = require("ya-tree.utils")
 
-  -- make sure any custom tree configs have the required shape
-  for name, tree in pairs(M.config.trees) do
+  -- make sure any custom panel configs have the required shape
+  for name, panel in pairs(M.config.panels) do
     if name ~= "global_mappings" then
-      if not tree.mappings then
-        tree.mappings = {}
+      if not panel.mappings then
+        panel.mappings = {}
       end
-      if not tree.mappings.list then
-        tree.mappings.list = {}
+      if not panel.mappings.list then
+        panel.mappings.list = {}
       end
     end
   end
-  if opts.trees then
-    if opts.trees.global_mappings and opts.trees.global_mappings.disable_defaults then
-      M.config.trees.global_mappings.list = opts.trees.global_mappings.list or {}
+  if opts.panels then
+    if opts.panels.global_mappings and opts.panels.global_mappings.disable_defaults then
+      M.config.panels.global_mappings.list = opts.panels.global_mappings.list or {}
     end
-    for name, tree in pairs(opts.trees) do
+    for name, panel in pairs(opts.panels) do
       if name ~= "global_mappings" then
-        if tree.mappings and tree.mappings.disable_defaults then
-          M.config.trees[name].mappings.list = opts.trees[name].mappings.list or {}
+        if panel.mappings and panel.mappings.disable_defaults then
+          M.config.panels[name].mappings.list = opts.panels[name].mappings.list or {}
         end
       end
     end

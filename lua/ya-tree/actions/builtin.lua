@@ -1,15 +1,12 @@
 ---@alias Yat.Actions.Name
----| "close_window"
+---| "close_sidebar"
 ---| "system_open"
 ---| "open_help"
 ---| "show_node_info"
----| "close_tree"
----| "delete_tree"
----| "focus_prev_tree"
----| "focus_next_tree"
----| "open_symbols_tree",
----| "open_git_tree"
----| "open_buffers_tree"
+---| "close_panel"
+---| "open_symbols_panel",
+---| "open_git_status_panel"
+---| "open_buffers_panel"
 ---| "open"
 ---| "vsplit"
 ---| "split"
@@ -24,7 +21,7 @@
 ---| "close_all_child_nodes"
 ---| "expand_all_nodes"
 ---| "expand_all_child_nodes"
----| "refresh_tree"
+---| "refresh_panel"
 ---| "focus_parent"
 ---| "focus_prev_sibling"
 ---| "focus_next_sibling"
@@ -44,11 +41,12 @@
 ---| "toggle_ignored"
 ---| "toggle_filter"
 ---
----| "search_for_node_in_tree"
+---| "search_for_node_in_panel"
 ---| "search_interactively"
 ---| "search_once"
+---| "close_search"
 ---
----| "goto_node_in_filesystem_tree"
+---| "goto_node_in_files_panel"
 ---
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
@@ -62,18 +60,15 @@
 
 local M = {
   general = {
-    close_window = "close_window",
+    close_sidebar = "close_sidebar",
     system_open = "system_open",
     open_help = "open_help",
     show_node_info = "show_node_info",
-    close_tree = "close_tree",
-    delete_tree = "delete_tree",
-    focus_prev_tree = "focus_prev_tree",
-    focus_next_tree = "focus_next_tree",
+    close_panel = "close_panel",
 
-    open_symbols_tree = "open_symbols_tree",
-    open_git_tree = "open_git_tree",
-    open_buffers_tree = "open_buffers_tree",
+    open_symbols_panel = "open_symbols_panel",
+    open_git_status_panel = "open_git_status_panel",
+    open_buffers_panel = "open_buffers_panel",
 
     open = "open",
     vsplit = "vsplit",
@@ -92,7 +87,7 @@ local M = {
     expand_all_nodes = "expand_all_nodes",
     expand_all_child_nodes = "expand_all_child_nodes",
 
-    refresh_tree = "refresh_tree",
+    refresh_panel = "refresh_panel",
 
     focus_parent = "focus_parent",
     focus_prev_sibling = "focus_prev_sibling",
@@ -118,12 +113,13 @@ local M = {
     toggle_filter = "toggle_filter",
   },
   search = {
-    search_for_node_in_tree = "search_for_node_in_tree",
+    search_for_node_in_panel = "search_for_node_in_panel",
     search_interactively = "search_interactively",
     search_once = "search_once",
+    close_search = "close_search",
   },
-  tree_specific = {
-    goto_node_in_filesystem_tree = "goto_node_in_filesystem_tree",
+  panel_specific = {
+    goto_node_in_files_panel = "goto_node_in_files_panel",
   },
   git = {
     check_node_for_git = "check_node_for_git",

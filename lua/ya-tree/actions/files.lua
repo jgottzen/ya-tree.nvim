@@ -14,55 +14,51 @@ local M = {}
 ---@alias Yat.Action.Files.Open.Mode "edit"|"vsplit"|"split"|"tabnew"
 
 ---@async
----@param tree Yat.Tree
----@param _ Yat.Node
----@param sidebar Yat.Sidebar
-function M.open(tree, _, sidebar)
-  local nodes = sidebar:get_selected_nodes()
+---@param panel Yat.Panel.Tree
+function M.open(panel)
+  local nodes = panel:get_selected_nodes()
   if #nodes == 1 then
     local node = nodes[1]
     if node:has_children() then
-      node_actions.toggle_node(tree, node, sidebar)
+      node_actions.toggle_node(panel, node)
     elseif node:is_editable() then
-      sidebar:open_node(node, "edit")
+      panel:open_node(node, "edit")
     end
   else
     for _, node in ipairs(nodes) do
       if node:is_editable() then
-        sidebar:open_node(node, "edit")
+        panel:open_node(node, "edit")
       end
     end
   end
 end
 
 ---@async
----@param _ Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.vsplit(_, node, sidebar)
+function M.vsplit(panel, node)
   if node:is_editable() then
-    sidebar:open_node(node, "vsplit")
+    panel:open_node(node, "vsplit")
   end
 end
 
 ---@async
----@param _ Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.split(_, node, sidebar)
+function M.split(panel, node)
   if node:is_editable() then
-    sidebar:open_node(node, "split")
+    panel:open_node(node, "split")
   end
 end
 
 ---@async
----@param sidebar Yat.Sidebar
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
 ---@param focus boolean
-local function preview(sidebar, node, focus)
+local function preview(panel, node, focus)
   if node:is_editable() then
     local already_loaded = vim.fn.bufloaded(node.path) > 0
-    sidebar:open_node(node, "edit")
+    panel:open_node(node, "edit")
 
     -- taken from nvim-tree
     if not already_loaded then
@@ -83,61 +79,56 @@ local function preview(sidebar, node, focus)
       -- a scheduler call is required here for the event loop to to update the ui state
       -- otherwise the focus will happen before the buffer is opened, and the buffer will keep the focus
       scheduler()
-      sidebar:focus()
+      panel:focus()
     end
   end
 end
 
 ---@async
----@param _ Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.preview(_, node, sidebar)
-  preview(sidebar, node, false)
+function M.preview(panel, node)
+  preview(panel, node, false)
 end
 
 ---@async
----@param _ Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.preview_and_focus(_, node, sidebar)
-  preview(sidebar, node, true)
+function M.preview_and_focus(panel, node)
+  preview(panel, node, true)
 end
 
 ---@async
----@param _ Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.tabnew(_, node, sidebar)
+function M.tabnew(panel, node)
   if node:is_editable() then
-    sidebar:open_node(node, "tabnew")
+    panel:open_node(node, "tabnew")
   end
 end
 
 ---@async
----@param sidebar Yat.Sidebar
----@param tree Yat.Trees.Filesystem
+---@param panel Yat.Panel.Files
 ---@param node Yat.Node
 ---@param path string
-local function prepare_add_rename(sidebar, tree, node, path)
+local function prepare_add_rename(panel, node, path)
   local parent = Path:new(path):parent():absolute() --[[@as string]]
-  if tree.root:is_ancestor_of(path) or tree.root.path == parent then
+  if panel.root:is_ancestor_of(path) or panel.root.path == parent then
     -- expand to the parent path so the tree will detect and display the added file/directory
     if parent ~= node.path then
-      tree.root:expand({ to = parent })
+      panel.root:expand({ to = parent })
       vim.schedule(function()
-        sidebar:update()
+        panel:draw()
       end)
     end
-    tree.focus_path_on_fs_event = path
+    panel.focus_path_on_fs_event = path
   end
 end
 
 ---@async
----@param tree Yat.Trees.Filesystem
+---@param panel Yat.Panel.Files
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.add(tree, node, sidebar)
+function M.add(panel, node)
   if not node:is_directory() then
     node = node.parent --[[@as Yat.Node]]
   end
@@ -156,7 +147,7 @@ function M.add(tree, node, sidebar)
     path = path:sub(1, -2)
   end
 
-  prepare_add_rename(sidebar, tree, node, path)
+  prepare_add_rename(panel, node, path)
   local success
   if is_directory then
     success = fs.create_dir(path)
@@ -166,18 +157,17 @@ function M.add(tree, node, sidebar)
   if success then
     utils.notify(string.format("Created %s %q.", is_directory and "directory" or "file", path))
   else
-    tree.focus_path_on_fs_event = nil
+    panel.focus_path_on_fs_event = nil
     utils.warn(string.format("Failed to create %s %q!", is_directory and "directory" or "file", path))
   end
 end
 
 ---@async
----@param tree Yat.Trees.Filesystem|Yat.Trees.Git
+---@param panel Yat.Panel.Files|Yat.Panel.GitStatus
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.rename(tree, node, sidebar)
+function M.rename(panel, node)
   -- prohibit renaming the root node
-  if tree.root == node then
+  if panel.root == node then
     return
   end
 
@@ -189,8 +179,8 @@ function M.rename(tree, node, sidebar)
     return
   end
 
-  if tree.TYPE == "filesystem" then
-    prepare_add_rename(sidebar, tree --[[@as Yat.Trees.Filesystem]], node, path)
+  if panel.TYPE == "files" then
+    prepare_add_rename(panel --[[@as Yat.Panel.Files]], node, path)
   end
   if node.repo then
     local err = node.repo:index():move(node.path, path)
@@ -205,7 +195,7 @@ function M.rename(tree, node, sidebar)
   if fs.rename(node.path, path) then
     utils.notify(string.format("Renamed %q to %q.", node.path, path))
   else
-    tree.focus_path_on_fs_event = nil
+    panel.focus_path_on_fs_event = nil
     utils.warn(string.format("Failed to rename %q to %q!", node.path, path))
   end
 end
@@ -222,7 +212,7 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
   for _, node in ipairs(selected_nodes) do
     -- prohibit deleting the root node
     if node.path == root_path then
-      utils.warn(string.format("Path %q is the root of the tree, skipping it.", node.path))
+      utils.warn(string.format("Path %q is the root of the panel, skipping it.", node.path))
     else
       if confirm then
         local response = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = title_prefix .. "" .. node.path .. "?" })
@@ -267,17 +257,16 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
 end
 
 ---@async
----@param tree Yat.Trees.Filesystem
+---@param panel Yat.Panel.Files
 ---@param _ Yat.Node
----@param sidebar Yat.Sidebar
-function M.delete(tree, _, sidebar)
-  local nodes, node_to_focus = get_nodes_to_delete(sidebar:get_selected_nodes(), tree.root.path, true, "Delete")
+function M.delete(panel, _)
+  local nodes, node_to_focus = get_nodes_to_delete(panel:get_selected_nodes(), panel.root.path, true, "Delete")
   if #nodes == 0 then
     return
   end
 
   local was_deleted = false
-  tree.focus_path_on_fs_event = node_to_focus and node_to_focus.path
+  panel.focus_path_on_fs_event = node_to_focus and node_to_focus.path
   for _, node in ipairs(nodes) do
     local ok = node:is_directory() and fs.remove_dir(node.path) or fs.remove_file(node.path)
     if ok then
@@ -288,21 +277,20 @@ function M.delete(tree, _, sidebar)
     was_deleted = ok or was_deleted
   end
   if not was_deleted then
-    tree.focus_path_on_fs_event = nil
+    panel.focus_path_on_fs_event = nil
   end
 end
 
 ---@async
----@param tree Yat.Trees.Filesystem
+---@param panel Yat.Panel.Files
 ---@param _ Yat.Node
----@param sidebar Yat.Sidebar
-function M.trash(tree, _, sidebar)
+function M.trash(panel, _)
   local trash = require("ya-tree.config").config.trash
   if not trash.enable then
     return
   end
 
-  local nodes, node_to_focus = get_nodes_to_delete(sidebar:get_selected_nodes(), tree.root.path, trash.require_confirm, "Trash")
+  local nodes, node_to_focus = get_nodes_to_delete(panel:get_selected_nodes(), panel.root.path, trash.require_confirm, "Trash")
   if #nodes == 0 then
     return
   end
@@ -313,11 +301,11 @@ function M.trash(tree, _, sidebar)
   end, nodes) --[=[@as string[]]=]
 
   if #files > 0 then
-    tree.focus_path_on_fs_event = node_to_focus and node_to_focus.path
+    panel.focus_path_on_fs_event = node_to_focus and node_to_focus.path
     log.debug("trashing files %s", files)
     local code, _, stderr = job.async_run({ cmd = "trash", args = files })
     if code ~= 0 then
-      tree.focus_path_on_fs_event = nil
+      panel.focus_path_on_fs_event = nil
       log.error("%q with args %s failed with code %s and message %s", "trash", files, code, stderr)
       utils.warn(string.format("Failed to trash some of the files:\n%s\n\nMessage:\n%s", table.concat(files, "\n"), stderr))
     end
@@ -325,7 +313,7 @@ function M.trash(tree, _, sidebar)
 end
 
 ---@async
----@param _ Yat.Tree
+---@param _ Yat.Panel.Tree
 ---@param node Yat.Node
 function M.system_open(_, node)
   local config = require("ya-tree.config").config

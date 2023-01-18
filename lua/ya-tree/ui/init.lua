@@ -17,6 +17,23 @@ function M.is_window_floating(winid)
   return win_config.relative > "" or win_config.external
 end
 
+---@param height integer|string
+---@return integer height
+function M.normalize_height(height)
+  local win_height = vim.o.lines - vim.o.cmdheight - (vim.o.laststatus > 0 and 1 or 0) - 2
+  local size
+  if type(height) == "string" then
+    if height:sub(-1) == "%" then
+      size = math.floor((win_height * tonumber(height:sub(1, -2))) / 100)
+    else
+      size = tonumber(height) --[[@as integer]]
+    end
+  elseif type(height) == "number" then
+    size = height
+  end
+  return size
+end
+
 ---@type async fun(opts: Yat.Ui.InputOpts): string|nil
 M.nui_input = wrap(function(opts, on_submit)
   nui.input(opts, {

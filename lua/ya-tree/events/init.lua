@@ -76,10 +76,15 @@ do
     [events.autocmd.BUFFER_DELETED] = { "BufDelete", "TermClose" },
     [events.autocmd.BUFFER_MODIFIED] = "BufModifiedSet",
     [events.autocmd.BUFFER_SAVED] = "BufWritePost",
+    [events.autocmd.BUFFER_ENTER] = "BufEnter",
 
     [events.autocmd.COLORSCHEME] = "ColorScheme",
 
     [events.autocmd.LEAVE_PRE] = "VimLeavePre",
+
+    [events.autocmd.DIR_CHANGED] = "DirChanged",
+
+    [events.autocmd.LSP_ATTACH] = "LspAttach",
   }
 
   ---@class Nvim.AutocmdArgs

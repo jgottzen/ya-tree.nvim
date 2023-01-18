@@ -228,7 +228,7 @@ local function create_terminal_info(node)
 end
 
 ---@async
----@param _ Yat.Tree
+---@param _ Yat.Panel.Tree
 ---@param node Yat.Node
 function M.show_node_info(_, node)
   if popup ~= nil then

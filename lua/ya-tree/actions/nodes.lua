@@ -1,27 +1,23 @@
-local scheduler = require("ya-tree.async").scheduler
-
 local M = {}
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.toggle_node(tree, node, sidebar)
+function M.toggle_node(panel, node)
   if node:has_children() then
     if node.expanded then
       node:collapse()
     else
       node:expand()
     end
-    sidebar:update(tree, node)
+    panel:draw(node)
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.close_node(tree, node, sidebar)
+function M.close_node(panel, node)
   if node:has_children() and node.expanded then
     node:collapse()
   else
@@ -31,26 +27,24 @@ function M.close_node(tree, node, sidebar)
       node = parent
     end
   end
-  sidebar:update(tree, node)
+  panel:draw(node)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param _ Yat.Node
----@param sidebar Yat.Sidebar
-function M.close_all_nodes(tree, _, sidebar)
-  tree.root:collapse({ recursive = true })
-  sidebar:update(tree, tree.root)
+function M.close_all_nodes(panel, _)
+  panel.root:collapse({ recursive = true })
+  panel:draw(panel.root)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.close_all_child_nodes(tree, node, sidebar)
+function M.close_all_child_nodes(panel, node)
   if node:has_children() then
     node:collapse({ recursive = true, children_only = true })
-    sidebar:update(tree, node)
+    panel:draw(node)
   end
 end
 
@@ -71,133 +65,121 @@ do
   end
 
   ---@async
-  ---@param tree Yat.Tree
+  ---@param panel Yat.Panel.Tree
   ---@param node Yat.Node
-  ---@param sidebar Yat.Sidebar
-  function M.expand_all_nodes(tree, node, sidebar)
-    expand(tree.root, 1, require("ya-tree.config").config)
-    sidebar:update(tree, node)
+  function M.expand_all_nodes(panel, node)
+    expand(panel.root, 1, require("ya-tree.config").config)
+    panel:draw(node)
   end
 
   ---@async
-  ---@param tree Yat.Tree
+  ---@param panel Yat.Panel.Tree
   ---@param node Yat.Node
-  ---@param sidebar Yat.Sidebar
-  function M.expand_all_child_nodes(tree, node, sidebar)
+  function M.expand_all_child_nodes(panel, node)
     if node:has_children() then
       expand(node, 1, require("ya-tree.config").config)
-      sidebar:update(tree, node)
+      panel:draw(node)
     end
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_parent(tree, node, sidebar)
+function M.focus_parent(panel, node)
   if node.parent then
-    sidebar:focus_node(tree, node.parent)
+    panel:focus_node(node.parent)
   end
 end
 
----@param sidebar Yat.Sidebar
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param iterator fun(): integer, Yat.Node
-local function focus_first_non_hidden_node_from_iterator(sidebar, tree, iterator)
+local function focus_first_non_hidden_node_from_iterator(panel, iterator)
   local config = require("ya-tree.config").config
   for _, node in iterator do
     if not node:is_hidden(config) then
-      sidebar:focus_node(tree, node)
+      panel:focus_node(node)
       break
     end
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_prev_sibling(tree, node, sidebar)
+function M.focus_prev_sibling(panel, node)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children({ reverse = true, from = node }))
+    focus_first_non_hidden_node_from_iterator(panel, node.parent:iterate_children({ reverse = true, from = node }))
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_next_sibling(tree, node, sidebar)
+function M.focus_next_sibling(panel, node)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children({ from = node }))
+    focus_first_non_hidden_node_from_iterator(panel, node.parent:iterate_children({ from = node }))
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_first_sibling(tree, node, sidebar)
+function M.focus_first_sibling(panel, node)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children())
+    focus_first_non_hidden_node_from_iterator(panel, node.parent:iterate_children())
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_last_sibling(tree, node, sidebar)
+function M.focus_last_sibling(panel, node)
   if node.parent then
-    focus_first_non_hidden_node_from_iterator(sidebar, tree, node.parent:iterate_children({ reverse = true }))
+    focus_first_non_hidden_node_from_iterator(panel, node.parent:iterate_children({ reverse = true }))
   end
 end
 
----@param sidebar Yat.Sidebar
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param start_node Yat.Node
 ---@param forward boolean
 ---@param predicate fun(node: Yat.Node): boolean
-local function focus_first_node_that_matches(sidebar, tree, start_node, forward, predicate)
-  local node = tree:get_first_node_that_matches(start_node, forward, predicate)
+local function focus_first_node_that_matches(panel, start_node, forward, predicate)
+  local node = panel:get_first_node_that_matches(start_node, forward, predicate)
   if node then
-    sidebar:focus_node(tree, node)
+    panel:focus_node(node)
   end
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param start Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_prev_git_item(tree, start, sidebar)
+function M.focus_prev_git_item(panel, start)
   local config = require("ya-tree.config").config
-  focus_first_node_that_matches(sidebar, tree, start, false, function(node)
+  focus_first_node_that_matches(panel, start, false, function(node)
     return not node:is_hidden(config) and node:git_status() ~= nil
   end)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param start Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_next_git_item(tree, start, sidebar)
+function M.focus_next_git_item(panel, start)
   local config = require("ya-tree.config").config
-  focus_first_node_that_matches(sidebar, tree, start, true, function(node)
+  focus_first_node_that_matches(panel, start, true, function(node)
     return not node:is_hidden(config) and node:git_status() ~= nil
   end)
 end
 
 ---@async
----@param sidebar Yat.Sidebar
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param start Yat.Node
 ---@param forward boolean
-local function focus_diagnostic_item(sidebar, tree, start, forward)
+local function focus_diagnostic_item(panel, start, forward)
   local config = require("ya-tree.config").config
-  local directory_min_diagnostic_severity = tree.renderers.extra.directory_min_diagnostic_severity
-  local file_min_diagnostic_severity = tree.renderers.extra.file_min_diagnostic_severity
-  focus_first_node_that_matches(sidebar, tree, start, forward, function(node)
+  local directory_min_diagnostic_severity = panel:directory_min_severity()
+  local file_min_diagnostic_severity = panel:file_min_severity()
+  focus_first_node_that_matches(panel, start, forward, function(node)
     if not node:is_hidden(config) then
       local severity = node:diagnostic_severity()
       if severity then
@@ -210,30 +192,17 @@ local function focus_diagnostic_item(sidebar, tree, start, forward)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_prev_diagnostic_item(tree, node, sidebar)
-  focus_diagnostic_item(sidebar, tree, node, false)
+function M.focus_prev_diagnostic_item(panel, node)
+  focus_diagnostic_item(panel, node, false)
 end
 
 ---@async
----@param tree Yat.Tree
+---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.focus_next_diagnostic_item(tree, node, sidebar)
-  focus_diagnostic_item(sidebar, tree, node, true)
-end
-
----@async
----@param _ Yat.Tree
----@param node Yat.Node
----@param sidebar Yat.Sidebar
-function M.goto_node_in_filesystem_tree(_, node, sidebar)
-  local tree = sidebar:filesystem_tree()
-  local target_node = tree.root:expand({ to = node.path })
-  scheduler()
-  sidebar:update(tree, target_node)
+function M.focus_next_diagnostic_item(panel, node)
+  focus_diagnostic_item(panel, node, true)
 end
 
 return M

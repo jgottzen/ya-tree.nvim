@@ -172,6 +172,7 @@ local function subclass(base, name)
   ---@field try_cast fun(self: Yat.Class, other: Yat.Object): Yat.Class?
   ---@field name fun(self: Yat.Class): string
   ---@field super fun(self: Yat.Class): Yat.Class
+  ---@field isa fun(self: Yat.Class, other: Yat.Object): boolean
   local class_internals = {
     static = instance_internals,
     new = new_instance,
@@ -184,6 +185,9 @@ local function subclass(base, name)
     end,
     super = function(_)
       return base
+    end,
+    isa = function(_, other)
+      return class == other or base:isa(other)
     end,
   }
   meta_object[class] = { virtuals = duplicate(meta_object[base].virtuals) }
@@ -253,6 +257,9 @@ local object_class = {
   end,
   super = function()
     return nil
+  end,
+  isa = function(_, other)
+    return other == Object
   end,
 }
 meta_object[Object] = { virtuals = {} }

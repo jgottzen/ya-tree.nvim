@@ -7,14 +7,14 @@ local M = {
 
 ---@class Yat.Action
 ---@field name Yat.Actions.Name|string
----@field fn Yat.Action.Fn
+---@field fn Yat.Action.TreePanelFn
 ---@field desc string
 ---@field modes Yat.Actions.Mode[]
 ---@field node_independent boolean
 ---@field user_defined boolean
 
 ---@param name Yat.Actions.Name|string
----@param fn Yat.Action.Fn
+---@param fn Yat.Action.TreePanelFn
 ---@param desc string
 ---@param modes Yat.Actions.Mode[]
 ---@param node_independent? boolean
@@ -40,31 +40,28 @@ local function define_actions(config)
   M.actions = {}
 
   local builtin = require("ya-tree.actions.builtin")
-  local lib = require("ya-tree.lib")
   local clipboard = require("ya-tree.actions.clipboard")
   local files = require("ya-tree.actions.files")
   local git = require("ya-tree.actions.git")
   local help = require("ya-tree.actions.help")
+  local lib = require("ya-tree.lib")
   local nodes = require("ya-tree.actions.nodes")
+  local panels = require("ya-tree.actions.panels")
   local popups = require("ya-tree.actions.popups")
   local search = require("ya-tree.actions.search")
-  local trees = require("ya-tree.actions.trees")
-  local ui = require("ya-tree.actions.ui")
+  local sidebar = require("ya-tree.actions.sidebar")
 
-  M.define_action(builtin.general.close_window, ui.close_window, "Close the tree window", { "n" }, true)
+  M.define_action(builtin.general.close_sidebar, sidebar.close_sidebar, "Close the sidebar", { "n" }, true)
   M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
   M.define_action(builtin.general.open_help, help.open_help, "Open keybindings help", { "n" }, true)
   M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
-  M.define_action(builtin.general.close_tree, trees.close_tree, "Close the current tree", { "n" }, true)
-  M.define_action(builtin.general.delete_tree, trees.delete_tree, "Delete the current tree", { "n" }, true)
-  M.define_action(builtin.general.focus_prev_tree, trees.focus_prev_tree, "Go to previous tree", { "n" }, true)
-  M.define_action(builtin.general.focus_next_tree, trees.focus_next_tree, "Go to next tree", { "n" }, true)
+  M.define_action(builtin.general.close_panel, panels.close_panel, "Close the current panel", { "n" }, true)
 
-  M.define_action(builtin.general.open_symbols_tree, trees.open_symbols_tree, "Open the Symbols tree", { "n" }, false)
+  M.define_action(builtin.general.open_symbols_panel, panels.open_symbols_panel, "Open the Symbols panel", { "n" }, true)
   if config.git.enable then
-    M.define_action(builtin.general.open_git_tree, trees.open_git_tree, "Open the Git tree", { "n" }, true)
+    M.define_action(builtin.general.open_git_status_panel, panels.open_git_status_panel, "Open the Git Status panel", { "n" }, true)
   end
-  M.define_action(builtin.general.open_buffers_tree, trees.open_buffers_tree, "Open the Buffers tree", { "n" }, true)
+  M.define_action(builtin.general.open_buffers_panel, panels.open_buffers_panel, "Open the Buffers panel", { "n" }, true)
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
   M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
@@ -93,7 +90,7 @@ local function define_actions(config)
   M.define_action(builtin.general.expand_all_nodes, nodes.expand_all_nodes, "Recursively expand all directories", { "n" })
   M.define_action(builtin.general.expand_all_child_nodes, nodes.expand_all_child_nodes, "Recursively expand all child directories", { "n" })
 
-  M.define_action(builtin.general.refresh_tree, trees.refresh_tree, "Refresh the tree", { "n" }, true)
+  M.define_action(builtin.general.refresh_panel, panels.refresh_panel, "Refresh the panel", { "n" }, true)
 
   M.define_action(builtin.general.focus_parent, nodes.focus_parent, "Go to parent directory", { "n" })
   M.define_action(builtin.general.focus_prev_sibling, nodes.focus_prev_sibling, "Go to previous sibling node", { "n" })
@@ -121,14 +118,21 @@ local function define_actions(config)
   end
   M.define_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
-  M.define_action(builtin.search.search_for_node_in_tree, search.search_for_node_in_tree, "Go to entered path in tree", { "n" }, true)
+  M.define_action(
+    builtin.search.search_for_node_in_panel,
+    search.search_for_node_in_panel,
+    "Go to entered path in the panel",
+    { "n" },
+    true
+  )
   M.define_action(builtin.search.search_interactively, search.search_interactively, "Search as you type", { "n" }, true)
   M.define_action(builtin.search.search_once, search.search_once, "Search", { "n" }, true)
+  M.define_action(builtin.search.close_search, search.close_search, "Close search", { "n" }, true)
 
   M.define_action(
-    builtin.tree_specific.goto_node_in_filesystem_tree,
-    nodes.goto_node_in_filesystem_tree,
-    "Go to node in the filesystem tree",
+    builtin.panel_specific.goto_node_in_files_panel,
+    panels.goto_node_in_files_panel,
+    "Go to node in the files panel",
     { "n" }
   )
 
