@@ -73,6 +73,22 @@ function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
   self._file_min_diagnostic_severity = self._file_min_diagnostic_severity or vim.diagnostic.severity.HINT
 end
 
+---@param name Yat.Ui.Renderer.Name
+---@return boolean
+function TreePanel:has_renderer(name)
+  for _, renderer in ipairs(self.renderers.directory) do
+    if renderer.name == name then
+      return true
+    end
+  end
+  for _, renderer in ipairs(self.renderers.file) do
+    if renderer.name == name then
+      return true
+    end
+  end
+  return false
+end
+
 ---@return integer severity
 function TreePanel:directory_min_severity()
   return self._directory_min_diagnostic_severity

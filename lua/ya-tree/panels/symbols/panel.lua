@@ -36,7 +36,9 @@ function SymbolsPanel:init(sidebar, config, keymap, renderers)
   local root = self:create_root_node(path)
   self.super:init("symbols", sidebar, config.title, config.icon, keymap, renderers, root)
   self.current_node = self.root:refresh() or root
-  self:register_buffer_modified_event()
+  if self:has_renderer("modified") then
+    self:register_buffer_modified_event()
+  end
   self:register_buffer_saved_event()
   self:register_buffer_enter_event()
   self:register_lsp_attach_event()

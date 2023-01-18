@@ -381,7 +381,6 @@ local M = {
             { name = "indentation" },
             { name = "icon" },
             { name = "name" },
-            { name = "modified" },
             { name = "symbol_details" },
             { name = "diagnostics" },
           },
