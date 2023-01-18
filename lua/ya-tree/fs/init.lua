@@ -63,6 +63,14 @@ local fs_closedir = wrap(uv.fs_closedir, 2, false)
 local fs_readlink = wrap(uv.fs_readlink, 2, false)
 
 ---@param path string
+---@return boolean is_file
+function M.is_file(path)
+  ---@type Luv.Fs.Stat?
+  local stat = uv.fs_stat(path)
+  return stat and stat.type == "file" or false
+end
+
+---@param path string
 ---@return boolean is_directory
 function M.is_directory(path)
   ---@type Luv.Fs.Stat?

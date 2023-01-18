@@ -61,7 +61,7 @@ end
 ---@param file string
 function BuffersPanel:on_buffer_new(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if (buftype == "" and not fs.is_directory(file)) or buftype == "terminal" then
+  if (buftype == "" and fs.is_file(file)) or buftype == "terminal" then
     local node
     if buftype == "terminal" then
       node = self.root:add_node(file, bufnr, true)

@@ -163,6 +163,19 @@ end
 ---@protected
 function BufferNode:_scandir() end
 
+---@async
+---@param paths string[]
+---@return string[] paths
+local function clean_paths(paths)
+  local cleaned = {}
+  for _, path in ipairs(paths) do
+    if fs.exists(path) then
+      cleaned[#cleaned + 1] = path
+    end
+  end
+  return cleaned
+end
+
 ---@param tree_root_path string
 ---@param paths string[]
 ---@return string root_path
@@ -225,7 +238,7 @@ function BufferNode:refresh(opts)
   opts = opts or {}
   scheduler()
   local buffers, terminals = utils.get_current_buffers()
-  local paths = vim.tbl_keys(buffers) --[=[@as string[]]=]
+  local paths = clean_paths(vim.tbl_keys(buffers) --[=[@as string[]]=])
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
   if root_path ~= self.path then
     log.debug("setting new root path to %q", root_path)

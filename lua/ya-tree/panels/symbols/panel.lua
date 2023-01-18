@@ -106,13 +106,11 @@ end
 ---@param file string
 function SymbolsPanel:on_buffer_enter(bufnr, file)
   local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
-  if not ok or buftype ~= "" or file == "" or self.root.path == file or fs.is_directory(file) then
-    return
+  if ok and buftype == "" and file ~= "" and self.root.path ~= file and fs.is_file(file) then
+    self.root = self:create_root_node(file, bufnr)
+    self.current_node = self.root
+    self:draw()
   end
-
-  self.root = self:create_root_node(file, bufnr)
-  self.current_node = self.root
-  self:draw()
 end
 
 ---@private
