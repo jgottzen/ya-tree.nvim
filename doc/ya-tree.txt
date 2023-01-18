@@ -46,7 +46,7 @@ REQUIREMENTS                                            *ya-tree-requirements*
 
 INSTALLATION WITH PACKER: ~
 
->
+>lua
     use({
       "jgottzen/ya-tree.nvim",
       config = function()
@@ -82,7 +82,7 @@ The arugments can be specific in any order:
 
 Whether to focus the sidebar or a specific panel.
 
->
+>vim
     :YaTreeOpen focus=false
     :YaTreeOpen focus=files
 <
@@ -99,7 +99,7 @@ Git status. - `buffers`: List of currently open buffers, including terminals. -
 
 Which path to expand to in the `files` panel.
 
->
+>vim
     :YaTreeOpen path=./path/to/file.rs
     :YaTreeOpen path=%
     :YaTreeOpen path=./path/to/directory
@@ -121,7 +121,7 @@ Examples:
 
 The lua api is:
 
->
+>lua
     ---@class Yat.OpenWindowArgs
     ---@field path? string The path to expand to.
     ---@field focus? boolean|Yat.Panel.Type Whether to focus the sidebar, alternatively which panel to focus.
@@ -135,14 +135,14 @@ YATREECLOSE ~
 
 Closes the sidebar.
 
->
+>vim
     :YaTreeClose
 <
 
 
 The lua api is:
 
->
+>lua
     require("ya-tree").close()
 <
 
@@ -151,14 +151,14 @@ YATREETOGGLE ~
 
 Toggles the sidebar.
 
->
+>vim
     :YaTreeToggle
 <
 
 
 The lua api is:
 
->
+>lua
     require("ya-tree").toggle()
 <
 
@@ -172,7 +172,7 @@ The table argument is fully annotated with `EmmyLua`.
 
 Default Configuration ~
 
->
+>lua
     ---@class Yat.Config
     ---@field close_if_last_window boolean Close the sidebar when it is the last window in the tabpage, default: `false`.
     ---@field follow_focused_file boolean Update the focused file in the panel on `BufEnter`, default: `false`.
@@ -553,7 +553,6 @@ Default Configuration ~
               { name = "indentation" },
               { name = "icon" },
               { name = "name" },
-              { name = "modified" },
               { name = "symbol_details" },
               { name = "diagnostics" },
             },
@@ -929,7 +928,7 @@ The actions supported by the trees are:
 
 All builtin actions: ~
 
->
+>lua
     ---@alias Yat.Actions.Name
     ---| "close_sidebar"
     ---| "system_open"
@@ -994,7 +993,7 @@ All builtin actions: ~
 
 Actions supported by all builtin panels: ~
 
->
+>lua
     ---@alias Yat.Panel.Tree.SupportedActions
     ---| "close_sidebar"
     ---| "system_open"
@@ -1035,7 +1034,7 @@ Actions supported by all builtin panels: ~
 
 Files panel actions: ~
 
->
+>lua
     ---@alias Yat.Panel.Files.SupportedActions
     ---| "add"
     ---| "rename"
@@ -1076,7 +1075,7 @@ Files panel actions: ~
 
 Git Status panel actions: ~
 
->
+>lua
     ---@alias Yat.Panel.GitStatus.SupportedActions
     ---| "rename"
     ---
@@ -1103,7 +1102,7 @@ Git Status panel actions: ~
 
 LSP Symbols panel actions: ~
 
->
+>lua
     ---@alias Yat.Panel.Symbols.SupportedActions
     ---| "toggle_ignored"
     ---| "toggle_filter"
@@ -1119,7 +1118,7 @@ LSP Symbols panel actions: ~
 
 Buffers panel actions: ~
 
->
+>lua
     ---@alias Yat.Panel.Buffers.SupportedActions
     ---| "cd_to"
     ---| "toggle_ignored"
@@ -1147,7 +1146,7 @@ CUSTOM ACTIONS ~
 
 Custom actions can easily be created using the config helper:
 
->
+>lua
     ---@async
     ---@param panel Yat.Panel.Tree
     ---@param node Yat.Node
@@ -1204,7 +1203,7 @@ the way, so all entry points to the plugin are called using the
 
 For actions, this conceptually translates to:
 
->
+>lua
     local panel = ...
     local action = ...
     vim.keymap.set(mode, key, function()
@@ -1219,7 +1218,7 @@ to be taken to handle `vim.api` functions calls, since they might error when
 called from a `vim.loop` callback. The is remedied by using
 `vim.schedule(...)`, or the wrapped `async` variant:
 
->
+>lua
     panel.root:refresh()
     require("ya-tree.async").scheduler()
     -- this can cause E5560 without the call to scheduler above
@@ -1230,7 +1229,7 @@ called from a `vim.loop` callback. The is remedied by using
 The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make
 them easier to use:
 
->
+>lua
     local ui = require("ya-tree.ui")
     local response = ui.input({ promt = "My prompt", deault = "My value" })
     local choice = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Choose" })
@@ -1242,7 +1241,7 @@ and initialization parameters specific to `ya-tree`, in the `ya-tree.ui.nui`
 package. There is also a `wrap`ped variant for when only a simple result is
 needed:
 
->
+>lua
     local ui = require("ya-tree.ui")
     local reponse = ui.nui_input({ title = "My Title", completion = "file" })
 <
@@ -1252,7 +1251,7 @@ RENDERERS                                                  *ya-tree-renderers*
 
 A custom renderer component can be created using the config helper:
 
->
+>lua
     ---@class Yat.Ui.RenderContext
     ---@field panel_type Yat.Panel.Type
     ---@field config Yat.Config
