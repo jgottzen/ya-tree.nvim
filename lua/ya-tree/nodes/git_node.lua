@@ -2,6 +2,7 @@ local fs = require("ya-tree.fs")
 local log = require("ya-tree.log").get("nodes")
 local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
+local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
 ---@class Yat.Nodes.Git : Yat.Node
@@ -86,7 +87,7 @@ function GitNode:refresh(opts)
 
   self._children = {}
   self.empty = true
-  return self:populate_from_paths(paths, function(path, parent, directory)
+  local leaf = self:populate_from_paths(paths, function(path, parent, directory)
     local fs_node = fs.node_for(path)
     local exists = fs_node ~= nil
     if not fs_node then
@@ -102,6 +103,8 @@ function GitNode:refresh(opts)
     end
     return node
   end)
+  scheduler()
+  return leaf
 end
 
 return GitNode

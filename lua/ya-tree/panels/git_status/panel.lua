@@ -76,13 +76,13 @@ function GitStatusPanel:on_buffer_saved(_, file)
     if node then
       node.modified = false
     end
-    local git_status = self.root.repo:status():of(file, "file")
+    local git_status = self.root.repo:status():refresh_path(file)
     if not node and git_status then
       self.root:add_node(file)
     elseif node and not git_status then
       self.root:remove_node(file)
     end
-    self:draw()
+    self:draw(self:get_current_node())
   end
 end
 
@@ -91,9 +91,7 @@ end
 function GitStatusPanel:on_dot_git_dir_changed(repo)
   if vim.v.exiting == vim.NIL and self.root.repo == repo then
     log.debug("git repo %s changed", tostring(self.root.repo))
-
     self.root:refresh({ refresh_git = false })
-    scheduler()
     self:draw(self:get_current_node())
   end
 end

@@ -203,6 +203,7 @@ function Repo:_add_git_watcher(config)
       end
 
       local fs_changes = self._status:refresh({ ignored = true })
+      scheduler()
       events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
     end)
 
@@ -385,135 +386,143 @@ local function is_unstaged(status)
   return status:sub(2, 2) ~= "."
 end
 
----@async
----@param path string
----@return boolean changed
-function GitStatus:refresh_path(path)
-  if fs.is_directory(path) then
-    log.error("only individual paths are supported by this method!")
-    return true
-  end
-  local args = create_status_arguments({ header = false, ignored = false })
-  args[#args + 1] = path
-  log.debug("git status for path %q", path)
-  local results, err = self.repo:command(args, true)
-  if err then
-    return false
+do
+  local ONE_SECOND_IN_NS = 1000 * 1000 * 1000
+
+  ---@async
+  ---@param path string
+  ---@return string|nil status
+  function GitStatus:refresh_path(path)
+    if fs.is_directory(path) then
+      log.error("only individual paths are supported by this method!")
+      return
+    end
+    local now = uv.hrtime() --[[@as integer]]
+    if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
+      log.debug("refresh_status status called within 1 second, returning")
+      return self:of(path, "file")
+    end
+    local args = create_status_arguments({ header = false, ignored = false })
+    args[#args + 1] = path
+    log.debug("git status for path %q", path)
+    local results, err = self.repo:command(args, true)
+    if err then
+      return
+    end
+
+    self.status._timestamp = now
+    local old_status = self.status._changed_entries[path]
+    if old_status then
+      if is_staged(old_status) then
+        self.status.staged = self.status.staged - 1
+      end
+      if is_unstaged(old_status) then
+        self.status.unstaged = self.status.unstaged - 1
+      end
+    end
+
+    local relative_path = utils.relative_path_for(path, self.repo.toplevel)
+    local i, found = 1, false
+    while i <= #results do
+      local line = results[i]
+      if line:find(relative_path, 1, true) then
+        found = true
+        local line_type = line:sub(1, 1)
+        if line_type == "1" then
+          self:_parse_porcelainv2_change_row(line)
+        elseif line_type == "2" then
+          -- the new and original paths are separated by NUL,
+          -- the original path isn't currently used, so just step over it
+          i = i + 1
+          self:_parse_porcelainv2_rename_row(line)
+        elseif line_type == "?" then
+          self:_parse_porcelainv2_untracked_row(line)
+        end
+      end
+      i = i + 1
+    end
+    if not found then
+      self.status._changed_entries[path] = nil
+      self.status._propagated_changed_entries = {}
+      for _path, status in pairs(self.status._changed_entries) do
+        if status ~= "!" then
+          local fully_staged = is_staged(status) and not is_unstaged(status)
+          self:_propagate_status_to_parents(_path, fully_staged)
+        end
+      end
+    end
+
+    scheduler()
+    return self:of(path, "file")
   end
 
-  local old_status = self.status._changed_entries[path]
-  if old_status then
-    if is_staged(old_status) then
-      self.status.staged = self.status.staged - 1
+  ---@async
+  ---@param opts? { ignored?: boolean }
+  ---  - {opts.ignored?} `boolean`
+  ---@return boolean fs_changes
+  function GitStatus:refresh(opts)
+    local now = uv.hrtime() --[[@as integer]]
+    if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
+      log.debug("refresh_status status called within 1 second, returning")
+      return false
     end
-    if is_unstaged(old_status) then
-      self.status.unstaged = self.status.unstaged - 1
+    opts = opts or {}
+    local config = require("ya-tree.config").config
+    local args =
+      create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self.repo._is_yadm })
+    log.debug("git status for %q", self.repo.toplevel)
+    local results, err = self.repo:command(args, true)
+    if err then
+      return false
     end
-  end
 
-  local relative_path = utils.relative_path_for(path, self.repo.toplevel)
-  local i, found = 1, false
-  while i <= #results do
-    local line = results[i]
-    if line:find(relative_path, 1, true) then
-      found = true
+    local old_changed_entries = self.status._changed_entries
+    self.status.unmerged = 0
+    self.status.stashed = 0
+    self.status.behind = 0
+    self.status.ahead = 0
+    self.status.staged = 0
+    self.status.unstaged = 0
+    self.status.untracked = 0
+    self.status._timestamp = now
+    self.status._changed_entries = {}
+    self.status._propagated_changed_entries = {}
+    self.status._ignored = {}
+
+    local i, fs_changes = 1, false
+    while i <= #results do
+      local line = results[i]
       local line_type = line:sub(1, 1)
-      if line_type == "1" then
-        self:_parse_porcelainv2_change_row(line)
+      if line_type == "#" then
+        self:_parse_porcelainv2_header_row(line)
+      elseif line_type == "1" then
+        fs_changes = self:_parse_porcelainv2_change_row(line) or fs_changes
       elseif line_type == "2" then
         -- the new and original paths are separated by NUL,
         -- the original path isn't currently used, so just step over it
         i = i + 1
         self:_parse_porcelainv2_rename_row(line)
+        fs_changes = true
+      elseif line_type == "u" then
+        self:_parse_porcelainv2_merge_row(line)
       elseif line_type == "?" then
         self:_parse_porcelainv2_untracked_row(line)
+      elseif line_type == "!" then
+        self:_parse_porcelainv2_ignored_row(line)
+      else
+        log.warn("unknown status type %q, full line=%q", line_type, line)
       end
-    end
-    i = i + 1
-  end
-  if not found then
-    self.status._changed_entries[path] = nil
-    self.status._propagated_changed_entries = {}
-    for _path, status in pairs(self.status._changed_entries) do
-      if status ~= "!" then
-        local fully_staged = is_staged(status) and not is_unstaged(status)
-        self:_propagate_status_to_parents(_path, fully_staged)
-      end
-    end
-  end
 
-  scheduler()
-  return old_status ~= self.status._changed_entries[path]
-end
-
-local ONE_SECOND_IN_NS = 1000 * 1000 * 1000
-
----@async
----@param opts? { ignored?: boolean }
----  - {opts.ignored?} `boolean`
----@return boolean fs_changes
-function GitStatus:refresh(opts)
-  local now = uv.hrtime() --[[@as integer]]
-  if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
-    log.debug("refresh_status status called within 1 second, returning")
-    return false
-  end
-  opts = opts or {}
-  local config = require("ya-tree.config").config
-  local args =
-    create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self.repo._is_yadm })
-  log.debug("git status for %q", self.repo.toplevel)
-  local results, err = self.repo:command(args, true)
-  if err then
-    return false
-  end
-
-  local old_changed_entries = self.status._changed_entries
-  self.status.unmerged = 0
-  self.status.stashed = 0
-  self.status.behind = 0
-  self.status.ahead = 0
-  self.status.staged = 0
-  self.status.unstaged = 0
-  self.status.untracked = 0
-  self.status._timestamp = now
-  self.status._changed_entries = {}
-  self.status._propagated_changed_entries = {}
-  self.status._ignored = {}
-
-  local i, fs_changes = 1, false
-  while i <= #results do
-    local line = results[i]
-    local line_type = line:sub(1, 1)
-    if line_type == "#" then
-      self:_parse_porcelainv2_header_row(line)
-    elseif line_type == "1" then
-      fs_changes = self:_parse_porcelainv2_change_row(line) or fs_changes
-    elseif line_type == "2" then
-      -- the new and original paths are separated by NUL,
-      -- the original path isn't currently used, so just step over it
       i = i + 1
-      self:_parse_porcelainv2_rename_row(line)
-      fs_changes = true
-    elseif line_type == "u" then
-      self:_parse_porcelainv2_merge_row(line)
-    elseif line_type == "?" then
-      self:_parse_porcelainv2_untracked_row(line)
-    elseif line_type == "!" then
-      self:_parse_porcelainv2_ignored_row(line)
-    else
-      log.warn("unknown status type %q, full line=%q", line_type, line)
     end
 
-    i = i + 1
+    -- _parse_porcelainv2_change_row and _parse_porcelainv2_rename_row doens't detect all changes
+    -- that signify a fs change, comparing the number of entries gives it a decent chance
+    fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self.status._changed_entries)
+
+    scheduler()
+    return fs_changes
   end
-
-  -- _parse_porcelainv2_change_row and _parse_porcelainv2_rename_row doens't detect all changes
-  -- that signify a fs change, comparing the number of entries gives it a decent chance
-  fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self.status._changed_entries)
-
-  scheduler()
-  return fs_changes
 end
 
 ---@private
@@ -685,8 +694,7 @@ function GitStatus:of(path, _type)
     path = _type == "directory" and (path .. os_sep) or path
     for _path, _status in pairs(self.status._changed_entries) do
       if _status == "?" and _path:sub(-1) == os_sep and vim.startswith(path, _path) then
-        status = _status
-        break
+        return _status
       end
     end
   end
