@@ -932,7 +932,6 @@ The actions supported by the trees are:
 ---| "clear_clipboard"
 ---| "cd_to"
 ---| "cd_up"
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
@@ -942,6 +941,7 @@ The actions supported by the trees are:
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
@@ -1018,7 +1018,6 @@ The actions supported by the trees are:
 ---| "cd_to"
 ---| "cd_up"
 ---
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
@@ -1028,6 +1027,7 @@ The actions supported by the trees are:
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
@@ -1052,13 +1052,13 @@ The actions supported by the trees are:
 ---| "rename"
 ---
 ---| "cd_to"
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---| "git_stage"
@@ -1079,10 +1079,11 @@ The actions supported by the trees are:
 
 ```lua
 ---@alias Yat.Panel.Symbols.SupportedActions
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
+---
+---| "toggle_ignored"
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
@@ -1099,13 +1100,13 @@ The actions supported by the trees are:
 ```lua
 ---@alias Yat.Panel.Buffers.SupportedActions
 ---| "cd_to"
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"

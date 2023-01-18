@@ -38,7 +38,6 @@
 ---| "clear_clipboard"
 ---| "cd_to"
 ---| "cd_up"
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
@@ -48,6 +47,7 @@
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
@@ -109,7 +109,6 @@ local M = {
     cd_to = "cd_to",
     cd_up = "cd_up",
 
-    toggle_ignored = "toggle_ignored",
     toggle_filter = "toggle_filter",
   },
   search = {
@@ -122,6 +121,7 @@ local M = {
     goto_node_in_files_panel = "goto_node_in_files_panel",
   },
   git = {
+    toggle_ignored = "toggle_ignored",
     check_node_for_git = "check_node_for_git",
     focus_prev_git_item = "focus_prev_git_item",
     focus_next_git_item = "focus_next_git_item",

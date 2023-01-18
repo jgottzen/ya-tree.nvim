@@ -44,7 +44,6 @@ local function define_actions(config)
   local files = require("ya-tree.actions.files")
   local git = require("ya-tree.actions.git")
   local help = require("ya-tree.actions.help")
-  local lib = require("ya-tree.lib")
   local nodes = require("ya-tree.actions.nodes")
   local panels = require("ya-tree.actions.panels")
   local popups = require("ya-tree.actions.popups")
@@ -110,13 +109,10 @@ local function define_actions(config)
   M.define_action(builtin.files.paste_nodes, clipboard.paste_nodes, "Paste files and directories", { "n" })
   M.define_action(builtin.files.clear_clipboard, clipboard.clear_clipboard, "Clear selected files and directories", { "n" })
 
-  M.define_action(builtin.files.cd_to, lib.cd_to, "Set tree root to directory", { "n" })
-  M.define_action(builtin.files.cd_up, lib.cd_up, "Set tree root one level up", { "n" })
+  M.define_action(builtin.files.cd_to, files.cd_to, "Set tree root to directory", { "n" })
+  M.define_action(builtin.files.cd_up, files.cd_up, "Set tree root one level up", { "n" })
 
-  if config.git.enable then
-    M.define_action(builtin.files.toggle_ignored, lib.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
-  end
-  M.define_action(builtin.files.toggle_filter, lib.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
+  M.define_action(builtin.files.toggle_filter, files.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
   M.define_action(
     builtin.search.search_for_node_in_panel,
@@ -137,6 +133,7 @@ local function define_actions(config)
   )
 
   if config.git.enable then
+    M.define_action(builtin.git.toggle_ignored, git.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
     M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
     M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item", { "n" })
     M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item", { "n" })

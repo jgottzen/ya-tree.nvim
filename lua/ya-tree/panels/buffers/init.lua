@@ -2,13 +2,13 @@ local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.Buffers.SupportedActions
 ---| "cd_to"
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "check_node_for_git"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
@@ -41,13 +41,13 @@ function M.setup(config)
   ---@type Yat.Panel.Buffers.SupportedActions[]
   local supported_actions = utils.tbl_unique({
     builtin.files.cd_to,
-    builtin.files.toggle_ignored,
     builtin.files.toggle_filter,
 
     builtin.search.search_for_node_in_panel,
 
     builtin.panel_specific.goto_node_in_files_panel,
 
+    builtin.git.toggle_ignored,
     builtin.git.check_node_for_git,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,

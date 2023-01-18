@@ -8,6 +8,7 @@ local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 
 local api = vim.api
+local fn = vim.fn
 
 local M = {}
 
@@ -57,7 +58,7 @@ end
 ---@param focus boolean
 local function preview(panel, node, focus)
   if node:is_editable() then
-    local already_loaded = vim.fn.bufloaded(node.path) > 0
+    local already_loaded = fn.bufloaded(node.path) > 0
     panel:open_node(node, "edit")
 
     -- taken from nvim-tree
@@ -105,6 +106,50 @@ function M.tabnew(panel, node)
   if node:is_editable() then
     panel:open_node(node, "tabnew")
   end
+end
+
+---@async
+---@param panel Yat.Panel.Tree
+---@param new_root string
+local function change_root(panel, new_root)
+  local config = require("ya-tree.config").config
+  if config.cwd.update_from_panel then
+    vim.cmd.tcd(fn.fnameescape(new_root))
+  else
+    panel.sidebar:change_cwd(new_root)
+  end
+end
+
+---@async
+---@param panel Yat.Panel.Tree
+---@param node Yat.Node
+function M.cd_to(panel, node)
+  if not node:is_directory() then
+    if not node.parent then
+      return
+    end
+    node = node.parent --[[@as Yat.Node]]
+  end
+  log.debug("cd to %q", node.path)
+  change_root(panel, node.path)
+end
+
+---@async
+---@param panel Yat.Panel.Tree
+function M.cd_up(panel)
+  local new_cwd = panel.root.parent and panel.root.parent.path or Path:new(panel.root.path):parent().filename
+  log.debug("changing root directory one level up from %q to %q", panel.root.path, new_cwd)
+
+  change_root(panel, new_cwd)
+end
+
+---@async
+---@param panel Yat.Panel.Tree
+function M.toggle_filter(panel)
+  local config = require("ya-tree.config").config
+  config.filters.enable = not config.filters.enable
+  log.debug("toggling filter to %s", config.filters.enable)
+  panel.sidebar:draw()
 end
 
 ---@async

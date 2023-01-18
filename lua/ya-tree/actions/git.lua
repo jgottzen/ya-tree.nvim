@@ -1,6 +1,16 @@
+local log = require("ya-tree.log").get("actions")
 local utils = require("ya-tree.utils")
 
 local M = {}
+
+---@async
+---@param panel Yat.Panel.Tree
+function M.toggle_ignored(panel)
+  local config = require("ya-tree.config").config
+  config.git.show_ignored = not config.git.show_ignored
+  log.debug("toggling git ignored to %s", config.git.show_ignored)
+  panel.sidebar:draw()
+end
 
 ---@async
 ---@param panel Yat.Panel.Tree

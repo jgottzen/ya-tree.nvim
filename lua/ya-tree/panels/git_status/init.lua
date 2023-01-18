@@ -4,13 +4,13 @@ local utils = require("ya-tree.utils")
 ---| "rename"
 ---
 ---| "cd_to"
----| "toggle_ignored"
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
 ---
 ---| "goto_node_in_files_panel"
 ---
+---| "toggle_ignored"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---| "git_stage"
@@ -48,13 +48,13 @@ function M.setup(config)
     builtin.files.rename,
 
     builtin.files.cd_to,
-    builtin.files.toggle_ignored,
     builtin.files.toggle_filter,
 
     builtin.search.search_for_node_in_panel,
 
     builtin.panel_specific.goto_node_in_files_panel,
 
+    builtin.git.toggle_ignored,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
     builtin.git.git_stage,
