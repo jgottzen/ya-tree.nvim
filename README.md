@@ -171,7 +171,7 @@ local DEFAULT = {
   expand_all_nodes_max_depth = 5,
 
   ---@alias Yat.Logger.Level "trace"|"debug"|"info"|"warn"|"error"
-  ---@alias Yat.Logger.Namespace "all"|"actions"|"events"|"fs"|"lsp"|"nodes"|"panels"|"sidebar"|"ui"|"git"|"job"|"lib"|string
+  ---@alias Yat.Logger.Namespace "all"|"ya-tree"|"actions"|"events"|"fs"|"lsp"|"nodes"|"panels"|"sidebar"|"ui"|"git"|"job"|string
 
   ---@class Yat.Config.Log
   ---@field level Yat.Logger.Level The logging level used, default: `"warn"`.
