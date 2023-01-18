@@ -131,12 +131,10 @@ function SymbolNode:refresh(opts)
   self._children = {}
   self.empty = true
   local symbols = lsp.get_symbols(bufnr, refresh)
-  if symbols then
-    for _, symbol in ipairs(symbols) do
-      self:add_child(symbol)
-    end
-    self.empty = #self._children ~= 0
+  for _, symbol in ipairs(symbols) do
+    self:add_child(symbol)
   end
+  self.empty = #self._children ~= 0
 end
 
 return SymbolNode
