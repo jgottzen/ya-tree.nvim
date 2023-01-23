@@ -741,16 +741,10 @@ function TreePanel:render()
 end
 
 ---@param node? Yat.Node
----@param opts? { focus_panel?: boolean }
----  - {opts.focus_panel?} `boolean`
-function TreePanel:draw(node, opts)
+function TreePanel:draw(node)
   if self:is_open() then
-    opts = opts or {}
     local lines, highlights = self:render()
     self:set_content(lines, highlights)
-    if opts.focus_panel then
-      self:focus()
-    end
     if node then
       self:focus_node(node)
     end

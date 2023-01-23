@@ -97,7 +97,6 @@ function Sidebar:init(tabpage)
   log.info("created new sidebar %s", tostring(self))
 end
 
----@async
 function Sidebar:delete()
   self:for_each_panel(function(panel)
     panel:delete()
@@ -109,8 +108,7 @@ function Sidebar:tabpage()
   return self._tabpage
 end
 
----@async
----@param callback async fun(panel: Yat.Panel)
+---@param callback fun(panel: Yat.Panel)
 function Sidebar:for_each_panel(callback)
   for _, panel_layout in ipairs(self.layout.left.panels) do
     callback(panel_layout.panel)
@@ -147,7 +145,7 @@ function Sidebar:is_open(side)
 end
 
 ---@class Yat.Sidebar.OpenArgs
----@field side? Yat.Sidebar.Side
+---@field side? Yat.Sidebar.Side|"both"
 ---@field focus? boolean|Yat.Panel.Type
 
 ---@param opts? Yat.Sidebar.OpenArgs
@@ -245,7 +243,6 @@ function Sidebar:set_panel_heights(side)
   end
 end
 
----@async
 function Sidebar:close()
   self:for_each_panel(function(panel)
     panel:close()
@@ -289,6 +286,7 @@ function Sidebar:close_panel()
   end
 end
 
+---@async
 ---@param panel_type Yat.Panel.Type
 ---@param focus boolean
 ---@return Yat.Panel|nil panel
@@ -389,15 +387,13 @@ function Sidebar:buffers_panel(focus)
   return self:open_panel("buffers", focus) --[[@as Yat.Panel.Buffers?]]
 end
 
----@async
 function Sidebar:draw()
   local TreePanel = require("ya-tree.panels.tree_panel")
   self:for_each_panel(function(panel)
     if panel:is_open() then
       if panel:class():isa(TreePanel) then
         ---@cast panel Yat.Panel.Tree
-        local node = panel:get_current_node()
-        panel:draw(node)
+        panel:draw(panel:get_current_node())
       else
         panel:draw()
       end
@@ -426,7 +422,6 @@ function Sidebar:change_cwd(new_cwd)
   end)
 end
 
----@async
 ---@param path string
 ---@param repo Yat.Git.Repo
 function Sidebar:set_git_repo_for_path(path, repo)
@@ -457,7 +452,6 @@ function M.get_or_create_sidebar(tabpage)
   return sidebar
 end
 
----@async
 ---@param callback fun(panel: Yat.Panel)
 function M.for_each_sidebar_and_panel(callback)
   for _, sidebar in ipairs(M._sidebars) do
@@ -465,12 +459,10 @@ function M.for_each_sidebar_and_panel(callback)
   end
 end
 
----@async
 function M.delete_sidebars_for_nonexisting_tabpages()
   local TreePanel = require("ya-tree.panels.tree_panel")
-  ---@type table<string, boolean>
-  local found_toplevels = {}
-  local tabpages = api.nvim_list_tabpages() --[=[@as integer[]]=]
+  ---@type table<string, boolean>, integer[]
+  local found_toplevels, tabpages = {}, api.nvim_list_tabpages()
 
   for tabpage, sidebar in pairs(M._sidebars) do
     if not vim.tbl_contains(tabpages, tabpage) then
@@ -668,7 +660,7 @@ function M.setup(config)
         local winid = tonumber(input.match) --[[@as integer]]
         on_win_closed(winid)
       end,
-      desc = "Closing the sidebar if it is the last in the tabpage",
+      desc = "Closing the sidebar if it is the last window in the tabpage",
     })
   end
   api.nvim_create_autocmd("BufEnter", {

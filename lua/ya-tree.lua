@@ -40,7 +40,7 @@ local function open(opts)
     return
   end
   opts = opts or {}
-  log.debug("opening window with %s", opts)
+  log.debug("opening sidebar with %s", opts)
 
   local config = require("ya-tree.config").config
   local path

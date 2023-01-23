@@ -36,10 +36,8 @@ function M.severity_of(path)
 end
 
 local function on_diagnostics_changed()
-  ---@type table<string, Nvim.DiagnosticStruct[]>
-  local new_diagnostics = {}
-  ---@type table<string, integer>
-  local new_severity_diagnostics = {}
+  ---@type table<string, Nvim.DiagnosticStruct[]>, table<string, integer>
+  local new_diagnostics, new_severity_diagnostics = {}, {}
   for _, diagnostic in ipairs(vim.diagnostic.get()) do
     ---@cast diagnostic Nvim.DiagnosticStruct
     local bufnr = diagnostic.bufnr
@@ -64,7 +62,6 @@ local function on_diagnostics_changed()
   if config.diagnostics.propagate_to_parents then
     for path, severity in pairs(new_severity_diagnostics) do
       for _, parent in next, Path:new(path):parents() do
-        ---@cast parent string
         local parent_severity = new_severity_diagnostics[parent]
         if not parent_severity or parent_severity > severity then
           new_severity_diagnostics[parent] = severity

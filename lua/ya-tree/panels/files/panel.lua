@@ -292,7 +292,6 @@ function FilesPanel:search(path, term)
   return matches_or_error
 end
 
----@async
 ---@param draw? boolean
 function FilesPanel:close_search(draw)
   if self.mode == "search" then

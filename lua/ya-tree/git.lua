@@ -192,7 +192,6 @@ end
 ---@param config Yat.Config
 function Repo:_add_git_watcher(config)
   if not self._git_dir_watcher then
-    local event = require("ya-tree.events.event").git
     ---@param err string
     ---@type fun(err?: string)
     local fs_poll_callback = void(function(err)
@@ -202,6 +201,7 @@ function Repo:_add_git_watcher(config)
         return
       end
 
+      local event = require("ya-tree.events.event").git
       local fs_changes = self._status:refresh({ ignored = true })
       scheduler()
       events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
@@ -606,7 +606,6 @@ function GitStatus:_propagate_status_to_parents(path, fully_staged)
   local status = fully_staged and "staged" or "dirty"
   local size = #self.repo.toplevel
   for _, parent in next, Path:new(path):parents() do
-    ---@cast parent string
     -- stop at directories below the toplevel directory
     if #parent <= size then
       break
