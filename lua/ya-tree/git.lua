@@ -14,7 +14,7 @@ local uv = vim.loop
 
 local M = {
   ---@type table<string, Yat.Git.Repo>
-  repos = setmetatable({}, { __mode = "kv" }),
+  repos = {},
 }
 
 ---@async
