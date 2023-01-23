@@ -101,15 +101,13 @@ function M.clear_highlights(bufnr)
   lsp.util.buf_clear_references(bufnr)
 end
 
-function M.setup()
-  local events = require("ya-tree.events")
-  local ae = require("ya-tree.events.event").autocmd
-  events.on_autocmd_event(ae.BUFFER_DELETED, "YA_TREE_LSP", false, function(bufnr, file)
-    if M.symbol_cache[bufnr] then
-      M.symbol_cache[bufnr] = nil
-      log.debug("removed bufnr %s (%q) from cache", bufnr, file)
-    end
-  end)
-end
+local events = require("ya-tree.events")
+local ae = require("ya-tree.events.event").autocmd
+events.on_autocmd_event(ae.BUFFER_DELETED, "YA_TREE_LSP", false, function(bufnr, file)
+  if M.symbol_cache[bufnr] then
+    M.symbol_cache[bufnr] = nil
+    log.debug("removed bufnr %s (%q) from cache", bufnr, file)
+  end
+end)
 
 return M

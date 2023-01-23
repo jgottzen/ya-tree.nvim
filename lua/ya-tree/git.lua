@@ -777,15 +777,11 @@ function M.get_repo_for_path(path)
   end
 end
 
-local function on_vim_leave_pre()
+local event = require("ya-tree.events.event").autocmd
+events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", function()
   for _, repo in pairs(M.repos) do
     repo:_remove_git_watcher()
   end
-end
-
-function M.setup()
-  local event = require("ya-tree.events.event").autocmd
-  events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", on_vim_leave_pre)
-end
+end)
 
 return M

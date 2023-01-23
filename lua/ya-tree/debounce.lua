@@ -44,18 +44,14 @@ function M.accumulate_trailing(fn, accumulator, ms)
   end
 end
 
-local function close_timers()
+local events = require("ya-tree.events")
+local event = require("ya-tree.events.event").autocmd
+events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_DEBOUNCE_CLEANUP", function()
   for _, timer in ipairs(timers) do
     if not timer:is_closing() then
       timer:close()
     end
   end
-end
-
-function M.setup()
-  local events = require("ya-tree.events")
-  local event = require("ya-tree.events.event").autocmd
-  events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_DEBOUNCE_CLEANUP", close_timers)
-end
+end)
 
 return M

@@ -25,6 +25,18 @@ local M = {
 ---@field handle Luv.Fs.Event
 ---@field number_of_watchers integer
 
+local setup_done = false
+
+---@param config Yat.Config
+local function setup(config)
+  M._exclude_patterns = { { utils.os_sep .. ".git", utils.os_sep .. ".git" .. utils.os_sep } }
+  for _, ignored in ipairs(config.dir_watcher.exclude) do
+    M._exclude_patterns[#M._exclude_patterns + 1] = { utils.os_sep .. ignored, utils.os_sep .. ignored .. utils.os_sep }
+  end
+  events.on_autocmd_event(event.autocmd.LEAVE_PRE, "YA_TREE_WATCHER_CLEANUP", M.stop_all)
+  setup_done = true
+end
+
 ---@param dir string
 ---@return boolean
 local function is_ignored(dir)
@@ -39,6 +51,9 @@ end
 ---@param dir string
 function M.watch_dir(dir)
   local config = require("ya-tree.config").config
+  if not setup_done then
+    setup(config)
+  end
   if not config.dir_watcher.enable or is_ignored(dir) then
     return
   end
@@ -104,15 +119,6 @@ function M.stop_all()
     watcher.handle = nil
   end
   M._watchers = {}
-end
-
----@param config Yat.Config
-function M.setup(config)
-  M._exclude_patterns = { { utils.os_sep .. ".git", utils.os_sep .. ".git" .. utils.os_sep } }
-  for _, ignored in ipairs(config.dir_watcher.exclude) do
-    M._exclude_patterns[#M._exclude_patterns + 1] = { utils.os_sep .. ignored, utils.os_sep .. ignored .. utils.os_sep }
-  end
-  events.on_autocmd_event(event.autocmd.LEAVE_PRE, "YA_TREE_WATCHER_CLEANUP", M.stop_all)
 end
 
 return M
