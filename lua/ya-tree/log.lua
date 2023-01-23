@@ -1,5 +1,3 @@
-local Path = require("ya-tree.path")
-
 local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
@@ -81,7 +79,7 @@ do
     levels[v.level] = k
   end
   local log_file = fmt("%s/%s.log", fn.stdpath("log"), config.name)
-  local dir = Path:new(log_file):parent()
+  local dir = require("ya-tree.path"):new(log_file):parent()
   if not dir:exists() then
     config.log_file = false
   end
@@ -106,7 +104,7 @@ do
 
   ---@param ... any
   ---@return string[]
-  local function pack(...)
+  local function to_str_array(...)
     local args = {}
     local list = { n = select("#", ...), ... }
     for i = 1, list.n do
@@ -119,7 +117,7 @@ do
   ---@param ... any
   ---@return string
   local function concat(arg, ...)
-    local t = pack(...)
+    local t = to_str_array(...)
     tbl_insert(t, 1, str(arg))
     return tbl_concat(t, " ")
   end
@@ -131,7 +129,7 @@ do
     if type(arg) == "string" then
       if arg:find("%s", 1, true) or arg:find("%q", 1, true) then
         if select("#", ...) > 0 then
-          local rest = pack(...)
+          local rest = to_str_array(...)
           local ok, m = pcall(fmt, arg, unpack(rest))
           if ok then
             return m
@@ -161,15 +159,15 @@ do
     local message = format(arg, ...)
     local info = debug.getinfo(3, "nSl")
     local _, ms = uv.gettimeofday() --[[@as integer]]
-    local timestamp = fmt("%s:%03d", os.date("%H:%M:%S"), ms / 1000)
+    local timestamp = fmt("%s.%03d", os.date("%H:%M:%S"), ms / 1000)
     local fun_name = info.name ~= "" and info.name or "<anonymous>"
-    local fmt_message = fmt("[%s] %s %s:%s:%s: %s", level_name, timestamp, info.short_src, fun_name, info.currentline, message)
+    local fmt_message = fmt("%s %s:%s:%s: %s", timestamp, info.short_src, fun_name, info.currentline, message)
 
     if config.to_console then
       vim.schedule(function()
         local hl = config.highlight and highlight or nil
         for _, m in ipairs(vim.split(fmt_message, "\n", { plain = true })) do
-          m = fmt("[%s] [%s] %s", config.name, namespace, m)
+          m = fmt("[%s] [%s] %s", level_name, config.name, m)
           api.nvim_echo({ { m, hl } }, true, {})
         end
       end)
@@ -178,7 +176,8 @@ do
       vim.schedule(function()
         local file = io.open(log_file, "a")
         if file then
-          file:write(fmt_message .. "\n")
+          local m = fmt("[%s] %s %s\n", level_name, os.date("%Y-%m-%d"), fmt_message)
+          file:write(m)
           file:close()
         else
           config.to_file = false
