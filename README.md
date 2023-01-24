@@ -129,9 +129,37 @@ require("ya-tree").toggle()
 
 ## Configuration
 
-The `ya-tree.setup()` function must be run for YaTree to be properly initialized. It takes an optional table argument.
+The `ya-tree.setup()` function must be run for YaTree to be properly initialized. It takes an optional table argument,
+which is fully annotated with `EmmyLua`.
 
-The table argument is fully annotated with `EmmyLua`.
+In the default configuration, only the `files` panel is enabled, i.e. functioning as regular file-tree plugin.
+To enable more panels call `ya-tree.setup()` like this:
+
+```lua
+require("ya-tree").setup({
+  sidebar = {
+    layout = {
+      left = {
+        panels = {
+          { panel = "files", height = 30 },
+          { panel = "symbols", height = 30 },
+          { panel = "buffers" }
+        },
+        width = 40,
+        auto_open = true,
+      },
+      right = {
+        panels = { { panel = "git_status" } },
+        width = 40,
+        auto_open = false,
+      },
+    },
+  },
+})
+```
+
+and it will open a sidebar on the left side with the `files`, `symbols` and `buffers` panels, and the `git_status` panel
+on the right side can be opened by using the `open_git_status_panel` action (`<C-g>` by default).
 
 <details>
 
