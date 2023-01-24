@@ -107,7 +107,8 @@ Which path to expand to in the `files` panel.
 
 
 If the path is located under the current `files` root, the tree expands to the
-path, `%` expands to the path of the current buffer.
+path, `%` expands to the path of the current buffer. If the path is not located
+in the tree the root is changed to the path.
 
 Examples:
 
@@ -115,8 +116,9 @@ Examples:
 - `YaTreeOpen` Open the sidebar, and focus the first panel.
 - `YaTreeOpen focus=false` Open the sidebar, but keep the current window focused.
 - `YaTreeOpen focus=files` Open the sidebar and focus the `files` panel.
-- `YaTreeOpen path=./path/to/directory` Open the sidebar and focus the `files` panel and expand and focus on the directory `./path/to/directory`.
-- `YaTreeOpen path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer, if possible.
+- `YaTreeOpen path=./path/to/some-where` Open the sidebar and focus the `files` panel and expand and focus on the path `./path/to/some-where`.
+- `YaTreeOpen path=/path/to/other/directory` Open the sidebar and focus the `files` panel and changes the root to the path `/path/to/other/directory`.
+- `YaTreeOpen path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer.
 
 
 The lua api is:
@@ -166,9 +168,40 @@ The lua api is:
 CONFIGURATION                                          *ya-tree-configuration*
 
 The `ya-tree.setup()` function must be run for YaTree to be properly
-initialized. It takes an optional table argument.
+initialized. It takes an optional table argument, which is fully annotated with
+`EmmyLua`.
 
-The table argument is fully annotated with `EmmyLua`.
+In the default configuration, only the `files` panel is enabled,
+i.e. functioning as regular file-tree plugin. To enable more panels call
+`ya-tree.setup()` like this:
+
+>lua
+    require("ya-tree").setup({
+      sidebar = {
+        layout = {
+          left = {
+            panels = {
+              { panel = "files", height = 30 },
+              { panel = "symbols", height = 30 },
+              { panel = "buffers" }
+            },
+            width = 40,
+            auto_open = true,
+          },
+          right = {
+            panels = { { panel = "git_status" } },
+            width = 40,
+            auto_open = false,
+          },
+        },
+      },
+    })
+<
+
+
+and it will open a sidebar on the left side with the `files`, `symbols` and
+`buffers` panels, and the `git_status` panel on the right side can be opened by
+using the `open_git_status_panel` action (`<C-g>` by default).
 
 Default Configuration ~
 
