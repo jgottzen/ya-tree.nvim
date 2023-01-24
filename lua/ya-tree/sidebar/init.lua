@@ -98,6 +98,7 @@ function Sidebar:init(tabpage)
 end
 
 function Sidebar:delete()
+  log.info("deleting sidebar %s", tostring(self))
   self:for_each_panel(function(panel)
     panel:delete()
   end)
@@ -605,7 +606,6 @@ local function on_buf_enter(bufnr, file)
   end
 end
 
----@async
 local function on_tab_enter()
   local sidebar = M.get_sidebar(api.nvim_get_current_tabpage())
   if sidebar and sidebar:is_open() then
@@ -679,7 +679,7 @@ function M.setup(config)
   })
   api.nvim_create_autocmd("TabEnter", {
     group = group,
-    callback = void(on_tab_enter),
+    callback = on_tab_enter,
     desc = "Redraw sidebar on tabpage switch",
   })
   if config.auto_open.on_new_tab then
@@ -693,7 +693,7 @@ function M.setup(config)
   end
   api.nvim_create_autocmd("TabClosed", {
     group = group,
-    callback = void(M.delete_sidebars_for_nonexisting_tabpages),
+    callback = M.delete_sidebars_for_nonexisting_tabpages,
     desc = "Clean up after closing tabpage",
   })
   api.nvim_create_autocmd("WinLeave", {

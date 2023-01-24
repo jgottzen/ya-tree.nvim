@@ -83,6 +83,7 @@ function Panel:init(_type, sidebar, title, icon, keymap)
 end
 
 function Panel:delete()
+  log.info("deleting panel %s", tostring(self))
   self:close()
   self:remove_all_autocmd_events()
   self:remove_all_git_events()
