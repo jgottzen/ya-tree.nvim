@@ -116,11 +116,11 @@ end
 ---@alias Yat.Ui.Position "left"|"right"|"below"
 
 ---@param direction Yat.Ui.Position
----@param size? integer
-function Panel:open(direction, size)
+---@param width? integer
+function Panel:open(direction, width)
   if not self:is_open() then
     self:create_buffer()
-    self:create_window(direction, size)
+    self:create_window(direction, width)
   end
 
   self:draw()
@@ -150,8 +150,8 @@ do
 
   ---@private
   ---@param position Yat.Ui.Position
-  ---@param size? integer
-  function Panel:create_window(position, size)
+  ---@param width? integer
+  function Panel:create_window(position, width)
     if position == "left" or position == "right" then
       vim.cmd.vsplit({ mods = { noautocmd = true } })
       vim.cmd.wincmd({ POSITIONS_TO_WINCMD[position], mods = { noautocmd = true } })
@@ -159,9 +159,9 @@ do
       vim.cmd.split({ mods = { noautocmd = true } })
     end
     self._winid = api.nvim_get_current_win()
-    if size and (position == "left" or position == "right") then
-      log.info("setting width for panel %q and winid %s to %q", self.TYPE, self._winid, size)
-      api.nvim_win_set_width(self._winid, size)
+    if width and (position == "left" or position == "right") then
+      log.info("setting width for panel %q and winid %s to %q", self.TYPE, self._winid, width)
+      api.nvim_win_set_width(self._winid, width)
     end
     log.debug("created window %s", self._winid)
     self:set_win_options()

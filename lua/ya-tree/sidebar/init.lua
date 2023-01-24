@@ -203,7 +203,7 @@ function Sidebar:open_side(side)
         reorder_panels = true
       end
       local direction = (i == 1 and not side_was_open) and side or "below"
-      panel:open(direction, (direction == "left" or direction == "right") and layout.width or panel_layout.height)
+      panel:open(direction, (direction == "left" or direction == "right") and layout.width or nil)
     end
   end
 
@@ -243,7 +243,7 @@ end
 function Sidebar:set_panel_heights(side)
   local layout = side == "left" and self.layout.left or self.layout.right
   if #layout.panels > 1 then
-    for i = #layout.panels, 1, -1 do
+    for i = 1, #layout.panels do
       local panel_layout = layout.panels[i]
       local panel = panel_layout.panel
       if panel:is_open() and panel_layout.height then
