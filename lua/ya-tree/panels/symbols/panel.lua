@@ -133,8 +133,8 @@ function SymbolsPanel:on_lsp_attach(bufnr, file)
 end
 
 ---@protected
-function SymbolsPanel:on_window_open()
-  self.super.on_window_open(self)
+function SymbolsPanel:on_win_open()
+  self.super.on_win_open(self)
   if require("ya-tree.config").config.panels.symbols.scroll_buffer_to_symbol then
     api.nvim_create_autocmd("CursorHold", {
       group = self.window_augroup,

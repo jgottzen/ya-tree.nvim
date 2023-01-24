@@ -481,7 +481,7 @@ function TreePanel:apply_mappings()
 end
 
 ---@protected
-function TreePanel:on_window_open()
+function TreePanel:on_win_open()
   if require("ya-tree.config").config.move_cursor_to_name then
     api.nvim_create_autocmd("CursorMoved", {
       group = self.window_augroup,

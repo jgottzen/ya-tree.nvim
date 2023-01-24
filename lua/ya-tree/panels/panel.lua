@@ -163,8 +163,8 @@ do
       api.nvim_win_set_width(self._winid, size)
     end
     log.debug("created window %s", self._winid)
-    self:set_window_options()
-    self:on_window_open()
+    self:set_win_options()
+    self:on_win_open()
   end
 end
 
@@ -178,7 +178,7 @@ local function win_set_buf_noautocmd(winid, bufnr)
 end
 
 ---@private
-function Panel:set_window_options()
+function Panel:set_win_options()
   win_set_buf_noautocmd(self._winid, self._bufnr)
 
   for k, v in pairs(WIN_OPTIONS) do
@@ -230,7 +230,7 @@ function Panel:_on_win_closed()
 end
 
 ---@protected
-function Panel:on_window_open() end
+function Panel:on_win_open() end
 
 ---@protected
 function Panel:on_win_closed() end
