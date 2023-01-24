@@ -388,10 +388,12 @@ local function is_likely_edit_window(winid)
   return api.nvim_buf_get_option(bufnr, "buftype") == ""
 end
 
-local function get_edit_win_candidate()
-  local winid = api.nvim_get_current_win()
+---@param tabpage integer
+---@return integer winid
+local function get_edit_win_candidate(tabpage)
+  local winid = api.nvim_tabpage_get_win(tabpage)
   if not is_likely_edit_window(winid) then
-    for _, win in ipairs(api.nvim_list_wins()) do
+    for _, win in ipairs(api.nvim_tabpage_list_wins(tabpage)) do
       if win ~= winid and is_likely_edit_window(win) then
         winid = win
         break
@@ -407,7 +409,7 @@ end
 ---@return integer edit_winid
 function Sidebar:edit_win()
   if not self._edit_winid then
-    self._edit_winid = get_edit_win_candidate()
+    self._edit_winid = get_edit_win_candidate(self._tabpage)
   end
   return self._edit_winid
 end
