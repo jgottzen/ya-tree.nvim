@@ -565,17 +565,14 @@ local function on_buf_enter(bufnr, file)
     local panel = sidebar:current_panel()
     if panel and panel:winid() == current_winid then
       panel:restore()
-    end
-    -- switch back to the previous buffer so the window isn't closed
-    if sidebar:is_open() or #get_file_buffers() > 1 then
+    else
+      -- switch back to the previous buffer so the window isn't closed
       log.info("switching to previous buffer")
       vim.cmd.bprevious()
-    else
-      log.info("creating new buffer")
-      local buf = vim.api.nvim_create_buf(true, false)
-      api.nvim_win_set_buf(sidebar:edit_win(), buf)
     end
-    sidebar:open()
+    if not sidebar:is_open() then
+      sidebar:open()
+    end
     log.debug("deleting buffer %s with path %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
