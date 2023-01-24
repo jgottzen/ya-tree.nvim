@@ -275,9 +275,11 @@ function Panel:set_height(height)
 end
 
 function Panel:close()
-  local ok = pcall(api.nvim_win_close, self._winid, true)
-  if not ok then
-    log.error("error closing window %q", self._winid)
+  if self._winid then
+    local ok, err = pcall(api.nvim_win_close, self._winid, true)
+    if not ok then
+      log.error("error closing window %q: %s", self._winid, err)
+    end
   end
 end
 
