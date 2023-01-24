@@ -153,22 +153,16 @@ function Sidebar:open(opts)
   log.debug("sidebar opened with %s", opts)
   opts = opts or {}
   local side = opts.side
-  self:set_edit_win_candidate()
-  local opened_right_side = false
+  local edit_win = self:edit_win()
   if side == "right" or side == "both" or self.layout.right.auto_open then
     self:open_side("right")
-    opened_right_side = true
   end
   if side == "left" or side == "both" or self.layout.left.auto_open then
-    if opened_right_side then
-      -- we need to focus the edit window so the split is done correctly
-      api.nvim_set_current_win(self:edit_win())
-    end
     self:open_side("left")
   end
   local focus = opts.focus
   if focus == false then
-    api.nvim_set_current_win(self:edit_win())
+    api.nvim_set_current_win(edit_win)
   elseif type(focus) == "string" then
     local panel = self:get_panel(focus)
     if panel then
@@ -177,54 +171,69 @@ function Sidebar:open(opts)
   end
 end
 
----@param winid integer
----@return boolean
-local function is_likely_edit_window(winid)
-  if not api.nvim_win_is_valid(winid) then
-    return false
-  end
-  local bufnr = api.nvim_win_get_buf(winid)
-  local name = api.nvim_buf_get_name(bufnr)
-  if name == "" or name:find("YaTree://YaTree", 1, true) ~= nil then
-    return false
-  end
-  return api.nvim_buf_get_option(bufnr, "buftype") == ""
-end
-
----@private
-function Sidebar:set_edit_win_candidate()
-  local winid = api.nvim_get_current_win()
-  if not is_likely_edit_window(winid) then
-    for _, win in ipairs(api.nvim_list_wins()) do
-      if win ~= winid and is_likely_edit_window(win) then
-        winid = win
-        break
-      end
-    end
-    log.info("cannot find a window to use an edit window, using current window")
-  else
-    log.info("current winid %s is a edit window", winid)
-  end
-  self._edit_winid = winid
-end
-
 ---@private
 ---@param side Yat.Sidebar.Side
 function Sidebar:open_side(side)
+  -- we need to focus the edit window so the split is done correctly,
+  -- otherwise the sides will grow in width each time a side opened
+  api.nvim_set_current_win(self:edit_win())
+
   local layout = side == "left" and self.layout.left or self.layout.right
+  local side_was_open = false
+  local reorder_panels = false
+  for _, panel_layout in ipairs(layout.panels) do
+    local panel = panel_layout.panel
+    if panel:is_open() then
+      panel:focus()
+      side_was_open = true
+      break
+    end
+  end
+
   for i, panel_layout in ipairs(layout.panels) do
     local panel = panel_layout.panel
-    if not panel:is_open() then
-      local direction = i == 1 and side or "below"
+    if panel:is_open() then
+      -- focus the panel so the new panel is opened below it,
+      -- this ensures that the panels are opened in the correct order,
+      -- if the panel has been closed and is now opened again
+      panel:focus()
+    else
+      if i == 1 and side_was_open then
+        reorder_panels = true
+      end
+      local direction = (i == 1 and not side_was_open) and side or "below"
       panel:open(direction, (direction == "left" or direction == "right") and layout.width or panel_layout.height)
     end
   end
 
+  if side_was_open and reorder_panels then
+    self:reorder_panels(side)
+  end
   self:set_panel_heights(side)
+
   local panel_layout = layout.panels[1]
   if panel_layout then
     local panel = panel_layout.panel
     panel:focus()
+  end
+end
+
+---@private
+---@param side Yat.Sidebar.Side
+function Sidebar:reorder_panels(side)
+  local layout = side == "left" and self.layout.left or self.layout.right
+  local pos = 1
+  if #layout.panels > 1 then
+    for i = 1, #layout.panels - 1 do
+      local panel_layout = layout.panels[i]
+      local panel = panel_layout.panel
+      if panel:is_open() then
+        panel:focus()
+        log.debug("setting panel %q to position %s", panel.TYPE, pos)
+        vim.cmd.wincmd({ "x", count = pos, mods = { noautocmd = true } })
+        pos = pos + 1
+      end
+    end
   end
 end
 
@@ -265,7 +274,7 @@ function Sidebar:get_panel(panel_type)
 end
 
 ---@return Yat.Panel? panel
-function Sidebar:get_current_panel()
+function Sidebar:current_panel()
   local winid = api.nvim_get_current_win()
   for _, panel_layout in ipairs(self.layout.left.panels) do
     if winid == panel_layout.panel:winid() then
@@ -279,72 +288,36 @@ function Sidebar:get_current_panel()
   end
 end
 
-function Sidebar:close_panel()
-  local panel = self:get_current_panel()
-  if panel then
-    panel:close()
-  end
-end
-
 ---@async
 ---@param panel_type Yat.Panel.Type
 ---@param focus boolean
 ---@return Yat.Panel|nil panel
 function Sidebar:open_panel(panel_type, focus)
-  ---@param side Yat.Sidebar.Side
-  ---@return Yat.Panel|nil panel
-  local function open_panel_side(side)
-    local layout = side == "left" and self.layout.left or self.layout.right
-    local side_is_open = self:is_open(side)
-    local reorder = true
-    for _, panel_layout in pairs(layout.panels) do
-      local panel = panel_layout.panel
-      if panel:is_open() then
-        -- focus the panel so the new panel is opened below it,
-        -- this ensures that the panels are opened in the correct order
-        panel:focus()
-        reorder = false
-      end
-      if panel.TYPE == panel_type then
-        if not panel:is_open() then
-          local direction = side_is_open and "below" or side
-          local size = side_is_open and panel_layout.height or layout.width
-          panel:open(direction, size)
-          self:set_panel_heights(side)
-          if reorder then
-            self:reorder_panels(side)
-            panel:focus()
-          end
-        else
-          panel:draw()
-        end
-        return panel
-      end
+  local side = self:get_side_for_panel(panel_type)
+  if side then
+    self:open_side(side)
+    local panel = self:get_panel(panel_type)
+    if not focus then
+      api.nvim_set_current_win(self:edit_win())
+    elseif panel then
+      panel:focus()
     end
+    return panel
   end
-
-  local panel = open_panel_side("left")
-  if not panel then
-    panel = open_panel_side("right")
-  end
-  if not focus and panel then
-    api.nvim_set_current_win(self:edit_win())
-  end
-  return panel
 end
 
 ---@private
----@param side Yat.Sidebar.Side
-function Sidebar:reorder_panels(side)
-  local layout = side == "left" and self.layout.left or self.layout.right
-  local pos = 0
-  for _, panel_layout in ipairs(layout.panels) do
-    local panel = panel_layout.panel
-    if panel:is_open() then
-      pos = pos + 1
-      panel:focus()
-      log.debug("setting panel %q to position %s", panel.TYPE, pos)
-      vim.cmd.wincmd({ "x", count = pos, { mods = { noautocmd = true } } })
+---@param panel_type Yat.Panel.Type
+---@return Yat.Sidebar.Side|nil side
+function Sidebar:get_side_for_panel(panel_type)
+  for _, panel_layout in ipairs(self.layout.left.panels) do
+    if panel_layout.panel.TYPE == panel_type then
+      return "left"
+    end
+  end
+  for _, panel_layout in ipairs(self.layout.right.panels) do
+    if panel_layout.panel.TYPE == panel_type then
+      return "right"
     end
   end
 end
@@ -401,10 +374,40 @@ function Sidebar:draw()
   end)
 end
 
+---@param winid integer
+---@return boolean
+local function is_likely_edit_window(winid)
+  if not api.nvim_win_is_valid(winid) then
+    return false
+  end
+  local bufnr = api.nvim_win_get_buf(winid)
+  local name = api.nvim_buf_get_name(bufnr)
+  if name == "" or name:find("YaTree://YaTree", 1, true) ~= nil then
+    return false
+  end
+  return api.nvim_buf_get_option(bufnr, "buftype") == ""
+end
+
+local function get_edit_win_candidate()
+  local winid = api.nvim_get_current_win()
+  if not is_likely_edit_window(winid) then
+    for _, win in ipairs(api.nvim_list_wins()) do
+      if win ~= winid and is_likely_edit_window(win) then
+        winid = win
+        break
+      end
+    end
+    log.info("cannot find a window to use an edit window, using current window")
+  else
+    log.info("current winid %s is a edit window", winid)
+  end
+  return winid
+end
+
 ---@return integer edit_winid
 function Sidebar:edit_win()
   if not self._edit_winid then
-    self:set_edit_win_candidate()
+    self._edit_winid = get_edit_win_candidate()
   end
   return self._edit_winid
 end
@@ -556,7 +559,7 @@ local function on_buf_enter(bufnr, file)
     if not sidebar then
       sidebar = M.get_or_create_sidebar(tabpage)
     end
-    local panel = sidebar:get_current_panel()
+    local panel = sidebar:current_panel()
     if panel and panel:winid() == current_winid then
       panel:restore()
     end
@@ -573,11 +576,13 @@ local function on_buf_enter(bufnr, file)
     log.debug("deleting buffer %s with path %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
-    panel = sidebar:open_panel("files", true) --[[@as Yat.Panel.Files]]
-    local node = panel.root:expand({ to = file })
-    panel:draw(node)
+    panel = sidebar:files_panel(true)
+    if panel then
+      local node = panel.root:expand({ to = file })
+      panel:draw(node)
+    end
   elseif sidebar and config.move_buffers_from_sidebar_window then
-    local panel = sidebar:get_current_panel()
+    local panel = sidebar:current_panel()
     if panel and panel:winid() == current_winid then
       local edit_winid = sidebar:edit_win()
       log.debug("moving buffer %s from panel %s to window %s", bufnr, panel.TYPE, edit_winid)
