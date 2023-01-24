@@ -1,3 +1,4 @@
+local Path = require("ya-tree.path")
 local run = require("ya-tree.async").run
 local utils = require("ya-tree.utils")
 
@@ -17,7 +18,7 @@ local M = {
 ---@param path string
 ---@return string|nil path the fully resolved path, or `nil`
 local function resolve_path(path)
-  local p = require("ya-tree.path"):new(path)
+  local p = Path:new(path)
   return p:exists() and p:absolute() or nil
 end
 
@@ -60,6 +61,7 @@ local function open(opts)
     local panel = sidebar:files_panel(opts.focus ~= false)
     if panel then
       local node = panel.root:expand({ to = path })
+      local do_tcd = false
       if node then
         local hidden, reason = node:is_hidden(config)
         if hidden and reason then
@@ -71,10 +73,18 @@ local function open(opts)
         end
         log.info("navigating to %q", path)
       else
-        log.info("cannot expand to node %q in tree type %q", path, panel.TYPE)
-        utils.warn(string.format("Path %q is not available in the %q tree", path, panel.TYPE))
+        log.info('cannot expand to path %q in the "files" panel, changing root', path)
+        panel:change_root_node(path)
+        node = panel.root:expand({ to = path })
+        do_tcd = true
       end
       panel:draw(node)
+      if do_tcd and config.cwd.update_from_panel then
+        path = Path:new(path)
+        path = path:is_dir() and path.filename or path:parent().filename
+        log.debug("issueing tcd autocmd to %q", path)
+        vim.cmd.tcd(fn.fnameescape(path))
+      end
     else
       log.error("no files panel")
     end

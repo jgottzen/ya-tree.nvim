@@ -222,7 +222,7 @@ function FilesPanel:change_root_node(path)
     return
   end
   local old_root = self.files_root
-  log.debug("setting new tree root to %q", path)
+  log.debug("setting new panel root to %q", path)
   if not self:update_tree_root_node(path) then
     local root = self.files_root
     while root.parent do
@@ -237,7 +237,7 @@ function FilesPanel:change_root_node(path)
   if not self.files_root.repo then
     self:check_node_for_git_repo(self.files_root)
   end
-  log.debug("updated tree root to %s, old root was %s", tostring(self.files_root), tostring(old_root))
+  log.debug("updated panel root to %s, old root was %s", tostring(self.files_root), tostring(old_root))
   self.root = self.files_root
   self.current_node = self.files_root:expand({ to = self.current_node.path }) or self.files_root
   self.mode = "files"

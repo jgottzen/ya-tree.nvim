@@ -530,19 +530,6 @@ local function on_win_closed(winid)
   end, 100)
 end
 
----@return integer[]
-local function get_file_buffers()
-  local buffers = {}
-  for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-    local bufname = api.nvim_buf_get_name(bufnr)
-    if buftype == "" and bufname ~= "" and api.nvim_buf_is_loaded(bufnr) and api.nvim_buf_is_valid(bufnr) then
-      buffers[#buffers + 1] = bufnr
-    end
-  end
-  return buffers
-end
-
 ---@async
 ---@param bufnr integer
 ---@param file string
@@ -579,7 +566,16 @@ local function on_buf_enter(bufnr, file)
     panel = sidebar:files_panel(true)
     if panel then
       local node = panel.root:expand({ to = file })
+      local do_tcd = false
+      if not node then
+        panel:change_root_node(file)
+        do_tcd = true
+      end
       panel:draw(node)
+      if do_tcd and config.cwd.update_from_panel then
+        log.debug("issueing tcd autocmd to %q", file)
+        vim.cmd.tcd(vim.fn.fnameescape(file))
+      end
     end
   elseif sidebar and config.move_buffers_from_sidebar_window then
     local panel = sidebar:current_panel()

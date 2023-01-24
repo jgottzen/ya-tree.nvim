@@ -77,14 +77,16 @@ Which path to expand to in the `files` panel.
 ```
 
 If the path is located under the current `files` root, the tree expands to the path, `%` expands to the path of the current buffer.
+If the path is not located in the tree the root is changed to the path.
 
 Examples:
 
 - `YaTreeOpen` Open the sidebar, and focus the first panel.
 - `YaTreeOpen focus=false` Open the sidebar, but keep the current window focused.
 - `YaTreeOpen focus=files` Open the sidebar and focus the `files` panel.
-- `YaTreeOpen path=./path/to/directory` Open the sidebar and focus  the `files` panel and expand and focus on the directory `./path/to/directory`.
-- `YaTreeOpen path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer, if possible.
+- `YaTreeOpen path=./path/to/some-where` Open the sidebar and focus  the `files` panel and expand and focus on the path `./path/to/some-where`.
+- `YaTreeOpen path=/path/to/other/directory` Open the sidebar and focus  the `files` panel and changes the root to the path `/path/to/other/directory`.
+- `YaTreeOpen path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer.
 
 The lua api is:
 

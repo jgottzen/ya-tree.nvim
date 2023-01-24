@@ -308,9 +308,10 @@ function Path:make_relative(to)
   return self.filename
 end
 
----@type fun(abs_path: string): string|nil
 local _get_parent = (function()
   local formatted = string.format("^(.+)%s[^%s]+", path.sep, path.sep)
+  ---@param abs_path string
+  ---@return string
   return function(abs_path)
     return abs_path:match(formatted)
   end
@@ -326,7 +327,7 @@ function Path:parents()
   local results = {}
   local cur = self:absolute()
   repeat
-    cur = _get_parent(cur) --[[@as string]]
+    cur = _get_parent(cur)
     results[#results + 1] = cur
   until not cur
   results[#results + 1] = path.root(self:absolute())
