@@ -530,6 +530,20 @@ local function on_win_closed(winid)
   end, 100)
 end
 
+---@return boolean
+local function can_switch_to_previous_buffer()
+  local buffers = 0
+  for _, bufnr in ipairs(api.nvim_list_bufs()) do
+    if api.nvim_buf_is_loaded(bufnr) and api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].buflisted then
+      buffers = buffers + 1
+      if buffers >= 2 then
+        return true
+      end
+    end
+  end
+  return false
+end
+
 ---@async
 ---@param bufnr integer
 ---@param file string
@@ -553,16 +567,22 @@ local function on_buf_enter(bufnr, file)
     if panel and panel:winid() == current_winid then
       panel:restore()
     else
-      -- switch back to the previous buffer so the window isn't closed
-      log.info("switching to previous buffer")
-      vim.cmd.bprevious()
-    end
-    if not sidebar:is_open() then
-      sidebar:open()
+      -- make sure that when the dir buffer is closed, the window isn't closed as well
+      if can_switch_to_previous_buffer() then
+        log.info("switching to previous buffer")
+        vim.cmd.bprevious()
+      else
+        log.info("creating replacement buffer")
+        local buffer = api.nvim_create_buf(true, false)
+        api.nvim_win_set_buf(current_winid, buffer)
+      end
     end
     log.debug("deleting buffer %s with path %q", bufnr, file)
     api.nvim_buf_delete(bufnr, { force = true })
 
+    if not sidebar:is_open() then
+      sidebar:open()
+    end
     panel = sidebar:files_panel(true)
     if panel then
       local node = panel.root:expand({ to = file })
