@@ -369,20 +369,20 @@ Default Configuration ~
       ---@alias Yat.Panel.Type "files"|"git_status"|"symbols"|"buffers"|string
     
       ---@class Yat.Config.Sidebar
-      ---@field layout Yat.Config.Sidebar.Layout
+      ---@field layout Yat.Config.Sidebar.Layout The layout configuration for the sidebar.
       sidebar = {
         ---@class Yat.Config.Sidebar.PanelLayout.Panel
-        ---@field panel Yat.Panel.Type
-        ---@field height? integer|string
+        ---@field panel Yat.Panel.Type The panel type.
+        ---@field height? integer|string The height of the panel, in rows.
     
         ---@class Yat.Config.Sidebar.PanelLayout
-        ---@field panels Yat.Config.Sidebar.PanelLayout.Panel[]
-        ---@field width integer
-        ---@field auto_open boolean
+        ---@field panels Yat.Config.Sidebar.PanelLayout.Panel[] Which panels to show on this side.
+        ---@field width integer The width of the panels.
+        ---@field auto_open boolean Whether the side is automatically opened when the sidebar is opened.
     
         ---@class Yat.Config.Sidebar.Layout
-        ---@field left Yat.Config.Sidebar.PanelLayout
-        ---@field right Yat.Config.Sidebar.PanelLayout
+        ---@field left Yat.Config.Sidebar.PanelLayout The panels on the left side.
+        ---@field right Yat.Config.Sidebar.PanelLayout The panels on the right side.
         layout = {
           left = {
             panels = { { panel = "files", height = 30 } },
@@ -399,13 +399,13 @@ Default Configuration ~
     
       ---@alias Yat.Action.TreePanelFn async fun(panel: Yat.Panel.Tree, node: Yat.Node)
     
-      ---@alias Yat.Actions.Mode "n"|"v"|"V"
+      ---@alias Yat.Actions.Mode "n"|"v"
     
       ---@class Yat.Config.Action
-      ---@field fn Yat.Action.TreePanelFn
-      ---@field desc string
-      ---@field modes Yat.Actions.Mode[]
-      ---@field node_independent boolean
+      ---@field fn Yat.Action.TreePanelFn The function implementing the action.
+      ---@field desc string The description of the action.
+      ---@field modes Yat.Actions.Mode[] Which modes the action is available in.
+      ---@field node_independent boolean Whether the action can be called without a `Yat.Node`, e.g. the `"open_help"` action.
     
       ---@class Yat.Config.Actions : { [string]: Yat.Config.Action }
       actions = {},
