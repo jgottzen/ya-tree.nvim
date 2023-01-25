@@ -652,6 +652,8 @@ function M.setup(config)
   vim.list_extend(left, right, 1, #right)
   available_panels = utils.tbl_unique(left)
 
+  Panels.setup(config, available_panels)
+
   local group = api.nvim_create_augroup("YaTreeSidebar", { clear = true })
   if config.close_if_last_window then
     api.nvim_create_autocmd("WinClosed", {

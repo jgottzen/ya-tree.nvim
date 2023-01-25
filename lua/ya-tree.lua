@@ -236,7 +236,6 @@ function M.setup(opts)
   require("ya-tree.diagnostics").setup(config)
   require("ya-tree.ui").setup(config)
   require("ya-tree.actions").setup(config)
-  require("ya-tree.panels").setup(config)
   require("ya-tree.sidebar").setup(config)
 
   if config.hijack_netrw then

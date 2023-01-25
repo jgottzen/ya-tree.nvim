@@ -12,7 +12,7 @@ local M = {
   _registered_panels = {},
   ---@private
   ---@type table<Yat.Panel.Type, table<string, Yat.Action>>
-  _keymaps = {}
+  _keymaps = {},
 }
 
 ---@async
@@ -36,11 +36,12 @@ function M.keymaps()
 end
 
 ---@param config Yat.Config
-function M.setup(config)
+---@param configured_panels Yat.Panel[]
+function M.setup(config, configured_panels)
   M._registered_panels = {}
   M._keymaps = {}
   for panel_type in pairs(config.panels) do
-    if panel_type ~= "global_mappings" then
+    if vim.tbl_contains(configured_panels, panel_type) then
       ---@type boolean, Yat.Panel.Factory?
       local ok, panel = pcall(require, "ya-tree.panels." .. panel_type)
       if ok and type(panel) == "table" and type(panel.setup) == "function" and type(panel.create_panel) == "function" then
@@ -56,6 +57,28 @@ function M.setup(config)
         utils.warn(string.format("Panel of type %q is configured, but cannot be required", panel_type))
       end
     end
+  end
+
+  ---@param name Yat.Actions.Name
+  local function remove_keymap(name)
+    for _, keymap in pairs(M._keymaps) do
+      for key, action in pairs(keymap) do
+        if action.name == name then
+          keymap[key] = nil
+        end
+      end
+    end
+  end
+
+  local builtin = require("ya-tree.actions.builtin")
+  if not M._registered_panels["buffers"] then
+    remove_keymap(builtin.general.open_buffers_panel)
+  end
+  if not M._registered_panels["git_status"] then
+    remove_keymap(builtin.general.open_git_status_panel)
+  end
+  if not M._registered_panels["symbols"] then
+    remove_keymap(builtin.general.open_symbols_panel)
   end
 end
 
