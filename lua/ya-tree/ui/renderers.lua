@@ -40,9 +40,9 @@ local M = {
   _renderers = {},
 }
 
----@param name Yat.Ui.Renderer.Name
----@param fn Yat.Ui.RendererFunction
----@param config Yat.Config.BaseRendererConfig
+---@param name Yat.Ui.Renderer.Name The name of the renderer.
+---@param fn Yat.Ui.RendererFunction The render function.
+---@param config Yat.Config.BaseRendererConfig The renderer configuration.
 function M.define_renderer(name, fn, config)
   local renderer = {
     fn = fn,

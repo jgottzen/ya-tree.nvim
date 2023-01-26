@@ -28,8 +28,6 @@ end
 
 ---@async
 ---@param opts? Yat.OpenWindowArgs
----  - {opts.path?} `string` The path to expand to.
----  - {opts.focus?} `boolean|Yat.Panel.Type` Whether to focus the sidebar, alternatively which panel to focus.
 local function open(opts)
   local log = require("ya-tree.log").get("ya-tree")
   if M._loading then

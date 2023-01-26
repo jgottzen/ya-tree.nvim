@@ -13,19 +13,19 @@ local M = {
 ---@field node_independent boolean
 ---@field user_defined boolean
 
----@param name Yat.Actions.Name|string
----@param fn Yat.Action.TreePanelFn
----@param desc string
----@param modes Yat.Actions.Mode[]
----@param node_independent? boolean
----@param user_defined? boolean
+---@param name Yat.Actions.Name|string The name of the action.
+---@param fn Yat.Action.TreePanelFn The function implementing the action.
+---@param desc string The description of the action.
+---@param modes? Yat.Actions.Mode[] The mode(s) the action handles, defaults to ``{ "n" }`.
+---@param node_independent? boolean Whether the action can be called without a `Yat.Node`, e.g. the `"open_help"` action, defaults to `false`.
+---@param user_defined? boolean If the action is user defined, defauts to `false`.
 function M.define_action(name, fn, desc, modes, node_independent, user_defined)
   ---@type Yat.Action
   local action = {
     name = name,
     fn = fn,
     desc = desc,
-    modes = modes,
+    modes = modes or { "n" },
     node_independent = node_independent == true,
     user_defined = user_defined == true,
   }
@@ -51,9 +51,9 @@ local function define_actions(config)
   local sidebar = require("ya-tree.actions.sidebar")
 
   M.define_action(builtin.general.close_sidebar, sidebar.close_sidebar, "Close the sidebar", { "n" }, true)
-  M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application", { "n" })
+  M.define_action(builtin.general.system_open, files.system_open, "Open the node with the default system application")
   M.define_action(builtin.general.open_help, help.open_help, "Open keybindings help", { "n" }, true)
-  M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup", { "n" })
+  M.define_action(builtin.general.show_node_info, popups.show_node_info, "Show node info in popup")
   M.define_action(builtin.general.close_panel, panels.close_panel, "Close the current panel", { "n" }, true)
 
   M.define_action(builtin.general.open_symbols_panel, panels.open_symbols_panel, "Open the Symbols panel", { "n" }, true)
@@ -63,42 +63,40 @@ local function define_actions(config)
   M.define_action(builtin.general.open_buffers_panel, panels.open_buffers_panel, "Open the Buffers panel", { "n" }, true)
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
-  M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split", { "n" })
-  M.define_action(builtin.general.split, files.split, "Open file in a split", { "n" })
-  M.define_action(builtin.general.tabnew, files.tabnew, "Open file in a new tabpage", { "n" })
-  M.define_action(builtin.general.preview, files.preview, "Preview file (keep cursor in tree)", { "n" })
-  M.define_action(builtin.general.preview_and_focus, files.preview_and_focus, "Preview file", { "n" })
+  M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split")
+  M.define_action(builtin.general.split, files.split, "Open file in a split")
+  M.define_action(builtin.general.tabnew, files.tabnew, "Open file in a new tabpage")
+  M.define_action(builtin.general.preview, files.preview, "Preview file (keep cursor in tree)")
+  M.define_action(builtin.general.preview_and_focus, files.preview_and_focus, "Preview file")
 
-  M.define_action(builtin.general.copy_name_to_clipboard, clipboard.copy_name_to_clipboard, "Copy node name to system clipboard", { "n" })
+  M.define_action(builtin.general.copy_name_to_clipboard, clipboard.copy_name_to_clipboard, "Copy node name to system clipboard")
   M.define_action(
     builtin.general.copy_root_relative_path_to_clipboard,
     clipboard.copy_root_relative_path_to_clipboard,
-    "Copy root-relative path to system clipboard",
-    { "n" }
+    "Copy root-relative path to system clipboard"
   )
   M.define_action(
     builtin.general.copy_absolute_path_to_clipboard,
     clipboard.copy_absolute_path_to_clipboard,
-    "Copy absolute path to system clipboard",
-    { "n" }
+    "Copy absolute path to system clipboard"
   )
 
-  M.define_action(builtin.general.close_node, nodes.close_node, "Close directory", { "n" })
-  M.define_action(builtin.general.close_all_nodes, nodes.close_all_nodes, "Close all directories", { "n" })
-  M.define_action(builtin.general.close_all_child_nodes, nodes.close_all_child_nodes, "Close all child directories", { "n" })
-  M.define_action(builtin.general.expand_all_nodes, nodes.expand_all_nodes, "Recursively expand all directories", { "n" })
-  M.define_action(builtin.general.expand_all_child_nodes, nodes.expand_all_child_nodes, "Recursively expand all child directories", { "n" })
+  M.define_action(builtin.general.close_node, nodes.close_node, "Close directory")
+  M.define_action(builtin.general.close_all_nodes, nodes.close_all_nodes, "Close all directories")
+  M.define_action(builtin.general.close_all_child_nodes, nodes.close_all_child_nodes, "Close all child directories")
+  M.define_action(builtin.general.expand_all_nodes, nodes.expand_all_nodes, "Recursively expand all directories")
+  M.define_action(builtin.general.expand_all_child_nodes, nodes.expand_all_child_nodes, "Recursively expand all child directories")
 
   M.define_action(builtin.general.refresh_panel, panels.refresh_panel, "Refresh the panel", { "n" }, true)
 
-  M.define_action(builtin.general.focus_parent, nodes.focus_parent, "Go to parent directory", { "n" })
-  M.define_action(builtin.general.focus_prev_sibling, nodes.focus_prev_sibling, "Go to previous sibling node", { "n" })
-  M.define_action(builtin.general.focus_next_sibling, nodes.focus_next_sibling, "Go to next sibling node", { "n" })
-  M.define_action(builtin.general.focus_first_sibling, nodes.focus_first_sibling, "Go to first sibling node", { "n" })
-  M.define_action(builtin.general.focus_last_sibling, nodes.focus_last_sibling, "Go to last sibling node", { "n" })
+  M.define_action(builtin.general.focus_parent, nodes.focus_parent, "Go to parent directory")
+  M.define_action(builtin.general.focus_prev_sibling, nodes.focus_prev_sibling, "Go to previous sibling node")
+  M.define_action(builtin.general.focus_next_sibling, nodes.focus_next_sibling, "Go to next sibling node")
+  M.define_action(builtin.general.focus_first_sibling, nodes.focus_first_sibling, "Go to first sibling node")
+  M.define_action(builtin.general.focus_last_sibling, nodes.focus_last_sibling, "Go to last sibling node")
 
-  M.define_action(builtin.files.add, files.add, "Add file or directory", { "n" })
-  M.define_action(builtin.files.rename, files.rename, "Rename file or directory", { "n" })
+  M.define_action(builtin.files.add, files.add, "Add file or directory")
+  M.define_action(builtin.files.rename, files.rename, "Rename file or directory")
   M.define_action(builtin.files.delete, files.delete, "Delete files and directories", { "n", "v" })
   if config.trash.enable then
     M.define_action(builtin.files.trash, files.trash, "Trash files and directories", { "n", "v" })
@@ -106,11 +104,11 @@ local function define_actions(config)
 
   M.define_action(builtin.files.copy_node, clipboard.copy_node, "Select files and directories for copy", { "n", "v" })
   M.define_action(builtin.files.cut_node, clipboard.cut_node, "Select files and directories for cut", { "n", "v" })
-  M.define_action(builtin.files.paste_nodes, clipboard.paste_nodes, "Paste files and directories", { "n" })
-  M.define_action(builtin.files.clear_clipboard, clipboard.clear_clipboard, "Clear selected files and directories", { "n" })
+  M.define_action(builtin.files.paste_nodes, clipboard.paste_nodes, "Paste files and directories")
+  M.define_action(builtin.files.clear_clipboard, clipboard.clear_clipboard, "Clear selected files and directories")
 
-  M.define_action(builtin.files.cd_to, files.cd_to, "Set tree root to directory", { "n" })
-  M.define_action(builtin.files.cd_up, files.cd_up, "Set tree root one level up", { "n" })
+  M.define_action(builtin.files.cd_to, files.cd_to, "Set tree root to directory")
+  M.define_action(builtin.files.cd_up, files.cd_up, "Set tree root one level up")
 
   M.define_action(builtin.files.toggle_filter, files.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
@@ -125,36 +123,21 @@ local function define_actions(config)
   M.define_action(builtin.search.search_once, search.search_once, "Search", { "n" }, true)
   M.define_action(builtin.search.close_search, search.close_search, "Close search", { "n" }, true)
 
-  M.define_action(
-    builtin.panel_specific.goto_node_in_files_panel,
-    panels.goto_node_in_files_panel,
-    "Go to node in the files panel",
-    { "n" }
-  )
+  M.define_action(builtin.panel_specific.goto_node_in_files_panel, panels.goto_node_in_files_panel, "Go to node in the files panel")
 
   if config.git.enable then
     M.define_action(builtin.git.toggle_ignored, git.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
-    M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo", { "n" })
-    M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item", { "n" })
-    M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item", { "n" })
-    M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory", { "n" })
-    M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory", { "n" })
-    M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory", { "n" })
+    M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo")
+    M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item")
+    M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item")
+    M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory")
+    M.define_action(builtin.git.git_unstage, git.unstage, "Unstage file/directory")
+    M.define_action(builtin.git.git_revert, git.revert, "Revert file/directory")
   end
 
   if config.diagnostics.enable then
-    M.define_action(
-      builtin.diagnostics.focus_prev_diagnostic_item,
-      nodes.focus_prev_diagnostic_item,
-      "Go to the previous diagnostic item",
-      { "n" }
-    )
-    M.define_action(
-      builtin.diagnostics.focus_next_diagnostic_item,
-      nodes.focus_next_diagnostic_item,
-      "Go to the next diagnostic item",
-      { "n" }
-    )
+    M.define_action(builtin.diagnostics.focus_prev_diagnostic_item, nodes.focus_prev_diagnostic_item, "Go to the previous diagnostic item")
+    M.define_action(builtin.diagnostics.focus_next_diagnostic_item, nodes.focus_next_diagnostic_item, "Go to the next diagnostic item")
   end
 
   for name, action in pairs(config.actions) do
