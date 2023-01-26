@@ -465,16 +465,10 @@ function TreePanel:apply_mappings()
   local opts = { buffer = self:bufnr(), silent = true, nowait = true }
   for key, action in pairs(self.keymap) do
     local rhs = create_keymap_function(self, action)
-
-    ---@type table<string, boolean>
-    local modes = {}
-    for _, mode in ipairs(action.modes) do
-      modes[mode] = true
-    end
     opts.desc = action.desc
-    for mode in pairs(modes) do
+    for _, mode in ipairs(action.modes) do
       if not pcall(vim.keymap.set, mode, key, rhs, opts) then
-        log.error("couldn't construct mapping for key %q!", key)
+        log.error("couldn't construct mapping for key %q to action %q", key, action.name)
       end
     end
   end

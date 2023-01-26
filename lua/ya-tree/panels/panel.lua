@@ -220,7 +220,7 @@ function Panel:_on_win_closed()
   self._winid = nil
   if self._bufnr then
     -- Deleting the buffer will inhibit TabClosed autocmds from firing...
-    -- Deferring it works...
+    -- Deferring it works
     local bufnr = self._bufnr
     vim.defer_fn(function()
       pcall(api.nvim_buf_delete, bufnr, { force = true })
@@ -297,7 +297,7 @@ do
         from, to = to, from
       end
 
-      api.nvim_feedkeys(ESC_TERM_CODES, "n", true)
+      api.nvim_feedkeys(ESC_TERM_CODES, "n", false)
       return from, to
     else
       local row = api.nvim_win_get_cursor(self._winid)[1]
