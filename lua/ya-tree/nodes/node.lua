@@ -313,12 +313,10 @@ function Node:type()
   return self._type
 end
 
----@virtual
 ---@return boolean editable
 function Node:is_editable()
   return self._type == "file"
 end
-Node:virtual("is_editable")
 
 ---@return boolean
 function Node:is_directory()
