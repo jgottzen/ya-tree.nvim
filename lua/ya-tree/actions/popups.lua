@@ -49,7 +49,6 @@ do
     ---@param id integer
     ---@return string username
     get_username = function(id)
-      ---@diagnostic disable-next-line:undefined-field
       local struct = ffi.C.getpwuid(id)
       local name
       if struct == nil then
@@ -76,7 +75,6 @@ do
     ---@param id integer
     ---@return string groupname
     get_groupname = function(id)
-      ---@diagnostic disable-next-line:undefined-field
       local struct = ffi.C.getgrgid(id)
       local name
       if struct == nil then
