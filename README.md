@@ -3,6 +3,12 @@
 Ya-Tree is sidebar plugin with file browser, Git status, LSP Symbols and buffers panels.
 Additional panels can easily be created.
 
+<!-- panvimdoc-ignore-start -->
+
+![screenshot](https://user-images.githubusercontent.com/905941/216083903-911b68d2-58b2-49e0-a125-1dfa47c6e28e.png)
+
+<!-- panvimdoc-ignore-end -->
+
 ## Features
 
 - Git integration, including [yadm](https://yadm.io/), updates when working tree status changes.
