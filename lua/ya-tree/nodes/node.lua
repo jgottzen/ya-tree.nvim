@@ -586,7 +586,7 @@ function Node:populate_from_paths(paths, node_creator)
   local function add_node(path, parent, directory)
     local node = node_creator(path, parent, directory)
     if node then
-      parent:add_child(node)
+      parent._children[#parent._children + 1] = node
       node_map[node.path] = node
     end
   end
@@ -609,6 +609,18 @@ function Node:populate_from_paths(paths, node_creator)
     local parent = node_map[parents[1]]
     add_node(path, parent, false)
   end
+
+  ---@param node Yat.Node
+  local function sort_children(node)
+    if node._children then
+      table.sort(node._children, node.node_comparator)
+      for _, child in ipairs(node._children) do
+        sort_children(child)
+      end
+    end
+  end
+
+  sort_children(self)
 
   local first_leaf_node = self
   while first_leaf_node and first_leaf_node._children do
