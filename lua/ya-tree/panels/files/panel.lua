@@ -1,4 +1,3 @@
-local defer = require("ya-tree.async").defer
 local fs = require("ya-tree.fs")
 local fs_watcher = require("ya-tree.fs.watcher")
 local git = require("ya-tree.git")
@@ -63,10 +62,7 @@ function FilesPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local root = create_root_node(path)
   self.super:init("files", sidebar, config.title, config.icon, keymap, renderers, root)
-  defer(function()
-    self.root:expand({ force_scan = true })
-    self:draw(self.current_node)
-  end)
+  self.root:expand({ force_scan = true })
   self.mode = "files"
   self.files_root = self.root
   self.files_current_node = self.current_node

@@ -1,4 +1,3 @@
-local defer = require("ya-tree.async").defer
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
@@ -52,10 +51,7 @@ function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
     root = TextNode:new(path .. " is not a Git repository", path, false)
   end
   self.super:init("git_status", sidebar, config.title, config.icon, keymap, renderers, root)
-  defer(function()
-    self.current_node = self.root:refresh() or root
-    self:draw(self.current_node)
-  end)
+  self.current_node = self.root:refresh() or root
   self:register_buffer_modified_event()
   self:register_buffer_saved_event()
   self:register_buffer_enter_event()
