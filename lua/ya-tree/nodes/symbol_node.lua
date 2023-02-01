@@ -5,8 +5,6 @@ local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 local symbol_kind = require("ya-tree.lsp.symbol_kind")
 
-local api = vim.api
-
 ---@class Yat.Nodes.Symbol : Yat.Node
 ---@field new fun(self: Yat.Nodes.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Yat.Document.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
 ---@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Yat.Document.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
@@ -83,7 +81,7 @@ end
 function SymbolNode:edit(cmd)
   vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(self.file) } })
   if self.kind ~= symbol_kind.FILE then
-    api.nvim_win_set_cursor(0, { self.position.start.line + 1, self.position.start.character })
+    vim.api.nvim_win_set_cursor(0, { self.position.start.line + 1, self.position.start.character })
   end
 end
 
@@ -99,7 +97,7 @@ end
 function SymbolNode:add_child(symbol)
   if not self._children then
     self._children = {}
-    self.empty = true
+    self.empty = false
   end
   local path = self.path .. "/" .. symbol.name .. (#self._children + 1)
   local node = SymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)

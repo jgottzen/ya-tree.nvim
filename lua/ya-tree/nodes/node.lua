@@ -41,11 +41,11 @@ local Node = meta.create_class("Yat.Node")
 Node.__node_type = "filesystem"
 
 ---@param other Yat.Node
-Node.__eq = function(self, other)
+function Node.__eq(self, other)
   return self.path == other.path
 end
 
-Node.__tostring = function(self)
+function Node.__tostring(self)
   local node_type = self.__lower and self.__lower.__node_type or self.__node_type
   return string.format("(%s, %s)", node_type, self.path)
 end
@@ -441,7 +441,7 @@ end
 ---@generic T : Yat.Node
 ---@param self T
 ---@return T[] children
-function Node.children(self)
+function Node:children()
   ---@cast self Yat.Node
   return self._children
 end
@@ -453,9 +453,12 @@ end
 
 ---@async
 ---@virtual
+---@generic T : Yat.Node
+---@param self T
 ---@param path string
----@return Yat.Node? node
+---@return T? node
 function Node:add_node(path)
+  ---@cast self Yat.Node
   return self:_add_node(path, function(fs_node, parent)
     local node = self:class():new(fs_node, parent)
     if node:node_type() == "filesystem" then
@@ -473,7 +476,7 @@ Node:virtual("add_node")
 ---@param path string
 ---@param node_creator fun(fs_node: Yat.Fs.Node, parent: T): T
 ---@return T|nil node
-function Node._add_node(self, path, node_creator)
+function Node:_add_node(path, node_creator)
   if not fs.exists(path) then
     log.error("no file node found for %q", path)
     return nil
@@ -572,7 +575,7 @@ end
 ---@param paths string[]
 ---@param node_creator async fun(path: string, parent: T, directory: boolean): T|nil
 ---@return T first_leaf_node
-function Node.populate_from_paths(self, paths, node_creator)
+function Node:populate_from_paths(paths, node_creator)
   ---@cast self Yat.Node
   ---@type table<string, Yat.Node>
   local node_map = { [self.path] = self }
@@ -627,7 +630,7 @@ end
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} T
 ---@return fun(): integer, T iterator
-function Node.iterate_children(self, opts)
+function Node:iterate_children(opts)
   local children = self._children --[=[@as Yat.Node[]]=]
   if not children or #children == 0 then
     return function() end
@@ -692,7 +695,7 @@ end
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return T|nil node if {opts.to} is specified, and found.
-function Node.expand(self, opts)
+function Node:expand(opts)
   ---@cast self Yat.Node
   log.debug("expanding %q", self.path)
   opts = opts or {}
@@ -730,7 +733,7 @@ end
 ---@param self T
 ---@param path string
 ---@return T|nil
-function Node.get_child_if_loaded(self, path)
+function Node:get_child_if_loaded(path)
   ---@cast self Yat.Node
   if self.path == path then
     return self

@@ -11,7 +11,6 @@ local utils = require("ya-tree.utils")
 ---@field class fun(self: Yat.Nodes.Git): Yat.Nodes.Git
 ---@field super Yat.Node
 ---
----@field add_node fun(self: Yat.Nodes.Git, path: string): Yat.Nodes.Git?
 ---@field protected __node_type "git"
 ---@field public parent? Yat.Nodes.Git
 ---@field private _children? Yat.Nodes.Git[]

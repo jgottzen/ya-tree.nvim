@@ -12,7 +12,6 @@ local utils = require("ya-tree.utils")
 ---@field class fun(self: Yat.Nodes.Search): Yat.Nodes.Search
 ---@field super Yat.Node
 ---
----@field add_node fun(self: Yat.Nodes.Search, path: string): Yat.Nodes.Search?
 ---@field protected __node_type "search"
 ---@field public parent? Yat.Nodes.Search
 ---@field private _children? Yat.Nodes.Search[]

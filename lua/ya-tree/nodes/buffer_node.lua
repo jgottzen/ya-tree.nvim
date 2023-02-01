@@ -33,7 +33,7 @@ local BufferNode = meta.create_class("Yat.Nodes.Buffer", Node)
 BufferNode.__node_type = "buffer"
 
 ---@param other Yat.Nodes.Buffer
-BufferNode.__eq = function(self, other)
+function BufferNode.__eq(self, other)
   if self._type == "terminal" then
     return other._type == "terminal" and self.bufname == other.bufname or false
   else

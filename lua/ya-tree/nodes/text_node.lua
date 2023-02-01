@@ -7,7 +7,6 @@ local Node = require("ya-tree.nodes.node")
 ---@field class fun(self: Yat.Nodes.Text): Yat.Nodes.Text
 ---@field super Yat.Node
 ---
----@field add_node fun(self: Yat.Nodes.Text, path: string): Yat.Nodes.Text?
 ---@field protected __node_type "text"
 ---@field public parent? Yat.Nodes.Text
 ---@field private _children? Yat.Nodes.Text[]
