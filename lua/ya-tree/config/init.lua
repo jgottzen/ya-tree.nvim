@@ -734,12 +734,14 @@ local M = {
 }
 
 M.config = vim.deepcopy(M.default) --[[@as Yat.Config]]
+M.setup_called = false
 
 ---@param opts? Yat.Config
 ---@return Yat.Config config
 function M.setup(opts)
   opts = opts or {}
   M.config = vim.tbl_deep_extend("force", M.default, opts) --[[@as Yat.Config]]
+  M.setup_called = true
 
   local utils = require("ya-tree.utils")
 
@@ -801,12 +803,17 @@ function M.setup(opts)
       M.config.search.cmd = "fd"
     elseif fn.executable("fdfind") == 1 then
       M.config.search.cmd = "fdfind"
-    elseif fn.executable("find") == 1 and not fn.has("win32") == 1 then
+    elseif fn.executable("find") == 1 and fn.has("win32") == 0 then
       M.config.search.cmd = "find"
     elseif fn.executable("where") == 1 then
       M.config.search.cmd = "where"
     else
       utils.warn("None of the default search programs was found in the PATH!\nSearching will not be possible.")
+    end
+  else
+    if fn.executable(M.config.search.cmd) == 0 then
+      utils.warn(string.format("'search.cmd' is set to %q, which cannot be found in PATH!\nSearching will not be possible", M.config.search.cmd))
+      M.config.search.cmd = nil
     end
   end
   if M.config.search.max_results == 0 then
