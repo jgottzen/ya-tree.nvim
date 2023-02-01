@@ -365,7 +365,7 @@ function Sidebar:draw()
   local TreePanel = require("ya-tree.panels.tree_panel")
   self:for_each_panel(function(panel)
     if panel:is_open() then
-      if panel:class():isa(TreePanel) then
+      if panel:instance_of(TreePanel) then
         ---@cast panel Yat.Panel.Tree
         panel:draw(panel:get_current_node())
       else
@@ -433,7 +433,7 @@ end
 function Sidebar:set_git_repo_for_path(path, repo)
   local TreePanel = require("ya-tree.panels.tree_panel")
   M.for_each_sidebar_and_panel(function(panel)
-    if panel:class():isa(TreePanel) then
+    if panel:instance_of(TreePanel) then
       ---@cast panel Yat.Panel.Tree
       panel:set_git_repo_for_path(repo, path)
     end
@@ -476,7 +476,7 @@ function M.delete_sidebars_for_nonexisting_tabpages()
       sidebar:delete()
     else
       sidebar:for_each_panel(function(panel)
-        if panel:class():isa(TreePanel) then
+        if panel:instance_of(TreePanel) then
           ---@cast panel Yat.Panel.Tree
           panel.root:walk(function(node)
             if node.repo then

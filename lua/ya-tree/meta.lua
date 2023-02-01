@@ -6,11 +6,11 @@
 
 local M = {}
 
--- associations between an object an its virtuals
+---Associations between an object an its virtuals.
 ---@type table<Yat.Class, { virtuals: table<string, function> }>
-local meta_object = setmetatable({}, { __mode = "k" })
+local CLASSES = setmetatable({}, { __mode = "k" })
 
---- Return a shallow copy of table t
+---Return a shallow copy of table t
 local function duplicate(t)
   local t2 = {}
   for k, v in pairs(t) do
@@ -23,6 +23,7 @@ end
 ---@return Yat.Object?
 local function new_instance(class, ...)
   -- selene: allow(shadowing)
+
   ---@param class Yat.Class
   ---@param virtuals? string[]
   ---@return Yat.Object
@@ -44,11 +45,10 @@ local function new_instance(class, ...)
     return instance
   end
 
-  local instance = make_instance(class, meta_object[class].virtuals)
+  local instance = make_instance(class, CLASSES[class].virtuals)
   ---@diagnostic disable-next-line:invisible
-  if instance:init(...) ~= false then
-    return instance
-  end
+  instance:init(...)
+  return instance
 end
 
 ---@param class Yat.Class
@@ -60,10 +60,10 @@ local function make_virtual(class, function_name)
       error("Attempt to call an undefined abstract method '" .. function_name .. "'")
     end
   end
-  meta_object[class].virtuals[function_name] = fn
+  CLASSES[class].virtuals[function_name] = fn
 end
 
---- Try to cast an instance into an instance of one of its super- or subclasses
+---Try to cast an instance into an instance of one of its super- or subclasses
 ---@param class Yat.Class
 ---@param instance Yat.Object
 local function try_cast(class, instance)
@@ -85,7 +85,7 @@ local function try_cast(class, instance)
   return nil
 end
 
---- Same as try_cast but raise an error in case of failure
+---Same as try_cast but raise an error in case of failure
 ---@param class Yat.Class
 ---@param instance Yat.Object
 local function secure_cast(class, instance)
@@ -125,6 +125,7 @@ local function subclass(base, name)
     name = "Unnamed"
   end
 
+  ---@type Yat.Object
   local class = {}
 
   -- need to copy everything here because events can't be found through metatables
@@ -148,6 +149,9 @@ local function subclass(base, name)
     init = instsance_init_definition,
     class = function()
       return class
+    end,
+    instance_of = function(_, other)
+      return class == other or base:isa(other)
     end,
   }
 
@@ -190,23 +194,26 @@ local function subclass(base, name)
       return class == other or base:isa(other)
     end,
   }
-  meta_object[class] = { virtuals = duplicate(meta_object[base].virtuals) }
+  CLASSES[class] = { virtuals = duplicate(CLASSES[base].virtuals) }
 
   -- selene: allow(shadowing)
+
   ---@param class Yat.Class
   ---@param name string
   ---@param method fun(...): any
   ---@diagnostic disable-next-line:redefined-local
   local function new_method(class, name, method)
     instance_internals[name] = method
-    if meta_object[class].virtuals[name] ~= nil then
-      meta_object[class].virtuals[name] = method
+    if CLASSES[class].virtuals[name] ~= nil then
+      CLASSES[class].virtuals[name] = method
     end
   end
 
   setmetatable(class, {
     __newindex = new_method,
-    __index = class_internals,
+    __index = function(_, key)
+      return class_internals[key] or class_internals.static[key] or base[key]
+    end,
     __tostring = function()
       return "<class " .. name .. ">"
     end,
@@ -219,18 +226,17 @@ end
 ---@class Yat.Object
 ---@field package __class Yat.Class
 ---@field package __lower Yat.Object
----@field protected init fun(self: Yat.Object, ...): boolean?
+---@field protected init fun(self: Yat.Object, ...)
 ---@field class fun(self: Yat.Object): Yat.Class
 ---@field super Yat.Object
 ---@field subclass fun(self: Yat.Class, name: string): Yat.Object
 ---@field static Yat.Object
 ---@field virtual fun(self: Yat.Object, method: string)
+---@field instance_of fun(self: Yat.Object, class: Yat.Object): boolean
 local Object = {}
 
-M.Object = Object
-
 local function object_new_item()
-  error("May not modify the class 'Object'. Subclass it instead.")
+  error("Do not modify the 'Yat.Object' class, subclass it instead.")
 end
 
 local object_instance = {
@@ -242,6 +248,9 @@ local object_instance = {
   init = function() end,
   class = function()
     return Object
+  end,
+  instance_of = function(_, other)
+    return other == Object
   end,
 }
 object_instance.__index = object_instance
@@ -262,7 +271,7 @@ local object_class = {
     return other == Object
   end,
 }
-meta_object[Object] = { virtuals = {} }
+CLASSES[Object] = { virtuals = {} }
 
 setmetatable(Object, {
   __newindex = object_new_item,
