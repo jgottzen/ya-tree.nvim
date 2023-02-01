@@ -141,9 +141,31 @@ function Panel:create_buffer()
   self:apply_mappings()
 end
 
+---@private
+function Panel:apply_mappings()
+  local opts = { buffer = self:bufnr(), silent = true, nowait = true }
+  for key, action in pairs(self.keymap) do
+    local rhs = self:create_keymap_function(action)
+    if rhs then
+      opts.desc = action.desc
+      for _, mode in ipairs(action.modes) do
+        if not pcall(vim.keymap.set, mode, key, rhs, opts) then
+          log.error("couldn't construct mapping for key %q to action %q", key, action.name)
+        end
+      end
+    end
+  end
+end
+
+-- selene: allow(unused_variable)
+
+---@virtual
 ---@protected
-function Panel:apply_mappings() end
-Panel:virtual("apply_mappings")
+---@param action Yat.Action
+---@return function|string handler
+---@diagnostic disable-next-line:unused-local,missing-return
+function Panel:create_keymap_function(action) end
+Panel:virtual("create_keymap_function")
 
 do
   local POSITIONS_TO_WINCMD = { left = "H", below = "J", right = "L" }

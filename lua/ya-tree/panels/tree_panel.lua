@@ -445,31 +445,17 @@ function TreePanel:check_node_for_git_repo(node)
   return repo
 end
 
----@param panel Yat.Panel.Tree
+---@protected
 ---@param action Yat.Action
 ---@return function handler
-local function create_keymap_function(panel, action)
+function TreePanel:create_keymap_function(action)
   return function()
-    local node = panel:get_current_node()
+    local node = self:get_current_node()
     if node or action.node_independent then
       if node then
-        panel.current_node = node
+        self.current_node = node
       end
-      void(action.fn)(panel, node)
-    end
-  end
-end
-
----@protected
-function TreePanel:apply_mappings()
-  local opts = { buffer = self:bufnr(), silent = true, nowait = true }
-  for key, action in pairs(self.keymap) do
-    local rhs = create_keymap_function(self, action)
-    opts.desc = action.desc
-    for _, mode in ipairs(action.modes) do
-      if not pcall(vim.keymap.set, mode, key, rhs, opts) then
-        log.error("couldn't construct mapping for key %q to action %q", key, action.name)
-      end
+      void(action.fn)(self, node)
     end
   end
 end
