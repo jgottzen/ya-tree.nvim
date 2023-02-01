@@ -21,11 +21,11 @@ local utils = require("ya-tree.utils")
 ---@field public path string
 ---@field public parent? Yat.Node
 ---@field protected _type Luv.FileType
----@field private _children? Yat.Node[]
----@field public empty? boolean
+---@field package _children? Yat.Node[]
+---@field protected empty? boolean
 ---@field public extension? string
 ---@field public executable? boolean
----@field public link boolean
+---@field protected link boolean
 ---@field public absolute_link_to? string
 ---@field public relative_link_to string
 ---@field public link_orphan? boolean
