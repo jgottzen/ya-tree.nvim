@@ -611,6 +611,8 @@ function Node:populate_from_paths(paths, node_creator)
   ---@param node Yat.Node
   local function sort_children(node)
     if node._children then
+      ---@diagnostic disable-next-line:invisible
+      node.empty = #node._children == 0
       table.sort(node._children, node.node_comparator)
       for _, child in ipairs(node._children) do
         sort_children(child)
