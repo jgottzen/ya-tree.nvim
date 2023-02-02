@@ -99,6 +99,6 @@ M.async_run = wrap(function(opts, callback)
   M.run(opts, function(code, stdout, stderr)
     callback(code, stdout, stderr)
   end)
-end, 2, false)
+end, 2, true)
 
 return M

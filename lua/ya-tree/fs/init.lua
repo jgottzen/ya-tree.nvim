@@ -40,10 +40,10 @@ local M = {}
 ---@field type Luv.FileType|"unknown"
 
 ---@type async fun(path: string): err: string|, stat: Luv.Fs.Stat|nil
-local fs_stat = wrap(uv.fs_stat, 2, false)
+local fs_stat = wrap(uv.fs_stat, 2, true)
 
 ---@type async fun(path: string): err: string|, stat: Luv.Fs.Stat|nil
-local fs_lstat = wrap(uv.fs_lstat, 2, false)
+local fs_lstat = wrap(uv.fs_lstat, 2, true)
 
 ---@param path string
 ---@param entries integer
@@ -51,16 +51,16 @@ local fs_lstat = wrap(uv.fs_lstat, 2, false)
 ---@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: userdata|nil
 local fs_opendir = wrap(function(path, entries, callback)
   uv.fs_opendir(path, callback, entries)
-end, 3, false)
+end, 3, true)
 
 ---@type async fun(luv_dir_t: userdata): string?, Luv.Fs.Readdir[]?
-local fs_readdir = wrap(uv.fs_readdir, 2, false)
+local fs_readdir = wrap(uv.fs_readdir, 2, true)
 
 ---@type async fun(luv_dir_t: userdata): err: string|nil, success: boolean|nil
-local fs_closedir = wrap(uv.fs_closedir, 2, false)
+local fs_closedir = wrap(uv.fs_closedir, 2, true)
 
 ---@type async fun(path: string): err: string|nil, path: string|nil
-local fs_readlink = wrap(uv.fs_readlink, 2, false)
+local fs_readlink = wrap(uv.fs_readlink, 2, true)
 
 ---@param path string
 ---@return boolean is_file
