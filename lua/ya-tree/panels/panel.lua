@@ -331,7 +331,7 @@ end
 ---@return string line
 ---@return Yat.Ui.HighlightGroup[][] highlights
 function Panel:render_header()
-  return self.icon .. "  " .. self.title, { { name = hl.SECTION_ICON, from = 0, to = 3 }, { name = hl.SECTION_NAME, from = 5, to = -1 } }
+  return self.icon .. "  " .. self.title, { { name = hl.SECTION_ICON, from = 0, to = 3 }, { name = hl.SECTION_NAME, from = 3, to = -1 } }
 end
 
 -- selene: allow(unused_variable)
