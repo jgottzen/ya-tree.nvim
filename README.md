@@ -394,52 +394,13 @@ local DEFAULT = {
   ---@field mappings Yat.Config.Panels.Mappings The panel specific mappings.
   ---@field renderers Yat.Config.Panels.TreeRenderers The panel specific renderers.
 
-  ---@class Yat.Config.Panels : { [Yat.Panel.Type] : Yat.Config.Panels.Panel }
-  ---@field global_mappings Yat.Config.Panels.GlobalMappings Mappings that applies to all panels.
+  ---@class Yat.Config.Panels
   ---@field files Yat.Config.Panels.Files Files panel configuration.
   ---@field symbols Yat.Config.Panels.Symbols Lsp Symbols panel configuration.
   ---@field git_status Yat.Config.Panels.GitStatus Git Status panel configuration.
   ---@field buffers Yat.Config.Panels.Buffers Buffers panel configuration.
+  ---@field [Yat.Panel.Type] Yat.Config.Panels.Panel
   panels = {
-    ---@class Yat.Config.Panels.GlobalMappings
-    ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-    ---@field list table<string, Yat.Panel.Tree.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
-    global_mappings = {
-      disable_defaults = false,
-      list = {
-        ["q"] = "close_sidebar",
-        ["<C-x>"] = "close_panel",
-        ["?"] = "open_help",
-        ["gs"] = "open_symbols_panel",
-        ["<C-g>"] = "open_git_status_panel",
-        ["b"] = "open_buffers_panel",
-        ["gx"] = "system_open",
-        ["<C-i>"] = "show_node_info",
-        ["<CR>"] = "open",
-        ["o"] = "open",
-        ["<2-LeftMouse>"] = "open",
-        ["<C-v>"] = "vsplit",
-        ["<C-s>"] = "split",
-        ["<C-t>"] = "tabnew",
-        ["<Tab>"] = "preview",
-        ["<C-Tab>"] = "preview_and_focus",
-        ["y"] = "copy_name_to_clipboard",
-        ["Y"] = "copy_root_relative_path_to_clipboard",
-        ["gy"] = "copy_absolute_path_to_clipboard",
-        ["<BS>"] = "close_node",
-        ["Z"] = "close_all_nodes",
-        ["z"] = "close_all_child_nodes",
-        ["E"] = "expand_all_nodes",
-        ["e"] = "expand_all_child_nodes",
-        ["R"] = "refresh_panel",
-        ["P"] = "focus_parent",
-        ["<"] = "focus_prev_sibling",
-        [">"] = "focus_next_sibling",
-        ["K"] = "focus_first_sibling",
-        ["J"] = "focus_last_sibling",
-      },
-    },
-
     ---@class Yat.Config.Panels.Files : Yat.Config.Panels.Panel
     ---@field title string The name of the panel, default: `"Files"`.
     ---@field icon string The icon for the panel, default: `""`.
@@ -461,6 +422,35 @@ local DEFAULT = {
       mappings = {
         disable_defaults = false,
         list = {
+          ["q"] = "close_sidebar",
+          ["?"] = "open_help",
+          ["gs"] = "open_symbols_panel",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gx"] = "system_open",
+          ["<C-i>"] = "show_node_info",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["<C-t>"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_panel",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
           ["a"] = "add",
           ["r"] = "rename",
           ["d"] = "delete",
@@ -536,6 +526,36 @@ local DEFAULT = {
       mappings = {
         disable_defaults = false,
         list = {
+          ["q"] = "close_sidebar",
+          ["<C-x>"] = "close_panel",
+          ["?"] = "open_help",
+          ["gs"] = "open_symbols_panel",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gx"] = "system_open",
+          ["<C-i>"] = "show_node_info",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["<C-t>"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_panel",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
           ["S"] = "search_for_node_in_panel",
           ["[e"] = "focus_prev_diagnostic_item",
           ["]e"] = "focus_next_diagnostic_item",
@@ -579,6 +599,36 @@ local DEFAULT = {
       mappings = {
         disable_defaults = false,
         list = {
+          ["q"] = "close_sidebar",
+          ["<C-x>"] = "close_panel",
+          ["?"] = "open_help",
+          ["gs"] = "open_symbols_panel",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gx"] = "system_open",
+          ["<C-i>"] = "show_node_info",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["<C-t>"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_panel",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
           ["<C-]>"] = "cd_to",
           ["."] = "cd_to",
           ["I"] = "toggle_ignored",
@@ -638,6 +688,36 @@ local DEFAULT = {
       mappings = {
         disable_defaults = false,
         list = {
+          ["q"] = "close_sidebar",
+          ["<C-x>"] = "close_panel",
+          ["?"] = "open_help",
+          ["gs"] = "open_symbols_panel",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gx"] = "system_open",
+          ["<C-i>"] = "show_node_info",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["<C-t>"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_panel",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
           ["<C-]>"] = "cd_to",
           ["."] = "cd_to",
           ["I"] = "toggle_ignored",
@@ -993,15 +1073,14 @@ The actions supported by the trees are:
 
 <details>
 
-<summary><b>Actions supported by all builtin panels:</b></summary>
+<summary><b>Files panel actions:</b></summary>
 
 ```lua
----@alias Yat.Panel.Tree.SupportedActions
+---@alias Yat.Panel.Files.SupportedActions
 ---| "close_sidebar"
 ---| "system_open"
 ---| "open_help"
 ---| "show_node_info"
----| "close_panel"
 ---
 ---| "open_symbols_panel",
 ---| "open_git_status_panel",
@@ -1031,16 +1110,7 @@ The actions supported by the trees are:
 ---| "focus_next_sibling"
 ---| "focus_first_sibling"
 ---| "focus_last_sibling"
-```
-
-</details>
-
-<details>
-
-<summary><b>Files panel actions:</b></summary>
-
-```lua
----@alias Yat.Panel.Files.SupportedActions
+---|
 ---| "add"
 ---| "rename"
 ---| "delete"
@@ -1085,6 +1155,41 @@ The actions supported by the trees are:
 
 ```lua
 ---@alias Yat.Panel.GitStatus.SupportedActions
+---| "close_sidebar"
+---| "system_open"
+---| "open_help"
+---| "show_node_info"
+---| "close_panel"
+---
+---| "open_symbols_panel",
+---| "open_git_status_panel",
+---| "open_buffers_panel",
+---
+---| "open"
+---| "vsplit"
+---| "split"
+---| "tabnew"
+---| "preview"
+---| "preview_and_focus"
+---
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---
+---| "close_node"
+---| "close_all_nodes"
+---| "close_all_child_nodes"
+---| "expand_all_nodes"
+---| "expand_all_child_nodes"
+---
+---| "refresh_panel"
+---
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+---|
 ---| "rename"
 ---
 ---| "cd_to"
@@ -1115,6 +1220,41 @@ The actions supported by the trees are:
 
 ```lua
 ---@alias Yat.Panel.Symbols.SupportedActions
+---| "close_sidebar"
+---| "system_open"
+---| "open_help"
+---| "show_node_info"
+---| "close_panel"
+---
+---| "open_symbols_panel",
+---| "open_git_status_panel",
+---| "open_buffers_panel",
+---
+---| "open"
+---| "vsplit"
+---| "split"
+---| "tabnew"
+---| "preview"
+---| "preview_and_focus"
+---
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---
+---| "close_node"
+---| "close_all_nodes"
+---| "close_all_child_nodes"
+---| "expand_all_nodes"
+---| "expand_all_child_nodes"
+---
+---| "refresh_panel"
+---
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+---|
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
@@ -1135,6 +1275,41 @@ The actions supported by the trees are:
 
 ```lua
 ---@alias Yat.Panel.Buffers.SupportedActions
+---| "close_sidebar"
+---| "system_open"
+---| "open_help"
+---| "show_node_info"
+---| "close_panel"
+---
+---| "open_symbols_panel",
+---| "open_git_status_panel",
+---| "open_buffers_panel",
+---
+---| "open"
+---| "vsplit"
+---| "split"
+---| "tabnew"
+---| "preview"
+---| "preview_and_focus"
+---
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---
+---| "close_node"
+---| "close_all_nodes"
+---| "close_all_child_nodes"
+---| "expand_all_nodes"
+---| "expand_all_child_nodes"
+---
+---| "refresh_panel"
+---
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+---|
 ---| "cd_to"
 ---| "toggle_filter"
 ---
@@ -1190,11 +1365,9 @@ require("ya-tree").setup({
     print = utils.create_tree_panel_action(print_panel_and_node, "Print panel and node", false, { "n" }),
   },
   panels = {
-    global_mappings = {
-      ["A"] = "special_action",
-    },
     files = {
       mappings = {
+        ["A"] = "special_action",
         ["T"] = "print",
       },
     },
@@ -1268,6 +1441,8 @@ A custom renderer component can be created using the config helper:
 ---@field text string
 ---@field highlight string
 
+local hl = require("ya-tree.ui.highlights")
+
 ---@param node Yat.Node
 ---@param context Yat.Ui.RenderContext
 ---@param renderer Yat.Config.BaseRendererConfig
@@ -1286,7 +1461,6 @@ local function renderer(node, context, renderer)
   end
 end
 
-local hl = require("ya-tree.ui.highlights")
 local utils = require("ya-tree.config.utils")
 require("ya-tree").setup({
   renderers = {

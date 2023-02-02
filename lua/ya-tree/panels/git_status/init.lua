@@ -67,9 +67,7 @@ function M.setup(config)
     unpack(vim.deepcopy(tree_actions.supported_actions)),
   })
 
-  ---@type table<string, Yat.Actions.Name|string>
-  local mappings = vim.tbl_deep_extend("force", config.panels.global_mappings.list, config.panels.git_status.mappings.list)
-  M.keymap = tree_actions.create_mappings("git_status", mappings, supported_actions)
+  M.keymap = tree_actions.create_mappings("git_status", config.panels.git_status.mappings.list, supported_actions)
 
   return true
 end

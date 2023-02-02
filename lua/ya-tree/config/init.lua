@@ -223,52 +223,13 @@ local M = {
     ---@field mappings Yat.Config.Panels.Mappings The panel specific mappings.
     ---@field renderers Yat.Config.Panels.TreeRenderers The panel specific renderers.
 
-    ---@class Yat.Config.Panels : { [Yat.Panel.Type] : Yat.Config.Panels.Panel }
-    ---@field global_mappings Yat.Config.Panels.GlobalMappings Mappings that applies to all panels.
+    ---@class Yat.Config.Panels
     ---@field files Yat.Config.Panels.Files Files panel configuration.
     ---@field symbols Yat.Config.Panels.Symbols Lsp Symbols panel configuration.
     ---@field git_status Yat.Config.Panels.GitStatus Git Status panel configuration.
     ---@field buffers Yat.Config.Panels.Buffers Buffers panel configuration.
+    ---@field [Yat.Panel.Type] Yat.Config.Panels.Panel
     panels = {
-      ---@class Yat.Config.Panels.GlobalMappings
-      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-      ---@field list table<string, Yat.Panel.Tree.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
-      global_mappings = {
-        disable_defaults = false,
-        list = {
-          ["q"] = "close_sidebar",
-          ["<C-x>"] = "close_panel",
-          ["?"] = "open_help",
-          ["gs"] = "open_symbols_panel",
-          ["<C-g>"] = "open_git_status_panel",
-          ["b"] = "open_buffers_panel",
-          ["gx"] = "system_open",
-          ["<C-i>"] = "show_node_info",
-          ["<CR>"] = "open",
-          ["o"] = "open",
-          ["<2-LeftMouse>"] = "open",
-          ["<C-v>"] = "vsplit",
-          ["<C-s>"] = "split",
-          ["<C-t>"] = "tabnew",
-          ["<Tab>"] = "preview",
-          ["<C-Tab>"] = "preview_and_focus",
-          ["y"] = "copy_name_to_clipboard",
-          ["Y"] = "copy_root_relative_path_to_clipboard",
-          ["gy"] = "copy_absolute_path_to_clipboard",
-          ["<BS>"] = "close_node",
-          ["Z"] = "close_all_nodes",
-          ["z"] = "close_all_child_nodes",
-          ["E"] = "expand_all_nodes",
-          ["e"] = "expand_all_child_nodes",
-          ["R"] = "refresh_panel",
-          ["P"] = "focus_parent",
-          ["<"] = "focus_prev_sibling",
-          [">"] = "focus_next_sibling",
-          ["K"] = "focus_first_sibling",
-          ["J"] = "focus_last_sibling",
-        },
-      },
-
       ---@class Yat.Config.Panels.Files : Yat.Config.Panels.Panel
       ---@field title string The name of the panel, default: `"Files"`.
       ---@field icon string The icon for the panel, default: `""`.
@@ -290,6 +251,35 @@ local M = {
         mappings = {
           disable_defaults = false,
           list = {
+            ["q"] = "close_sidebar",
+            ["?"] = "open_help",
+            ["gs"] = "open_symbols_panel",
+            ["<C-g>"] = "open_git_status_panel",
+            ["b"] = "open_buffers_panel",
+            ["gx"] = "system_open",
+            ["<C-i>"] = "show_node_info",
+            ["<CR>"] = "open",
+            ["o"] = "open",
+            ["<2-LeftMouse>"] = "open",
+            ["<C-v>"] = "vsplit",
+            ["<C-s>"] = "split",
+            ["<C-t>"] = "tabnew",
+            ["<Tab>"] = "preview",
+            ["<C-Tab>"] = "preview_and_focus",
+            ["y"] = "copy_name_to_clipboard",
+            ["Y"] = "copy_root_relative_path_to_clipboard",
+            ["gy"] = "copy_absolute_path_to_clipboard",
+            ["<BS>"] = "close_node",
+            ["Z"] = "close_all_nodes",
+            ["z"] = "close_all_child_nodes",
+            ["E"] = "expand_all_nodes",
+            ["e"] = "expand_all_child_nodes",
+            ["R"] = "refresh_panel",
+            ["P"] = "focus_parent",
+            ["<"] = "focus_prev_sibling",
+            [">"] = "focus_next_sibling",
+            ["K"] = "focus_first_sibling",
+            ["J"] = "focus_last_sibling",
             ["a"] = "add",
             ["r"] = "rename",
             ["d"] = "delete",
@@ -365,6 +355,36 @@ local M = {
         mappings = {
           disable_defaults = false,
           list = {
+            ["q"] = "close_sidebar",
+            ["<C-x>"] = "close_panel",
+            ["?"] = "open_help",
+            ["gs"] = "open_symbols_panel",
+            ["<C-g>"] = "open_git_status_panel",
+            ["b"] = "open_buffers_panel",
+            ["gx"] = "system_open",
+            ["<C-i>"] = "show_node_info",
+            ["<CR>"] = "open",
+            ["o"] = "open",
+            ["<2-LeftMouse>"] = "open",
+            ["<C-v>"] = "vsplit",
+            ["<C-s>"] = "split",
+            ["<C-t>"] = "tabnew",
+            ["<Tab>"] = "preview",
+            ["<C-Tab>"] = "preview_and_focus",
+            ["y"] = "copy_name_to_clipboard",
+            ["Y"] = "copy_root_relative_path_to_clipboard",
+            ["gy"] = "copy_absolute_path_to_clipboard",
+            ["<BS>"] = "close_node",
+            ["Z"] = "close_all_nodes",
+            ["z"] = "close_all_child_nodes",
+            ["E"] = "expand_all_nodes",
+            ["e"] = "expand_all_child_nodes",
+            ["R"] = "refresh_panel",
+            ["P"] = "focus_parent",
+            ["<"] = "focus_prev_sibling",
+            [">"] = "focus_next_sibling",
+            ["K"] = "focus_first_sibling",
+            ["J"] = "focus_last_sibling",
             ["S"] = "search_for_node_in_panel",
             ["[e"] = "focus_prev_diagnostic_item",
             ["]e"] = "focus_next_diagnostic_item",
@@ -408,6 +428,36 @@ local M = {
         mappings = {
           disable_defaults = false,
           list = {
+            ["q"] = "close_sidebar",
+            ["<C-x>"] = "close_panel",
+            ["?"] = "open_help",
+            ["gs"] = "open_symbols_panel",
+            ["<C-g>"] = "open_git_status_panel",
+            ["b"] = "open_buffers_panel",
+            ["gx"] = "system_open",
+            ["<C-i>"] = "show_node_info",
+            ["<CR>"] = "open",
+            ["o"] = "open",
+            ["<2-LeftMouse>"] = "open",
+            ["<C-v>"] = "vsplit",
+            ["<C-s>"] = "split",
+            ["<C-t>"] = "tabnew",
+            ["<Tab>"] = "preview",
+            ["<C-Tab>"] = "preview_and_focus",
+            ["y"] = "copy_name_to_clipboard",
+            ["Y"] = "copy_root_relative_path_to_clipboard",
+            ["gy"] = "copy_absolute_path_to_clipboard",
+            ["<BS>"] = "close_node",
+            ["Z"] = "close_all_nodes",
+            ["z"] = "close_all_child_nodes",
+            ["E"] = "expand_all_nodes",
+            ["e"] = "expand_all_child_nodes",
+            ["R"] = "refresh_panel",
+            ["P"] = "focus_parent",
+            ["<"] = "focus_prev_sibling",
+            [">"] = "focus_next_sibling",
+            ["K"] = "focus_first_sibling",
+            ["J"] = "focus_last_sibling",
             ["<C-]>"] = "cd_to",
             ["."] = "cd_to",
             ["I"] = "toggle_ignored",
@@ -467,6 +517,36 @@ local M = {
         mappings = {
           disable_defaults = false,
           list = {
+            ["q"] = "close_sidebar",
+            ["<C-x>"] = "close_panel",
+            ["?"] = "open_help",
+            ["gs"] = "open_symbols_panel",
+            ["<C-g>"] = "open_git_status_panel",
+            ["b"] = "open_buffers_panel",
+            ["gx"] = "system_open",
+            ["<C-i>"] = "show_node_info",
+            ["<CR>"] = "open",
+            ["o"] = "open",
+            ["<2-LeftMouse>"] = "open",
+            ["<C-v>"] = "vsplit",
+            ["<C-s>"] = "split",
+            ["<C-t>"] = "tabnew",
+            ["<Tab>"] = "preview",
+            ["<C-Tab>"] = "preview_and_focus",
+            ["y"] = "copy_name_to_clipboard",
+            ["Y"] = "copy_root_relative_path_to_clipboard",
+            ["gy"] = "copy_absolute_path_to_clipboard",
+            ["<BS>"] = "close_node",
+            ["Z"] = "close_all_nodes",
+            ["z"] = "close_all_child_nodes",
+            ["E"] = "expand_all_nodes",
+            ["e"] = "expand_all_child_nodes",
+            ["R"] = "refresh_panel",
+            ["P"] = "focus_parent",
+            ["<"] = "focus_prev_sibling",
+            [">"] = "focus_next_sibling",
+            ["K"] = "focus_first_sibling",
+            ["J"] = "focus_last_sibling",
             ["<C-]>"] = "cd_to",
             ["."] = "cd_to",
             ["I"] = "toggle_ignored",
@@ -746,25 +826,18 @@ function M.setup(opts)
   local utils = require("ya-tree.utils")
 
   -- make sure any custom panel configs have the required shape
-  for name, panel in pairs(M.config.panels) do
-    if name ~= "global_mappings" then
-      if not panel.mappings then
-        panel.mappings = {}
-      end
-      if not panel.mappings.list then
-        panel.mappings.list = {}
-      end
+  for _, panel in pairs(M.config.panels) do
+    if not panel.mappings then
+      panel.mappings = {}
+    end
+    if not panel.mappings.list then
+      panel.mappings.list = {}
     end
   end
   if opts.panels then
-    if opts.panels.global_mappings and opts.panels.global_mappings.disable_defaults then
-      M.config.panels.global_mappings.list = opts.panels.global_mappings.list or {}
-    end
     for name, panel in pairs(opts.panels) do
-      if name ~= "global_mappings" then
-        if panel.mappings and panel.mappings.disable_defaults then
-          M.config.panels[name].mappings.list = opts.panels[name].mappings.list or {}
-        end
+      if panel.mappings and panel.mappings.disable_defaults then
+        M.config.panels[name].mappings.list = opts.panels[name].mappings.list or {}
       end
     end
   end
@@ -812,7 +885,9 @@ function M.setup(opts)
     end
   else
     if fn.executable(M.config.search.cmd) == 0 then
-      utils.warn(string.format("'search.cmd' is set to %q, which cannot be found in PATH!\nSearching will not be possible", M.config.search.cmd))
+      utils.warn(
+        string.format("'search.cmd' is set to %q, which cannot be found in PATH!\nSearching will not be possible", M.config.search.cmd)
+      )
       M.config.search.cmd = nil
     end
   end

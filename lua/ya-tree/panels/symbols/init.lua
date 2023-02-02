@@ -43,9 +43,7 @@ function M.setup(config)
     unpack(vim.deepcopy(tree_actions.supported_actions)),
   })
 
-  ---@type table<string, Yat.Actions.Name|string>
-  local mappings = vim.tbl_deep_extend("force", config.panels.global_mappings.list, config.panels.symbols.mappings.list)
-  M.keymap = tree_actions.create_mappings("symbols", mappings, supported_actions)
+  M.keymap = tree_actions.create_mappings("symbols", config.panels.symbols.mappings.list, supported_actions)
 
   return true
 end
