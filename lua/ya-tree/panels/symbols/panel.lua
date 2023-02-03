@@ -142,6 +142,7 @@ function SymbolsPanel:on_win_open()
       callback = function()
         self:on_cursor_hold()
       end,
+      desc = "Highlight current symbol",
     })
   end
 end
@@ -161,6 +162,7 @@ function SymbolsPanel:on_cursor_hold()
       lsp.clear_highlights(node:bufnr())
     end,
     once = true,
+    desc = "Clear current symbol highlighting"
   })
 end
 

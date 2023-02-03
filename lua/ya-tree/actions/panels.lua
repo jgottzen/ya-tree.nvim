@@ -6,7 +6,7 @@ local M = {}
 ---@async
 ---@param panel Yat.Panel.Tree
 function M.close_panel(panel)
-  panel:close()
+  panel.sidebar:close_panel(panel)
 end
 
 ---@async

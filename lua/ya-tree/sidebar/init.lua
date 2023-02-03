@@ -18,12 +18,12 @@ local M = {
 
 ---@class Yat.Sidebar.Layout.Panel
 ---@field panel Yat.Panel
+---@field show boolean
 ---@field height? integer
 
 ---@class Yat.Sidebar.Layout
 ---@field panels Yat.Sidebar.Layout.Panel[]
 ---@field width integer
----@field auto_open boolean
 
 ---@class Yat.Sidebar : Yat.Object
 ---@field new async fun(self: Yat.Sidebar, tabpage: integer): Yat.Sidebar
@@ -66,12 +66,10 @@ function Sidebar:init(tabpage)
     left = {
       panels = {},
       width = config.sidebar.layout.left.width,
-      auto_open = config.sidebar.layout.left.auto_open,
     },
     right = {
       panels = {},
       width = config.sidebar.layout.right.width,
-      auto_open = config.sidebar.layout.right.auto_open,
     },
   }
   for _, panel_layout in ipairs(config.sidebar.layout.left.panels) do
@@ -79,6 +77,7 @@ function Sidebar:init(tabpage)
     if panel then
       self.layout.left.panels[#self.layout.left.panels + 1] = {
         panel = panel,
+        show = (panel_layout.show == nil or panel_layout.show == true) and true or false,
         height = panel_layout.height and ui.normalize_height(panel_layout.height),
       }
     end
@@ -88,6 +87,7 @@ function Sidebar:init(tabpage)
     if panel then
       self.layout.right.panels[#self.layout.right.panels + 1] = {
         panel = panel,
+        show = (panel_layout.show == nil or panel_layout.show == true) and true or false,
         height = panel_layout.height and ui.normalize_height(panel_layout.height),
       }
     end
@@ -132,35 +132,29 @@ end
 
 ---@alias Yat.Sidebar.Side "left"|"right"
 
----@param side? Yat.Sidebar.Side|"both"
+---@param side? Yat.Sidebar.Side
+---@return boolean
 function Sidebar:is_open(side)
   if side == "left" then
     return is_any_panel_open(self.layout.left.panels)
   elseif side == "right" then
     return is_any_panel_open(self.layout.right.panels)
-  elseif side == "both" then
-    return is_any_panel_open(self.layout.left.panels) and is_any_panel_open(self.layout.right.panels)
   else
     return is_any_panel_open(self.layout.left.panels) or is_any_panel_open(self.layout.right.panels)
   end
 end
 
 ---@class Yat.Sidebar.OpenArgs
----@field side? Yat.Sidebar.Side|"both"
 ---@field focus? boolean|Yat.Panel.Type
 
 ---@param opts? Yat.Sidebar.OpenArgs
 function Sidebar:open(opts)
   log.debug("sidebar opened with %s", opts)
   opts = opts or {}
-  local side = opts.side
   local edit_win = self:edit_win()
-  if side == "right" or side == "both" or self.layout.right.auto_open then
-    self:open_side("right")
-  end
-  if side == "left" or side == "both" or self.layout.left.auto_open then
-    self:open_side("left")
-  end
+  self:open_side("right")
+  self:open_side("left")
+
   local focus = opts.focus
   if focus == false then
     api.nvim_set_current_win(edit_win)
@@ -181,41 +175,52 @@ function Sidebar:open_side(side)
 
   local layout = side == "left" and self.layout.left or self.layout.right
   local side_was_open = false
-  local reorder_panels = false
+  ---@type Yat.Sidebar.Side|"below"
+  local direction = side
   for _, panel_layout in ipairs(layout.panels) do
     local panel = panel_layout.panel
     if panel:is_open() then
       panel:focus()
       side_was_open = true
+      direction = "below"
       break
     end
   end
 
-  for i, panel_layout in ipairs(layout.panels) do
+  local first_panel
+  local open_panels = 0
+  for _, panel_layout in ipairs(layout.panels) do
     local panel = panel_layout.panel
     if panel:is_open() then
       -- focus the panel so the new panel is opened below it,
       -- this ensures that the panels are opened in the correct order,
       -- if the panel has been closed and is now opened again
       panel:focus()
-    else
-      if i == 1 and side_was_open then
-        reorder_panels = true
+      open_panels = open_panels + 1
+      if not first_panel then
+        first_panel = panel
       end
-      local direction = (i == 1 and not side_was_open) and side or "below"
-      panel:open(direction, (direction == "left" or direction == "right") and layout.width or nil)
+    elseif panel_layout.show then
+      panel:open(direction, direction ~= "below" and layout.width or nil)
+      if direction ~= "below" then
+        direction = "below"
+      end
+      open_panels = open_panels + 1
+      if not first_panel then
+        first_panel = panel
+      end
     end
   end
 
-  if side_was_open and reorder_panels then
+  if side_was_open then
     self:reorder_panels(side)
   end
-  self:set_panel_heights(side)
+  if open_panels > 1 then
+    self:set_panel_heights(side)
+  end
 
-  local panel_layout = layout.panels[1]
-  if panel_layout then
-    local panel = panel_layout.panel
-    panel:focus()
+  if first_panel then
+    first_panel:focus()
   end
 end
 
@@ -255,6 +260,7 @@ end
 
 function Sidebar:close()
   self:for_each_panel(function(panel)
+    ---@diagnostic disable-next-line:invisible
     panel:close()
   end)
 end
@@ -294,8 +300,9 @@ end
 ---@param focus boolean
 ---@return Yat.Panel|nil panel
 function Sidebar:open_panel(panel_type, focus)
-  local side = self:get_side_for_panel(panel_type)
+  local side, panel_layout = self:get_side_and_layout_for_panel(panel_type)
   if side then
+    panel_layout.show = true
     self:open_side(side)
     local panel = self:get_panel(panel_type)
     if not focus then
@@ -310,15 +317,16 @@ end
 ---@private
 ---@param panel_type Yat.Panel.Type
 ---@return Yat.Sidebar.Side|nil side
-function Sidebar:get_side_for_panel(panel_type)
+---@return Yat.Sidebar.Layout.Panel|nil layout
+function Sidebar:get_side_and_layout_for_panel(panel_type)
   for _, panel_layout in ipairs(self.layout.left.panels) do
     if panel_layout.panel.TYPE == panel_type then
-      return "left"
+      return "left", panel_layout
     end
   end
   for _, panel_layout in ipairs(self.layout.right.panels) do
     if panel_layout.panel.TYPE == panel_type then
-      return "right"
+      return "right", panel_layout
     end
   end
 end
@@ -359,6 +367,14 @@ end
 ---@return Yat.Panel.Buffers? panel
 function Sidebar:buffers_panel(focus)
   return self:open_panel("buffers", focus) --[[@as Yat.Panel.Buffers?]]
+end
+
+---@param panel Yat.Panel
+function Sidebar:close_panel(panel)
+  local _, panel_layout = self:get_side_and_layout_for_panel(panel.TYPE)
+  panel_layout.show = false
+  ---@diagnostic disable-next-line:invisible
+  panel:close()
 end
 
 function Sidebar:draw()

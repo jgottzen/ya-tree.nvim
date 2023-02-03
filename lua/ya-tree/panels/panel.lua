@@ -297,6 +297,7 @@ function Panel:set_height(height)
   end
 end
 
+---@protected
 function Panel:close()
   if self._winid then
     local ok, err = pcall(api.nvim_win_close, self._winid, true)

@@ -149,23 +149,24 @@ require("ya-tree").setup({
         panels = {
           { panel = "files", height = 30 },
           { panel = "symbols", height = 30 },
-          { panel = "buffers" }
+          { panel = "buffers", show = false },
         },
         width = 40,
-        auto_open = true,
       },
       right = {
-        panels = { { panel = "git_status" } },
+        panels = {
+          { panel = "git_status", show = false },
+        },
         width = 40,
-        auto_open = false,
       },
     },
   },
 })
 ```
 
-and it will open a sidebar on the left side with the `files`, `symbols` and `buffers` panels, and the `git_status` panel
-on the right side can be opened by using the `open_git_status_panel` action (`<C-g>` by default).
+and it will open a sidebar on the left side with the `files`, `symbols` panels. The `buffers` panel can be opened with
+the `open_buffers_panel` action (`b` by default) and the right side with the `git_status` panel can be opened by
+using the `open_git_status_panel` action (`<C-g>` by default).
 
 <details>
 
@@ -339,12 +340,12 @@ local DEFAULT = {
   sidebar = {
     ---@class Yat.Config.Sidebar.PanelLayout.Panel
     ---@field panel Yat.Panel.Type The panel type.
-    ---@field height? integer|string The height of the panel, in rows.
+    ---@field show? boolean Whether the panel is shown, a `nil` value is treated as `true`, default: `true`.
+    ---@field height? integer|string The height of the panel, in rows or percent.
 
     ---@class Yat.Config.Sidebar.PanelLayout
     ---@field panels Yat.Config.Sidebar.PanelLayout.Panel[] Which panels to show on this side.
     ---@field width integer The width of the panels.
-    ---@field auto_open boolean Whether the side is automatically opened when the sidebar is opened.
 
     ---@class Yat.Config.Sidebar.Layout
     ---@field left Yat.Config.Sidebar.PanelLayout The panels on the left side.
@@ -353,12 +354,10 @@ local DEFAULT = {
       left = {
         panels = { { panel = "files", height = 30 } },
         width = 40,
-        auto_open = true,
       },
       right = {
         panels = {},
         width = 40,
-        auto_open = false,
       },
     },
   },
