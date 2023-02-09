@@ -144,7 +144,7 @@ end
 function BuffersPanel:on_buffer_deleted(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if buftype == "" or buftype == "terminal" then
-    if not Path.is_absolute_path(file) then
+    if buftype == "" and not Path.is_absolute_path(file) then
       file = Path:new(file):absolute()
     end
     log.debug("removing buffer %q from buffer tree", file)
