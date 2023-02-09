@@ -188,7 +188,6 @@ function Sidebar:open_side(side)
   end
 
   local first_panel
-  local open_panels = 0
   for _, panel_layout in ipairs(layout.panels) do
     local panel = panel_layout.panel
     if panel:is_open() then
@@ -196,7 +195,6 @@ function Sidebar:open_side(side)
       -- this ensures that the panels are opened in the correct order,
       -- if the panel has been closed and is now opened again
       panel:focus()
-      open_panels = open_panels + 1
       if not first_panel then
         first_panel = panel
       end
@@ -205,7 +203,6 @@ function Sidebar:open_side(side)
       if direction ~= "below" then
         direction = "below"
       end
-      open_panels = open_panels + 1
       if not first_panel then
         first_panel = panel
       end
@@ -215,9 +212,7 @@ function Sidebar:open_side(side)
   if side_was_open then
     self:reorder_panels(side)
   end
-  if open_panels > 1 then
-    self:set_panel_heights(side)
-  end
+  self:set_panel_heights(side)
 
   if first_panel then
     first_panel:focus()
@@ -247,9 +242,12 @@ end
 ---@param side Yat.Sidebar.Side
 function Sidebar:set_panel_heights(side)
   local layout = side == "left" and self.layout.left or self.layout.right
-  if #layout.panels > 1 then
-    for i = 1, #layout.panels do
-      local panel_layout = layout.panels[i]
+  ---@param panel_layout Yat.Sidebar.Layout.Panel
+  local open_panels = vim.tbl_filter(function(panel_layout)
+    return panel_layout.panel:is_open()
+  end, layout.panels) --[=[@as Yat.Sidebar.Layout.Panel[]]=]
+  if #open_panels > 1 then
+    for _, panel_layout in ipairs(open_panels) do
       local panel = panel_layout.panel
       if panel:is_open() and panel_layout.height then
         panel:set_height(panel_layout.height)
@@ -372,9 +370,13 @@ end
 ---@param panel Yat.Panel
 function Sidebar:close_panel(panel)
   local _, panel_layout = self:get_side_and_layout_for_panel(panel.TYPE)
-  panel_layout.show = false
-  ---@diagnostic disable-next-line:invisible
-  panel:close()
+  if panel_layout then
+    panel_layout.show = false
+    ---@diagnostic disable-next-line:invisible
+    panel:close()
+    self:set_panel_heights("left")
+    self:set_panel_heights("right")
+  end
 end
 
 function Sidebar:draw()
