@@ -177,6 +177,20 @@ function SymbolsPanel:on_cursor_hold()
 end
 
 ---@async
+function SymbolsPanel:refresh()
+  if self.refreshing or vim.v.exiting ~= vim.NIL then
+    log.debug("refresh already in progress or vim is exiting, aborting refresh")
+    return
+  end
+
+  self.refreshing = true
+  log.debug("refreshing %q panel", self.TYPE)
+  self.root:refresh({ use_cache = false })
+  self:draw(self.current_node)
+  self.refreshing = false
+end
+
+---@async
 ---@param path string
 function SymbolsPanel:change_root_node(path)
   if not fs.is_directory(path) and self.root.path ~= path then

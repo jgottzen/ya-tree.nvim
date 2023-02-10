@@ -407,9 +407,9 @@ function TreePanel:refresh()
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return
   end
+
   self.refreshing = true
   log.debug("refreshing %q panel", self.TYPE)
-
   self.root:refresh({ recurse = true, refresh_git = true })
   self:draw(self.current_node)
   self.refreshing = false

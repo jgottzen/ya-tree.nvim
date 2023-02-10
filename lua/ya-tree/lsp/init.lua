@@ -50,6 +50,7 @@ local function normalize_symbols(symbols)
     if not symbol.range then
       symbol.range = symbol.location and symbol.location.range or { start = 1, ["end"] = 1 }
     end
+    symbol.location = nil
     return symbol
   end, symbols)
 end
@@ -73,15 +74,15 @@ function M.get_symbols(bufnr, refresh)
   end
 
   if buf_has_client(bufnr, DOCUMENT_SYMBOL_METHOD) then
-    ---@type { result?: Yat.Symbols.Document[] }[]
+    ---@type { result?: Yat.Symbols.Document[], error?: any }[]
     local response = buf_request_all(bufnr, DOCUMENT_SYMBOL_METHOD, { textDocument = params })
     for id, results in pairs(response) do
       if results.result and not vim.tbl_isempty(results.result) then
         local result = normalize_symbols(results.result)
         M.symbol_cache[bufnr] = result
         return result
-      else
-        log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, results)
+      elseif results.error then
+        log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(results.error))
       end
     end
   else
