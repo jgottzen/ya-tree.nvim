@@ -159,6 +159,43 @@ function FilesPanel:on_cwd_changed(new_cwd)
 end
 
 ---@async
+---@param args table<string, string>
+function FilesPanel:command_arguments(args)
+  if args.path then
+    local p = Path:new(args.path)
+    local path = p:exists() and p:absolute() or nil
+    if path then
+      local config = require("ya-tree.config").config
+      local node = self.root:expand({ to = path })
+      local do_tcd = false
+      if node then
+        local hidden, reason = node:is_hidden(config)
+        if hidden and reason then
+          if reason == "filter" then
+            config.filters.enable = false
+          elseif reason == "git" then
+            config.git.show_ignored = true
+          end
+        end
+        log.info("navigating to %q", path)
+      else
+        log.info('cannot expand to path %q in the "files" panel, changing root', path)
+        self:change_root_node(path)
+        node = self.root:expand({ to = path })
+        do_tcd = true
+      end
+      self:draw(node)
+      if do_tcd and config.cwd.update_from_panel then
+        p = Path:new(path)
+        path = p:is_dir() and p.filename or p:parent().filename
+        log.debug("issueing tcd autocmd to %q", path)
+        vim.cmd.tcd(vim.fn.fnameescape(path))
+      end
+    end
+  end
+end
+
+---@async
 ---@private
 ---@param new_root string
 ---@return boolean `false` if the current tree cannot walk up or down to reach the specified directory.

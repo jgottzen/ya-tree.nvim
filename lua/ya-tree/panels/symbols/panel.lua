@@ -134,8 +134,18 @@ end
 
 ---@protected
 function SymbolsPanel:on_win_open()
-  self.super.on_win_open(self)
-  if require("ya-tree.config").config.panels.symbols.scroll_buffer_to_symbol then
+  local config = require("ya-tree.config").config
+  if config.move_cursor_to_name then
+    api.nvim_create_autocmd("CursorMoved", {
+      group = self.window_augroup,
+      buffer = self:bufnr(),
+      callback = function()
+        self:move_cursor_to_name()
+      end,
+      desc = "Moving cursor to name",
+    })
+  end
+  if config.panels.symbols.scroll_buffer_to_symbol then
     api.nvim_create_autocmd("CursorHold", {
       group = self.window_augroup,
       buffer = self:bufnr(),

@@ -47,22 +47,21 @@ ya-tree.nvim provides the following commands, which are enabled upon calling `ya
 
 ### YaTreeOpen
 
-The `YaTreeOpen` command accepts arguments for how the sidebar should be opened. Arguments are key-value pairs.
+The `YaTreeOpen` command accepts arguments for how the sidebar should be opened.
 
 By default the topmost left side panel is focused when the sidebar is opened.
 
-The arugments can be specific in any order:
+#### `no-focus`
 
-#### `focus`
-
-**Type**: key-value pair, with the value either a `boolean` or panel type.
-
-Whether to focus the sidebar or a specific panel.
+Keep the current window focused.
 
 ```vim
-:YaTreeOpen focus=false
-:YaTreeOpen focus=files
+:YaTreeOpen no-focus
 ```
+
+#### `{panel}`
+
+A specific panel to focus, and/or it's specific arguments.
 
 The builtin panel types are:
 - `files`:      Regular file browser.
@@ -70,36 +69,56 @@ The builtin panel types are:
 - `buffers`:    List of currently open buffers, including terminals.
 - `symbols`:    Lsp symbols of the current buffer.
 
-#### `path`
+```vim
+YaTreeOpen files
+```
+
+#### `files` panel arugments
+
+##### `path`
 
 **Type**: key-value pair.
 
 Which path to expand to in the `files` panel.
 
 ```vim
-:YaTreeOpen path=./path/to/file.rs
-:YaTreeOpen path=%
-:YaTreeOpen path=./path/to/directory
+:YaTreeOpen files path=./path/to/file.rs
+:YaTreeOpen files path=%
+:YaTreeOpen files path=./path/to/directory
 ```
 
 If the path is located under the current `files` root, the tree expands to the path, `%` expands to the path of the current buffer.
 If the path is not located in the tree the root is changed to the path.
 
+#### `git_status` panel arugments
+
+##### `dir`
+
+**Type**: key-value pair.
+
+Which repository to open to in the `git_status` panel.
+
+```vim
+:YaTreeOpen git_status dir=/path/to/repo/or/directory/in/repo
+```
+
 Examples:
 
 - `YaTreeOpen` Open the sidebar, and focus the first panel.
-- `YaTreeOpen focus=false` Open the sidebar, but keep the current window focused.
-- `YaTreeOpen focus=files` Open the sidebar and focus the `files` panel.
-- `YaTreeOpen path=./path/to/some-where` Open the sidebar and focus  the `files` panel and expand and focus on the path `./path/to/some-where`.
-- `YaTreeOpen path=/path/to/other/directory` Open the sidebar and focus  the `files` panel and changes the root to the path `/path/to/other/directory`.
-- `YaTreeOpen path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer.
+- `YaTreeOpen no-focus` Open the sidebar, but keep the current window focused.
+- `YaTreeOpen files` Open the sidebar and focus the `files` panel.
+- `YaTreeOpen files path=./path/to/some-where` Open the sidebar and focus the `files` panel and expand and focus on the path `./path/to/some-where`.
+- `YaTreeOpen files path=/path/to/other/directory` Open the sidebar and focus  the `files` panel and changes the root to the path `/path/to/other/directory`.
+- `YaTreeOpen files path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer.
+- `YaTreeOpen no-focus git_status` Open the sidebar and the `git_status` panel, but keep the current window focused.
 
 The lua api is:
 
 ```lua
 ---@class Yat.OpenWindowArgs
----@field path? string The path to expand to.
----@field focus? boolean|Yat.Panel.Type Whether to focus the sidebar, alternatively which panel to focus.
+---@field focus? boolean Whether to focus the sidebar.
+---@field panel? Yat.Panel.Type The panel to open.
+---@field panel_args? table<string, string> The panel specific arguments.
 
 ---@param opts? Yat.OpenWindowArgs
 require("ya-tree").open(opts)

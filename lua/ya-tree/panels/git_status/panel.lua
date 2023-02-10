@@ -3,6 +3,7 @@ local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
 local log = require("ya-tree.log").get("panels")
 local meta = require("ya-tree.meta")
+local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local TextNode = require("ya-tree.nodes.text_node")
 local TreePanel = require("ya-tree.panels.tree_panel")
@@ -112,6 +113,18 @@ function GitStatusPanel:on_fs_changed_event(dir, filenames)
       end
     else
       log.info("git tree is refreshing, skipping")
+    end
+  end
+end
+
+---@async
+---@param args table<string, string>
+function GitStatusPanel:command_arguments(args)
+  if args.dir then
+    local p = Path:new(args.dir)
+    local path = (p:exists() and p:is_dir()) and p:absolute() or nil
+    if path then
+      self:change_root_node(path)
     end
   end
 end

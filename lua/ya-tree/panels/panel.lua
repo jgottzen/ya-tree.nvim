@@ -127,6 +127,7 @@ function Panel:open(direction, width)
   if self.pos_after_win_leave then
     api.nvim_win_set_cursor(self._winid, self.pos_after_win_leave)
   end
+  self:on_win_open()
 end
 
 ---@private
@@ -168,7 +169,7 @@ function Panel:create_keymap_function(action) end
 Panel:virtual("create_keymap_function")
 
 do
-  local POSITIONS_TO_WINCMD = { left = "H", below = "J", right = "L" }
+  local POSITIONS_TO_WINCMD = { left = "H", right = "L" }
 
   ---@private
   ---@param position Yat.Ui.Position
@@ -187,7 +188,6 @@ do
     end
     log.debug("created window %s", self._winid)
     self:set_win_options()
-    self:on_win_open()
   end
 end
 
@@ -328,6 +328,13 @@ do
     end
   end
 end
+
+-- selene: allow(unused_variable)
+
+---@async
+---@param args table<string, string>
+---@diagnostic disable-next-line:unused-local
+function Panel:command_arguments(args) end
 
 ---@return string line
 ---@return Yat.Ui.HighlightGroup[][] highlights

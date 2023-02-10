@@ -120,14 +120,13 @@ function Sidebar:for_each_panel(callback)
 end
 
 ---@param panel_layout Yat.Sidebar.Layout.Panel[]
----@return boolean
-local function is_any_panel_open(panel_layout)
+---@return Yat.Panel?
+local function first_open_panel(panel_layout)
   for _, layout in ipairs(panel_layout) do
     if layout.panel:is_open() then
-      return true
+      return layout.panel
     end
   end
-  return false
 end
 
 ---@alias Yat.Sidebar.Side "left"|"right"
@@ -136,30 +135,36 @@ end
 ---@return boolean
 function Sidebar:is_open(side)
   if side == "left" then
-    return is_any_panel_open(self.layout.left.panels)
+    return first_open_panel(self.layout.left.panels) ~= nil
   elseif side == "right" then
-    return is_any_panel_open(self.layout.right.panels)
+    return first_open_panel(self.layout.right.panels) ~= nil
   else
-    return is_any_panel_open(self.layout.left.panels) or is_any_panel_open(self.layout.right.panels)
+    return first_open_panel(self.layout.left.panels) ~= nil or first_open_panel(self.layout.right.panels) ~= nil
   end
 end
 
 ---@class Yat.Sidebar.OpenArgs
----@field focus? boolean|Yat.Panel.Type
+---@field focus? boolean Whether to focus the sidebar.
+---@field panel? Yat.Panel.Type A specific panel to open.
+---@field panel_args? table<string, string> Any panel specific arguments for `panel`.
 
 ---@param opts? Yat.Sidebar.OpenArgs
+---  - {opts.focus?} `boolean` Whether to focus the sidebar.
+---  - {opts.panel?} `Yat.Panel.Type` A specific panel to open.
+---  - {opts.panel_args?} `table<string, string>` Any panel specific arguments for `opts.panel`.
 function Sidebar:open(opts)
   log.debug("sidebar opened with %s", opts)
   opts = opts or {}
   local edit_win = self:edit_win()
-  self:open_side("right")
-  self:open_side("left")
+  self:open_side("right", opts.panel, opts.panel_args)
+  self:open_side("left", opts.panel, opts.panel_args)
 
-  local focus = opts.focus
-  if focus == false then
+  if opts.focus == false then
     api.nvim_set_current_win(edit_win)
-  elseif type(focus) == "string" then
-    local panel = self:get_panel(focus)
+  else
+    local panel = opts.panel and self:get_panel(opts.panel)
+      or first_open_panel(self.layout.left.panels)
+      or first_open_panel(self.layout.right.panels)
     if panel then
       panel:focus()
     end
@@ -168,7 +173,9 @@ end
 
 ---@private
 ---@param side Yat.Sidebar.Side
-function Sidebar:open_side(side)
+---@param panel_type? Yat.Panel.Type
+---@param panel_args? table<string, string>
+function Sidebar:open_side(side, panel_type, panel_args)
   -- we need to focus the edit window so the split is done correctly,
   -- otherwise the sides will grow in width each time a side opened
   api.nvim_set_current_win(self:edit_win())
@@ -187,7 +194,6 @@ function Sidebar:open_side(side)
     end
   end
 
-  local first_panel
   for _, panel_layout in ipairs(layout.panels) do
     local panel = panel_layout.panel
     if panel:is_open() then
@@ -195,16 +201,17 @@ function Sidebar:open_side(side)
       -- this ensures that the panels are opened in the correct order,
       -- if the panel has been closed and is now opened again
       panel:focus()
-      if not first_panel then
-        first_panel = panel
+      if panel_type == panel.TYPE and panel_args then
+        panel:command_arguments(panel_args)
       end
-    elseif panel_layout.show then
+    elseif panel_layout.show or panel.TYPE == panel_type then
+      panel_layout.show = true
       panel:open(direction, direction ~= "below" and layout.width or nil)
+      if panel.TYPE == panel_type and panel_args then
+        panel:command_arguments(panel_args)
+      end
       if direction ~= "below" then
         direction = "below"
-      end
-      if not first_panel then
-        first_panel = panel
       end
     end
   end
@@ -213,10 +220,6 @@ function Sidebar:open_side(side)
     self:reorder_panels(side)
   end
   self:set_panel_heights(side)
-
-  if first_panel then
-    first_panel:focus()
-  end
 end
 
 ---@private
@@ -299,13 +302,13 @@ end
 ---@return Yat.Panel|nil panel
 function Sidebar:open_panel(panel_type, focus)
   local side, panel_layout = self:get_side_and_layout_for_panel(panel_type)
-  if side then
+  if side and panel_layout then
     panel_layout.show = true
     self:open_side(side)
-    local panel = self:get_panel(panel_type)
+    local panel = panel_layout.panel
     if not focus then
       api.nvim_set_current_win(self:edit_win())
-    elseif panel then
+    else
       panel:focus()
     end
     return panel
@@ -670,11 +673,32 @@ local function on_win_leave(bufnr)
   end
 end
 
----@type Yat.Panel[]
+---@type Yat.Panel.Type[]
 local available_panels = {}
 
-function M.get_available_panels()
-  return available_panels
+function M.available_panels()
+  return vim.deepcopy(available_panels)
+end
+
+---@param current string
+---@param panel_type? Yat.Panel.Type
+---@param args string[]
+---@return string[] completions
+function M.complete_command(current, panel_type, args)
+  if not panel_type or panel_type == "" then
+    return vim.tbl_filter(function(_panel_type)
+      return vim.startswith(_panel_type, current)
+    end, available_panels)
+  else
+    return Panels.complete_command(panel_type, current, args)
+  end
+end
+
+---@param panel_type Yat.Panel.Type
+---@param args string[]
+---@return table<string, string>|nil panel_args
+function M.parse_command_arguments(panel_type, args)
+  return Panels.parse_command_arguments(panel_type, args)
 end
 
 ---@param config Yat.Config
@@ -691,6 +715,7 @@ function M.setup(config)
   available_panels = utils.tbl_unique(left)
 
   Panels.setup(config, available_panels)
+  available_panels = vim.tbl_keys(Panels._registered_panels)
 
   local group = api.nvim_create_augroup("YaTreeSidebar", { clear = true })
   if config.close_if_last_window then

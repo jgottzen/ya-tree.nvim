@@ -1,4 +1,7 @@
+local completion = require("ya-tree.completion")
 local utils = require("ya-tree.utils")
+
+local fn = vim.fn
 
 ---@alias Yat.Panel.Files.SupportedActions
 ---| "add"
@@ -99,9 +102,44 @@ end
 ---@async
 ---@param sidebar Yat.Sidebar
 ---@param config Yat.Config
----@return Yat.Panel.GitStatus
+---@return Yat.Panel.Files
 function M.create_panel(sidebar, config)
   return require("ya-tree.panels.files.panel"):new(sidebar, config.panels.files, M.keymap, M.renderers)
+end
+
+---@param current string
+---@param args string[]
+---@return string[]
+function M.complete_command(current, args)
+  if #args > 1 then
+    return {}
+  end
+  if current == "path=%" then
+    return {}
+  end
+
+  if vim.startswith(current, "path=") and current ~= "path=" then
+    return completion.complete_file_and_dir("path=", current:sub(6))
+  else
+    return { "path=.", "path=/", "path=%" }
+  end
+end
+
+---@param args string[]
+---@return table<string, string>|nil panel_args
+function M.parse_commmand_arguments(args)
+  local arg = args[1]
+  if arg and vim.startswith(arg, "path=") then
+    ---@type string?
+    local path = arg:sub(6)
+    if path == "%" then
+      path = fn.expand(path)
+      path = fn.filereadable(path) == 1 and path or nil
+    end
+    if path then
+      return { path = path }
+    end
+  end
 end
 
 return M

@@ -1,9 +1,7 @@
-local Path = require("ya-tree.path")
 local run = require("ya-tree.async").run
 local utils = require("ya-tree.utils")
 
 local api = vim.api
-local fn = vim.fn
 
 local M = {
   ---@private
@@ -15,19 +13,16 @@ local M = {
 ---@alias Callback fun()
 ---@alias Number number
 
----@param path string
----@return string|nil path the fully resolved path, or `nil`
-local function resolve_path(path)
-  local p = Path:new(path)
-  return p:exists() and p:absolute() or nil
-end
-
 ---@class Yat.OpenWindowArgs
----@field path? string The path to expand to.
----@field focus? boolean|Yat.Panel.Type Whether to focus the sidebar, alternatively which panel to focus.
+---@field focus? boolean Whether to focus the sidebar.
+---@field panel? Yat.Panel.Type The panel to open.
+---@field panel_args? table<string, string> The panel specific arguments.
 
 ---@async
 ---@param opts? Yat.OpenWindowArgs
+---  - {opts.focus?} `boolean` Whether to focus the sidebar.
+---  - {opts.panel?} `Yat.Panel.Type` The panel to open.
+---  - {opts.panel_args}? `table<string, string>` The panel specific arguments.
 local function open(opts)
   local log = require("ya-tree.log").get("ya-tree")
   if M._loading then
@@ -41,57 +36,14 @@ local function open(opts)
   opts = opts or {}
   log.debug("opening sidebar with %s", opts)
 
-  local config = require("ya-tree.config").config
-  local path
-  if opts.path then
-    path = resolve_path(opts.path)
-  elseif config.follow_focused_file then
-    local bufnr = api.nvim_get_current_buf()
-    if api.nvim_buf_get_option(bufnr, "buftype") == "" then
-      path = api.nvim_buf_get_name(bufnr)
-    end
-  end
-
   local sidebar = require("ya-tree.sidebar").get_or_create_sidebar(api.nvim_get_current_tabpage())
-  sidebar:open({ focus = opts.focus })
-
-  if path then
-    local panel = sidebar:files_panel(opts.focus ~= false)
-    if panel then
-      local node = panel.root:expand({ to = path })
-      local do_tcd = false
-      if node then
-        local hidden, reason = node:is_hidden(config)
-        if hidden and reason then
-          if reason == "filter" then
-            config.filters.enable = false
-          elseif reason == "git" then
-            config.git.show_ignored = true
-          end
-        end
-        log.info("navigating to %q", path)
-      else
-        log.info('cannot expand to path %q in the "files" panel, changing root', path)
-        panel:change_root_node(path)
-        node = panel.root:expand({ to = path })
-        do_tcd = true
-      end
-      panel:draw(node)
-      if do_tcd and config.cwd.update_from_panel then
-        path = Path:new(path)
-        path = path:is_dir() and path.filename or path:parent().filename
-        log.debug("issueing tcd autocmd to %q", path)
-        vim.cmd.tcd(fn.fnameescape(path))
-      end
-    else
-      log.error("no files panel")
-    end
-  end
+  sidebar:open({ focus = opts.focus, panel = opts.panel, panel_args = opts.panel_args })
 end
 
 ---@param opts? Yat.OpenWindowArgs
----  - {opts.path?} `string` The path to expand to.
----  - {opts.focus?} `boolean|Yat.Panel.Type` Whether to focus the sidebar, alternatively which panel to focus.
+---  - {opts.focus?} `boolean` Whether to focus the sidebar.
+---  - {opts.panel?} `Yat.Panel.Type` The panel to open.
+---  - {opts.panel_args}? `table<string, string>` The panel specific arguments.
 function M.open(opts)
   run(function()
     open(opts)
@@ -155,70 +107,37 @@ end
 ---@param arg_lead string
 ---@param cmdline string
 ---@return string[] completions
-local function complete_open(arg_lead, cmdline)
-  local splits = vim.split(cmdline, "%s+", {}) --[=[@as string[]]=]
-  local i = #splits
-  if i > 6 then
-    return {}
+local function complete_open_command(arg_lead, cmdline)
+  local splits = vim.split(cmdline, "%s+")
+  if splits[1] == "" then
+    table.remove(splits, 1)
+  end
+  if #splits == 2 then
+    local items = require("ya-tree.sidebar").complete_command(arg_lead, nil, {})
+    table.insert(items, 1, "no-focus")
+    return vim.tbl_filter(function(item)
+      return vim.startswith(item, arg_lead)
+    end, items)
   end
 
-  local focus_completed = false
-  local path_completed = false
-  for index = 2, i - 1 do
-    local item = splits[index]
-    if vim.startswith(item, "focus=") then
-      focus_completed = true
-    elseif vim.startswith(item, "path=") then
-      path_completed = true
-    end
-  end
-
-  if not focus_completed and vim.startswith(arg_lead, "focus") then
-    local types = vim.tbl_map(function(panel_type)
-      return "focus=" .. panel_type
-    end, require("ya-tree.sidebar").get_available_panels())
-    table.insert(types, 1, "focus=false")
-    return types
-  elseif not path_completed and vim.startswith(arg_lead, "path=") then
-    return fn.getcompletion(arg_lead:sub(6), "file")
-  else
-    local t = {}
-    if not focus_completed then
-      t[#t + 1] = "focus"
-    end
-    if not path_completed then
-      t[#t + 1] = "path=."
-    end
-    return t
-  end
+  local panel_pos = splits[2] == "no-focus" and 3 or 2
+  local panel_type = splits[panel_pos]
+  local args = { unpack(splits, panel_pos + 1) }
+  return require("ya-tree.sidebar").complete_command(arg_lead, panel_type, args)
 end
 
 ---@param fargs string[]
 ---@return Yat.OpenWindowArgs
 local function parse_open_command_input(fargs)
-  ---@type string|nil
-  local path = nil
-  ---@type boolean|Yat.Panel.Type|nil
-  local focus = nil
-  for _, arg in ipairs(fargs) do
-    if vim.startswith(arg, "path=") then
-      path = arg:sub(6)
-      if path == "%" then
-        path = fn.expand(path)
-        path = fn.filereadable(path) == 1 and path or nil
-      end
-    elseif vim.startswith(arg, "focus") then
-      if arg == "focus" then
-        focus = true
-      elseif arg == "focus=false" then
-        focus = false
-      else
-        focus = arg:sub(7)
-      end
-    end
+  local focus = fargs[1] == "no-focus" and false or true
+  local panel_pos = focus and 1 or 2
+  local panel_type = fargs[panel_pos]
+  local args = panel_pos < #fargs and { unpack(fargs, panel_pos + 1) } or nil
+  local panel_args
+  if panel_type and args then
+    panel_args = require("ya-tree.sidebar").parse_command_arguments(panel_type, args)
   end
-
-  return { path = path, focus = focus }
+  return { focus = focus, panel = panel_type, panel_args = panel_args }
 end
 
 ---@param opts? Yat.Config
@@ -253,7 +172,7 @@ function M.setup(opts)
 
   api.nvim_create_user_command("YaTreeOpen", function(input)
     M.open(parse_open_command_input(input.fargs))
-  end, { nargs = "*", complete = complete_open, desc = "Open the sidebar" })
+  end, { nargs = "*", complete = complete_open_command, desc = "Open the sidebar" })
   api.nvim_create_user_command("YaTreeClose", M.close, { desc = "Close the sidebar" })
   api.nvim_create_user_command("YaTreeToggle", M.toggle, { desc = "Toggle the sidebar" })
 end

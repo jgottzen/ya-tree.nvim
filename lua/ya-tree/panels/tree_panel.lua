@@ -462,7 +462,8 @@ end
 
 ---@protected
 function TreePanel:on_win_open()
-  if require("ya-tree.config").config.move_cursor_to_name then
+  local config = require("ya-tree.config").config
+  if config.move_cursor_to_name then
     api.nvim_create_autocmd("CursorMoved", {
       group = self.window_augroup,
       buffer = self:bufnr(),
@@ -471,6 +472,19 @@ function TreePanel:on_win_open()
       end,
       desc = "Moving cursor to name",
     })
+  end
+  if config.follow_focused_file then
+    local edit_win = self.sidebar:edit_win()
+    if edit_win then
+      local bufnr = api.nvim_win_get_buf(edit_win)
+      if api.nvim_buf_get_option(bufnr, "buftype") == "" then
+        local path = api.nvim_buf_get_name(bufnr)
+        if self.root:is_ancestor_of(path) or self.root.path == path then
+          local node = self.root:expand({ to = path })
+          self:draw(node)
+        end
+      end
+    end
   end
 end
 

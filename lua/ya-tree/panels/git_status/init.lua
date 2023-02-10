@@ -1,3 +1,4 @@
+local completion = require("ya-tree.completion")
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.GitStatus.SupportedActions
@@ -79,6 +80,33 @@ end
 ---@return Yat.Panel.GitStatus
 function M.create_panel(sidebar, config, repo)
   return require("ya-tree.panels.git_status.panel"):new(sidebar, config.panels.git_status, M.keymap, M.renderers, repo)
+end
+
+---@param current string
+---@param args string[]
+---@return string[]
+function M.complete_command(current, args)
+  if #args > 1 then
+    return {}
+  end
+
+  if vim.startswith(current, "dir=") and current ~= "dir=" then
+    return completion.complete_dir("dir=", current:sub(5))
+  else
+    return { "dir=.", "dir=/" }
+  end
+end
+
+---@param args string[]
+---@return table<string, string>|nil panel_args
+function M.parse_commmand_arguments(args)
+  local arg = args[1]
+  if arg and vim.startswith(arg, "dir=") then
+    local dir = arg:sub(5)
+    if dir then
+      return { dir = dir }
+    end
+  end
 end
 
 return M

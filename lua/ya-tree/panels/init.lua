@@ -5,6 +5,8 @@ local utils = require("ya-tree.utils")
 ---@field setup fun(config: Yat.Config): boolean
 ---@field create_panel async fun(sidebar: Yat.Sidebar, config: Yat.Config, ...: any): Yat.Panel
 ---@field keymap table<string, Yat.Action>
+---@field complete_command? fun(current: string, args: string[]): string[]
+---@field parse_commmand_arguments? fun(args: string[]): string[]|nil
 
 local M = {
   ---@private
@@ -33,6 +35,29 @@ end
 ---@return table<Yat.Panel.Type, table<string, Yat.Action>> keymaps
 function M.keymaps()
   return vim.deepcopy(M._keymaps)
+end
+
+---@param panel_type Yat.Panel.Type
+---@param current string
+---@param args string[]
+---@return string[]
+function M.complete_command(panel_type, current, args)
+  local panel = M._registered_panels[panel_type]
+  if panel and panel.complete_command then
+    return panel.complete_command(current, args)
+  else
+    return {}
+  end
+end
+
+---@param panel_type Yat.Panel.Type
+---@param args string[]
+---@return table<string, string>|nil panel_args
+function M.parse_command_arguments(panel_type, args)
+  local panel = M._registered_panels[panel_type]
+  if panel and panel.parse_commmand_arguments then
+    return panel.parse_commmand_arguments(args)
+  end
 end
 
 ---@param config Yat.Config
