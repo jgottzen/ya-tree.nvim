@@ -157,7 +157,7 @@ end
 ---@param node Yat.Node
 ---@param path string
 local function prepare_add_rename(panel, node, path)
-  local parent = Path:new(path):parent():absolute() --[[@as string]]
+  local parent = Path:new(path):parent():absolute()
   if panel.root:is_ancestor_of(path) or panel.root.path == parent then
     -- expand to the parent path so the tree will detect and display the added file/directory
     if parent ~= node.path then

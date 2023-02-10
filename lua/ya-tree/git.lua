@@ -27,7 +27,7 @@ local function command(args, null_terminated, cmd)
   args = cmd == "git" and { "--no-pager", unpack(args) } or args
 
   local _, stdout, stderr = job.async_run({ cmd = cmd, args = args })
-  local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true }) --[=[@as string[]]=]
+  local lines = vim.split(stdout or "", null_terminated and "\0" or "\n", { plain = true })
   if lines[#lines] == "" then
     lines[#lines] = nil
   end
@@ -273,7 +273,7 @@ function Repo:command(args, null_terminated)
   local results, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
   scheduler()
   if err then
-    local message = vim.split(err, "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
+    local message = vim.split(err, "\n", { plain = true, trimempty = true })
     log.error("error running git command, %s", table.concat(message, " "))
     return {}, err
   end
@@ -538,7 +538,7 @@ function GitStatus:_parse_porcelainv2_header_row(line)
   -- # branch.ab +<ahead> -<behind>           If upstream is set and the commit is present.
   -- --------------------------------------------------------------------------------------
 
-  local parts = vim.split(line, " ", { plain = true }) --[=[@as string[]]=]
+  local parts = vim.split(line, " ", { plain = true })
   local _type = parts[2]
   if _type == "branch.head" then
     self.branch = parts[3]
@@ -717,7 +717,7 @@ function M.create_repo(path)
   end
 
   if not fs.is_directory(path) then
-    path = Path:new(path):parent().filename --[[@as string]]
+    path = Path:new(path):parent().filename
   end
 
   local toplevel, git_dir, branch = get_repo_info(path)

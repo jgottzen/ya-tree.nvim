@@ -372,7 +372,7 @@ function TreePanel:search_for_node(node)
 
     local code, stdout, stderr = job.async_run({ cmd = cmd, args = args, cwd = search_root })
     if code == 0 then
-      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
+      local lines = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
       log.debug("%q found %s matches for %q in %q", cmd, #lines, path, search_root)
 
       if #lines > 0 then

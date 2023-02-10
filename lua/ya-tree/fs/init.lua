@@ -256,7 +256,7 @@ local function link_node(dir, name, lstat)
     rel_link_to = abs_link_to or ""
     abs_link_to = dir .. os_sep .. abs_link_to
   else
-    rel_link_to = Path:new(abs_link_to):make_relative(dir) --[[@as string]]
+    rel_link_to = Path:new(abs_link_to):make_relative(dir)
   end
 
   -- stat here is for the target of the link
@@ -299,7 +299,7 @@ end
 ---@return Yat.Fs.Node|nil node
 function M.node_for(path)
   local p = Path:new(path)
-  path = p:absolute() --[[@as string]]
+  path = p:absolute()
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   ---@type string?, Luv.Fs.Stat?
   local err, lstat = fs_lstat(path)
@@ -308,7 +308,7 @@ function M.node_for(path)
     return nil
   end
 
-  local parent_path = p:parent():absolute() --[[@as string]]
+  local parent_path = p:parent():absolute()
   local name = utils.get_file_name(path)
   if lstat.type == "directory" then
     return directory_node(parent_path, name)
@@ -339,7 +339,7 @@ end
 ---@param dir string the directory to scan.
 ---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
-  dir = Path:new(dir):absolute() --[[@as string]]
+  dir = Path:new(dir):absolute()
   ---@type string?, userdata?
   local err, fd = fs_opendir(dir, 50)
   if not fd then
@@ -494,11 +494,11 @@ function M.create_dir(path)
   local mode = 493 -- 755 in octal
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
-  local abs_path = Path:new(path):absolute() --[[@as string]]
+  local abs_path = Path:new(path):absolute()
   local success, err = uv.fs_mkdir(abs_path, mode)
   if success == nil then
     if not M.exists(abs_path) then
-      local dirs = vim.split(abs_path, os_sep, { plain = true }) --[=[@as string[]]=]
+      local dirs = vim.split(abs_path, os_sep, { plain = true })
       local acc = ""
       for _, dir in ipairs(dirs) do
         local current = utils.join_path(acc, dir)

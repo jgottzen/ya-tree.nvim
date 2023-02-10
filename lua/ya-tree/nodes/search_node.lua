@@ -65,10 +65,9 @@ function SearchNode:search(term)
 
   self._children = {}
   self.empty = true
-  local paths
   local code, stdout, stderr = job.async_run({ cmd = cmd, args = args, cwd = self.path })
   if not stderr then
-    paths = vim.split(stdout or "", "\n", { plain = true, trimempty = true }) --[=[@as string[]]=]
+    local paths = vim.split(stdout or "", "\n", { plain = true, trimempty = true })
     log.debug("%q found %s matches for %q in %q", cmd, #paths, cmd, self.path)
 
     local first_leaf_node = self:populate_from_paths(paths, function(path, parent)

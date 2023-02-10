@@ -249,7 +249,7 @@ end
 ---@param path string
 function FilesPanel:change_root_node(path)
   if not fs.is_directory(path) then
-    path = Path:new(path):parent():absolute() --[[@as string]]
+    path = Path:new(path):parent():absolute()
   end
   if path == self.files_root.path then
     return

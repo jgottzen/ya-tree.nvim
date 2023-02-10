@@ -482,7 +482,7 @@ function Node:_add_node(path, node_creator)
 
   ---@cast self Yat.Node
   local rest = path:sub(#self.path + 1)
-  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true }) --[=[@as string[]]=]
+  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true })
   local node = self
   for i = 1, #splits do
     local name = splits[i]

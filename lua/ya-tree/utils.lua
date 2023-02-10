@@ -44,7 +44,7 @@ do
   ---@return boolean
   function M.is_windows_exe(extension)
     if not EXTENSIONS then
-      local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true }) --[=[@as string[]]=]
+      local splits = vim.split(string.gsub(vim.env.PATHEXT or "", "%.", ""), ";", { plain = true })
       for _, ext in pairs(splits) do
         EXTENSIONS[ext:upper()] = true
       end
@@ -120,7 +120,7 @@ function M.get_file_name(path)
   if path:sub(-1) == os_sep then
     path = path:sub(1, -2)
   end
-  local splits = vim.split(path, os_sep, { plain = true }) --[=[@as string[]]=]
+  local splits = vim.split(path, os_sep, { plain = true })
   return splits[#splits]
 end
 
