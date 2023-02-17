@@ -54,7 +54,7 @@ end
 ---@param bufnr? integer
 ---@return Yat.Nodes.Symbol
 function SymbolsPanel:create_root_node(path, bufnr)
-  local do_schedule = bufnr == nil
+  local do_defer = bufnr == nil
   if not bufnr then
     scheduler()
     bufnr = api.nvim_get_current_buf()
@@ -77,7 +77,7 @@ function SymbolsPanel:create_root_node(path, bufnr)
   root.repo = git.get_repo_for_path(path)
 
   if bufnr then
-    if do_schedule then
+    if do_defer then
       defer(function()
         root:refresh({ bufnr = bufnr, use_cache = true })
         root:expand()
@@ -164,9 +164,13 @@ function SymbolsPanel:on_cursor_hold()
   if not node or self.root == node then
     return
   end
+  local client_id = node:lsp_client_id()
+  if not client_id then
+    return
+  end
 
   api.nvim_win_set_cursor(self.sidebar:edit_win(), { node.position.start.line + 1, node.position.start.character })
-  lsp.highlight_range(node:bufnr(), node.position)
+  lsp.highlight_range(node:bufnr(), client_id, node.position)
   api.nvim_create_autocmd({ "CursorMoved", "BufLeave" }, {
     callback = function()
       lsp.clear_highlights(node:bufnr())

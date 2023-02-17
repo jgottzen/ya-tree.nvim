@@ -1,30 +1,36 @@
 local log = require("ya-tree.log").get("lsp")
+local symbol_tag = require("ya-tree.lsp.symbol_tag")
 local wrap = require("ya-tree.async").wrap
 
 local lsp = vim.lsp
 
----@class Yat.Document.Position
+---@class Lsp.ResponseError
+---@field code integer
+---@field message string
+---@field data? any
+
+---@class Lsp.Position
 ---@field line integer
 ---@field character integer
 
----@class Yat.Document.Range
----@field start Yat.Document.Position
----@field end Yat.Document.Position
+---@class Lsp.Range
+---@field start Lsp.Position
+---@field end Lsp.Position
 
----@class Yat.Symbols.Document
+---@class Lsp.Symbol.Document
 ---@field name string
 ---@field detail? string
 ---@field kind Lsp.Symbol.Kind
----@field deprecated? boolean
----@field range Yat.Document.Range
----@field selection_range Yat.Document.Range
----@field children? Yat.Symbols.Document[]
+---@field tags? Lsp.Symbol.Tag[]
+---@field range Lsp.Range
+---@field selectionRange Lsp.Range
+---@field children? Lsp.Symbol.Document[]
 
 local DOCUMENT_SYMBOL_METHOD = "textDocument/documentSymbol"
 
 local M = {
   ---@private
-  ---@type table<integer, Yat.Symbols.Document[]>
+  ---@type table<integer, { client_id: integer, symbols: Lsp.Symbol.Document[] }>
   symbol_cache = {},
 }
 
@@ -37,20 +43,29 @@ local function buf_has_client(bufnr, method)
   end, lsp.get_active_clients({ bufnr = bufnr }))) > 0
 end
 
----@type async fun(bufnr: integer, method: string, params: table): any
+---@type async fun(bufnr: integer, method: string, params: table): table<integer, { result?: any[], error?: Lsp.ResponseError }>
 local buf_request_all = wrap(function(bufnr, method, params, callback)
   lsp.buf_request_all(bufnr, method, params, function(response)
     callback(response)
   end)
 end, 4, true)
 
---@return Yat.Symbols.Document[] results
+---@return Lsp.Symbol.Document[] results
 local function normalize_symbols(symbols)
   return vim.tbl_map(function(symbol)
     if not symbol.range then
-      symbol.range = symbol.location and symbol.location.range or { start = 1, ["end"] = 1 }
+      symbol.range = symbol.location and symbol.location.range
+        or { start = { line = 0, character = 0 }, ["end"] = { line = 0, character = 0 } }
+      symbol.location = nil
     end
-    symbol.location = nil
+    if symbol.deprecated then
+      if not symbol.tags then
+        symbol.tags = { symbol_tag.DEPRECATED }
+      elseif not vim.tbl_contains(symbol.tags, symbol_tag.DEPRECATED) then
+        symbol.tags[#symbol.tags + 1] = symbol_tag.DEPRECATED
+      end
+      symbol.deprecated = nil
+    end
     return symbol
   end, symbols)
 end
@@ -58,29 +73,26 @@ end
 ---@async
 ---@param bufnr integer
 ---@param refresh? boolean
----@return Yat.Symbols.Document[] results
-function M.get_symbols(bufnr, refresh)
+---@return integer? client_id
+---@return Lsp.Symbol.Document[] results
+function M.symbols(bufnr, refresh)
   if not refresh and M.symbol_cache[bufnr] then
-    return M.symbol_cache[bufnr]
+    local t = M.symbol_cache[bufnr]
+    return t.client_id, t.symbols
   end
   if refresh then
     log.debug("refreshing document symbols for bufnr %s", bufnr)
   end
 
-  local params = lsp.util.make_text_document_params(bufnr)
-  if not params then
-    log.error("failed to create params for buffer %s", bufnr)
-    return {}
-  end
-
   if buf_has_client(bufnr, DOCUMENT_SYMBOL_METHOD) then
-    ---@type { result?: Yat.Symbols.Document[], error?: any }[]
+    local params = lsp.util.make_text_document_params(bufnr)
+    ---@type table<integer, { result?: Lsp.Symbol.Document[], error?: Lsp.ResponseError }>
     local response = buf_request_all(bufnr, DOCUMENT_SYMBOL_METHOD, { textDocument = params })
     for id, results in pairs(response) do
-      if results.result and not vim.tbl_isempty(results.result) then
+      if results.result then
         local result = normalize_symbols(results.result)
-        M.symbol_cache[bufnr] = result
-        return result
+        M.symbol_cache[bufnr] = { client_id = id, symbols = result }
+        return id, result
       elseif results.error then
         log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(results.error))
       end
@@ -88,18 +100,33 @@ function M.get_symbols(bufnr, refresh)
   else
     log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, DOCUMENT_SYMBOL_METHOD)
   end
-  return {}
+  return nil, {}
+end
+
+---@param client_id integer
+---@return string offset_encoding
+local function get_offset_encoding(client_id)
+  local client = lsp.get_client_by_id(client_id)
+  return client and client.offset_encoding or "utf-16"
 end
 
 ---@param bufnr integer
----@param range Yat.Document.Range
-function M.highlight_range(bufnr, range)
-  lsp.util.buf_highlight_references(bufnr, { { range = range } }, "utf-8")
+---@param client_id integer
+---@param range Lsp.Range
+function M.highlight_range(bufnr, client_id, range)
+  lsp.util.buf_highlight_references(bufnr, { { range = range } }, get_offset_encoding(client_id))
 end
 
 ---@param bufnr integer
 function M.clear_highlights(bufnr)
   lsp.util.buf_clear_references(bufnr)
+end
+
+---@param client_id integer
+---@param file string
+---@param range Lsp.Range
+function M.open_location(client_id, file, range)
+  lsp.util.show_document({ uri = vim.uri_from_fname(file), range = range }, get_offset_encoding(client_id), { reuse_win = true })
 end
 
 local events = require("ya-tree.events")

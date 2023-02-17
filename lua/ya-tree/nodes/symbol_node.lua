@@ -6,8 +6,8 @@ local Node = require("ya-tree.nodes.node")
 local symbol_kind = require("ya-tree.lsp.symbol_kind")
 
 ---@class Yat.Nodes.Symbol : Yat.Node
----@field new fun(self: Yat.Nodes.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Yat.Document.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
----@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Yat.Document.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
+---@field new fun(self: Yat.Nodes.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
+---@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
 ---@field class fun(self: Yat.Nodes.Symbol): Yat.Nodes.Symbol
 ---@field super Yat.Node
 ---
@@ -16,9 +16,11 @@ local symbol_kind = require("ya-tree.lsp.symbol_kind")
 ---@field private _children? Yat.Nodes.Symbol[]
 ---@field private file string
 ---@field private _bufnr integer
+---@field private _lsp_client_id? integer
+---@field private _tags Lsp.Symbol.Tag[]
 ---@field public kind Lsp.Symbol.Kind
 ---@field public detail? string
----@field public position Yat.Document.Range
+---@field public position Lsp.Range
 local SymbolNode = meta.create_class("Yat.Nodes.Symbol", Node)
 SymbolNode.__node_type = "symbol"
 
@@ -27,7 +29,7 @@ SymbolNode.__node_type = "symbol"
 ---@param path string
 ---@param kind Lsp.Symbol.Kind
 ---@param detail? string
----@param position Yat.Document.Range
+---@param position Lsp.Range
 ---@param parent? Yat.Nodes.Symbol
 function SymbolNode:init(name, path, kind, detail, position, parent)
   self.super:init({
@@ -40,6 +42,11 @@ function SymbolNode:init(name, path, kind, detail, position, parent)
     self.empty = true
   end
   self.file = parent and parent.file or path
+  if parent then
+    self._bufnr = parent._bufnr
+    self._lsp_client_id = parent._lsp_client_id
+  end
+  self._tags = {}
   self.kind = kind
   if detail then
     self.detail = detail:gsub("[\n\r]", " "):gsub("%s+", " ")
@@ -50,6 +57,16 @@ end
 ---@return integer
 function SymbolNode:bufnr()
   return self._bufnr
+end
+
+---@return integer? lsp_client_id
+function SymbolNode:lsp_client_id()
+  return self._lsp_client_id
+end
+
+---@return Lsp.Symbol.Tag[]
+function SymbolNode:tags()
+  return self._tags
 end
 
 ---@return boolean editable
@@ -81,19 +98,19 @@ end
 function SymbolNode:edit(cmd)
   vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(self.file) } })
   if self.kind ~= symbol_kind.FILE then
-    vim.api.nvim_win_set_cursor(0, { self.position.start.line + 1, self.position.start.character })
+    lsp.open_location(self._lsp_client_id, self.file, self.position)
   end
 end
 
 ---@protected
 function SymbolNode:_scandir() end
 
----@param symbol Yat.Symbols.Document
+---@param symbol Lsp.Symbol.Document
 function SymbolNode:add_node(symbol)
   self:add_child(symbol)
 end
 
----@param symbol Yat.Symbols.Document
+---@param symbol Lsp.Symbol.Document
 function SymbolNode:add_child(symbol)
   if not self._children then
     self._children = {}
@@ -101,8 +118,10 @@ function SymbolNode:add_child(symbol)
   end
   local path = self.path .. "/" .. symbol.name .. (#self._children + 1)
   local node = SymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)
-  node._bufnr = self._bufnr
   node.symbol = symbol
+  if symbol.tags then
+    node._tags = symbol.tags
+  end
   self._children[#self._children + 1] = node
   if symbol.children then
     for _, child_symbol in ipairs(symbol.children) do
@@ -128,7 +147,8 @@ function SymbolNode:refresh(opts)
 
   self._children = {}
   self.empty = true
-  local symbols = lsp.get_symbols(bufnr, refresh)
+  local client_id, symbols = lsp.symbols(bufnr, refresh)
+  self._lsp_client_id = client_id
   for _, symbol in ipairs(symbols) do
     self:add_child(symbol)
   end
