@@ -340,10 +340,10 @@ function Sidebar:files_panel(focus)
 end
 
 ---@async
----@param path? string
 ---@param focus boolean
+---@param path? string
 ---@return Yat.Panel.Symbols? panel
-function Sidebar:symbols_panel(path, focus)
+function Sidebar:symbols_panel(focus, path)
   local panel = self:open_panel("symbols", focus) --[[@as Yat.Panel.Symbols?]]
   if panel and path then
     panel:change_root_node(path)
@@ -352,10 +352,10 @@ function Sidebar:symbols_panel(path, focus)
 end
 
 ---@async
----@param repo Yat.Git.Repo
 ---@param focus boolean
+---@param repo Yat.Git.Repo
 ---@return Yat.Panel.GitStatus? panel
-function Sidebar:git_status_panel(repo, focus)
+function Sidebar:git_status_panel(focus, repo)
   local panel = self:open_panel("git_status", focus) --[[@as Yat.Panel.GitStatus?]]
   if panel then
     panel:change_root_node(repo)
