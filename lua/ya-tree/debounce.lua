@@ -1,20 +1,13 @@
 local M = {}
 
----@class Luv.Timer
----@field start fun(self: Luv.Timer, timout: integer, repeat: integer, callback: fun(...: any)): 0|nil
----@field stop fun(self: Luv.Timer): 0|nil
----@field close fun(self: Luv.Timer)
----@field is_active fun(self: Luv.Timer): boolean?
----@field is_closing fun(self: Luv.Timer): boolean?
-
----@type Luv.Timer[]
+---@type uv.uv_timer_t[]
 local timers = {}
 
 ---@param fn fun(...)
 ---@param ms integer
 ---@return fun(...)
 function M.debounce_trailing(fn, ms)
-  local timer = vim.loop.new_timer() --[[@as Luv.Timer]]
+  local timer = vim.loop.new_timer() --[[@as uv.uv_timer_t]]
   timers[#timers + 1] = timer
   return function(...)
     local args = { ... }
@@ -30,7 +23,7 @@ end
 ---@param ms integer
 ---@return fun(...)
 function M.accumulate_trailing(fn, accumulator, ms)
-  local timer = vim.loop.new_timer() --[[@as Luv.Timer]]
+  local timer = vim.loop.new_timer() --[[@as uv.uv_timer_t]]
   timers[#timers + 1] = timer
   local args = {}
   return function(...)

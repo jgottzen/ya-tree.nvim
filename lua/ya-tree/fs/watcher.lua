@@ -6,24 +6,12 @@ local utils = require("ya-tree.utils")
 
 local M = {
   ---@private
-  ---@type table<string, Yat.Fs.Watcher>
+  ---@type table<string, uv.uv_fs_event_t>
   _watchers = {},
   ---@private
   ---@type {[1]: string, [2]: string}[]
   _exclude_patterns = {},
 }
-
----@class Luv.Fs.Event
----@field start fun(self: Luv.Fs.Event, path: string, flags: { watch_entry?: boolean, stat?: boolean, recursive?: boolean }, callback: fun(err?: string, filename: string, events: { change: boolean, rename: boolean})): 0|nil
----@field stop fun(self: Luv.Fs.Event): 0|nil
----@field getpath fun(self: Luv.Fs.Event): string|nil
----@field close fun(self: Luv.Fs.Event)
----@field is_active fun(self: Luv.Fs.Event): boolean?
----@field is_closing fun(self: Luv.Fs.Event): boolean?
-
----@class Yat.Fs.Watcher
----@field handle Luv.Fs.Event
----@field number_of_watchers integer
 
 local setup_done = false
 
@@ -80,7 +68,7 @@ function M.watch_dir(dir)
     end, 200)
 
     watcher = {
-      handle = vim.loop.new_fs_event() --[[@as Luv.Fs.Event]],
+      handle = vim.loop.new_fs_event(),
       number_of_watchers = 1,
     }
     log.debug("starting fs_event on %q", dir)

@@ -73,13 +73,13 @@ Path.__index = function(t, k)
   end
 
   if k == "_cwd" then
-    local cwd = uv.fs_realpath(".")
+    local cwd = uv.fs_realpath(".") --[[@as string]]
     t._cwd = cwd
     return cwd
   end
 
   if k == "_absolute" then
-    local absolute = uv.fs_realpath(t.filename)
+    local absolute = uv.fs_realpath(t.filename) --[[@as string]]
     t._absolute = absolute
     return absolute
   end
@@ -192,7 +192,7 @@ function Path:_fs_filename()
 end
 
 ---@private
----@return Luv.Fs.Stat
+---@return uv.fs_stat.result
 function Path:_stat()
   return uv.fs_stat(self:_fs_filename()) or {}
 end

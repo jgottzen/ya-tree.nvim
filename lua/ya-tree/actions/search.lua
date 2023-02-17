@@ -41,7 +41,7 @@ function M.search_interactively(panel, node)
   if not node:is_directory() and node.parent then
     node = node.parent --[[@as Yat.Node]]
   end
-  local timer = uv.new_timer() --[[@as Luv.Timer]]
+  local timer = uv.new_timer() --[[@as uv.uv_timer_t]]
 
   ---@param ms integer
   ---@param term string

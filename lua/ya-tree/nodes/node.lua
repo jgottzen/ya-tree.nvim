@@ -354,7 +354,7 @@ function Node:is_block_device()
 end
 
 ---@async
----@return Luv.Fs.Stat? stat
+---@return uv.fs_stat.result? stat
 function Node:fs_stat()
   return fs.lstat(self.path)
 end

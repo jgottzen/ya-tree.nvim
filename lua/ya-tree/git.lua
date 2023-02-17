@@ -74,11 +74,6 @@ local function get_repo_info(path, cmd)
   return toplevel, git_root, branch
 end
 
----@class Luv.Fs.Poll
----@field start fun(self: Luv.Fs.Poll, path: string, interval: integer, callback: fun(err: string)):0|nil, string?
----@field stop fun(self: Luv.Fs.Poll):0|nil, string?
----@field close fun(self: Luv.Fs.Poll)
-
 ---@class Yat.Git.Repo : Yat.Object
 ---@field protected new async fun(self: Yat.Git.Repo, toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo
 ---@overload async fun(toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo
@@ -90,7 +85,7 @@ end
 ---@field public branch string
 ---@field package _is_yadm boolean
 ---@field private _git_dir string
----@field private _git_dir_watcher? Luv.Fs.Poll
+---@field private _git_dir_watcher? uv.uv_fs_poll_t
 ---@field package _index Yat.Git.IndexCommands
 ---@field private _status Yat.Git.StatusCommand
 local Repo = meta.create_class("Yat.Git.Repo")
@@ -207,11 +202,9 @@ function Repo:_add_git_watcher(config)
       events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
     end)
 
-    ---@type any, string?
-    local result, message = uv.new_fs_poll()
-    if result ~= nil then
-      self._git_dir_watcher = result
-    else
+    local result, message
+    self._git_dir_watcher, message = uv.new_fs_poll()
+    if not self._git_dir_watcher then
       log.error("failed to create fs_poll for directory %s, error: %s", self._git_dir, message)
       return
     end

@@ -16,47 +16,24 @@ local M = {}
 ---Excludes the link type since it's handled differently, and unknown.
 ---@alias Luv.FileType "directory"|"file"|"fifo"|"socket"|"char"|"block"
 
----@class Luv.Timespec
----@field sec integer
----@field nsec integer
-
----@class Luv.Fs.Stat
----@field dev integer
----@field mode integer
----@field nlink integer
----@field uid integer
----@field gid integer
----@field rdev integer
----@field ino integer
----@field size integer
----@field blksize integer
----@field blocks integer
----@field flags integer
----@field gen integer
----@field atime Luv.Timespec
----@field mtime Luv.Timespec
----@field ctime Luv.Timespec
----@field birthtime Luv.Timespec
----@field type Luv.FileType|"unknown"
-
----@type async fun(path: string): err: string|, stat: Luv.Fs.Stat|nil
+---@type async fun(path: string): err: string|nil, stat: uv.fs_stat.result|nil
 local fs_stat = wrap(uv.fs_stat, 2, true)
 
----@type async fun(path: string): err: string|, stat: Luv.Fs.Stat|nil
+---@type async fun(path: string): err: string|nil, stat: uv.fs_stat.result|nil
 local fs_lstat = wrap(uv.fs_lstat, 2, true)
 
 ---@param path string
 ---@param entries integer
----@param callback fun(err: string|nil, dir: userdata|nil)
----@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: userdata|nil
+---@param callback fun(err: string|nil, luv_dir_t: uv.luv_dir_t|nil)
+---@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: uv.luv_dir_t|nil
 local fs_opendir = wrap(function(path, entries, callback)
   uv.fs_opendir(path, callback, entries)
 end, 3, true)
 
----@type async fun(luv_dir_t: userdata): string?, Luv.Fs.Readdir[]?
+---@type async fun(luv_dir_t: uv.luv_dir_t): string|nil, uv.fs_readdir.entry[]|nil
 local fs_readdir = wrap(uv.fs_readdir, 2, true)
 
----@type async fun(luv_dir_t: userdata): err: string|nil, success: boolean|nil
+---@type async fun(luv_dir_t: uv.luv_dir_t): err: string|nil, success: boolean|nil
 local fs_closedir = wrap(uv.fs_closedir, 2, true)
 
 ---@type async fun(path: string): err: string|nil, path: string|nil
@@ -65,7 +42,6 @@ local fs_readlink = wrap(uv.fs_readlink, 2, true)
 ---@param path string
 ---@return boolean is_file
 function M.is_file(path)
-  ---@type Luv.Fs.Stat?
   local stat = uv.fs_stat(path)
   return stat and stat.type == "file" or false
 end
@@ -73,16 +49,14 @@ end
 ---@param path string
 ---@return boolean is_directory
 function M.is_directory(path)
-  ---@type Luv.Fs.Stat?
   local stat = uv.fs_stat(path)
   return stat and stat.type == "directory" or false
 end
 
 ---@async
 ---@param path string
----@return Luv.Fs.Stat|nil stat
+---@return uv.fs_stat.result|nil stat
 function M.lstat(path)
-  ---@type string?, Luv.Fs.Stat?
   local err, stat = fs_lstat(path)
   if not stat then
     log.error("cannot fs_lstat path %q, %s", path, err)
@@ -147,7 +121,7 @@ M.st_mode_masks = {
 ---@async
 ---@param dir string the directory containing the file
 ---@param name string the name of the file
----@param stat? Luv.Fs.Stat
+---@param stat? uv.fs_stat.result
 ---@return Yat.Fs.FileNode node
 local function file_node(dir, name, stat)
   local path = utils.join_path(dir, name)
@@ -158,7 +132,6 @@ local function file_node(dir, name, stat)
   else
     if not stat then
       local err
-      ---@type string?, Luv.Fs.Stat?
       err, stat = fs_lstat(path)
       if err then
         log.error("cannot fs_lstat path %q, %s", path, err)
@@ -181,7 +154,7 @@ end
 ---@async
 ---@param dir string the directory containing the fifo
 ---@param name string name of the fifo
----@param stat? Luv.Fs.Stat
+---@param stat? uv.fs_stat.result
 ---@return Yat.Fs.FifoNode node
 local function fifo_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.FifoNode]]
@@ -194,7 +167,7 @@ end
 ---@async
 ---@param dir string the directory containing the socket
 ---@param name string name of the socket
----@param stat? Luv.Fs.Stat
+---@param stat? uv.fs_stat.result
 ---@return Yat.Fs.SocketNode node
 local function socket_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.SocketNode]]
@@ -207,7 +180,7 @@ end
 ---@async
 ---@param dir string the directory containing the char device file
 ---@param name string name of the char device file
----@param stat? Luv.Fs.Stat
+---@param stat? uv.fs_stat.result
 ---@return Yat.Fs.CharNode node
 local function char_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.CharNode]]
@@ -220,7 +193,7 @@ end
 ---@async
 ---@param dir string the directory containing the block device file
 ---@param name string name of the block device file
----@param stat? Luv.Fs.Stat
+---@param stat? uv.fs_stat.result
 ---@return Yat.Fs.BlockNode node
 local function block_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.BlockNode]]
@@ -243,7 +216,7 @@ end
 ---@async
 ---@param dir string the directory containing the link
 ---@param name string name of the link
----@param lstat? Luv.Fs.Stat
+---@param lstat? uv.fs_stat.result
 ---@return Yat.Fs.DirectoryLinkNode|Yat.Fs.FileLinkNode|nil node
 local function link_node(dir, name, lstat)
   local path = utils.join_path(dir, name)
@@ -260,7 +233,6 @@ local function link_node(dir, name, lstat)
   end
 
   -- stat here is for the target of the link
-  ---@type string?, Luv.Fs.Stat?
   local _, stat = fs_stat(path)
   local node
   if stat then
@@ -301,7 +273,6 @@ function M.node_for(path)
   local p = Path:new(path)
   path = p:absolute()
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
-  ---@type string?, Luv.Fs.Stat?
   local err, lstat = fs_lstat(path)
   if not lstat then
     log.info("cannot fs_lstat path %q, %s", path, err)
@@ -330,17 +301,12 @@ function M.node_for(path)
   end
 end
 
----@class Luv.Fs.Readdir
----@field name string
----@field type Luv.FileType
-
 ---Scans a directory and returns an array of items extending `Yat.Fs.Node`.
 ---@async
 ---@param dir string the directory to scan.
 ---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
   dir = Path:new(dir):absolute()
-  ---@type string?, userdata?
   local err, fd = fs_opendir(dir, 50)
   if not fd then
     log.error("cannot fs_opendir path %q, %s", dir, err)
@@ -349,7 +315,6 @@ function M.scan_dir(dir)
     ---@type Yat.Fs.Node[]
     local nodes, entries = {}, nil
     while true do
-      ---@type string?, Luv.Fs.Readdir[]?
       err, entries = fs_readdir(fd)
       if err then
         log.error("cannot fs_readdir path %q, %s", dir, err)
@@ -401,7 +366,6 @@ function M.copy_dir(source, destination, replace)
   local source_path = Path:new(source):absolute()
   local destination_path = Path:new(destination):absolute()
 
-  ---@type userdata?, string?
   local fd, err = uv.fs_scandir(source_path)
   if not fd then
     log.error("cannot fs_scandir path %q, %s", source_path, err)
@@ -409,14 +373,13 @@ function M.copy_dir(source, destination, replace)
   end
 
   local stat
-  ---@type Luv.Fs.Stat?, string?
   stat, err = uv.fs_stat(source_path)
   if not stat then
     log.error("cannot fs_stat path %q, %s", source_path, err)
     return false
   end
   local mode = stat.mode
-  local continue = replace
+  local continue = replace --[[@as boolean?]]
   if not continue then
     -- fs_mkdir returns nil if dir already exists
     continue, err = uv.fs_mkdir(destination_path, mode)
@@ -429,7 +392,6 @@ function M.copy_dir(source, destination, replace)
   end
   if continue then
     while true do
-      ---@type string?, Luv.FileType?
       local name, _type = uv.fs_scandir_next(fd)
       if not name then
         break
@@ -460,7 +422,6 @@ end
 function M.copy_file(source, destination, replace)
   source = Path:new(source):absolute()
   destination = Path:new(destination):absolute()
-  ---@type boolean?, string?
   local success, err = uv.fs_copyfile(source, destination, { excl = not replace })
   if not success then
     log.error("cannot fs_copyfile path %q to %q, %s", source, destination, err)
@@ -477,7 +438,6 @@ end
 function M.rename(old, new)
   old = Path:new(old):absolute()
   new = Path:new(new):absolute()
-  ---@type boolean?, string?
   local success, err = uv.fs_rename(old, new)
   if not success then
     log.error("cannot fs_rename path %q to %q, %s", old, new, err)
@@ -502,7 +462,6 @@ function M.create_dir(path)
       local acc = ""
       for _, dir in ipairs(dirs) do
         local current = utils.join_path(acc, dir)
-        ---@type Luv.Fs.Stat?
         local stat = uv.fs_stat(current)
         if stat then
           if stat.type == "directory" then
@@ -563,7 +522,6 @@ end
 ---@param path string the path to remove.
 ---@return boolean success success or not.
 function M.remove_dir(path)
-  ---@type userdata?, string?
   local fd, err = uv.fs_scandir(path)
   if not fd then
     log.error("cannot fs_scandir path %q, %s", path, err)
@@ -571,7 +529,6 @@ function M.remove_dir(path)
   end
 
   while true do
-    ---@type string?, Luv.FileType?
     local name, _type = uv.fs_scandir_next(fd)
     if not name then
       break
