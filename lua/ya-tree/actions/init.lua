@@ -112,6 +112,8 @@ local function define_actions(config)
 
   M.define_action(builtin.files.toggle_filter, files.toggle_filter, "Toggle filtered files and directories", { "n" }, true)
 
+  M.define_action(builtin.files.goto_node_in_files_panel, panels.goto_node_in_files_panel, "Go to node in the files panel")
+
   M.define_action(
     builtin.search.search_for_node_in_panel,
     search.search_for_node_in_panel,
@@ -122,8 +124,6 @@ local function define_actions(config)
   M.define_action(builtin.search.search_interactively, search.search_interactively, "Search as you type", { "n" }, true)
   M.define_action(builtin.search.search_once, search.search_once, "Search", { "n" }, true)
   M.define_action(builtin.search.close_search, search.close_search, "Close search", { "n" }, true)
-
-  M.define_action(builtin.panel_specific.goto_node_in_files_panel, panels.goto_node_in_files_panel, "Go to node in the files panel")
 
   if config.git.enable then
     M.define_action(builtin.git.toggle_ignored, git.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)

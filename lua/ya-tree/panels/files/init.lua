@@ -19,12 +19,12 @@ local fn = vim.fn
 ---
 ---| "toggle_filter"
 ---
+---| "goto_node_in_files_panel"
+---
 ---| "search_for_node_in_panel"
 ---| "search_interactively"
 ---| "search_once"
 ---| "close_search"
----
----| "goto_node_in_files_panel"
 ---
 ---| "toggle_ignored"
 ---| "check_node_for_git"
@@ -73,12 +73,12 @@ function M.setup(config)
 
     builtin.files.toggle_filter,
 
+    builtin.files.goto_node_in_files_panel,
+
     builtin.search.search_for_node_in_panel,
     builtin.search.search_interactively,
     builtin.search.search_once,
     builtin.search.close_search,
-
-    builtin.panel_specific.goto_node_in_files_panel,
 
     builtin.git.toggle_ignored,
     builtin.git.check_node_for_git,

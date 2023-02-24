@@ -4,9 +4,9 @@ local utils = require("ya-tree.utils")
 ---| "cd_to"
 ---| "toggle_filter"
 ---
----| "search_for_node_in_panel"
----
 ---| "goto_node_in_files_panel"
+---
+---| "search_for_node_in_panel"
 ---
 ---| "toggle_ignored"
 ---| "check_node_for_git"
@@ -43,9 +43,9 @@ function M.setup(config)
     builtin.files.cd_to,
     builtin.files.toggle_filter,
 
-    builtin.search.search_for_node_in_panel,
+    builtin.files.goto_node_in_files_panel,
 
-    builtin.panel_specific.goto_node_in_files_panel,
+    builtin.search.search_for_node_in_panel,
 
     builtin.git.toggle_ignored,
     builtin.git.check_node_for_git,

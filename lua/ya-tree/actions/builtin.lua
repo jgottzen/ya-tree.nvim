@@ -4,18 +4,22 @@
 ---| "open_help"
 ---| "show_node_info"
 ---| "close_panel"
+--
 ---| "open_symbols_panel",
 ---| "open_git_status_panel"
 ---| "open_buffers_panel"
+--
 ---| "open"
 ---| "vsplit"
 ---| "split"
 ---| "tabnew"
 ---| "preview"
 ---| "preview_and_focus"
+--
 ---| "copy_name_to_clipboard"
 ---| "copy_root_relative_path_to_clipboard"
 ---| "copy_absolute_path_to_clipboard"
+--
 ---| "close_node"
 ---| "close_all_nodes"
 ---| "close_all_child_nodes"
@@ -39,13 +43,12 @@
 ---| "cd_to"
 ---| "cd_up"
 ---| "toggle_filter"
+---| "goto_node_in_files_panel"
 ---
 ---| "search_for_node_in_panel"
 ---| "search_interactively"
 ---| "search_once"
 ---| "close_search"
----
----| "goto_node_in_files_panel"
 ---
 ---| "toggle_ignored"
 ---| "check_node_for_git"
@@ -110,15 +113,14 @@ local M = {
     cd_up = "cd_up",
 
     toggle_filter = "toggle_filter",
+
+    goto_node_in_files_panel = "goto_node_in_files_panel",
   },
   search = {
     search_for_node_in_panel = "search_for_node_in_panel",
     search_interactively = "search_interactively",
     search_once = "search_once",
     close_search = "close_search",
-  },
-  panel_specific = {
-    goto_node_in_files_panel = "goto_node_in_files_panel",
   },
   git = {
     toggle_ignored = "toggle_ignored",
