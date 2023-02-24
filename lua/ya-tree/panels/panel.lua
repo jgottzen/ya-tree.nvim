@@ -125,7 +125,7 @@ function Panel:open(direction, width)
 
   self:draw()
   if self.pos_after_win_leave then
-    api.nvim_win_set_cursor(self._winid, self.pos_after_win_leave)
+    pcall(api.nvim_win_set_cursor, self._winid, self.pos_after_win_leave)
   end
   self:on_win_open()
 end
