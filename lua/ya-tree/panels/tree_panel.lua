@@ -23,8 +23,8 @@ local api = vim.api
 ---@field private previous_row integer
 ---@field protected path_lookup { [integer]: string, [integer]: string }
 ---@field protected renderers Yat.Panel.TreeRenderers
----@field protected _directory_min_diagnostic_severity integer
----@field protected _file_min_diagnostic_severity integer
+---@field protected _directory_min_diagnostic_severity DiagnosticSeverity
+---@field protected _file_min_diagnostic_severity DiagnosticSeverity
 local TreePanel = meta.create_class("Yat.Panel.Tree", Panel)
 
 function TreePanel.__tostring(self)
@@ -89,12 +89,12 @@ function TreePanel:has_renderer(name)
   return false
 end
 
----@return integer severity
+---@return DiagnosticSeverity severity
 function TreePanel:directory_min_severity()
   return self._directory_min_diagnostic_severity
 end
 
----@return integer severity
+---@return DiagnosticSeverity severity
 function TreePanel:file_min_severity()
   return self._file_min_diagnostic_severity
 end

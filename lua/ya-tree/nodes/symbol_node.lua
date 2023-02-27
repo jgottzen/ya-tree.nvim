@@ -74,7 +74,7 @@ function SymbolNode:is_editable()
   return true
 end
 
----@return integer|nil
+---@return DiagnosticSeverity|nil
 function SymbolNode:diagnostic_severity()
   if not self.parent then
     -- self is the root node

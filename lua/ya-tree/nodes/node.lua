@@ -431,7 +431,7 @@ function Node:clipboard_status()
   return self._clipboard_status
 end
 
----@return integer|nil
+---@return DiagnosticSeverity|nil
 function Node:diagnostic_severity()
   return diagnostics.severity_of(self.path)
 end

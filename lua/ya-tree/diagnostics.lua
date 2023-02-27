@@ -4,27 +4,15 @@ local Path = require("ya-tree.path")
 
 local api = vim.api
 
----@class Nvim.DiagnosticStruct
----@field bufnr integer
----@field lnum integer
----@field end_lnum? integer
----@field col integer
----@field end_col? integer
----@field severity integer
----@field message? string
----@field source? string
----@field code? string
----@field user_data? table
-
 local M = {
-  ---@type table<string, Nvim.DiagnosticStruct[]>
+  ---@type table<string, Diagnostic[]>
   current_diagnostics = {},
   ---@type table<string, integer>
   current_diagnostic_severities = {},
 }
 
 ---@param path string
----@return Nvim.DiagnosticStruct[]|nil
+---@return Diagnostic[]|nil
 function M.diagnostics_of(path)
   return M.current_diagnostics[path]
 end
@@ -35,12 +23,13 @@ function M.severity_of(path)
   return M.current_diagnostic_severities[path]
 end
 
-local function on_diagnostics_changed()
-  ---@type table<string, Nvim.DiagnosticStruct[]>, table<string, integer>
+---@param diagnostics Diagnostic[]
+local function on_diagnostics_changed(diagnostics)
+  ---@type table<string, Diagnostic[]>, table<string, integer>
   local new_diagnostics, new_severity_diagnostics = {}, {}
-  for _, diagnostic in ipairs(vim.diagnostic.get()) do
-    ---@cast diagnostic Nvim.DiagnosticStruct
-    local bufnr = diagnostic.bufnr
+  for _, diagnostic in ipairs(diagnostics) do
+    ---@diagnostic disable-next-line:undefined-field
+    local bufnr = diagnostic.bufnr --[[@type integer]]
     if api.nvim_buf_is_valid(bufnr) then
       local bufname = api.nvim_buf_get_name(bufnr)
       local current = new_diagnostics[bufname]
@@ -105,7 +94,9 @@ function M.setup(config)
     api.nvim_create_autocmd("DiagnosticChanged", {
       group = group,
       pattern = "*",
-      callback = debounced_trailing(on_diagnostics_changed, config.diagnostics.debounce_time),
+      callback = debounced_trailing(function(args)
+        on_diagnostics_changed(args.data.diagnostics)
+      end, config.diagnostics.debounce_time),
       desc = "Diagnostics handler",
     })
   end

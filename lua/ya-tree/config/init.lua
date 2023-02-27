@@ -776,8 +776,8 @@ local M = {
 
         ---@class Yat.Config.Renderers.Builtin.Diagnostics : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-        ---@field directory_min_severity integer The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
-        ---@field file_min_severity integer The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
+        ---@field directory_min_severity DiagnosticSeverity The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
+        ---@field file_min_severity DiagnosticSeverity The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
         diagnostics = {
           padding = " ",
           directory_min_severity = vim.diagnostic.severity.ERROR,
