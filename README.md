@@ -53,7 +53,7 @@ By default the topmost left side panel is focused when the sidebar is opened.
 
 #### `no-focus`
 
-Keep the current window focused.
+Keep the current window focused. Must be the first argument.
 
 ```vim
 :YaTreeOpen no-focus

@@ -129,7 +129,7 @@ end
 ---@param fargs string[]
 ---@return Yat.OpenWindowArgs
 local function parse_open_command_input(fargs)
-  local focus = fargs[1] == "no-focus" and false or true
+  local focus = fargs[1] ~= "no-focus"
   local panel_pos = focus and 1 or 2
   local panel_type = fargs[panel_pos]
   local args = panel_pos < #fargs and { unpack(fargs, panel_pos + 1) } or nil
