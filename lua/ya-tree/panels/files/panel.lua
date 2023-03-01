@@ -158,6 +158,17 @@ function FilesPanel:on_cwd_changed(new_cwd)
   end
 end
 
+---@protected
+function FilesPanel:on_win_opened()
+  local config = require("ya-tree.config").config
+  if config.move_cursor_to_name then
+    self:create_move_to_name_autocmd()
+  end
+  if config.follow_focused_file then
+    self:expand_to_current_buffer()
+  end
+end
+
 ---@async
 ---@param args table<string, string>
 function FilesPanel:command_arguments(args)

@@ -133,17 +133,10 @@ function SymbolsPanel:on_lsp_attach(bufnr, file)
 end
 
 ---@protected
-function SymbolsPanel:on_win_open()
+function SymbolsPanel:on_win_opened()
   local config = require("ya-tree.config").config
   if config.move_cursor_to_name then
-    api.nvim_create_autocmd("CursorMoved", {
-      group = self.window_augroup,
-      buffer = self:bufnr(),
-      callback = function()
-        self:move_cursor_to_name()
-      end,
-      desc = "Moving cursor to name",
-    })
+    self:create_move_to_name_autocmd()
   end
   if config.panels.symbols.scroll_buffer_to_symbol then
     api.nvim_create_autocmd("CursorHold", {

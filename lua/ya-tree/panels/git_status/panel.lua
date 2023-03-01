@@ -117,6 +117,17 @@ function GitStatusPanel:on_fs_changed_event(dir, filenames)
   end
 end
 
+---@protected
+function GitStatusPanel:on_win_opened()
+  local config = require("ya-tree.config").config
+  if config.move_cursor_to_name then
+    self:create_move_to_name_autocmd()
+  end
+  if config.follow_focused_file then
+    self:expand_to_current_buffer()
+  end
+end
+
 ---@async
 ---@param args table<string, string>
 function GitStatusPanel:command_arguments(args)

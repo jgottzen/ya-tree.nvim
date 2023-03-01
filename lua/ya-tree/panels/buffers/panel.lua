@@ -161,6 +161,17 @@ function BuffersPanel:on_buffer_deleted(bufnr, file)
 end
 
 ---@protected
+function BuffersPanel:on_win_opened()
+  local config = require("ya-tree.config").config
+  if config.move_cursor_to_name then
+    self:create_move_to_name_autocmd()
+  end
+  if config.follow_focused_file then
+    self:expand_to_current_buffer()
+  end
+end
+
+---@protected
 ---@return string complete_func
 ---@return string search_root
 function BuffersPanel:get_complete_func_and_search_root()

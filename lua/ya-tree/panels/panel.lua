@@ -127,7 +127,7 @@ function Panel:open(direction, width)
   if self.pos_after_win_leave then
     pcall(api.nvim_win_set_cursor, self._winid, self.pos_after_win_leave)
   end
-  self:on_win_open()
+  self:on_win_opened()
 end
 
 ---@private
@@ -253,7 +253,7 @@ function Panel:_on_win_closed()
 end
 
 ---@protected
-function Panel:on_win_open() end
+function Panel:on_win_opened() end
 
 ---@protected
 function Panel:on_win_closed() end

@@ -175,21 +175,27 @@ end
 ---@param match string
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_buffer_enter(bufnr, file, match)
+  if self:is_open() and require("ya-tree.config").config.follow_focused_file then
+    self:expand_to_buffer(bufnr, file)
+  end
+end
+
+---@async
+---@param bufnr integer
+---@param bufname string
+function TreePanel:expand_to_buffer(bufnr, bufname)
   local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
-  if not ok or not ((buftype == "" and file ~= "") or buftype == "terminal") then
+  if not ok or not ((buftype == "" and bufname ~= "") or buftype == "terminal") then
     return
   end
 
-  local config = require("ya-tree.config").config
-  if config.follow_focused_file and self:is_open() then
-    if self.root:is_ancestor_of(file) then
-      log.debug("focusing on node %q", file)
-      local node = self.root:expand({ to = file })
-      if node then
-        -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-        scheduler()
-        self:draw(node)
-      end
+  if self.root:is_ancestor_of(bufname) or self.root.path == bufname then
+    log.debug("focusing on node %q", bufname)
+    local node = self.root:expand({ to = bufname })
+    if node then
+      -- we need to allow the event loop to catch up when we enter a buffer after one was closed
+      scheduler()
+      self:draw(node)
     end
   end
 end
@@ -461,30 +467,24 @@ function TreePanel:create_keymap_function(action)
 end
 
 ---@protected
-function TreePanel:on_win_open()
-  local config = require("ya-tree.config").config
-  if config.move_cursor_to_name then
-    api.nvim_create_autocmd("CursorMoved", {
-      group = self.window_augroup,
-      buffer = self:bufnr(),
-      callback = function()
-        self:move_cursor_to_name()
-      end,
-      desc = "Moving cursor to name",
-    })
-  end
-  if config.follow_focused_file then
-    local edit_win = self.sidebar:edit_win()
-    if edit_win then
-      local bufnr = api.nvim_win_get_buf(edit_win)
-      if api.nvim_buf_get_option(bufnr, "buftype") == "" then
-        local path = api.nvim_buf_get_name(bufnr)
-        if self.root:is_ancestor_of(path) or self.root.path == path then
-          local node = self.root:expand({ to = path })
-          self:draw(node)
-        end
-      end
-    end
+function TreePanel:create_move_to_name_autocmd()
+  api.nvim_create_autocmd("CursorMoved", {
+    group = self.window_augroup,
+    buffer = self:bufnr(),
+    callback = function()
+      self:move_cursor_to_name()
+    end,
+    desc = "Moving cursor to name",
+  })
+end
+
+---@async
+function TreePanel:expand_to_current_buffer()
+  local edit_win = self.sidebar:edit_win()
+  if edit_win then
+    local bufnr = api.nvim_win_get_buf(edit_win)
+    local bufname = api.nvim_buf_get_name(bufnr)
+    self:expand_to_buffer(bufnr, bufname)
   end
 end
 
