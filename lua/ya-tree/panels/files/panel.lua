@@ -44,7 +44,7 @@ local function create_root_node(path, old_root)
     root:add_child(old_root)
     old_root.parent = root
     local repo = old_root.repo
-    if repo and root.path:find(repo.toplevel, 1, true) then
+    if repo and vim.startswith(root.path, repo.toplevel) then
       root.repo = repo
     end
   end
@@ -211,6 +211,7 @@ end
 ---@param new_root string
 ---@return boolean `false` if the current tree cannot walk up or down to reach the specified directory.
 function FilesPanel:update_tree_root_node(new_root)
+  new_root = Path:new(new_root):absolute()
   if self.files_root.path ~= new_root then
     local root
     if self.files_root:is_ancestor_of(new_root) then
@@ -223,7 +224,7 @@ function FilesPanel:update_tree_root_node(new_root)
       else
         root = self.files_root:expand({ force_scan = true, to = new_root })
       end
-    elseif self.files_root.path:find(Path:new(new_root):absolute(), 1, true) then
+    elseif vim.startswith(self.files_root.path, new_root) then
       log.debug("current root %s is a child of new root %q, creating parents up to it", tostring(self.files_root), new_root)
       -- the new root is located 'above' the current root,
       -- walk upwards from the current root's parent and see if it's already loaded, if so, us it

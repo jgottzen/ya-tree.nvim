@@ -362,7 +362,7 @@ end
 ---@param path string
 ---@return boolean
 function Node:is_ancestor_of(path)
-  return self:has_children() and #self.path < #path and path:find(self.path .. utils.os_sep, 1, true) ~= nil
+  return self:has_children() and #self.path < #path and vim.startswith(path, self.path .. utils.os_sep)
 end
 
 ---@return boolean

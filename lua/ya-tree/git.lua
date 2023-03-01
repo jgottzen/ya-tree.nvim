@@ -390,7 +390,7 @@ do
       log.error("only individual paths are supported by this method!")
       return
     end
-    local now = uv.hrtime() --[[@as integer]]
+    local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
       log.debug("refresh_status status called within 1 second, returning")
       return self:of(path, "file")
@@ -418,7 +418,7 @@ do
     local i, found = 1, false
     while i <= #results do
       local line = results[i]
-      if line:find(relative_path, 1, true) then
+      if vim.endswith(line, relative_path) then
         found = true
         local line_type = line:sub(1, 1)
         if line_type == "1" then
@@ -454,7 +454,7 @@ do
   ---  - {opts.ignored?} `boolean`
   ---@return boolean fs_changes
   function GitStatus:refresh(opts)
-    local now = uv.hrtime() --[[@as integer]]
+    local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
       log.debug("refresh_status status called within 1 second, returning")
       return false
@@ -754,7 +754,7 @@ function M.get_repo_for_path(path)
   local yadm_repos = {}
   for toplevel, repo in pairs(M.repos) do
     if not repo._is_yadm then
-      if path:find(toplevel, 1, true) then
+      if vim.startswith(path, toplevel) then
         return repo
       end
     else
@@ -763,7 +763,7 @@ function M.get_repo_for_path(path)
   end
 
   for toplevel, repo in pairs(yadm_repos) do
-    if path:find(toplevel, 1, true) then
+    if vim.startswith(path, toplevel) then
       return repo
     end
   end

@@ -403,10 +403,6 @@ local function is_likely_edit_window(winid)
     return false
   end
   local bufnr = api.nvim_win_get_buf(winid)
-  local name = api.nvim_buf_get_name(bufnr)
-  if name == "" or name:find("YaTree://YaTree", 1, true) ~= nil then
-    return false
-  end
   return api.nvim_buf_get_option(bufnr, "buftype") == ""
 end
 

@@ -218,7 +218,7 @@ local function get_buffers_root_path(tree_root_path, paths)
   else
     root_path = utils.find_common_ancestor(paths) or tree_root_path
   end
-  if root_path:find(tree_root_path .. utils.os_sep, 1, true) ~= nil then
+  if vim.startswith(root_path, tree_root_path .. utils.os_sep) then
     root_path = tree_root_path
   end
   return root_path

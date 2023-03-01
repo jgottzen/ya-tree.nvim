@@ -241,7 +241,7 @@ end
 ---@param fs_changes boolean
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_dot_git_dir_changed(repo, fs_changes)
-  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or repo.toplevel:find(self.root.path, 1, true) ~= nil) then
+  if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or vim.startswith(self.root.path, repo.toplevel)) then
     log.debug("git repo %s changed", tostring(repo))
     self:draw(self:get_current_node())
   end
