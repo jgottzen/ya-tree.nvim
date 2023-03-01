@@ -78,12 +78,13 @@ function BuffersPanel:on_buffer_new(bufnr, file)
       elseif node.bufnr ~= bufnr then
         log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
         node.bufnr = bufnr
-      else
-        return
       end
     end
 
-    self:draw(self:get_current_node())
+    if not require("ya-tree.config").config.follow_focused_file then
+      node = self:get_current_node()
+    end
+    self:draw(node)
   end
 end
 

@@ -85,6 +85,22 @@ function BufferNode:toggleterm_id()
   end
 end
 
+---@param path string
+---@return boolean
+local function is_path_terminal(path)
+  return vim.startswith(path, "term://")
+end
+
+---@param path string
+---@return boolean
+function BufferNode:is_ancestor_of(path)
+  if is_path_terminal(path) then
+    return self.parent == nil or self:is_terminals_container()
+  else
+    return self.super.is_ancestor_of(self, path)
+  end
+end
+
 ---@param cmd Yat.Action.Files.Open.Mode
 function BufferNode:edit(cmd)
   if self._type == "file" then
@@ -162,6 +178,19 @@ end
 
 ---@protected
 function BufferNode:_scandir() end
+
+---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+---@async
+---@param opts? {force_scan?: boolean, to?: string}
+---  - {opts.force_scan?} `boolean` rescan directories.
+---  - {opts.to?} `string` recursively expand to the specified path and return it.
+---@return Yat.Nodes.Buffer|nil node if {opts.to} is specified, and found.
+function BufferNode:expand(opts)
+  if opts and opts.to and is_path_terminal(opts.to) then
+    opts.to = self:terminal_name_to_path(opts.to)
+  end
+  return self.super.expand(self, opts)
+end
 
 ---@async
 ---@param paths string[]
