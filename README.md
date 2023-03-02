@@ -1726,7 +1726,7 @@ initiate any further calls, if possible.
 
 </details>
 
-## Acknowlegdements
+## Acknowledgments
 
  - [gitsigns.nvim](https://github.com/lewis6991/gitsigns.nvim) for Git integration in Lua.
  - [async.nvim](https://github.com/lewis6991/async.nvim) for async.
