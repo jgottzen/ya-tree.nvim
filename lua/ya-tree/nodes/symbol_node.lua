@@ -114,8 +114,8 @@ end
 function SymbolNode:add_child(symbol)
   if not self._children then
     self._children = {}
-    self.empty = false
   end
+  self.empty = false
   local path = self.path .. "/" .. symbol.name .. (#self._children + 1)
   local node = SymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)
   node.symbol = symbol
@@ -152,7 +152,6 @@ function SymbolNode:refresh(opts)
   for _, symbol in ipairs(symbols) do
     self:add_child(symbol)
   end
-  self.empty = #self._children ~= 0
 end
 
 return SymbolNode

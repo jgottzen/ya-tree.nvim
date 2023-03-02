@@ -35,7 +35,6 @@ function SymbolsPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local root = self:create_root_node(path)
   self.super:init("symbols", sidebar, config.title, config.icon, keymap, renderers, root)
-  self.current_node = self.root:refresh() or root
   if self:has_renderer("modified") then
     self:register_buffer_modified_event()
   end
