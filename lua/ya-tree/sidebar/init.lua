@@ -353,6 +353,18 @@ end
 
 ---@async
 ---@param focus boolean
+---@param direction? Yat.CallHierarchy.Direction
+---@return Yat.Panel.CallHierarchy? panel
+function Sidebar:call_hierarchy(focus, direction)
+  local panel = self:open_panel("call_hierarchy", focus) --[[@as Yat.Panel.CallHierarchy?]]
+  if panel and direction then
+    panel:set_direction(direction)
+  end
+  return panel
+end
+
+---@async
+---@param focus boolean
 ---@param repo Yat.Git.Repo
 ---@return Yat.Panel.GitStatus? panel
 function Sidebar:git_status_panel(focus, repo)

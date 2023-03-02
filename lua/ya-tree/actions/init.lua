@@ -40,6 +40,7 @@ local function define_actions(config)
   M.actions = {}
 
   local builtin = require("ya-tree.actions.builtin")
+  local call_hierarchy = require("ya-tree.actions.call_hierarchy")
   local clipboard = require("ya-tree.actions.clipboard")
   local files = require("ya-tree.actions.files")
   local git = require("ya-tree.actions.git")
@@ -61,6 +62,13 @@ local function define_actions(config)
     M.define_action(builtin.general.open_git_status_panel, panels.open_git_status_panel, "Open the Git Status panel", { "n" }, true)
   end
   M.define_action(builtin.general.open_buffers_panel, panels.open_buffers_panel, "Open the Buffers panel", { "n" }, true)
+  M.define_action(
+    builtin.general.open_call_hierarchy_panel,
+    panels.open_call_hierarchy_panel,
+    "Open the Call Hierarchy panel",
+    { "n" },
+    true
+  )
 
   M.define_action(builtin.general.open, files.open, "Open file or directory", { "n", "v" })
   M.define_action(builtin.general.vsplit, files.vsplit, "Open file in a vertical split")
@@ -139,6 +147,21 @@ local function define_actions(config)
     M.define_action(builtin.diagnostics.focus_prev_diagnostic_item, nodes.focus_prev_diagnostic_item, "Go to the previous diagnostic item")
     M.define_action(builtin.diagnostics.focus_next_diagnostic_item, nodes.focus_next_diagnostic_item, "Go to the next diagnostic item")
   end
+
+  M.define_action(
+    builtin.call_hierarchy.toggle_call_direction,
+    call_hierarchy.toggle_direction,
+    "Toggle call hierarchy direction",
+    { "n" },
+    true
+  )
+  M.define_action(
+    builtin.call_hierarchy.create_call_hierarchy_from_buffer_position,
+    call_hierarchy.create_call_hierarchy_from_buffer_position,
+    "Create call hierchy from buffer position",
+    { "n" },
+    true
+  )
 
   for name, action in pairs(config.actions) do
     log.debug("defining user action %q", name)

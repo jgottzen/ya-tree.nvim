@@ -20,6 +20,14 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Tree
+function M.open_call_hierarchy_panel(panel)
+  if panel.TYPE ~= "call_hierarchy" then
+    panel.sidebar:call_hierarchy(true)
+  end
+end
+
+---@async
+---@param panel Yat.Panel.Tree
 ---@param node? Yat.Node
 function M.open_git_status_panel(panel, node)
   if not require("ya-tree.config").config.git.enable then

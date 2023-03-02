@@ -1,6 +1,6 @@
 # ya-tree.nvim
 
-Ya-Tree is sidebar plugin with file browser, Git status, LSP Symbols and buffers panels.
+Ya-Tree is sidebar plugin with file browser, Git status, LSP Symbols, LSP Call Hierarchy and buffers panels.
 Additional panels can easily be created.
 
 <!-- panvimdoc-ignore-start -->
@@ -18,6 +18,7 @@ Additional panels can easily be created.
 - Basic file operations.
 - LSP Diagnostics.
 - LSP Symbols.
+- LSP Call Hierarchy.
 - One or two sidebars per tabpage.
 - One or more panels per sidebar.
 - Tabpage working directory aware.
@@ -64,10 +65,11 @@ Keep the current window focused. Must be the first argument.
 A specific panel to focus, and/or it's specific arguments.
 
 The builtin panel types are:
-- `files`:      Regular file browser.
-- `git_status`: Git status.
-- `buffers`:    List of currently open buffers, including terminals.
-- `symbols`:    Lsp symbols of the current buffer.
+- `files`:          Regular file browser.
+- `git_status`:     Git status.
+- `buffers`:        List of currently open buffers, including terminals.
+- `symbols`:        Lsp symbols of the current buffer.
+- `call_hierarchy`: Lsp call hierarchy.
 
 ```vim
 YaTreeOpen files
@@ -102,7 +104,21 @@ Which repository to open to in the `git_status` panel.
 :YaTreeOpen git_status dir=/path/to/repo/or/directory/in/repo
 ```
 
-Examples:
+#### `call_hierarchy` panel arguments
+
+##### `direction`
+
+**Type**: key-value pair.
+
+**Values**: `direction=incoming` or `direction=outgoing`.
+
+Incoming or outgoing calls, the default is incoming.
+
+```vim
+:YaTreeopen call_hierarchy direction=outgoing
+```
+
+#### Examples:
 
 - `YaTreeOpen` Open the sidebar, and focus the first panel.
 - `YaTreeOpen no-focus` Open the sidebar, but keep the current window focused.
@@ -111,6 +127,7 @@ Examples:
 - `YaTreeOpen files path=/path/to/other/directory` Open the sidebar and focus  the `files` panel and changes the root to the path `/path/to/other/directory`.
 - `YaTreeOpen files path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer.
 - `YaTreeOpen no-focus git_status` Open the sidebar and the `git_status` panel, but keep the current window focused.
+- `YaTreeOpen call_hierarchy direction=outgoing` Open the sidebar and the `call_hierarchy` panel, with outgoing calls.
 
 The lua api is:
 
@@ -158,7 +175,7 @@ The `ya-tree.setup()` function must be run for YaTree to be properly initialized
 which is fully annotated with `EmmyLua`.
 
 In the default configuration, only the `files` panel is enabled, i.e. functioning as regular file-tree plugin.
-To enable more panels call `ya-tree.setup()` like this:
+To enable more panels call `ya-tree.setup` like this:
 
 ```lua
 require("ya-tree").setup({
@@ -175,6 +192,7 @@ require("ya-tree").setup({
       right = {
         panels = {
           { panel = "git_status", show = false },
+          { panel = "call_hierarchy", show = false, height = 30 },
         },
         width = 40,
       },
@@ -184,8 +202,9 @@ require("ya-tree").setup({
 ```
 
 and it will open a sidebar on the left side with the `files`, `symbols` panels. The `buffers` panel can be opened with
-the `open_buffers_panel` action (`b` by default) and the right side with the `git_status` panel can be opened by
-using the `open_git_status_panel` action (`<C-g>` by default).
+the `open_buffers_panel` action (`b` by default) and the right side with the `git_status` and `call_hierarchy` panels
+can be opened by using the `open_git_status_panel` action (`<C-g>` by default) or the `open_call_hierarchy_panel`
+action (`gc` by default).
 
 <details>
 
@@ -352,7 +371,7 @@ local DEFAULT = {
     border = "rounded",
   },
 
-  ---@alias Yat.Panel.Type "files"|"git_status"|"symbols"|"buffers"|string
+  ---@alias Yat.Panel.Type "files"|"git_status"|"symbols"|"call_hierarchy"|"buffers"|string
 
   ---@class Yat.Config.Sidebar
   ---@field layout Yat.Config.Sidebar.Layout The layout configuration for the sidebar.
@@ -415,6 +434,7 @@ local DEFAULT = {
   ---@class Yat.Config.Panels
   ---@field files Yat.Config.Panels.Files Files panel configuration.
   ---@field symbols Yat.Config.Panels.Symbols Lsp Symbols panel configuration.
+  ---@field call_hierarchy Yat.Config.Panels.CallHierarchy Call hierarchy panel configuration.
   ---@field git_status Yat.Config.Panels.GitStatus Git Status panel configuration.
   ---@field buffers Yat.Config.Panels.Buffers Buffers panel configuration.
   ---@field [Yat.Panel.Type] Yat.Config.Panels.Panel
@@ -445,6 +465,7 @@ local DEFAULT = {
           ["gs"] = "open_symbols_panel",
           ["<C-g>"] = "open_git_status_panel",
           ["b"] = "open_buffers_panel",
+          ["gc"] = "open_call_hierarchy_panel",
           ["gx"] = "system_open",
           ["<C-i>"] = "show_node_info",
           ["<CR>"] = "open",
@@ -528,80 +549,6 @@ local DEFAULT = {
       },
     },
 
-    ---@class Yat.Config.Panels.Symbols : Yat.Config.Panels.Panel
-    ---@field title string The name of the panel, default: `"Lsp Symbols"`.
-    ---@field icon string The icon for the panel, default" `""`.
-    ---@field scroll_buffer_to_symbol boolean Whether to scroll the file to the current symbol, default: `true`.
-    ---@field mappings Yat.Config.Panels.Symbols.Mappings Panel specific mappings.
-    ---@field renderers Yat.Config.Panels.Symbols.Renderers Panel specific renderers.
-    symbols = {
-      title = "Lsp Symbols",
-      icon = "",
-      scroll_buffer_to_symbol = true,
-      ---@class Yat.Config.Panels.Symbols.Mappings : Yat.Config.Panels.Mappings
-      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-      ---@field list table<string, Yat.Panel.Symbols.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
-      mappings = {
-        disable_defaults = false,
-        list = {
-          ["q"] = "close_sidebar",
-          ["<C-x>"] = "close_panel",
-          ["?"] = "open_help",
-          ["<C-g>"] = "open_git_status_panel",
-          ["b"] = "open_buffers_panel",
-          ["gx"] = "system_open",
-          ["<C-i>"] = "show_node_info",
-          ["<CR>"] = "open",
-          ["o"] = "open",
-          ["<2-LeftMouse>"] = "open",
-          ["<C-v>"] = "vsplit",
-          ["<C-s>"] = "split",
-          ["<C-t>"] = "tabnew",
-          ["<Tab>"] = "preview",
-          ["<C-Tab>"] = "preview_and_focus",
-          ["y"] = "copy_name_to_clipboard",
-          ["Y"] = "copy_root_relative_path_to_clipboard",
-          ["gy"] = "copy_absolute_path_to_clipboard",
-          ["<BS>"] = "close_node",
-          ["Z"] = "close_all_nodes",
-          ["z"] = "close_all_child_nodes",
-          ["E"] = "expand_all_nodes",
-          ["e"] = "expand_all_child_nodes",
-          ["R"] = "refresh_panel",
-          ["P"] = "focus_parent",
-          ["<"] = "focus_prev_sibling",
-          [">"] = "focus_next_sibling",
-          ["K"] = "focus_first_sibling",
-          ["J"] = "focus_last_sibling",
-          ["S"] = "search_for_node_in_panel",
-          ["[e"] = "focus_prev_diagnostic_item",
-          ["]e"] = "focus_next_diagnostic_item",
-        },
-      },
-      ---@alias Yat.Config.Panels.Symbols.DirectoryRendererName "indentation"|"icon"|"name"|"modified"|"symbol_details"|"diagnostics"|string
-      ---@alias Yat.Config.Panels.Symbols.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|"diagnostics"|string
-
-      ---@class Yat.Config.Panels.Symbols.Renderers : Yat.Config.Panels.TreeRenderers
-      ---@field directory { name : Yat.Config.Panels.Symbols.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
-      ---@field file { name : Yat.Config.Panels.Symbols.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
-      renderers = {
-        directory = {
-          { name = "indentation" },
-          { name = "icon" },
-          { name = "name" },
-          { name = "symbol_details" },
-          { name = "diagnostics" },
-        },
-        file = {
-          { name = "indentation" },
-          { name = "icon" },
-          { name = "name" },
-          { name = "symbol_details" },
-          { name = "diagnostics" },
-        },
-      },
-    },
-
     ---@class Yat.Config.Panels.GitStatus : Yat.Config.Panels.Panel
     ---@field title string The name of the panel, default: `"Git"`.
     ---@field icon string The icon for the panel, default: `""`.
@@ -621,6 +568,7 @@ local DEFAULT = {
           ["?"] = "open_help",
           ["gs"] = "open_symbols_panel",
           ["b"] = "open_buffers_panel",
+          ["gc"] = "open_call_hierarchy_panel",
           ["gx"] = "system_open",
           ["<C-i>"] = "show_node_info",
           ["<CR>"] = "open",
@@ -689,6 +637,152 @@ local DEFAULT = {
       },
     },
 
+    ---@class Yat.Config.Panels.Symbols : Yat.Config.Panels.Panel
+    ---@field title string The name of the panel, default: `"Lsp Symbols"`.
+    ---@field icon string The icon for the panel, default" `""`.
+    ---@field scroll_buffer_to_symbol boolean Whether to scroll the file to the current symbol, default: `true`.
+    ---@field mappings Yat.Config.Panels.Symbols.Mappings Panel specific mappings.
+    ---@field renderers Yat.Config.Panels.Symbols.Renderers Panel specific renderers.
+    symbols = {
+      title = "Lsp Symbols",
+      icon = "",
+      scroll_buffer_to_symbol = true,
+      ---@class Yat.Config.Panels.Symbols.Mappings : Yat.Config.Panels.Mappings
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
+      ---@field list table<string, Yat.Panel.Symbols.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+      mappings = {
+        disable_defaults = false,
+        list = {
+          ["q"] = "close_sidebar",
+          ["<C-x>"] = "close_panel",
+          ["?"] = "open_help",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gc"] = "open_call_hierarchy_panel",
+          ["gx"] = "system_open",
+          ["<C-i>"] = "show_node_info",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["<C-t>"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_panel",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
+          ["S"] = "search_for_node_in_panel",
+          ["[e"] = "focus_prev_diagnostic_item",
+          ["]e"] = "focus_next_diagnostic_item",
+        },
+      },
+      ---@alias Yat.Config.Panels.Symbols.DirectoryRendererName "indentation"|"icon"|"name"|"modified"|"symbol_details"|"diagnostics"|string
+      ---@alias Yat.Config.Panels.Symbols.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|"diagnostics"|string
+
+      ---@class Yat.Config.Panels.Symbols.Renderers : Yat.Config.Panels.TreeRenderers
+      ---@field directory { name : Yat.Config.Panels.Symbols.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+      ---@field file { name : Yat.Config.Panels.Symbols.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
+      renderers = {
+        directory = {
+          { name = "indentation" },
+          { name = "icon" },
+          { name = "name" },
+          { name = "symbol_details" },
+          { name = "diagnostics" },
+        },
+        file = {
+          { name = "indentation" },
+          { name = "icon" },
+          { name = "name" },
+          { name = "symbol_details" },
+          { name = "diagnostics" },
+        },
+      },
+    },
+
+    ---@class Yat.Config.Panels.CallHierarchy : Yat.Config.Panels.Panel
+    ---@field title string The name of the panel, default: `"Call Hierarchy"`.
+    ---@field icon string The icon for the panel, default" `""`.
+    ---@field mappings Yat.Config.Panels.CallHierarchy.Mappings Panel specific mappings.
+    ---@field renderers Yat.Config.Panels.CallHierarchy.Renderers Panel specific renderers.
+    call_hierarchy = {
+      title = "Call Hierarchy",
+      icon = "", --  , ,
+      ---@class Yat.Config.Panels.CallHierarchy.Mappings : Yat.Config.Panels.Mappings
+      ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
+      ---@field list table<string, Yat.Panel.CallHierarchy.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+      mappings = {
+        disable_defaults = false,
+        list = {
+          ["q"] = "close_sidebar",
+          ["<C-x>"] = "close_panel",
+          ["?"] = "open_help",
+          ["gs"] = "open_symbols_panel",
+          ["<C-g>"] = "open_git_status_panel",
+          ["b"] = "open_buffers_panel",
+          ["gx"] = "system_open",
+          ["<C-i>"] = "show_node_info",
+          ["<CR>"] = "open",
+          ["o"] = "open",
+          ["<2-LeftMouse>"] = "open",
+          ["<C-v>"] = "vsplit",
+          ["<C-s>"] = "split",
+          ["<C-t>"] = "tabnew",
+          ["<Tab>"] = "preview",
+          ["<C-Tab>"] = "preview_and_focus",
+          ["y"] = "copy_name_to_clipboard",
+          ["Y"] = "copy_root_relative_path_to_clipboard",
+          ["gy"] = "copy_absolute_path_to_clipboard",
+          ["<BS>"] = "close_node",
+          ["Z"] = "close_all_nodes",
+          ["z"] = "close_all_child_nodes",
+          ["E"] = "expand_all_nodes",
+          ["e"] = "expand_all_child_nodes",
+          ["R"] = "refresh_panel",
+          ["P"] = "focus_parent",
+          ["<"] = "focus_prev_sibling",
+          [">"] = "focus_next_sibling",
+          ["K"] = "focus_first_sibling",
+          ["J"] = "focus_last_sibling",
+          ["S"] = "search_for_node_in_panel",
+          ["gt"] = "toggle_call_direction",
+          ["gc"] = "create_call_hierarchy_from_buffer_position",
+        },
+      },
+      ---@alias Yat.Config.Panels.CallHierarchy.DirectoryRendererName "indentation"|"icon"|"name"|"symbol_details"|string
+      ---@alias Yat.Config.Panels.CallHierarchy.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|string
+
+      ---@class Yat.Config.Panels.CallHierarchy.Renderers : Yat.Config.Panels.TreeRenderers
+      ---@field directory { name : Yat.Config.Panels.CallHierarchy.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+      ---@field file { name : Yat.Config.Panels.CallHierarchy.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
+      renderers = {
+        directory = {
+          { name = "indentation" },
+          { name = "icon" },
+          { name = "name" },
+          { name = "symbol_details" },
+        },
+        file = {
+          { name = "indentation" },
+          { name = "icon" },
+          { name = "name" },
+          { name = "symbol_details" },
+        },
+      },
+    },
+
     ---@class Yat.Config.Panels.Buffers : Yat.Config.Panels.Panel
     ---@field title string The name of the panel, default: `"Buffers"`.
     ---@field icon string The icon for the panel, default: `""`.
@@ -709,6 +803,7 @@ local DEFAULT = {
           ["?"] = "open_help",
           ["gs"] = "open_symbols_panel",
           ["<C-g>"] = "open_git_status_panel",
+          ["gc"] = "open_call_hierarchy_panel",
           ["gx"] = "system_open",
           ["<C-i>"] = "show_node_info",
           ["<CR>"] = "open",
@@ -1008,6 +1103,7 @@ The builtin panels are:
 - `files`
 - `git_status`
 - `symbols`
+- `call_hierarchy`
 - `buffers`
 
 ## Mappings & Actions
@@ -1029,15 +1125,19 @@ The actions supported by the trees are:
 ---| "open_help"
 ---| "show_node_info"
 ---| "close_panel"
----| "open_symbols_panel",
+---|
 ---| "open_git_status_panel"
+---| "open_symbols_panel"
+---| "open_call_hierarchy_panel"
 ---| "open_buffers_panel"
+---|
 ---| "open"
 ---| "vsplit"
 ---| "split"
 ---| "tabnew"
 ---| "preview"
 ---| "preview_and_focus"
+---|
 ---| "copy_name_to_clipboard"
 ---| "copy_root_relative_path_to_clipboard"
 ---| "copy_absolute_path_to_clipboard"
@@ -1046,7 +1146,9 @@ The actions supported by the trees are:
 ---| "close_all_child_nodes"
 ---| "expand_all_nodes"
 ---| "expand_all_child_nodes"
+---|
 ---| "refresh_panel"
+---|
 ---| "focus_parent"
 ---| "focus_prev_sibling"
 ---| "focus_next_sibling"
@@ -1097,9 +1199,10 @@ The actions supported by the trees are:
 ---| "open_help"
 ---| "show_node_info"
 ---
----| "open_symbols_panel",
----| "open_git_status_panel",
----| "open_buffers_panel",
+---| "open_git_status_panel"
+---| "open_symbols_panel"
+---| "open_call_hierarchy_panel"
+---| "open_buffers_panel"
 ---
 ---| "open"
 ---| "vsplit"
@@ -1158,8 +1261,6 @@ The actions supported by the trees are:
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
----
----| Yat.Panel.Tree.SupportedActions
 ```
 
 </details>
@@ -1176,9 +1277,9 @@ The actions supported by the trees are:
 ---| "show_node_info"
 ---| "close_panel"
 ---
----| "open_symbols_panel",
----| "open_git_status_panel",
----| "open_buffers_panel",
+---| "open_symbols_panel"
+---| "open_call_hierarchy_panel"
+---| "open_buffers_panel"
 ---
 ---| "open"
 ---| "vsplit"
@@ -1223,8 +1324,6 @@ The actions supported by the trees are:
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
----
----| Yat.Panel.Tree.SupportedActions
 ```
 
 </details>
@@ -1241,9 +1340,9 @@ The actions supported by the trees are:
 ---| "show_node_info"
 ---| "close_panel"
 ---
----| "open_symbols_panel",
----| "open_git_status_panel",
----| "open_buffers_panel",
+---| "open_git_status_panel"
+---| "open_call_hierarchy_panel"
+---| "open_buffers_panel"
 ---
 ---| "open"
 ---| "vsplit"
@@ -1278,8 +1377,55 @@ The actions supported by the trees are:
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
+```
+
+</details>
+
+<details>
+
+<summary><b>Call Hierarchy panel actions:</b></summary>
+
+```lua
+---@alias Yat.Panel.CallHierarchy.SupportedActions
+---| "close_sidebar"
+---| "system_open"
+---| "open_help"
+---| "show_node_info"
+---| "close_panel"
 ---
----| Yat.Panel.Tree.SupportedActions
+---| "open_git_status_panel"
+---| "open_symbols_panel"
+---| "open_buffers_panel"
+---
+---| "open"
+---| "vsplit"
+---| "split"
+---| "tabnew"
+---| "preview"
+---| "preview_and_focus"
+---
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---
+---| "close_node"
+---| "close_all_nodes"
+---| "close_all_child_nodes"
+---| "expand_all_nodes"
+---| "expand_all_child_nodes"
+---
+---| "refresh_panel"
+---
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+---|
+---| "search_for_node_in_panel"
+---
+---| "toggle_call_direction"
+---| "create_call_hierarchy_from_buffer_position"
 ```
 
 </details>
@@ -1296,9 +1442,9 @@ The actions supported by the trees are:
 ---| "show_node_info"
 ---| "close_panel"
 ---
----| "open_symbols_panel",
----| "open_git_status_panel",
----| "open_buffers_panel",
+---| "open_git_status_panel"
+---| "open_symbols_panel"
+---| "open_call_hierarchy_panel"
 ---
 ---| "open"
 ---| "vsplit"
@@ -1342,8 +1488,6 @@ The actions supported by the trees are:
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
----
----| Yat.Panel.Tree.SupportedActions
 ```
 
 </details>

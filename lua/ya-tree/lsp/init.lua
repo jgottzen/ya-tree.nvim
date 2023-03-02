@@ -26,7 +26,28 @@ local lsp = vim.lsp
 ---@field selectionRange Lsp.Range
 ---@field children? Lsp.Symbol.Document[]
 
+---@class Lsp.CallHierarchy.Item
+---@field name string
+---@field kind Lsp.Symbol.Kind
+---@field tags? Lsp.Symbol.Tag[]
+---@field detail? string
+---@field uri string
+---@field range Lsp.Range
+---@field selectionRange Lsp.Range
+
+---@class Lsp.CallHierarchy.OutgoingCall
+---@field to Lsp.CallHierarchy.Item
+---@field fromRanges Lsp.Range[]
+
+---@class Lsp.CallHierarchy.IncomingCall
+---@field from Lsp.CallHierarchy.Item
+---@field fromRanges Lsp.Range[]
+
 local DOCUMENT_SYMBOL_METHOD = "textDocument/documentSymbol"
+
+local PREPARE_CALL_HIERARCHY_METHOD = "textDocument/prepareCallHierarchy"
+local OUTGOING_CALLS_METHOD = "callHierarchy/outgoingCalls"
+local INCOMING_CALLS_METHOD = "callHierarchy/incomingCalls"
 
 local M = {
   ---@private
@@ -88,13 +109,13 @@ function M.symbols(bufnr, refresh)
     local params = lsp.util.make_text_document_params(bufnr)
     ---@type table<integer, { result?: Lsp.Symbol.Document[], error?: Lsp.ResponseError }>
     local response = buf_request_all(bufnr, DOCUMENT_SYMBOL_METHOD, { textDocument = params })
-    for id, results in pairs(response) do
-      if results.result then
-        local result = normalize_symbols(results.result)
+    for id, message in pairs(response) do
+      if message.result then
+        local result = normalize_symbols(message.result)
         M.symbol_cache[bufnr] = { client_id = id, symbols = result }
         return id, result
-      elseif results.error then
-        log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(results.error))
+      elseif message.error then
+        log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(message.error))
       end
     end
   else
@@ -127,6 +148,79 @@ end
 ---@param range Lsp.Range
 function M.open_location(client_id, file, range)
   lsp.util.show_document({ uri = vim.uri_from_fname(file), range = range }, get_offset_encoding(client_id), { reuse_win = true })
+end
+
+---@async
+---@param winid integer
+---@param bufnr integer
+---@return Lsp.CallHierarchy.Item|nil call_site
+---@return string|nil error_message
+function M.call_site(winid, bufnr)
+  if not buf_has_client(bufnr, PREPARE_CALL_HIERARCHY_METHOD) then
+    log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, PREPARE_CALL_HIERARCHY_METHOD)
+    return nil, "No LSP support..."
+  end
+
+  local params = lsp.util.make_position_params(winid)
+  ---@type table<integer, { result?: Lsp.CallHierarchy.Item[], error?: Lsp.ResponseError }>
+  local response = buf_request_all(bufnr, PREPARE_CALL_HIERARCHY_METHOD, params)
+  for id, message in pairs(response) do
+    if message.result then
+      return message.result[1]
+    elseif message.error then
+      log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(message.error))
+    end
+  end
+  return nil, "LSP returned an error..."
+end
+
+---@async
+---@param bufnr integer
+---@param method string
+---@param call_site Lsp.CallHierarchy.Item
+---@return integer? client_id
+---@return Lsp.CallHierarchy.IncomingCall[]|Lsp.CallHierarchy.OutgoingCall[] calls
+local function create_call_hierarchy(bufnr, method, call_site)
+  ---@type table<integer, { result?: Lsp.CallHierarchy.IncomingCall[]|Lsp.CallHierarchy.OutgoingCall[], error?: Lsp.ResponseError }>
+  local response = buf_request_all(bufnr, method, { item = call_site })
+  for id, message in ipairs(response) do
+    if message.result then
+      return id, message.result
+    elseif message.error then
+      log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(message.error))
+    end
+  end
+  return nil, {}
+end
+
+---@async
+---@param bufnr integer
+---@param call_site Lsp.CallHierarchy.Item
+---@return integer? client_id
+---@return Lsp.CallHierarchy.OutgoingCall[]
+function M.outgoing_calls(bufnr, call_site)
+  if not buf_has_client(bufnr, OUTGOING_CALLS_METHOD) then
+    log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, OUTGOING_CALLS_METHOD)
+    return nil, {}
+  end
+
+  log.debug("getting outgoing calls for bufnr %s", bufnr)
+  return create_call_hierarchy(bufnr, OUTGOING_CALLS_METHOD, call_site)
+end
+
+---@async
+---@param bufnr integer
+---@param call_site Lsp.CallHierarchy.Item
+---@return integer? client_id
+---@return Lsp.CallHierarchy.IncomingCall[]
+function M.incoming_calls(bufnr, call_site)
+  if not buf_has_client(bufnr, INCOMING_CALLS_METHOD) then
+    log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, INCOMING_CALLS_METHOD)
+    return nil, {}
+  end
+
+  log.debug("getting incoming calls for bufnr %s", bufnr)
+  return create_call_hierarchy(bufnr, INCOMING_CALLS_METHOD, call_site)
 end
 
 local events = require("ya-tree.events")

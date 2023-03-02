@@ -17,6 +17,16 @@ function M.is_window_floating(winid)
   return win_config.relative > "" or win_config.external
 end
 
+---@param bufnr integer
+---@return integer|nil winid
+function M.get_window_for_buffer(bufnr)
+  for _, winid in ipairs(api.nvim_list_wins()) do
+    if api.nvim_win_get_buf(winid) == bufnr then
+      return winid
+    end
+  end
+end
+
 ---@param height integer|string
 ---@return integer height
 function M.normalize_height(height)

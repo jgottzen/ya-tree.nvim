@@ -149,14 +149,15 @@ function M.icon(node, context, renderer)
     return
   end
 
+  local node_type = node:node_type()
   local icon, highlight
   if
-    node:node_type() == "buffer" and node--[[@as Yat.Nodes.Buffer]]:is_terminals_container()
+    node_type == "buffer" and node--[[@as Yat.Nodes.Buffer]]:is_terminals_container()
   then
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
-  elseif node:node_type() == "symbol" then
-    ---@cast node Yat.Nodes.Symbol
+  elseif node_type == "symbol" or node_type == "call_hierarchy" then
+    ---@cast node Yat.Nodes.Symbol|Yat.Nodes.CallHierarchy
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
   elseif node:is_directory() then
@@ -220,11 +221,12 @@ end
 function M.name(node, context, renderer)
   if context.depth == 0 then
     local padding, text, highlight = "", nil, hl.ROOT_NAME
-    if node:node_type() == "text" then
+    local node_type = node:node_type()
+    if node_type == "text" then
       padding = renderer.padding
       text = node.name
       highlight = hl.DIM_TEXT
-    elseif node:node_type() == "symbol" then
+    elseif node_type == "symbol" or node_type == "call_hierarchy" then
       text = node.name
     else
       text = fn.fnamemodify(node.path, renderer.root_folder_format)

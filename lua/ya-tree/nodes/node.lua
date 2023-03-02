@@ -7,7 +7,7 @@ local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
----@alias Yat.Nodes.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"
+---@alias Yat.Nodes.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node

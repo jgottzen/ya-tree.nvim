@@ -8,6 +8,7 @@
 ---| "open_symbols_panel",
 ---| "open_git_status_panel"
 ---| "open_buffers_panel"
+---| "open_call_hierarchy_panel"
 --
 ---| "open"
 ---| "vsplit"
@@ -60,6 +61,9 @@
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
+---
+---| "toggle_call_direction"
+---| "create_call_hierarchy_from_buffer_position"
 
 local M = {
   general = {
@@ -72,6 +76,7 @@ local M = {
     open_symbols_panel = "open_symbols_panel",
     open_git_status_panel = "open_git_status_panel",
     open_buffers_panel = "open_buffers_panel",
+    open_call_hierarchy_panel = "open_call_hierarchy_panel",
 
     open = "open",
     vsplit = "vsplit",
@@ -134,6 +139,10 @@ local M = {
   diagnostics = {
     focus_prev_diagnostic_item = "focus_prev_diagnostic_item",
     focus_next_diagnostic_item = "focus_next_diagnostic_item",
+  },
+  call_hierarchy = {
+    toggle_call_direction = "toggle_call_direction",
+    create_call_hierarchy_from_buffer_position = "create_call_hierarchy_from_buffer_position",
   },
 }
 

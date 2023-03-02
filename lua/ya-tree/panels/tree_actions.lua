@@ -9,9 +9,10 @@ local utils = require("ya-tree.utils")
 ---| "show_node_info"
 ---| "close_panel"
 ---
----| "open_symbols_panel",
----| "open_git_status_panel",
----| "open_buffers_panel",
+---| "open_git_status_panel"
+---| "open_symbols_panel"
+---| "open_call_hierarchy_panel"
+---| "open_buffers_panel"
 ---
 ---| "open"
 ---| "vsplit"
@@ -47,8 +48,9 @@ local M = {
     builtin.general.show_node_info,
     builtin.general.close_panel,
 
-    builtin.general.open_symbols_panel,
     builtin.general.open_git_status_panel,
+    builtin.general.open_symbols_panel,
+    builtin.general.open_call_hierarchy_panel,
     builtin.general.open_buffers_panel,
 
     builtin.general.open,
