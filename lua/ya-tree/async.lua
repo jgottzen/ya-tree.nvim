@@ -1,6 +1,6 @@
 ----------------------------------------------------------------------------------------------------
 -- Based on: https://github.com/lewis6991/async.nvim
--- at commit: https://github.com/lewis6991/async.nvim/tree/f903979044d7a393ab90e8c9546b89b4957e962f
+-- at commit: https://github.com/lewis6991/async.nvim/tree/bad4edbb2917324cd11662dc0209ce53f6c8bc23
 ----------------------------------------------------------------------------------------------------
 
 --- Small async library for Neovim plugins
@@ -19,7 +19,7 @@ local M = {}
 --
 -- We need to handle both.
 
---- Returns whether the current execution context is async.
+---Returns whether the current execution context is async.
 ---
 ---@return boolean?
 function M.running()
@@ -38,8 +38,8 @@ local function is_Async_T(handle)
 end
 
 ---@class Yat.Async.Current
----@field is_cancelled fun(_: any): boolean
----@field cancel fun(_: any, cb: fun())
+---@field is_cancelled fun(self: Yat.Async.Current): boolean
+---@field cancel fun(self: Yat.Async.Current, cb: fun())
 
 ---@class Yat.Async
 ---@field _current? Yat.Async.Current
@@ -67,9 +67,10 @@ function Async_T:is_cancelled()
   return self._current and self._current:is_cancelled()
 end
 
----@param fn fun(...)
----@param callback? fun(...)
----@param ... any
+---Run a function in an async context.
+---@param fn fun(...) The function to run.
+---@param callback? fun(...) Callback on completion.
+---@param ... any Arguments for `fn`.
 ---@return Yat.Async
 function M.run(fn, callback, ...)
   vim.validate({
@@ -82,26 +83,29 @@ function M.run(fn, callback, ...)
 
   local function step(...)
     local ret = { coroutine.resume(co, ...) }
-    ---@type boolean, integer, string|fun(...):any
-    local ok, nargs, err_or_fn = unpack(ret)
+    local ok = ret[1] ---@type boolean
 
     if not ok then
-      error(string.format("The coroutine failed with this message: %s\n%s", err_or_fn, debug.traceback(co)))
+      local err = ret[2] ---@type string
+      error(string.format("The coroutine failed with this message:\n%s\n%s", err, debug.traceback(co)))
     end
 
     if coroutine.status(co) == "dead" then
       if callback then
-        callback(unpack(ret, 4))
+        callback(unpack(ret, 4, table.maxn(ret)))
       end
       return
     end
 
-    assert(type(err_or_fn) == "function", "type error :: expected function")
-
+    ---@type integer, any|fun(...):any
+    local nargs, next_fn = ret[2], ret[3]
     local args = { select(4, unpack(ret)) }
+
+    assert(type(next_fn) == "function", "type error :: expected function")
+
     args[nargs] = step
 
-    local r = err_or_fn(unpack(args, 1, nargs))
+    local r = next_fn(unpack(args, 1, nargs))
     if is_Async_T(r) then
       handle._current = r --[[@as Yat.Async.Current]]
     end
@@ -114,7 +118,7 @@ end
 ---@param argc integer
 ---@param fn fun(...)
 ---@param ... any
----@return ... any
+---@return any ...
 local function wait(argc, fn, ...)
   vim.validate({
     argc = { argc, "number" },
@@ -145,10 +149,10 @@ local function wait(argc, fn, ...)
   return unpack(ret, 2, table.maxn(ret))
 end
 
---- Wait on a callback style function
+---Wait on a callback style function
 ---
----@param ... any Arguments for func
----@return any ...
+---@overload fun(fn: fun(...), ...):any
+---@overload fun(argc: integer, fn: fun(...), ...):any
 function M.wait(...)
   if type(select(1, ...)) == "number" then
     return wait(...)
@@ -158,10 +162,10 @@ function M.wait(...)
   return wait(select("#", ...) - 1, ...)
 end
 
---- Use this to create a function which executes in an async context but called from a non-async context.
---- Inherently this cannot return anything since it is non-blocking.
+---Use this to create a function which executes in an async context but called from a non-async context.
+---Inherently this cannot return anything since it is non-blocking.
 ---
----@param fn function
+---@param fn fun(...):any
 ---@param argc? number The number of arguments of func. Defaults to 0
 ---@param strict? boolean Error when called in non-async context
 ---@return fun(...):Yat.Async
@@ -184,9 +188,9 @@ function M.create(fn, argc, strict)
   end
 end
 
---- Create a function which executes in an async context but called from a non-async context.
+---Create a function which executes in an async context but called from a non-async context.
 ---
----@param fn function
+---@param fn fun(...):any
 ---@param strict? boolean Error when called in a non-async context.
 ---@return fun(...): Yat.Async
 function M.void(fn, strict)
@@ -203,12 +207,12 @@ function M.void(fn, strict)
   end
 end
 
---- Creates an async function with a callback style function.
---=
----@param fn function A callback style function to be converted. The last argument must be the callback.
+---Creates an async function with a callback style function.
+---
+---@param fn fun(...):any A callback style function to be converted. The last argument must be the callback.
 ---@param argc integer The number of arguments of func. Must be included.
 ---@param strict boolean Error when called in a non-async context.
----@return fun(...) Returns an async function
+---@return fun(...) fn Returns an async function.
 function M.wrap(fn, argc, strict)
   vim.validate({ argc = { argc, "number" } })
 
@@ -223,12 +227,11 @@ function M.wrap(fn, argc, strict)
   end
 end
 
---- Run a collection of async functions (`thunks`) concurrently and return when all have finished.
+---Run a collection of async functions (`thunks`) concurrently and return when all have finished.
 ---
 ---@param thunks function[]
 ---@param n integer Max number of thunks to run concurrently.
 ---@param interrupt_check function Function to abort thunks between calls.
----@return ... any
 function M.join(thunks, n, interrupt_check)
   local function run(finish)
     if #thunks == 0 then
@@ -264,7 +267,7 @@ function M.join(thunks, n, interrupt_check)
   return M.wait(1, false, run)
 end
 
---- Partially applying arguments to an async function
+---Partially applying arguments to an async function.
 ---
 ---@param fn fun(...)
 ---@param ... any arguments to apply to `fn`
@@ -281,11 +284,11 @@ function M.curry(fn, ...)
   end
 end
 
---- An async function that when called will yield to the Neovim scheduler to be able to call the API.
+---An async function that when called will yield to the Neovim scheduler to be able to call the API.
 ---@type fun()
 M.scheduler = M.wrap(vim.schedule, 1, false)
 
---- Schedules `fn` to run soon on the nvim loop, in an async context.
+---Schedules `fn` to run soon on the nvim loop, in an async context.
 ---
 ---@param fn async fun()
 function M.defer(fn)
