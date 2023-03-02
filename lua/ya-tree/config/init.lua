@@ -308,7 +308,7 @@ local M = {
           },
         },
         ---@alias Yat.Config.Panels.Files.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
-        ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
+        ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"clipboard"|string
 
         ---@class Yat.Config.Panels.Files.Renderers : Yat.Config.Panels.TreeRenderers
         ---@field directory { name : Yat.Config.Panels.Files.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -471,7 +471,7 @@ local M = {
           },
         },
         ---@alias Yat.Config.Panels.GitStatus.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
-        ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+        ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|string
 
         ---@class Yat.Config.Panels.GitStatus.Renderers : Yat.Config.Panels.TreeRenderers
         ---@field directory { name : Yat.Config.Panels.GitStatus.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -559,7 +559,7 @@ local M = {
           },
         },
         ---@alias Yat.Config.Panels.Buffers.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
-        ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+        ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"buffer_info"|string
 
         ---@class Yat.Config.Panels.Buffers.Renderers : Yat.Config.Panels.TreeRenderers
         ---@field directory { name : Yat.Config.Panels.Buffers.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]

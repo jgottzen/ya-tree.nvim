@@ -499,7 +499,7 @@ local DEFAULT = {
         },
       },
       ---@alias Yat.Config.Panels.Files.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
-      ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
+      ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"clipboard"|string
 
       ---@class Yat.Config.Panels.Files.Renderers : Yat.Config.Panels.TreeRenderers
       ---@field directory { name : Yat.Config.Panels.Files.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -547,7 +547,6 @@ local DEFAULT = {
           ["q"] = "close_sidebar",
           ["<C-x>"] = "close_panel",
           ["?"] = "open_help",
-          ["gs"] = "open_symbols_panel",
           ["<C-g>"] = "open_git_status_panel",
           ["b"] = "open_buffers_panel",
           ["gx"] = "system_open",
@@ -621,7 +620,6 @@ local DEFAULT = {
           ["<C-x>"] = "close_panel",
           ["?"] = "open_help",
           ["gs"] = "open_symbols_panel",
-          ["<C-g>"] = "open_git_status_panel",
           ["b"] = "open_buffers_panel",
           ["gx"] = "system_open",
           ["<C-i>"] = "show_node_info",
@@ -664,7 +662,7 @@ local DEFAULT = {
         },
       },
       ---@alias Yat.Config.Panels.GitStatus.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
-      ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+      ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|string
 
       ---@class Yat.Config.Panels.GitStatus.Renderers : Yat.Config.Panels.TreeRenderers
       ---@field directory { name : Yat.Config.Panels.GitStatus.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -711,7 +709,6 @@ local DEFAULT = {
           ["?"] = "open_help",
           ["gs"] = "open_symbols_panel",
           ["<C-g>"] = "open_git_status_panel",
-          ["b"] = "open_buffers_panel",
           ["gx"] = "system_open",
           ["<C-i>"] = "show_node_info",
           ["<CR>"] = "open",
@@ -753,7 +750,7 @@ local DEFAULT = {
         },
       },
       ---@alias Yat.Config.Panels.Buffers.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
-      ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+      ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"buffer_info"|string
 
       ---@class Yat.Config.Panels.Buffers.Renderers : Yat.Config.Panels.TreeRenderers
       ---@field directory { name : Yat.Config.Panels.Buffers.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -970,8 +967,8 @@ local DEFAULT = {
 
       ---@class Yat.Config.Renderers.Builtin.Diagnostics : Yat.Config.BaseRendererConfig
       ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-      ---@field directory_min_severity integer The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
-      ---@field file_min_severity integer The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
+      ---@field directory_min_severity DiagnosticSeverity The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
+      ---@field file_min_severity DiagnosticSeverity The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
       diagnostics = {
         padding = " ",
         directory_min_severity = vim.diagnostic.severity.ERROR,
