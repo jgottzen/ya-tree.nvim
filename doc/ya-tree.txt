@@ -4,24 +4,25 @@
 Table of Contents                                  *ya-tree-table-of-contents*
 
 1. ya-tree.nvim                                         |ya-tree-ya-tree.nvim|
-  - Features                                                |ya-tree-features|
-  - Requirements                                        |ya-tree-requirements|
-  - Commands                                                |ya-tree-commands|
-  - Configuration                                      |ya-tree-configuration|
-  - Panels                                                    |ya-tree-panels|
-  - Mappings & Actions                            |ya-tree-mappings-&-actions|
-  - Async                                                      |ya-tree-async|
-  - Renderers                                              |ya-tree-renderers|
-  - Highlight Groups                                |ya-tree-highlight-groups|
-  - Acknowlegdements                                |ya-tree-acknowlegdements|
+  - Features                                   |ya-tree-ya-tree.nvim-features|
+  - Requirements                           |ya-tree-ya-tree.nvim-requirements|
+  - Commands                                   |ya-tree-ya-tree.nvim-commands|
+  - Configuration                         |ya-tree-ya-tree.nvim-configuration|
+  - Panels                                       |ya-tree-ya-tree.nvim-panels|
+  - Mappings & Actions               |ya-tree-ya-tree.nvim-mappings-&-actions|
+  - Async                                         |ya-tree-ya-tree.nvim-async|
+  - Renderers                                 |ya-tree-ya-tree.nvim-renderers|
+  - Highlight Groups                   |ya-tree-ya-tree.nvim-highlight-groups|
+  - Acknowlegdements                   |ya-tree-ya-tree.nvim-acknowlegdements|
 
 ==============================================================================
 1. ya-tree.nvim                                         *ya-tree-ya-tree.nvim*
 
-Ya-Tree is sidebar plugin with file browser, Git status, LSP Symbols and
-buffers panels. Additional panels can easily be created.
+Ya-Tree is sidebar plugin with file browser, Git status, LSP Symbols, LSP Call
+Hierarchy and buffers panels. Additional panels can easily be created.
 
-FEATURES                                                    *ya-tree-features*
+
+FEATURES                                       *ya-tree-ya-tree.nvim-features*
 
 
 - Git integration, including yadm <https://yadm.io/>, updates when working tree status changes.
@@ -31,12 +32,13 @@ FEATURES                                                    *ya-tree-features*
 - Basic file operations.
 - LSP Diagnostics.
 - LSP Symbols.
+- LSP Call Hierarchy.
 - One or two sidebars per tabpage.
 - One or more panels per sidebar.
 - Tabpage working directory aware.
 
 
-REQUIREMENTS                                            *ya-tree-requirements*
+REQUIREMENTS                               *ya-tree-ya-tree.nvim-requirements*
 
 
 - neovim <https://github.com/neovim/neovim/wiki/Installing-Neovim> >= 0.8.0
@@ -60,10 +62,11 @@ INSTALLATION WITH PACKER: ~
 <
 
 
-COMMANDS                                                    *ya-tree-commands*
+COMMANDS                                       *ya-tree-ya-tree.nvim-commands*
 
 ya-tree.nvim provides the following commands, which are enabled upon calling
 `ya-tree.setup()`.
+
 
 YATREEOPEN ~
 
@@ -72,34 +75,34 @@ opened.
 
 By default the topmost left side panel is focused when the sidebar is opened.
 
-                                                          *ya-tree-`no-focus`*
 
-`no-focus`                             Keep the current window focused.
+NO-FOCUS
 
+Keep the current window focused. Must be the first argument.
 
 >vim
     :YaTreeOpen no-focus
 <
 
 
-                                                                  *ya-tree-``*
+{PANEL}
 
-`{panel}`                              A specific panel to focus, and/or it’s
-                                       specific arguments.
-
+A specific panel to focus, and/or it’s specific arguments.
 
 The builtin panel types are: - `files`: Regular file browser. - `git_status`:
 Git status. - `buffers`: List of currently open buffers, including terminals. -
-`symbols`: Lsp symbols of the current buffer.
+`symbols`: Lsp symbols of the current buffer. - `call_hierarchy`: Lsp call
+hierarchy.
 
 >vim
     YaTreeOpen files
 <
 
 
-                                             *ya-tree-`files`-panel-arugments*
+FILES PANEL ARUGMENTS
 
-`PATH`
+
+PATH
 
 **Type**: key-value pair.
 
@@ -111,14 +114,15 @@ Which path to expand to in the `files` panel.
     :YaTreeOpen files path=./path/to/directory
 <
 
-
 If the path is located under the current `files` root, the tree expands to the
 path, `%` expands to the path of the current buffer. If the path is not located
 in the tree the root is changed to the path.
 
-                                        *ya-tree-`git_status`-panel-arugments*
 
-`DIR`
+GIT_STATUS PANEL ARUGMENTS
+
+
+DIR
 
 **Type**: key-value pair.
 
@@ -129,7 +133,23 @@ Which repository to open to in the `git_status` panel.
 <
 
 
-Examples:
+CALL_HIERARCHY PANEL ARGUMENTS
+
+
+DIRECTION
+
+**Type**: key-value pair.
+
+**Values**: `direction=incoming` or `direction=outgoing`.
+
+Incoming or outgoing calls, the default is incoming.
+
+>vim
+    :YaTreeopen call_hierarchy direction=outgoing
+<
+
+
+EXAMPLES:
 
 
 - `YaTreeOpen` Open the sidebar, and focus the first panel.
@@ -139,7 +159,7 @@ Examples:
 - `YaTreeOpen files path=/path/to/other/directory` Open the sidebar and focus the `files` panel and changes the root to the path `/path/to/other/directory`.
 - `YaTreeOpen files path=%` Open the sidebar, and expand the `files` panel to the path of the current buffer.
 - `YaTreeOpen no-focus git_status` Open the sidebar and the `git_status` panel, but keep the current window focused.
-
+- `YaTreeOpen call_hierarchy direction=outgoing` Open the sidebar and the `call_hierarchy` panel, with outgoing calls.
 
 The lua api is:
 
@@ -162,7 +182,6 @@ Closes the sidebar.
     :YaTreeClose
 <
 
-
 The lua api is:
 
 >lua
@@ -178,7 +197,6 @@ Toggles the sidebar.
     :YaTreeToggle
 <
 
-
 The lua api is:
 
 >lua
@@ -186,7 +204,7 @@ The lua api is:
 <
 
 
-CONFIGURATION                                          *ya-tree-configuration*
+CONFIGURATION                             *ya-tree-ya-tree.nvim-configuration*
 
 The `ya-tree.setup()` function must be run for YaTree to be properly
 initialized. It takes an optional table argument, which is fully annotated with
@@ -194,7 +212,7 @@ initialized. It takes an optional table argument, which is fully annotated with
 
 In the default configuration, only the `files` panel is enabled,
 i.e. functioning as regular file-tree plugin. To enable more panels call
-`ya-tree.setup()` like this:
+`ya-tree.setup` like this:
 
 >lua
     require("ya-tree").setup({
@@ -211,6 +229,7 @@ i.e. functioning as regular file-tree plugin. To enable more panels call
           right = {
             panels = {
               { panel = "git_status", show = false },
+              { panel = "call_hierarchy", show = false, height = 30 },
             },
             width = 40,
           },
@@ -219,11 +238,11 @@ i.e. functioning as regular file-tree plugin. To enable more panels call
     })
 <
 
-
 and it will open a sidebar on the left side with the `files`, `symbols` panels.
 The `buffers` panel can be opened with the `open_buffers_panel` action (`b` by
-default) and the right side with the `git_status` panel can be opened by using
-the `open_git_status_panel` action (`<C-g>` by default).
+default) and the right side with the `git_status` and `call_hierarchy` panels
+can be opened by using the `open_git_status_panel` action (`<C-g>` by default)
+or the `open_call_hierarchy_panel` action (`gc` by default).
 
 Default Configuration ~
 
@@ -388,7 +407,7 @@ Default Configuration ~
         border = "rounded",
       },
     
-      ---@alias Yat.Panel.Type "files"|"git_status"|"symbols"|"buffers"|string
+      ---@alias Yat.Panel.Type "files"|"git_status"|"symbols"|"call_hierarchy"|"buffers"|string
     
       ---@class Yat.Config.Sidebar
       ---@field layout Yat.Config.Sidebar.Layout The layout configuration for the sidebar.
@@ -451,6 +470,7 @@ Default Configuration ~
       ---@class Yat.Config.Panels
       ---@field files Yat.Config.Panels.Files Files panel configuration.
       ---@field symbols Yat.Config.Panels.Symbols Lsp Symbols panel configuration.
+      ---@field call_hierarchy Yat.Config.Panels.CallHierarchy Call hierarchy panel configuration.
       ---@field git_status Yat.Config.Panels.GitStatus Git Status panel configuration.
       ---@field buffers Yat.Config.Panels.Buffers Buffers panel configuration.
       ---@field [Yat.Panel.Type] Yat.Config.Panels.Panel
@@ -481,6 +501,7 @@ Default Configuration ~
               ["gs"] = "open_symbols_panel",
               ["<C-g>"] = "open_git_status_panel",
               ["b"] = "open_buffers_panel",
+              ["gc"] = "open_call_hierarchy_panel",
               ["gx"] = "system_open",
               ["<C-i>"] = "show_node_info",
               ["<CR>"] = "open",
@@ -535,7 +556,7 @@ Default Configuration ~
             },
           },
           ---@alias Yat.Config.Panels.Files.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
-          ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
+          ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"clipboard"|string
     
           ---@class Yat.Config.Panels.Files.Renderers : Yat.Config.Panels.TreeRenderers
           ---@field directory { name : Yat.Config.Panels.Files.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -564,6 +585,94 @@ Default Configuration ~
           },
         },
     
+        ---@class Yat.Config.Panels.GitStatus : Yat.Config.Panels.Panel
+        ---@field title string The name of the panel, default: `"Git"`.
+        ---@field icon string The icon for the panel, default: `""`.
+        ---@field mappings Yat.Config.Panels.GitStatus.Mappings Panel specific mappings.
+        ---@field renderers Yat.Config.Panels.GitStatus.Renderers Panel specific renderers.
+        git_status = {
+          title = "Git Status",
+          icon = "",
+          ---@class Yat.Config.Panels.GitStatus.Mappings : Yat.Config.Panels.Mappings
+          ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
+          ---@field list table<string, Yat.Panel.GitStatus.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+          mappings = {
+            disable_defaults = false,
+            list = {
+              ["q"] = "close_sidebar",
+              ["<C-x>"] = "close_panel",
+              ["?"] = "open_help",
+              ["gs"] = "open_symbols_panel",
+              ["b"] = "open_buffers_panel",
+              ["gc"] = "open_call_hierarchy_panel",
+              ["gx"] = "system_open",
+              ["<C-i>"] = "show_node_info",
+              ["<CR>"] = "open",
+              ["o"] = "open",
+              ["<2-LeftMouse>"] = "open",
+              ["<C-v>"] = "vsplit",
+              ["<C-s>"] = "split",
+              ["<C-t>"] = "tabnew",
+              ["<Tab>"] = "preview",
+              ["<C-Tab>"] = "preview_and_focus",
+              ["y"] = "copy_name_to_clipboard",
+              ["Y"] = "copy_root_relative_path_to_clipboard",
+              ["gy"] = "copy_absolute_path_to_clipboard",
+              ["<BS>"] = "close_node",
+              ["Z"] = "close_all_nodes",
+              ["z"] = "close_all_child_nodes",
+              ["E"] = "expand_all_nodes",
+              ["e"] = "expand_all_child_nodes",
+              ["R"] = "refresh_panel",
+              ["P"] = "focus_parent",
+              ["<"] = "focus_prev_sibling",
+              [">"] = "focus_next_sibling",
+              ["K"] = "focus_first_sibling",
+              ["J"] = "focus_last_sibling",
+              ["<C-]>"] = "cd_to",
+              ["."] = "cd_to",
+              ["I"] = "toggle_ignored",
+              ["H"] = "toggle_filter",
+              ["S"] = "search_for_node_in_panel",
+              ["gn"] = "goto_node_in_files_panel",
+              ["ga"] = "git_stage",
+              ["gu"] = "git_unstage",
+              ["gr"] = "git_revert",
+              ["r"] = "rename",
+              ["[c"] = "focus_prev_git_item",
+              ["]c"] = "focus_next_git_item",
+              ["[e"] = "focus_prev_diagnostic_item",
+              ["]e"] = "focus_next_diagnostic_item",
+            },
+          },
+          ---@alias Yat.Config.Panels.GitStatus.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
+          ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|string
+    
+          ---@class Yat.Config.Panels.GitStatus.Renderers : Yat.Config.Panels.TreeRenderers
+          ---@field directory { name : Yat.Config.Panels.GitStatus.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+          ---@field file { name : Yat.Config.Panels.GitStatus.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
+          renderers = {
+            directory = {
+              { name = "indentation" },
+              { name = "icon" },
+              { name = "name" },
+              { name = "repository" },
+              { name = "symlink_target" },
+              { name = "git_status" },
+              { name = "diagnostics" },
+            },
+            file = {
+              { name = "indentation" },
+              { name = "icon" },
+              { name = "name", override = { use_git_status_colors = true } },
+              { name = "symlink_target" },
+              { name = "modified" },
+              { name = "git_status" },
+              { name = "diagnostics" },
+            },
+          },
+        },
+    
         ---@class Yat.Config.Panels.Symbols : Yat.Config.Panels.Panel
         ---@field title string The name of the panel, default: `"Lsp Symbols"`.
         ---@field icon string The icon for the panel, default" `""`.
@@ -583,9 +692,9 @@ Default Configuration ~
               ["q"] = "close_sidebar",
               ["<C-x>"] = "close_panel",
               ["?"] = "open_help",
-              ["gs"] = "open_symbols_panel",
               ["<C-g>"] = "open_git_status_panel",
               ["b"] = "open_buffers_panel",
+              ["gc"] = "open_call_hierarchy_panel",
               ["gx"] = "system_open",
               ["<C-i>"] = "show_node_info",
               ["<CR>"] = "open",
@@ -639,17 +748,17 @@ Default Configuration ~
           },
         },
     
-        ---@class Yat.Config.Panels.GitStatus : Yat.Config.Panels.Panel
-        ---@field title string The name of the panel, default: `"Git"`.
-        ---@field icon string The icon for the panel, default: `""`.
-        ---@field mappings Yat.Config.Panels.GitStatus.Mappings Panel specific mappings.
-        ---@field renderers Yat.Config.Panels.GitStatus.Renderers Panel specific renderers.
-        git_status = {
-          title = "Git Status",
-          icon = "",
-          ---@class Yat.Config.Panels.GitStatus.Mappings : Yat.Config.Panels.Mappings
+        ---@class Yat.Config.Panels.CallHierarchy : Yat.Config.Panels.Panel
+        ---@field title string The name of the panel, default: `"Call Hierarchy"`.
+        ---@field icon string The icon for the panel, default" `""`.
+        ---@field mappings Yat.Config.Panels.CallHierarchy.Mappings Panel specific mappings.
+        ---@field renderers Yat.Config.Panels.CallHierarchy.Renderers Panel specific renderers.
+        call_hierarchy = {
+          title = "Call Hierarchy",
+          icon = "", --  , ,
+          ---@class Yat.Config.Panels.CallHierarchy.Mappings : Yat.Config.Panels.Mappings
           ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
-          ---@field list table<string, Yat.Panel.GitStatus.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
+          ---@field list table<string, Yat.Panel.CallHierarchy.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
           mappings = {
             disable_defaults = false,
             list = {
@@ -683,46 +792,29 @@ Default Configuration ~
               [">"] = "focus_next_sibling",
               ["K"] = "focus_first_sibling",
               ["J"] = "focus_last_sibling",
-              ["<C-]>"] = "cd_to",
-              ["."] = "cd_to",
-              ["I"] = "toggle_ignored",
-              ["H"] = "toggle_filter",
               ["S"] = "search_for_node_in_panel",
-              ["gn"] = "goto_node_in_files_panel",
-              ["ga"] = "git_stage",
-              ["gu"] = "git_unstage",
-              ["gr"] = "git_revert",
-              ["r"] = "rename",
-              ["[c"] = "focus_prev_git_item",
-              ["]c"] = "focus_next_git_item",
-              ["[e"] = "focus_prev_diagnostic_item",
-              ["]e"] = "focus_next_diagnostic_item",
+              ["gt"] = "toggle_call_direction",
+              ["gc"] = "create_call_hierarchy_from_buffer_position",
             },
           },
-          ---@alias Yat.Config.Panels.GitStatus.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
-          ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+          ---@alias Yat.Config.Panels.CallHierarchy.DirectoryRendererName "indentation"|"icon"|"name"|"symbol_details"|string
+          ---@alias Yat.Config.Panels.CallHierarchy.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|string
     
-          ---@class Yat.Config.Panels.GitStatus.Renderers : Yat.Config.Panels.TreeRenderers
-          ---@field directory { name : Yat.Config.Panels.GitStatus.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
-          ---@field file { name : Yat.Config.Panels.GitStatus.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
+          ---@class Yat.Config.Panels.CallHierarchy.Renderers : Yat.Config.Panels.TreeRenderers
+          ---@field directory { name : Yat.Config.Panels.CallHierarchy.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
+          ---@field file { name : Yat.Config.Panels.CallHierarchy.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
           renderers = {
             directory = {
               { name = "indentation" },
               { name = "icon" },
               { name = "name" },
-              { name = "repository" },
-              { name = "symlink_target" },
-              { name = "git_status" },
-              { name = "diagnostics" },
+              { name = "symbol_details" },
             },
             file = {
               { name = "indentation" },
               { name = "icon" },
-              { name = "name", override = { use_git_status_colors = true } },
-              { name = "symlink_target" },
-              { name = "modified" },
-              { name = "git_status" },
-              { name = "diagnostics" },
+              { name = "name" },
+              { name = "symbol_details" },
             },
           },
         },
@@ -747,7 +839,7 @@ Default Configuration ~
               ["?"] = "open_help",
               ["gs"] = "open_symbols_panel",
               ["<C-g>"] = "open_git_status_panel",
-              ["b"] = "open_buffers_panel",
+              ["gc"] = "open_call_hierarchy_panel",
               ["gx"] = "system_open",
               ["<C-i>"] = "show_node_info",
               ["<CR>"] = "open",
@@ -789,7 +881,7 @@ Default Configuration ~
             },
           },
           ---@alias Yat.Config.Panels.Buffers.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
-          ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"modified"|"symlink_target"|"git_status"|"diagnostics"|string
+          ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"buffer_info"|string
     
           ---@class Yat.Config.Panels.Buffers.Renderers : Yat.Config.Panels.TreeRenderers
           ---@field directory { name : Yat.Config.Panels.Buffers.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
@@ -1006,8 +1098,8 @@ Default Configuration ~
     
           ---@class Yat.Config.Renderers.Builtin.Diagnostics : Yat.Config.BaseRendererConfig
           ---@field padding string The padding to use to the left of the renderer, default: `" "`.
-          ---@field directory_min_severity integer The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
-          ---@field file_min_severity integer The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
+          ---@field directory_min_severity DiagnosticSeverity The minimum severity necessary to show for directories, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.ERROR`.
+          ---@field file_min_severity DiagnosticSeverity The minimum severity necessary to show for files, see `|vim.diagnostic.severity|`, default: `vim.diagnostic.severity.HINT`.
           diagnostics = {
             padding = " ",
             directory_min_severity = vim.diagnostic.severity.ERROR,
@@ -1039,7 +1131,7 @@ Default Configuration ~
 <
 
 
-PANELS                                                        *ya-tree-panels*
+PANELS                                           *ya-tree-ya-tree.nvim-panels*
 
 The builtin panels are:
 
@@ -1047,10 +1139,11 @@ The builtin panels are:
 - `files`
 - `git_status`
 - `symbols`
+- `call_hierarchy`
 - `buffers`
 
 
-MAPPINGS & ACTIONS                                *ya-tree-mappings-&-actions*
+MAPPINGS & ACTIONS                   *ya-tree-ya-tree.nvim-mappings-&-actions*
 
 Mappings are constructed by associating the key(s) in question with an
 `action`.
@@ -1068,15 +1161,19 @@ All builtin actions: ~
     ---| "open_help"
     ---| "show_node_info"
     ---| "close_panel"
-    ---| "open_symbols_panel",
+    ---|
     ---| "open_git_status_panel"
+    ---| "open_symbols_panel"
+    ---| "open_call_hierarchy_panel"
     ---| "open_buffers_panel"
+    ---|
     ---| "open"
     ---| "vsplit"
     ---| "split"
     ---| "tabnew"
     ---| "preview"
     ---| "preview_and_focus"
+    ---|
     ---| "copy_name_to_clipboard"
     ---| "copy_root_relative_path_to_clipboard"
     ---| "copy_absolute_path_to_clipboard"
@@ -1085,7 +1182,9 @@ All builtin actions: ~
     ---| "close_all_child_nodes"
     ---| "expand_all_nodes"
     ---| "expand_all_child_nodes"
+    ---|
     ---| "refresh_panel"
+    ---|
     ---| "focus_parent"
     ---| "focus_prev_sibling"
     ---| "focus_next_sibling"
@@ -1123,7 +1222,6 @@ All builtin actions: ~
     ---| "focus_next_diagnostic_item"
 <
 
-
 Files panel actions: ~
 
 >lua
@@ -1133,9 +1231,10 @@ Files panel actions: ~
     ---| "open_help"
     ---| "show_node_info"
     ---
-    ---| "open_symbols_panel",
-    ---| "open_git_status_panel",
-    ---| "open_buffers_panel",
+    ---| "open_git_status_panel"
+    ---| "open_symbols_panel"
+    ---| "open_call_hierarchy_panel"
+    ---| "open_buffers_panel"
     ---
     ---| "open"
     ---| "vsplit"
@@ -1194,10 +1293,7 @@ Files panel actions: ~
     ---
     ---| "focus_prev_diagnostic_item"
     ---| "focus_next_diagnostic_item"
-    ---
-    ---| Yat.Panel.Tree.SupportedActions
 <
-
 
 Git Status panel actions: ~
 
@@ -1209,9 +1305,9 @@ Git Status panel actions: ~
     ---| "show_node_info"
     ---| "close_panel"
     ---
-    ---| "open_symbols_panel",
-    ---| "open_git_status_panel",
-    ---| "open_buffers_panel",
+    ---| "open_symbols_panel"
+    ---| "open_call_hierarchy_panel"
+    ---| "open_buffers_panel"
     ---
     ---| "open"
     ---| "vsplit"
@@ -1256,10 +1352,7 @@ Git Status panel actions: ~
     ---
     ---| "focus_prev_diagnostic_item"
     ---| "focus_next_diagnostic_item"
-    ---
-    ---| Yat.Panel.Tree.SupportedActions
 <
-
 
 LSP Symbols panel actions: ~
 
@@ -1271,9 +1364,9 @@ LSP Symbols panel actions: ~
     ---| "show_node_info"
     ---| "close_panel"
     ---
-    ---| "open_symbols_panel",
-    ---| "open_git_status_panel",
-    ---| "open_buffers_panel",
+    ---| "open_git_status_panel"
+    ---| "open_call_hierarchy_panel"
+    ---| "open_buffers_panel"
     ---
     ---| "open"
     ---| "vsplit"
@@ -1308,10 +1401,52 @@ LSP Symbols panel actions: ~
     ---
     ---| "focus_prev_diagnostic_item"
     ---| "focus_next_diagnostic_item"
-    ---
-    ---| Yat.Panel.Tree.SupportedActions
 <
 
+Call Hierarchy panel actions: ~
+
+>lua
+    ---@alias Yat.Panel.CallHierarchy.SupportedActions
+    ---| "close_sidebar"
+    ---| "system_open"
+    ---| "open_help"
+    ---| "show_node_info"
+    ---| "close_panel"
+    ---
+    ---| "open_git_status_panel"
+    ---| "open_symbols_panel"
+    ---| "open_buffers_panel"
+    ---
+    ---| "open"
+    ---| "vsplit"
+    ---| "split"
+    ---| "tabnew"
+    ---| "preview"
+    ---| "preview_and_focus"
+    ---
+    ---| "copy_name_to_clipboard"
+    ---| "copy_root_relative_path_to_clipboard"
+    ---| "copy_absolute_path_to_clipboard"
+    ---
+    ---| "close_node"
+    ---| "close_all_nodes"
+    ---| "close_all_child_nodes"
+    ---| "expand_all_nodes"
+    ---| "expand_all_child_nodes"
+    ---
+    ---| "refresh_panel"
+    ---
+    ---| "focus_parent"
+    ---| "focus_prev_sibling"
+    ---| "focus_next_sibling"
+    ---| "focus_first_sibling"
+    ---| "focus_last_sibling"
+    ---|
+    ---| "search_for_node_in_panel"
+    ---
+    ---| "toggle_call_direction"
+    ---| "create_call_hierarchy_from_buffer_position"
+<
 
 Buffers panel actions: ~
 
@@ -1323,9 +1458,9 @@ Buffers panel actions: ~
     ---| "show_node_info"
     ---| "close_panel"
     ---
-    ---| "open_symbols_panel",
-    ---| "open_git_status_panel",
-    ---| "open_buffers_panel",
+    ---| "open_git_status_panel"
+    ---| "open_symbols_panel"
+    ---| "open_call_hierarchy_panel"
     ---
     ---| "open"
     ---| "vsplit"
@@ -1369,8 +1504,6 @@ Buffers panel actions: ~
     ---
     ---| "focus_prev_diagnostic_item"
     ---| "focus_next_diagnostic_item"
-    ---
-    ---| Yat.Panel.Tree.SupportedActions
 <
 
 
@@ -1422,7 +1555,7 @@ Custom actions can easily be created using the config helper:
 <
 
 
-ASYNC                                                          *ya-tree-async*
+ASYNC                                             *ya-tree-ya-tree.nvim-async*
 
 Git and file system operations are wrapped with in coroutines, based on
 async.nvim <https://github.com/lewis6991/async.nvim> and the `wrap` function,
@@ -1442,7 +1575,6 @@ For actions, this conceptually translates to:
     end, opts)
 <
 
-
 This means that all actions are running inside a coroutine and special care has
 to be taken to handle `vim.api` functions calls, since they might error when
 called from a `vim.loop` callback. The is remedied by using
@@ -1455,7 +1587,6 @@ called from a `vim.loop` callback. The is remedied by using
     local height, width = panel:size()
 <
 
-
 The `vim.ui.input` and `vim.ui.select` functions are also `wrap`ped to make
 them easier to use:
 
@@ -1464,7 +1595,6 @@ them easier to use:
     local response = ui.input({ promt = "My prompt", deault = "My value" })
     local choice = ui.select({ "Yes", "No" }, { kind = "confirmation", prompt = "Choose" })
 <
-
 
 The `nui.nvim` `Input` class is extended with completion using |`completefunc`|
 and initialization parameters specific to `ya-tree`, in the `ya-tree.ui.nui`
@@ -1477,7 +1607,7 @@ needed:
 <
 
 
-RENDERERS                                                  *ya-tree-renderers*
+RENDERERS                                     *ya-tree-ya-tree.nvim-renderers*
 
 A custom renderer component can be created using the config helper:
 
@@ -1538,86 +1668,157 @@ A custom renderer component can be created using the config helper:
     })
 <
 
-
 Renderers should only access already availble data on the `node` in question,
 or special helper functions in the `ya-tree.ui.renderers` module, and **not**
 initiate any further calls, if possible.
 
-HIGHLIGHT GROUPS                                    *ya-tree-highlight-groups*
+
+HIGHLIGHT GROUPS                       *ya-tree-ya-tree.nvim-highlight-groups*
 
 Ya-Tree defines the following highligh groups: ~
 
-│        Highlight Group         │         Default Group         │                Values                │
-│YaTreeRootName                  │                               │{ fg = "#ddc7a1", bold = true }       │
-│YaTreeIndentMarker              │                               │{ fg = "#5a524c" }                    │
-│YaTreeIndentExpander            │YaTreeDirectoryIcon            │                                      │
-│YaTreeDirectoryIcon             │Directory                      │                                      │
-│YaTreeSymbolicDirectoryIcon     │YaTreeDirectoryIcon            │                                      │
-│YaTreeDirectoryName             │Directory                      │                                      │
-│YaTreeEmptyDirectoryName        │YaTreeDirectoryName            │                                      │
-│YaTreeSymbolicDirectoryName     │YaTreeDirectoryName            │                                      │
-│YaTreeEmptySymbolicDirectoryName│YaTreeDirectoryName            │                                      │
-│YaTreeDefaultFileIcon           │Normal                         │                                      │
-│YaTreeSymbolicFileIcon          │YaTreeDefaultFileIcon          │                                      │
-│YaTreeFifoFileIcon              │                               │{ fg = "#af0087" }                    │
-│YaTreeSocketFileIcon            │                               │{ fg = "#ff005f" }                    │
-│YaTreeCharDeviceFileIcon        │                               │{ fg = "#87d75f" }                    │
-│YaTreeBlockDeviceFileIcon       │                               │{ fg = "#5f87d7" }                    │
-│YaTreeFileName                  │Normal                         │                                      │
-│YaTreeSymbolicFileName          │YaTreeFileName                 │                                      │
-│YaTreeFifoFileName              │YaTreeFifoFileIcon             │                                      │
-│YaTreeSocketFileName            │YaTreeSocketFileIcon           │                                      │
-│YaTreeCharDeviceFileName        │YaTreeCharDeviceFileIcon       │                                      │
-│YaTreeBlockDeviceFileName       │YaTreeBlockDeviceFileIcon      │                                      │
-│YaTreeExecutableFileName        │YaTreeFileName                 │                                      │
-│YaTreeErrorFileName             │                               │{ fg = "#080808", bg = "#ff0000" }    │
-│YaTreeFileModified              │                               │{ fg = normal_fg, bold = true }       │
-│YaTreeSymbolicLinkTarget        │                               │{ fg = "#7daea3", italic = true }     │
-│YaTreeBufferNumber              │SpecialChar                    │                                      │
-│YaTreeBufferHidden              │WarningMsg                     │                                      │
-│YaTreeClipboardStatus           │Comment                        │                                      │
-│YaTreeText                      │Normal                         │                                      │
-│YaTreeDimText                   │Comment                        │                                      │
-│YaTreeSearchTerm                │SpecialChar                    │                                      │
-│YaTreeNormal                    │Normal                         │                                      │
-│YaTreeNormalNC                  │NormalNC                       │                                      │
-│YaTreeCursorLine                │CursorLine                     │                                      │
-│YaTreeWinSeparator              │WinSeparator                   │                                      │
-│YaTreeStatusLine                │StatusLine                     │                                      │
-│YaTreeStatusLineNC              │StatusLineNC                   │                                      │
-│YaTreeFloatNormal               │NormalFloat                    │                                      │
-│YaTreeGitRepoToplevel           │Character                      │fallack: "#a9b665"                    │
-│YaTreeGitUnmergedCount          │GitSignsDelete, GitGutterDelete│fallack: "#ea6962"                    │
-│YaTreeGitStashCount             │Character                      │fallack: "#a9b665"                    │
-│YaTreeGitAheadCount             │Character                      │fallack: "#a9b665"                    │
-│YaTreeGitBehindCount            │Character                      │fallack: "#a9b665"                    │
-│YaTreeGitStagedCount            │Type                           │fallack: "#d8a657"                    │
-│YaTreeGitUnstagedCount          │Type                           │fallack: "#d8a657"                    │
-│YaTreeGitUntrackedCount         │Title                          │fallack: "#7daea3"                    │
-│YaTreeGitStaged                 │Character                      │fallack: "#a9b665"                    │
-│YaTreeGitDirty                  │GitSignsChange, GitGutterChange│fallack: "#cb8327"                    │
-│YaTreeGitNew                    │GitSignsAdd, GitGutterAdd      │fallack: "#6f8352"                    │
-│YaTreeGitMerge                  │Statement                      │fallack: "#d3869b"                    │
-│YaTreeGitRenamed                │Title                          │fallack: "#7daea3"                    │
-│YaTreeGitDeleted                │GitSignsDelete, GitGutterDelete│fallack: "#ea6962"                    │
-│YaTreeGitIgnored                │Comment                        │                                      │
-│YaTreeGitUntracked              │Type                           │fallack: "#d8a657"                    │
-│YaTreeInfoSize                  │TelescopePreviewSize           │                                      │
-│YaTreeInfoUser                  │TelescopePreviewUser           │                                      │
-│YaTreeInfoGroup                 │TelescopePreviewGroup          │                                      │
-│YaTreeInfoPermissionNone        │TelescopePreviewHyphen         │                                      │
-│YaTreeInfoPermissionRead        │TelescopePreviewRead           │                                      │
-│YaTreeInfoPermissionWrite       │TelescopePreviewWrite          │                                      │
-│YaTreeInfoPermissionExecute     │TelescopePreviewExecute        │                                      │
-│YaTreeInfoDate                  │TelescopePreviewDate           │                                      │
-│YaTreeUiCurrentTab              │                               │{ fg = "#080808", bg = "#5f87d7" }    │
-│YaTreeUiOhterTab                │                               │{ fg = "#080808", bg = "#5a524c" }    │
-│YaTreeSectionIcon               │YaTreeSectionName              │                                      │
-│YaTreeSectionName               │                               │{ fg = "#5f87d7" }                    │
-│YaTreeSecionSeparator           │YaTreeDimText                  │                                      │
+  ---------------------------------------------------------------------------------------------------
+  Highlight Group                    Default Group               Values
+  ---------------------------------- --------------------------- ------------------------------------
+  YaTreeRootName                                                 { fg = "#ddc7a1", bold = true }
 
+  YaTreeIndentMarker                                             { fg = "#5a524c" }
 
-ACKNOWLEGDEMENTS                                    *ya-tree-acknowlegdements*
+  YaTreeIndentExpander               YaTreeDirectoryIcon         
+
+  YaTreeDirectoryIcon                Directory                   
+
+  YaTreeSymbolicDirectoryIcon        YaTreeDirectoryIcon         
+
+  YaTreeDirectoryName                Directory                   
+
+  YaTreeEmptyDirectoryName           YaTreeDirectoryName         
+
+  YaTreeSymbolicDirectoryName        YaTreeDirectoryName         
+
+  YaTreeEmptySymbolicDirectoryName   YaTreeDirectoryName         
+
+  YaTreeDefaultFileIcon              Normal                      
+
+  YaTreeSymbolicFileIcon             YaTreeDefaultFileIcon       
+
+  YaTreeFifoFileIcon                                             { fg = "#af0087" }
+
+  YaTreeSocketFileIcon                                           { fg = "#ff005f" }
+
+  YaTreeCharDeviceFileIcon                                       { fg = "#87d75f" }
+
+  YaTreeBlockDeviceFileIcon                                      { fg = "#5f87d7" }
+
+  YaTreeFileName                     Normal                      
+
+  YaTreeSymbolicFileName             YaTreeFileName              
+
+  YaTreeFifoFileName                 YaTreeFifoFileIcon          
+
+  YaTreeSocketFileName               YaTreeSocketFileIcon        
+
+  YaTreeCharDeviceFileName           YaTreeCharDeviceFileIcon    
+
+  YaTreeBlockDeviceFileName          YaTreeBlockDeviceFileIcon   
+
+  YaTreeExecutableFileName           YaTreeFileName              
+
+  YaTreeErrorFileName                                            { fg = "#080808", bg = "#ff0000" }
+
+  YaTreeFileModified                                             { fg = normal_fg, bold = true }
+
+  YaTreeSymbolicLinkTarget                                       { fg = "#7daea3", italic = true }
+
+  YaTreeBufferNumber                 SpecialChar                 
+
+  YaTreeBufferHidden                 WarningMsg                  
+
+  YaTreeClipboardStatus              Comment                     
+
+  YaTreeText                         Normal                      
+
+  YaTreeDimText                      Comment                     
+
+  YaTreeSearchTerm                   SpecialChar                 
+
+  YaTreeNormal                       Normal                      
+
+  YaTreeNormalNC                     NormalNC                    
+
+  YaTreeCursorLine                   CursorLine                  
+
+  YaTreeWinSeparator                 WinSeparator                
+
+  YaTreeStatusLine                   StatusLine                  
+
+  YaTreeStatusLineNC                 StatusLineNC                
+
+  YaTreeFloatNormal                  NormalFloat                 
+
+  YaTreeGitRepoToplevel              Character                   fallack: "#a9b665"
+
+  YaTreeGitUnmergedCount             GitSignsDelete,             fallack: "#ea6962"
+                                     GitGutterDelete             
+
+  YaTreeGitStashCount                Character                   fallack: "#a9b665"
+
+  YaTreeGitAheadCount                Character                   fallack: "#a9b665"
+
+  YaTreeGitBehindCount               Character                   fallack: "#a9b665"
+
+  YaTreeGitStagedCount               Type                        fallack: "#d8a657"
+
+  YaTreeGitUnstagedCount             Type                        fallack: "#d8a657"
+
+  YaTreeGitUntrackedCount            Title                       fallack: "#7daea3"
+
+  YaTreeGitStaged                    Character                   fallack: "#a9b665"
+
+  YaTreeGitDirty                     GitSignsChange,             fallack: "#cb8327"
+                                     GitGutterChange             
+
+  YaTreeGitNew                       GitSignsAdd, GitGutterAdd   fallack: "#6f8352"
+
+  YaTreeGitMerge                     Statement                   fallack: "#d3869b"
+
+  YaTreeGitRenamed                   Title                       fallack: "#7daea3"
+
+  YaTreeGitDeleted                   GitSignsDelete,             fallack: "#ea6962"
+                                     GitGutterDelete             
+
+  YaTreeGitIgnored                   Comment                     
+
+  YaTreeGitUntracked                 Type                        fallack: "#d8a657"
+
+  YaTreeInfoSize                     TelescopePreviewSize        
+
+  YaTreeInfoUser                     TelescopePreviewUser        
+
+  YaTreeInfoGroup                    TelescopePreviewGroup       
+
+  YaTreeInfoPermissionNone           TelescopePreviewHyphen      
+
+  YaTreeInfoPermissionRead           TelescopePreviewRead        
+
+  YaTreeInfoPermissionWrite          TelescopePreviewWrite       
+
+  YaTreeInfoPermissionExecute        TelescopePreviewExecute     
+
+  YaTreeInfoDate                     TelescopePreviewDate        
+
+  YaTreeUiCurrentTab                                             { fg = "#080808", bg = "#5f87d7" }
+
+  YaTreeUiOhterTab                                               { fg = "#080808", bg = "#5a524c" }
+
+  YaTreeSectionIcon                  YaTreeSectionName           
+
+  YaTreeSectionName                                              { fg = "#5f87d7" }
+
+  YaTreeSecionSeparator              YaTreeDimText               
+  ---------------------------------------------------------------------------------------------------
+
+ACKNOWLEGDEMENTS                       *ya-tree-ya-tree.nvim-acknowlegdements*
 
 
 - gitsigns.nvim <https://github.com/lewis6991/gitsigns.nvim> for Git integration in Lua.
@@ -1628,7 +1829,6 @@ ACKNOWLEGDEMENTS                                    *ya-tree-acknowlegdements*
 - sidebar.nvim <https://github.com/sidebar-nvim/sidebar.nvim/> for the sidebar idea.
 - nvim-ide <https://github.com/ldelossa/nvim-ide> for panels instead of one sidebar with all trees.
 - nui.nvim <https://github.com/MunifTanjim/nui.nvim>
-
 
 Generated by panvimdoc <https://github.com/kdheepak/panvimdoc>
 
