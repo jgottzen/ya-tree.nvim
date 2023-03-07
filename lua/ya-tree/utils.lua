@@ -151,17 +151,17 @@ local function is_directory(path)
   return stat and stat.type == "directory" or false
 end
 
----@class Yat.Nodes.Buffer.FileData
+---@class Yat.Node.Buffer.FileData
 ---@field bufnr integer
 ---@field modified boolean
 
----@class Yat.Nodes.Buffer.TerminalData
+---@class Yat.Node.Buffer.TerminalData
 ---@field bufnr integer
 ---@field name string
 
----@return table<string, Yat.Nodes.Buffer.FileData> paths, Yat.Nodes.Buffer.TerminalData[] terminal
+---@return table<string, Yat.Node.Buffer.FileData> paths, Yat.Node.Buffer.TerminalData[] terminal
 function M.get_current_buffers()
-  ---@type table<string, Yat.Nodes.Buffer.FileData>, Yat.Nodes.Buffer.TerminalData[]
+  ---@type table<string, Yat.Node.Buffer.FileData>, Yat.Node.Buffer.TerminalData[]
   local buffers, terminals = {}, {}
   for _, bufnr in ipairs(api.nvim_list_bufs()) do
     ---@cast bufnr integer

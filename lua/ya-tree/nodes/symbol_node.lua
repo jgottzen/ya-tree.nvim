@@ -5,15 +5,15 @@ local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 local symbol_kind = require("ya-tree.lsp.symbol_kind")
 
----@class Yat.Nodes.Symbol : Yat.Node
----@field new fun(self: Yat.Nodes.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
----@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Nodes.Symbol): Yat.Nodes.Symbol
----@field class fun(self: Yat.Nodes.Symbol): Yat.Nodes.Symbol
+---@class Yat.Node.Symbol : Yat.Node
+---@field new fun(self: Yat.Node.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
+---@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
+---@field class fun(self: Yat.Node.Symbol): Yat.Node.Symbol
 ---@field super Yat.Node
 ---
 ---@field protected __node_type "symbol"
----@field public parent? Yat.Nodes.Symbol
----@field private _children? Yat.Nodes.Symbol[]
+---@field public parent? Yat.Node.Symbol
+---@field private _children? Yat.Node.Symbol[]
 ---@field private file string
 ---@field private _bufnr integer
 ---@field private _lsp_client_id? integer
@@ -21,7 +21,7 @@ local symbol_kind = require("ya-tree.lsp.symbol_kind")
 ---@field public kind Lsp.Symbol.Kind
 ---@field public detail? string
 ---@field public position Lsp.Range
-local SymbolNode = meta.create_class("Yat.Nodes.Symbol", Node)
+local SymbolNode = meta.create_class("Yat.Node.Symbol", Node)
 SymbolNode.__node_type = "symbol"
 
 ---@private
@@ -30,7 +30,7 @@ SymbolNode.__node_type = "symbol"
 ---@param kind Lsp.Symbol.Kind
 ---@param detail? string
 ---@param position Lsp.Range
----@param parent? Yat.Nodes.Symbol
+---@param parent? Yat.Node.Symbol
 function SymbolNode:init(name, path, kind, detail, position, parent)
   self.super:init({
     name = name,

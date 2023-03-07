@@ -18,8 +18,8 @@ local uv = vim.loop
 ---@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "call_hierarchy"
----@field public root Yat.Nodes.CallHierarchy|Yat.Nodes.Text
----@field public current_node Yat.Nodes.CallHierarchy|Yat.Nodes.Text
+---@field public root Yat.Node.CallHierarchy|Yat.Node.Text
+---@field public current_node Yat.Node.CallHierarchy|Yat.Node.Text
 ---@field private _direction Yat.CallHierarchy.Direction
 ---@field private call_site? Lsp.CallHierarchy.Item
 local CallHierarchyPanel = meta.create_class("Yat.Panel.CallHierarchy", TreePanel)

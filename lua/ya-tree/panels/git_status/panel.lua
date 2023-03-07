@@ -18,13 +18,13 @@ local uv = vim.loop
 ---@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "git_status"
----@field public root Yat.Nodes.Git|Yat.Nodes.Text
----@field public current_node Yat.Nodes.Git|Yat.Nodes.Text
+---@field public root Yat.Node.Git|Yat.Node.Text
+---@field public current_node Yat.Node.Git|Yat.Node.Text
 local GitStatusPanel = meta.create_class("Yat.Panel.GitStatus", TreePanel)
 
 ---@async
 ---@param repo Yat.Git.Repo
----@return Yat.Nodes.Git
+---@return Yat.Node.Git
 local function create_root_node(repo)
   local fs_node = fs.node_for(repo.toplevel) --[[@as Yat.Fs.Node]]
   local root = GitNode:new(fs_node)
@@ -154,7 +154,7 @@ function GitStatusPanel:change_root_node(path_or_repo)
   end
   local old_root = self.root
   self.root = create_root_node(repo)
-  self.current_node = self.root:refresh() --[[@as Yat.Nodes.Git]]
+  self.current_node = self.root:refresh() --[[@as Yat.Node.Git]]
   log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
   scheduler()
   self:draw()

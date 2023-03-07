@@ -1,23 +1,23 @@
 local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 
----@class Yat.Nodes.Text : Yat.Node
----@field new fun(self: Yat.Nodes.Text, text: string, path: string, container: boolean, parent?: Yat.Nodes.Text): Yat.Nodes.Text
----@overload fun(text: string, path: string, container: boolean, parent?: Yat.Nodes.Text): Yat.Nodes.Text
----@field class fun(self: Yat.Nodes.Text): Yat.Nodes.Text
+---@class Yat.Node.Text : Yat.Node
+---@field new fun(self: Yat.Node.Text, text: string, path: string, container: boolean, parent?: Yat.Node.Text): Yat.Node.Text
+---@overload fun(text: string, path: string, container: boolean, parent?: Yat.Node.Text): Yat.Node.Text
+---@field class fun(self: Yat.Node.Text): Yat.Node.Text
 ---@field super Yat.Node
 ---
 ---@field protected __node_type "text"
----@field public parent? Yat.Nodes.Text
----@field private _children? Yat.Nodes.Text[]
-local TextNode = meta.create_class("Yat.Nodes.Text", Node)
+---@field public parent? Yat.Node.Text
+---@field private _children? Yat.Node.Text[]
+local TextNode = meta.create_class("Yat.Node.Text", Node)
 TextNode.__node_type = "text"
 
 ---@protected
 ---@param text string
 ---@param path string
 ---@param container boolean
----@param parent? Yat.Nodes.Text
+---@param parent? Yat.Node.Text
 function TextNode:init(text, path, container, parent)
   self.super:init({
     name = text,

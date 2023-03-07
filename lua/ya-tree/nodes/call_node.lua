@@ -6,15 +6,15 @@ local Node = require("ya-tree.nodes.node")
 
 ---@alias Yat.CallHierarchy.Direction "incoming"|"outgoing"
 
----@class Yat.Nodes.CallHierarchy : Yat.Node
----@field new fun(self: Yat.Nodes.CallHierarchy, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Nodes.CallHierarchy): Yat.Nodes.CallHierarchy
----@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Nodes.CallHierarchy): Yat.Nodes.CallHierarchy
----@field class fun(self: Yat.Nodes.CallHierarchy): Yat.Nodes.CallHierarchy
+---@class Yat.Node.CallHierarchy : Yat.Node
+---@field new fun(self: Yat.Node.CallHierarchy, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
+---@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
+---@field class fun(self: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
 ---@field super Yat.Node
 ---
 ---@field protected __node_type "call_hierarchy"
----@field public parent? Yat.Nodes.CallHierarchy
----@field private _children? Yat.Nodes.CallHierarchy[]
+---@field public parent? Yat.Node.CallHierarchy
+---@field private _children? Yat.Node.CallHierarchy[]
 ---@field private file string
 ---@field private _bufnr integer
 ---@field private _lsp_client_id? integer
@@ -22,7 +22,7 @@ local Node = require("ya-tree.nodes.node")
 ---@field public kind Lsp.Symbol.Kind
 ---@field public detail? string
 ---@field public position Lsp.Range
-local CallHierarchyNode = meta.create_class("Yat.Nodes.CallHierarchy", Node)
+local CallHierarchyNode = meta.create_class("Yat.Node.CallHierarchy", Node)
 CallHierarchyNode.__node_type = "call_hierarchy"
 
 ---@private
@@ -32,7 +32,7 @@ CallHierarchyNode.__node_type = "call_hierarchy"
 ---@param detail? string
 ---@param position Lsp.Range
 ---@param bufnr integer
----@param parent? Yat.Nodes.CallHierarchy
+---@param parent? Yat.Node.CallHierarchy
 function CallHierarchyNode:init(name, path, kind, detail, position, bufnr, file, parent)
   self.super:init({
     name = name,

@@ -152,12 +152,12 @@ function M.icon(node, context, renderer)
   local node_type = node:node_type()
   local icon, highlight
   if
-    node_type == "buffer" and node--[[@as Yat.Nodes.Buffer]]:is_terminals_container()
+    node_type == "buffer" and node--[[@as Yat.Node.Buffer]]:is_terminals_container()
   then
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
   elseif node_type == "symbol" or node_type == "call_hierarchy" then
-    ---@cast node Yat.Nodes.Symbol|Yat.Nodes.CallHierarchy
+    ---@cast node Yat.Node.Symbol|Yat.Node.CallHierarchy
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
   elseif node:is_directory() then
@@ -263,7 +263,7 @@ function M.name(node, context, renderer)
     elseif node:is_block_device() then
       highlight = hl.BLOCK_DEVICE_FILE_NAME
     elseif node:node_type() == "buffer" then
-      ---@cast node Yat.Nodes.Buffer
+      ---@cast node Yat.Node.Buffer
       if node:is_terminal() then
         highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
       end
@@ -470,7 +470,7 @@ function M.buffer_info(node, _, renderer)
   local bufnr = -1
   local hidden = false
   if node:node_type() == "buffer" then
-    ---@cast node Yat.Nodes.Buffer
+    ---@cast node Yat.Node.Buffer
     bufnr = node.bufnr or -1
     hidden = node.bufhidden or false
   end
@@ -510,7 +510,7 @@ function M.clipboard(node, _, renderer)
   end
 end
 
----@param node Yat.Nodes.Symbol
+---@param node Yat.Node.Symbol
 ---@param _ Yat.Ui.RenderContext
 ---@param renderer Yat.Config.Renderers.Builtin.SymbolDetails
 ---@return Yat.Ui.RenderResult[]|nil result

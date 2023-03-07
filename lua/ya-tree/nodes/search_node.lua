@@ -6,24 +6,24 @@ local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 local utils = require("ya-tree.utils")
 
----@class Yat.Nodes.Search : Yat.Node
----@field new fun(self: Yat.Nodes.Search, fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Search): Yat.Nodes.Search
----@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Nodes.Search): Yat.Nodes.Search
----@field class fun(self: Yat.Nodes.Search): Yat.Nodes.Search
+---@class Yat.Node.Search : Yat.Node
+---@field new fun(self: Yat.Node.Search, fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
+---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
+---@field class fun(self: Yat.Node.Search): Yat.Node.Search
 ---@field super Yat.Node
 ---
 ---@field protected __node_type "search"
----@field public parent? Yat.Nodes.Search
----@field private _children? Yat.Nodes.Search[]
+---@field public parent? Yat.Node.Search
+---@field private _children? Yat.Node.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
-local SearchNode = meta.create_class("Yat.Nodes.Search", Node)
+local SearchNode = meta.create_class("Yat.Node.Search", Node)
 SearchNode.__node_type = "search"
 
 ---Creates a new search node.
 ---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
----@param parent? Yat.Nodes.Search the parent node.
+---@param parent? Yat.Node.Search the parent node.
 function SearchNode:init(fs_node, parent)
   self.super:init(fs_node, parent)
   if self:is_directory() then
@@ -42,7 +42,7 @@ end
 
 ---@async
 ---@param term? string
----@return Yat.Nodes.Search|nil first_leaf_node
+---@return Yat.Node.Search|nil first_leaf_node
 ---@return integer|string nr_of_matches_or_error
 function SearchNode:search(term)
   if self.parent then

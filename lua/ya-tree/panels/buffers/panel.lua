@@ -17,8 +17,8 @@ local uv = vim.loop
 ---@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "buffers"
----@field public root Yat.Nodes.Buffer
----@field public current_node Yat.Nodes.Buffer
+---@field public root Yat.Node.Buffer
+---@field public current_node Yat.Node.Buffer
 local BuffersPanel = meta.create_class("Yat.Panel.Buffers", TreePanel)
 
 ---@async

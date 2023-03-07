@@ -10,29 +10,29 @@ local utils = require("ya-tree.utils")
 local api = vim.api
 local fn = vim.fn
 
----@alias Yat.Nodes.Buffer.Type Luv.FileType|"terminal"
+---@alias Yat.Node.Buffer.Type Luv.FileType|"terminal"
 
 ---@class Yat.Node.BufferData : Yat.Fs.Node
----@field public _type Yat.Nodes.Buffer.Type
+---@field public _type Yat.Node.Buffer.Type
 
----@class Yat.Nodes.Buffer : Yat.Node
----@field new fun(self: Yat.Nodes.Buffer, node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
----@overload fun(node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Nodes.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Nodes.Buffer
----@field class fun(self: Yat.Nodes.Buffer): Yat.Nodes.Buffer
+---@class Yat.Node.Buffer : Yat.Node
+---@field new fun(self: Yat.Node.Buffer, node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Node.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Node.Buffer
+---@overload fun(node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Node.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Node.Buffer
+---@field class fun(self: Yat.Node.Buffer): Yat.Node.Buffer
 ---@field super Yat.Node
 ---
----@field type fun(self: Yat.Nodes.Buffer): Yat.Nodes.Buffer.Type
+---@field type fun(self: Yat.Node.Buffer): Yat.Node.Buffer.Type
 ---@field protected __node_type "buffer"
----@field public parent? Yat.Nodes.Buffer
----@field private _type Yat.Nodes.Buffer.Type
----@field private _children? Yat.Nodes.Buffer[]
+---@field public parent? Yat.Node.Buffer
+---@field private _type Yat.Node.Buffer.Type
+---@field private _children? Yat.Node.Buffer[]
 ---@field public bufname? string
 ---@field public bufnr? integer
 ---@field public bufhidden? boolean
-local BufferNode = meta.create_class("Yat.Nodes.Buffer", Node)
+local BufferNode = meta.create_class("Yat.Node.Buffer", Node)
 BufferNode.__node_type = "buffer"
 
----@param other Yat.Nodes.Buffer
+---@param other Yat.Node.Buffer
 function BufferNode.__eq(self, other)
   if self._type == "terminal" then
     return other._type == "terminal" and self.bufname == other.bufname or false
@@ -46,7 +46,7 @@ local TERMINALS_CONTAINER_PATH = "/yatree://terminals/container"
 ---Creates a new buffer node.
 ---@protected
 ---@param node_data Yat.Node.BufferData node data.
----@param parent? Yat.Nodes.Buffer the parent node.
+---@param parent? Yat.Node.Buffer the parent node.
 ---@param bufname? string the vim buffer name.
 ---@param bufnr? integer the buffer number.
 ---@param modified? boolean if the buffer is modified.
@@ -134,7 +134,7 @@ function BufferNode:is_terminals_container()
 end
 
 ---@return integer? index
----@return Yat.Nodes.Buffer? container
+---@return Yat.Node.Buffer? container
 function BufferNode:get_terminals_container()
   for index, child in ipairs(self._children) do
     if child:is_terminals_container() then
@@ -165,7 +165,7 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   return false
 end
 
----@param other Yat.Nodes.Buffer
+---@param other Yat.Node.Buffer
 ---@return boolean
 function BufferNode:node_comparator(other)
   if self:is_terminals_container() then
@@ -184,7 +184,7 @@ function BufferNode:_scandir() end
 ---@param opts? {force_scan?: boolean, to?: string}
 ---  - {opts.force_scan?} `boolean` rescan directories.
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
----@return Yat.Nodes.Buffer|nil node if {opts.to} is specified, and found.
+---@return Yat.Node.Buffer|nil node if {opts.to} is specified, and found.
 function BufferNode:expand(opts)
   if opts and opts.to and is_path_terminal(opts.to) then
     opts.to = self:terminal_name_to_path(opts.to)
@@ -224,8 +224,8 @@ local function get_buffers_root_path(tree_root_path, paths)
   return root_path
 end
 
----@param root Yat.Nodes.Buffer
----@return Yat.Nodes.Buffer container
+---@param root Yat.Node.Buffer
+---@return Yat.Node.Buffer container
 local function create_terminal_buffers_container(root)
   local container = BufferNode:new({
     name = "Terminals",
@@ -237,9 +237,9 @@ local function create_terminal_buffers_container(root)
   return container
 end
 
----@param container Yat.Nodes.Buffer
----@param terminal Yat.Nodes.Buffer.TerminalData
----@return Yat.Nodes.Buffer node
+---@param container Yat.Node.Buffer
+---@param terminal Yat.Node.Buffer.TerminalData
+---@return Yat.Node.Buffer node
 local function add_terminal_buffer_to_container(container, terminal)
   local name = terminal.name:match("term://(.*)//.*")
   local bufinfo = fn.getbufinfo(terminal.bufnr)
@@ -258,7 +258,7 @@ end
 ---@async
 ---@param opts? { root_path?: string }
 --- -- {opts.root_path?} `string`
----@return Yat.Nodes.Buffer first_leaf_node
+---@return Yat.Node.Buffer first_leaf_node
 function BufferNode:refresh(opts)
   if self.parent then
     return self.parent:refresh(opts)
@@ -310,7 +310,7 @@ end
 ---@param path string
 ---@param bufnr integer
 ---@param is_terminal boolean
----@return Yat.Nodes.Buffer|nil node
+---@return Yat.Node.Buffer|nil node
 function BufferNode:add_node(path, bufnr, is_terminal)
   if self.parent then
     return self.parent:add_node(path, bufnr, is_terminal)

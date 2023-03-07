@@ -22,8 +22,8 @@ local uv = vim.loop
 ---@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "files"
----@field public root Yat.Node|Yat.Nodes.Search
----@field public current_node Yat.Node|Yat.Nodes.Search
+---@field public root Yat.Node|Yat.Node.Search
+---@field public current_node Yat.Node|Yat.Node.Search
 ---@field private files_root Yat.Node
 ---@field private files_current_node Yat.Node
 ---@field public focus_path_on_fs_event? string|"expand"
@@ -308,7 +308,7 @@ end
 
 ---@async
 ---@param path string
----@return Yat.Nodes.Search
+---@return Yat.Node.Search
 local function create_search_root(path)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   local root = SearchNode:new(fs_node)

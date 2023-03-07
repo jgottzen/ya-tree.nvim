@@ -21,8 +21,8 @@ local uv = vim.loop
 ---@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "symbols"
----@field public root Yat.Nodes.Symbol
----@field public current_node Yat.Nodes.Symbol
+---@field public root Yat.Node.Symbol
+---@field public current_node Yat.Node.Symbol
 local SymbolsPanel = meta.create_class("Yat.Panel.Symbols", TreePanel)
 
 ---@async
@@ -51,7 +51,7 @@ end
 ---@nodiscard
 ---@param path string
 ---@param bufnr? integer
----@return Yat.Nodes.Symbol
+---@return Yat.Node.Symbol
 function SymbolsPanel:create_root_node(path, bufnr)
   local do_defer = bufnr == nil
   if not bufnr then
@@ -152,7 +152,7 @@ end
 ---@async
 ---@private
 function SymbolsPanel:on_cursor_hold()
-  local node = self:get_current_node() --[[@as Yat.Nodes.Symbol?]]
+  local node = self:get_current_node() --[[@as Yat.Node.Symbol?]]
   if not node or self.root == node then
     return
   end
@@ -168,7 +168,7 @@ function SymbolsPanel:on_cursor_hold()
       lsp.clear_highlights(node:bufnr())
     end,
     once = true,
-    desc = "Clear current symbol highlighting"
+    desc = "Clear current symbol highlighting",
   })
 end
 

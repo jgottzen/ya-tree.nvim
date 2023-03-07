@@ -7,7 +7,7 @@ local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
----@alias Yat.Nodes.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"
+---@alias Yat.Node.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
@@ -162,7 +162,7 @@ end
 
 ---@param directories_first boolean
 ---@param case_sensitive boolean
----@param by Yat.Nodes.SortBy
+---@param by Yat.Node.SortBy
 function Node.create_comparator(directories_first, case_sensitive, by)
   ---@param a Yat.Node
   ---@param b Yat.Node
@@ -303,7 +303,7 @@ function Node:set_git_repo(repo)
   end
 end
 
----@return Yat.Nodes.Type node_type
+---@return Yat.Node.Type node_type
 function Node:node_type()
   return self.__node_type
 end
@@ -385,11 +385,11 @@ function Node:is_git_ignored()
   return self.repo and self.repo:is_ignored(self.path, self._type) or false
 end
 
----@alias Yat.Nodes.HiddenReason "filter"|"git"
+---@alias Yat.Node.HiddenReason "filter"|"git"
 
 ---@param config Yat.Config
 ---@return boolean hidden
----@return Yat.Nodes.HiddenReason? reason
+---@return Yat.Node.HiddenReason? reason
 function Node:is_hidden(config)
   if config.filters.enable then
     if config.filters.dotfiles and self:is_dotfile() then

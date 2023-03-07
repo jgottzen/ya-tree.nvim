@@ -76,12 +76,12 @@ local M = {
       exclude = {},
     },
 
-    ---@alias Yat.Nodes.SortBy "name"|"type"|"extension"
+    ---@alias Yat.Node.SortBy "name"|"type"|"extension"
 
     ---@class Yat.Config.Sorting
     ---@field directories_first boolean Whether to sort directories first, default: `true`.
     ---@field case_sensitive boolean Whether to use case sensitive sort, default: `false`.
-    ---@field sort_by Yat.Nodes.SortBy|fun(a: Yat.Node, b: Yat.Node):boolean What to sort by, or a user specified function, default: `"name"`.
+    ---@field sort_by Yat.Node.SortBy|fun(a: Yat.Node, b: Yat.Node):boolean What to sort by, or a user specified function, default: `"name"`.
     sorting = {
       directories_first = true,
       case_sensitive = false,

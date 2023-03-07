@@ -199,7 +199,7 @@ local function create_fs_info(node, stat)
   return lines, highlights
 end
 
----@param node Yat.Nodes.Buffer
+---@param node Yat.Node.Buffer
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlights
 local function create_terminal_info(node)
@@ -241,7 +241,7 @@ function M.show_node_info(_, node)
 
   local lines, highlight_groups
   if node:node_type() == "buffer" and node.extension == "terminal" then
-    ---@cast node Yat.Nodes.Buffer
+    ---@cast node Yat.Node.Buffer
     if node:is_terminal() then
       lines, highlight_groups = create_terminal_info(node)
     else
