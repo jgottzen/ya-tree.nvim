@@ -13,7 +13,7 @@ Table of Contents                                  *ya-tree-table-of-contents*
   - Async                                         |ya-tree-ya-tree.nvim-async|
   - Renderers                                 |ya-tree-ya-tree.nvim-renderers|
   - Highlight Groups                   |ya-tree-ya-tree.nvim-highlight-groups|
-  - Acknowlegdements                   |ya-tree-ya-tree.nvim-acknowlegdements|
+  - Acknowledgments                     |ya-tree-ya-tree.nvim-acknowledgments|
 
 ==============================================================================
 1. ya-tree.nvim                                         *ya-tree-ya-tree.nvim*
@@ -1818,7 +1818,7 @@ Ya-Tree defines the following highligh groups: ~
   YaTreeSecionSeparator              YaTreeDimText               
   ---------------------------------------------------------------------------------------------------
 
-ACKNOWLEGDEMENTS                       *ya-tree-ya-tree.nvim-acknowlegdements*
+ACKNOWLEDGMENTS                         *ya-tree-ya-tree.nvim-acknowledgments*
 
 
 - gitsigns.nvim <https://github.com/lewis6991/gitsigns.nvim> for Git integration in Lua.
