@@ -126,17 +126,16 @@ end
 
 do
   local UNITS = { "B", "KB", "MB", "GB", "TB" }
-  local LOG_1024 = math.log(1024)
 
-  -- taken from nvim-tree
+  -- taken from nvim-tree, modified to use SI units per IEC 80000-13
   ---@param size integer
   ---@return string
   function M.format_size(size)
     size = math.max(size, 0)
-    local pow = math.floor((size and math.log(size) or 0) / LOG_1024)
+    local pow = math.floor((size and math.log10(size) or 0) / 3)
     pow = math.min(pow, #UNITS)
 
-    local value = size / (1024 ^ pow)
+    local value = size / (1000 ^ pow)
     value = math.floor((value * 10) + 0.5) / 10
 
     pow = pow + 1
