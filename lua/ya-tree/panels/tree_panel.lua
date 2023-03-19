@@ -432,25 +432,6 @@ function TreePanel:set_git_repo_for_path(repo, path)
   end
 end
 
----@async
----@param node Yat.Node
----@return Yat.Git.Repo|nil repo
-function TreePanel:check_node_for_git_repo(node)
-  if self.refreshing or vim.v.exiting ~= vim.NIL then
-    log.debug("refresh already in progress or vim is exiting, aborting refresh")
-    return
-  end
-  self.refreshing = true
-  log.debug("checking if %s is in a git repository", node.path)
-  local repo = git.create_repo(node.path)
-  if repo then
-    node:set_git_repo(repo)
-    repo:status():refresh({ ignored = true })
-  end
-  self.refreshing = false
-  return repo
-end
-
 ---@protected
 ---@param action Yat.Action
 ---@return function handler

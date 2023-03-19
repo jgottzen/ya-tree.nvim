@@ -22,7 +22,7 @@ function M.check_node_for_git(panel, node)
   end
 
   if not node.repo or node.repo:is_yadm() then
-    local repo = panel:check_node_for_git_repo(node)
+    local repo = require("ya-tree.git").create_repo(node.path)
     if repo then
       panel.sidebar:set_git_repo_for_path(node.path, repo)
     else

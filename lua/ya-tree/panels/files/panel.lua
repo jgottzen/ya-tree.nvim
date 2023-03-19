@@ -49,6 +49,7 @@ local function create_root_node(path, old_root)
     end
   end
 
+  root:expand()
   return root
 end
 
@@ -62,7 +63,6 @@ function FilesPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local root = create_root_node(path)
   self.super:init("files", sidebar, config.title, config.icon, keymap, renderers, root)
-  self.root:expand({ force_scan = true })
   self.mode = "files"
   self.files_root = self.root
   self.files_current_node = self.current_node
@@ -76,6 +76,18 @@ function FilesPanel:init(sidebar, config, keymap, renderers)
   self:register_fs_changed_event()
 
   log.info("created panel %s", tostring(self))
+end
+
+---@async
+---@private
+---@param node Yat.Node
+function FilesPanel:check_node_for_git_repo(node)
+  log.debug("checking if %s is in a git repository", node.path)
+  local repo = git.create_repo(node.path)
+  if repo then
+    node:set_git_repo(repo)
+    repo:status():refresh({ ignored = true })
+  end
 end
 
 ---@param node Yat.Node
@@ -239,7 +251,6 @@ function FilesPanel:update_tree_root_node(new_root)
 
       while root.path ~= new_root do
         root = create_root_node(Path:new(root.path):parent().filename, root)
-        root:expand()
       end
     else
       log.debug("current root %s is not a child or ancestor of %q", tostring(self.files_root), new_root)
@@ -276,7 +287,6 @@ function FilesPanel:change_root_node(path)
     root:walk(maybe_remove_watchers)
     maybe_remove_watchers(root)
     self.files_root = create_root_node(path, self.files_root)
-    self.files_root:expand()
   end
 
   if not self.files_root.repo then

@@ -39,7 +39,7 @@ function M.open_git_status_panel(panel, node)
     node = node or panel.root
     local repo = node.repo
     if not repo or repo:is_yadm() then
-      repo = panel:check_node_for_git_repo(node)
+      repo = require("ya-tree.git").create_repo(node.path)
     end
     if repo then
       panel.sidebar:set_git_repo_for_path(node.path, repo)
