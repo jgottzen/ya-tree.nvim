@@ -1,5 +1,4 @@
 local log = require("ya-tree.log").get("panels")
-local utils = require("ya-tree.utils")
 
 ---@class Yat.Panel.Factory
 ---@field setup fun(config: Yat.Config): boolean
@@ -62,6 +61,7 @@ end
 
 ---@param config Yat.Config
 ---@param configured_panels Yat.Panel[]
+---@return Yat.Panel.Type[] available_panels
 function M.setup(config, configured_panels)
   M._registered_panels = {}
   M._keymaps = {}
@@ -79,7 +79,7 @@ function M.setup(config, configured_panels)
         end
       else
         log.error("failed to require panel of type %q: %s", panel_type, panel)
-        utils.warn(string.format("Panel of type %q is configured, but cannot be required", panel_type))
+        require("ya-tree.utils").warn(string.format("Panel of type %q is configured, but cannot be required", panel_type))
       end
     end
   end
@@ -105,6 +105,8 @@ function M.setup(config, configured_panels)
   if not M._registered_panels["symbols"] then
     remove_keymap(builtin.general.open_symbols_panel)
   end
+
+  return vim.tbl_keys(M._registered_panels)
 end
 
 return M

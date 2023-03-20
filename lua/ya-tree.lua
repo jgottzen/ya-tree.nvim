@@ -133,10 +133,7 @@ local function parse_open_command_input(fargs)
   local panel_pos = focus and 1 or 2
   local panel_type = fargs[panel_pos]
   local args = panel_pos < #fargs and { unpack(fargs, panel_pos + 1) } or nil
-  local panel_args
-  if panel_type and args then
-    panel_args = require("ya-tree.sidebar").parse_command_arguments(panel_type, args)
-  end
+  local panel_args = require("ya-tree.sidebar").parse_command_arguments(panel_type, args)
   return { focus = focus, panel = panel_type, panel_args = panel_args }
 end
 

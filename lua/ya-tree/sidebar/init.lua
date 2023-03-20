@@ -1,12 +1,9 @@
 local fs = require("ya-tree.fs")
-local git = require("ya-tree.git")
 local log = require("ya-tree.log").get("sidebar")
 local meta = require("ya-tree.meta")
 local Panels = require("ya-tree.panels")
 local scheduler = require("ya-tree.async").scheduler
 local ui = require("ya-tree.ui")
-local utils = require("ya-tree.utils")
-local void = require("ya-tree.async").void
 
 local api = vim.api
 
@@ -522,6 +519,7 @@ function M.delete_sidebars_for_nonexisting_tabpages()
     end
   end
 
+  local git = require("ya-tree.git")
   for toplevel, repo in pairs(git.repos) do
     if not found_toplevels[toplevel] then
       git.remove_repo(repo)
@@ -702,11 +700,13 @@ function M.complete_command(current, panel_type, args)
   end
 end
 
----@param panel_type Yat.Panel.Type
----@param args string[]
+---@param panel_type? Yat.Panel.Type
+---@param args? string[]
 ---@return table<string, string>|nil panel_args
 function M.parse_command_arguments(panel_type, args)
-  return Panels.parse_command_arguments(panel_type, args)
+  if panel_type and args then
+    return Panels.parse_command_arguments(panel_type, args)
+  end
 end
 
 ---@param config Yat.Config
@@ -719,12 +719,11 @@ function M.setup(config)
   local right = vim.tbl_map(function(layout)
     return layout.panel
   end, config.sidebar.layout.right.panels) --[=[@as Yat.Panel.Type[]]=]
-  vim.list_extend(left, right, 1, #right)
-  available_panels = utils.tbl_unique(left)
+  vim.list_extend(left, right)
 
-  Panels.setup(config, available_panels)
-  available_panels = vim.tbl_keys(Panels._registered_panels)
+  available_panels = Panels.setup(config, require("ya-tree.utils").tbl_unique(left))
 
+  local void = require("ya-tree.async").void
   local group = api.nvim_create_augroup("YaTreeSidebar", { clear = true })
   if config.close_if_last_window then
     api.nvim_create_autocmd("WinClosed", {
