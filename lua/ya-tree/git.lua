@@ -85,7 +85,7 @@ end
 ---@field public branch string
 ---@field package _is_yadm boolean
 ---@field private _git_dir string
----@field private _git_dir_watcher? uv.uv_fs_poll_t
+---@field private _git_dir_watcher? uv_fs_poll_t
 ---@field package _index Yat.Git.IndexCommands
 ---@field private _status Yat.Git.StatusCommand
 local Repo = meta.create_class("Yat.Git.Repo")

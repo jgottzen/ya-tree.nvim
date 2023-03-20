@@ -6,7 +6,7 @@ local utils = require("ya-tree.utils")
 
 local M = {
   ---@private
-  ---@type table<string, uv.uv_fs_event_t>
+  ---@type table<string, {handle: uv_fs_event_t, number_of_watchers: integer}?>
   _watchers = {},
   ---@private
   ---@type {[1]: string, [2]: string}[]

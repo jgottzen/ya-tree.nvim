@@ -16,24 +16,25 @@ local M = {}
 ---Excludes the link type since it's handled differently, and unknown.
 ---@alias Luv.FileType "directory"|"file"|"fifo"|"socket"|"char"|"block"
 
----@type async fun(path: string): err: string|nil, stat: uv.fs_stat.result|nil
+---@type async fun(path: string): err: string|nil, stat: uv.aliases.fs_stat_table|nil
 local fs_stat = wrap(uv.fs_stat, 2, true)
 
----@type async fun(path: string): err: string|nil, stat: uv.fs_stat.result|nil
+---@type async fun(path: string): err: string|nil, stat: uv.aliases.fs_stat_table|nil
 local fs_lstat = wrap(uv.fs_lstat, 2, true)
 
 ---@param path string
 ---@param entries integer
----@param callback fun(err: string|nil, luv_dir_t: uv.luv_dir_t|nil)
----@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: uv.luv_dir_t|nil
+---@param callback fun(err: string|nil, luv_dir_t: uv.aliases.fs_stat_table|nil)
+---@type async fun(path: string, entries: integer): err: string|nil, luv_dir_t: uv.aliases.fs_stat_table|nil
 local fs_opendir = wrap(function(path, entries, callback)
+  -- the uv meta file has the wrong api
   uv.fs_opendir(path, callback, entries)
 end, 3, true)
 
----@type async fun(luv_dir_t: uv.luv_dir_t): string|nil, uv.fs_readdir.entry[]|nil
+---@type async fun(luv_dir_t: uv.aliases.fs_stat_table): string|nil, uv.aliases.fs_readdir_entries[]|nil
 local fs_readdir = wrap(uv.fs_readdir, 2, true)
 
----@type async fun(luv_dir_t: uv.luv_dir_t): err: string|nil, success: boolean|nil
+---@type async fun(luv_dir_t: uv.aliases.fs_stat_table): err: string|nil, success: boolean|nil
 local fs_closedir = wrap(uv.fs_closedir, 2, true)
 
 ---@type async fun(path: string): err: string|nil, path: string|nil
@@ -55,7 +56,7 @@ end
 
 ---@async
 ---@param path string
----@return uv.fs_stat.result|nil stat
+---@return uv.aliases.fs_stat_table|nil stat
 function M.lstat(path)
   local err, stat = fs_lstat(path)
   if not stat then
@@ -121,7 +122,7 @@ M.st_mode_masks = {
 ---@async
 ---@param dir string the directory containing the file
 ---@param name string the name of the file
----@param stat? uv.fs_stat.result
+---@param stat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.FileNode node
 local function file_node(dir, name, stat)
   local path = utils.join_path(dir, name)
@@ -154,7 +155,7 @@ end
 ---@async
 ---@param dir string the directory containing the fifo
 ---@param name string name of the fifo
----@param stat? uv.fs_stat.result
+---@param stat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.FifoNode node
 local function fifo_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.FifoNode]]
@@ -167,7 +168,7 @@ end
 ---@async
 ---@param dir string the directory containing the socket
 ---@param name string name of the socket
----@param stat? uv.fs_stat.result
+---@param stat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.SocketNode node
 local function socket_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.SocketNode]]
@@ -180,7 +181,7 @@ end
 ---@async
 ---@param dir string the directory containing the char device file
 ---@param name string name of the char device file
----@param stat? uv.fs_stat.result
+---@param stat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.CharNode node
 local function char_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.CharNode]]
@@ -193,7 +194,7 @@ end
 ---@async
 ---@param dir string the directory containing the block device file
 ---@param name string name of the block device file
----@param stat? uv.fs_stat.result
+---@param stat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.BlockNode node
 local function block_node(dir, name, stat)
   local node = file_node(dir, name, stat) --[[@as Yat.Fs.BlockNode]]
@@ -216,7 +217,7 @@ end
 ---@async
 ---@param dir string the directory containing the link
 ---@param name string name of the link
----@param lstat? uv.fs_stat.result
+---@param lstat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.DirectoryLinkNode|Yat.Fs.FileLinkNode|nil node
 local function link_node(dir, name, lstat)
   local path = utils.join_path(dir, name)
@@ -353,6 +354,7 @@ end
 ---@return boolean whether the path exists.
 function M.exists(path)
   -- must use fs_lstat since fs_stat checks the target of links, not the link itself
+  -- the uv meta file has the wrong api
   local stat = uv.fs_lstat(path)
   return stat ~= nil
 end

@@ -1,13 +1,13 @@
 local M = {}
 
----@type uv.uv_timer_t[]
+---@type uv_timer_t[]
 local timers = {}
 
 ---@param fn fun(...)
 ---@param ms integer
 ---@return fun(...)
 function M.debounce_trailing(fn, ms)
-  local timer = vim.loop.new_timer() --[[@as uv.uv_timer_t]]
+  local timer = vim.loop.new_timer() --[[@as uv_timer_t]]
   timers[#timers + 1] = timer
   return function(...)
     local args = { ... }
@@ -23,7 +23,7 @@ end
 ---@param ms integer
 ---@return fun(...)
 function M.accumulate_trailing(fn, accumulator, ms)
-  local timer = vim.loop.new_timer() --[[@as uv.uv_timer_t]]
+  local timer = vim.loop.new_timer() --[[@as uv_timer_t]]
   timers[#timers + 1] = timer
   local args = {}
   return function(...)

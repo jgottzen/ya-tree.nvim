@@ -192,7 +192,7 @@ function Path:_fs_filename()
 end
 
 ---@private
----@return uv.fs_stat.result
+---@return uv.aliases.fs_stat_table
 function Path:_stat()
   return uv.fs_stat(self:_fs_filename()) or {}
 end
