@@ -140,12 +140,7 @@ function Sidebar:is_open(side)
   end
 end
 
----@class Yat.Sidebar.OpenArgs
----@field focus? boolean Whether to focus the sidebar.
----@field panel? Yat.Panel.Type A specific panel to open.
----@field panel_args? table<string, string> Any panel specific arguments for `panel`.
-
----@param opts? Yat.Sidebar.OpenArgs
+---@param opts? Yat.OpenWindowArgs
 ---  - {opts.focus?} `boolean` Whether to focus the sidebar.
 ---  - {opts.panel?} `Yat.Panel.Type` A specific panel to open.
 ---  - {opts.panel_args?} `table<string, string>` Any panel specific arguments for `opts.panel`.
@@ -381,13 +376,12 @@ end
 
 ---@param panel Yat.Panel
 function Sidebar:close_panel(panel)
-  local _, panel_layout = self:get_side_and_layout_for_panel(panel.TYPE)
-  if panel_layout then
+  local side, panel_layout = self:get_side_and_layout_for_panel(panel.TYPE)
+  if side and panel_layout then
     panel_layout.show = false
     ---@diagnostic disable-next-line:invisible
     panel:close()
-    self:set_panel_heights("left")
-    self:set_panel_heights("right")
+    self:set_panel_heights(side)
   end
 end
 

@@ -1,5 +1,4 @@
 local run = require("ya-tree.async").run
-local utils = require("ya-tree.utils")
 
 local api = vim.api
 
@@ -15,8 +14,8 @@ local M = {
 
 ---@class Yat.OpenWindowArgs
 ---@field focus? boolean Whether to focus the sidebar.
----@field panel? Yat.Panel.Type The panel to open.
----@field panel_args? table<string, string> The panel specific arguments.
+---@field panel? Yat.Panel.Type A specific panel to open, and/or focus.
+---@field panel_args? table<string, string>  Any panel specific arguments for `panel`.
 
 ---@async
 ---@param opts? Yat.OpenWindowArgs
@@ -88,7 +87,7 @@ end
 ---@param namespace Yat.Logger.Namespace
 function M.remove_logged_namespace(namespace)
   local namespaces = require("ya-tree.config").config.log.namespaces
-  utils.tbl_remove(namespaces, namespace)
+  require("ya-tree.utils").tbl_remove(namespaces, namespace)
   require("ya-tree.log").set_logged_namespaces(namespaces)
 end
 
@@ -157,7 +156,7 @@ function M.setup(opts)
     vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
   end
 
-  local autocmd_will_open = utils.is_buffer_directory() and config.hijack_netrw
+  local autocmd_will_open = config.hijack_netrw and require("ya-tree.utils").is_buffer_directory()
   if not autocmd_will_open and config.auto_open.on_setup then
     M._loading = true
     run(function()
