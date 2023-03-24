@@ -31,31 +31,27 @@ end
 
 ---@param handle any
 ---@return boolean?
-local function is_Async_T(handle)
+local function is_AsyncT(handle)
   if handle and type(handle) == "table" and vim.is_callable(handle.cancel) and vim.is_callable(handle.is_cancelled) then
     return true
   end
 end
 
----@class Yat.Async.Current
----@field is_cancelled fun(self: Yat.Async.Current): boolean
----@field cancel fun(self: Yat.Async.Current, cb: fun())
-
 ---@class Yat.Async
----@field _current? Yat.Async.Current
-local Async_T = {}
+---@field package _current? Yat.Async
+local AsyncT = {}
 
 ---@param co thread
 ---@return Yat.Async
-function Async_T.new(co)
-  local handle = setmetatable({}, { __index = Async_T })
+function AsyncT.new(co)
+  local handle = setmetatable({}, { __index = AsyncT })
   HANDLES[co] = handle
   return handle
 end
 
 -- Analogous to uv.close
 ---@param cb function
-function Async_T:cancel(cb)
+function AsyncT:cancel(cb)
   -- Cancel anything running on the event loop
   if self._current and not self._current:is_cancelled() then
     self._current:cancel(cb)
@@ -63,7 +59,7 @@ function Async_T:cancel(cb)
 end
 
 -- Analogous to uv.is_closing
-function Async_T:is_cancelled()
+function AsyncT:is_cancelled()
   return self._current and self._current:is_cancelled()
 end
 
@@ -79,7 +75,7 @@ function M.run(fn, callback, ...)
   })
 
   local co = coroutine.create(fn)
-  local handle = Async_T.new(co)
+  local handle = AsyncT.new(co)
 
   local function step(...)
     local ret = { coroutine.resume(co, ...) }
@@ -97,6 +93,7 @@ function M.run(fn, callback, ...)
       return
     end
 
+    -- coroutine.yield is called with (argc, pfunc, ...) as the arguments
     ---@type integer, any|fun(...):any
     local nargs, next_fn = ret[2], ret[3]
     local args = { select(4, unpack(ret)) }
@@ -106,8 +103,8 @@ function M.run(fn, callback, ...)
     args[nargs] = step
 
     local r = next_fn(unpack(args, 1, nargs))
-    if is_Async_T(r) then
-      handle._current = r --[[@as Yat.Async.Current]]
+    if is_AsyncT(r) then
+      handle._current = r --[[@as Yat.Async]]
     end
   end
 
