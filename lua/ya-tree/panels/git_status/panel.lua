@@ -13,9 +13,6 @@ local uv = vim.loop
 ---@class Yat.Panel.GitStatus : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.GitStatus, sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
 ---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
----@field class fun(self: Yat.Panel.GitStatus): Yat.Panel.GitStatus
----@field static Yat.Panel.GitStatus
----@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "git_status"
 ---@field public root Yat.Node.Git|Yat.Node.Text
@@ -51,7 +48,7 @@ function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
     local path = uv.cwd() --[[@as string]]
     root = TextNode:new(path .. " is not a Git repository", path, false)
   end
-  self.super:init("git_status", sidebar, config.title, config.icon, keymap, renderers, root)
+  TreePanel.init(self, "git_status", sidebar, config.title, config.icon, keymap, renderers, root)
   self.current_node = self.root:refresh() or root
   self:register_buffer_modified_event()
   self:register_buffer_saved_event()
@@ -69,7 +66,7 @@ end
 function GitStatusPanel:on_buffer_saved(_, file)
   if self.root:is_ancestor_of(file) then
     log.debug("changed file %q is in tree %s", file, tostring(self))
-    local node = self.root:get_child_if_loaded(file)
+    local node = self.root:get_node(file)
     if node then
       node.modified = false
     end

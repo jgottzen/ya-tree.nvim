@@ -7,16 +7,16 @@ local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
----@alias Yat.Node.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"
+---@alias Yat.Node.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"|string
+
+---@class Yat.NodeStatic
 
 ---@class Yat.Node : Yat.Object
 ---@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
 ---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
----@field class fun(self: Yat.Node): Yat.Node
----@field static Yat.Node
----@field private __lower Yat.Node
+---@field static Yat.NodeStatic
 ---
----@field protected __node_type "filesystem"
+---@field public TYPE Yat.Node.Type
 ---@field public name string
 ---@field public path string
 ---@field public parent? Yat.Node
@@ -38,7 +38,6 @@ local utils = require("ya-tree.utils")
 ---@field public expanded? boolean
 ---@field package _fs_event_registered boolean
 local Node = meta.create_class("Yat.Node")
-Node.__node_type = "filesystem"
 
 ---@param other Yat.Node
 function Node.__eq(self, other)
@@ -46,11 +45,9 @@ function Node.__eq(self, other)
 end
 
 function Node.__tostring(self)
-  local node_type = self.__lower and self.__lower.__node_type or self.__node_type
-  return string.format("(%s, %s)", node_type, self.path)
+  return string.format("(%s, %s)", self.TYPE, self.path)
 end
 
----Creates a new node.
 ---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Node the parent node.
@@ -60,6 +57,7 @@ function Node:init(fs_node, parent)
       self[k] = v
     end
   end
+  self.TYPE = "filesystem"
   self.parent = parent
   self.modified = false
   if self:is_directory() then
@@ -93,31 +91,24 @@ end
 ---@return table<string, any>
 function Node:get_debug_info(output_to_log)
   ---@type table<string, any>
-  local t = {
-    __class = self:class():name(),
-    __node_type = self:node_type(),
-  }
-  local object = self --[[@as Yat.Object]]
-  local ignored_props = { "super", "__class", "__lower" }
-  while object ~= nil do
-    for k, v in pairs(object) do
-      local val
-      if type(v) == "table" then
-        if k == "parent" or k == "repo" then
-          val = tostring(v)
-        elseif k == "_children" then
-          val = vim.tbl_map(tostring, v)
-        elseif not vim.tbl_contains(ignored_props, k) then
-          val = v
-        end
-      elseif type(v) ~= "function" then
+  local t = { __class = self.class.name }
+  local ignored_props = { "class" }
+  for k, v in pairs(self) do
+    local val
+    if type(v) == "table" then
+      if k == "parent" or k == "repo" then
+        val = tostring(v)
+      elseif k == "_children" then
+        val = vim.tbl_map(tostring, v)
+      elseif not vim.tbl_contains(ignored_props, k) then
         val = v
       end
-      if not t[k] then
-        t[k] = val
-      end
+    elseif type(v) ~= "function" then
+      val = v
     end
-    object = object.super
+    if not t[k] then
+      t[k] = val
+    end
   end
   if output_to_log then
     log.info(t)
@@ -128,7 +119,7 @@ end
 ---@package
 ---@param fs_node Yat.Fs.Node filesystem data.
 function Node:_merge_new_data(fs_node)
-  if self.__node_type == "filesystem" then
+  if self.TYPE == "filesystem" then
     if self:is_directory() and fs_node._type ~= "directory" and self._fs_event_registered then
       self._fs_event_registered = false
       fs_watcher.remove_watcher(self.path)
@@ -149,7 +140,7 @@ end
 ---@param a Yat.Node
 ---@param b Yat.Node
 ---@return boolean
-function Node.node_comparator_name_case_insensitve(a, b)
+function Node.static.node_comparator_name_case_insensitve(a, b)
   local ad = a:is_directory()
   local bd = b:is_directory()
   if ad and not bd then
@@ -163,7 +154,7 @@ end
 ---@param directories_first boolean
 ---@param case_sensitive boolean
 ---@param by Yat.Node.SortBy
-function Node.create_comparator(directories_first, case_sensitive, by)
+function Node.static.create_comparator(directories_first, case_sensitive, by)
   ---@param a Yat.Node
   ---@param b Yat.Node
   ---@return boolean
@@ -262,7 +253,6 @@ function Node:_scandir()
     child.modified = buffer and buffer.modified or false
   end
 end
-Node:virtual("_scandir")
 
 ---@protected
 ---@param repo Yat.Git.Repo
@@ -301,11 +291,6 @@ function Node:set_git_repo(repo)
       log.error("repo=%s", repo)
     end
   end
-end
-
----@return Yat.Node.Type node_type
-function Node:node_type()
-  return self.__node_type
 end
 
 ---@return Luv.FileType
@@ -450,7 +435,6 @@ function Node:edit(cmd)
 end
 
 ---@async
----@virtual
 ---@generic T : Yat.Node
 ---@param self T
 ---@param path string
@@ -458,14 +442,13 @@ end
 function Node:add_node(path)
   ---@cast self Yat.Node
   return self:_add_node(path, function(fs_node, parent)
-    local node = self:class():new(fs_node, parent)
-    if node:node_type() == "filesystem" then
+    local node = self.class:new(fs_node, parent) --[[@as Yat.Node]]
+    if node.TYPE == "filesystem" then
       maybe_add_watcher(node)
     end
     return node
   end)
 end
-Node:virtual("add_node")
 
 ---@async
 ---@protected
@@ -514,13 +497,11 @@ function Node:_add_node(path, node_creator)
   return node
 end
 
----@virtual
 ---@param path string
 ---@return boolean updated
 function Node:remove_node(path)
   return self:_remove_node(path, false)
 end
-Node:virtual("remove_node")
 
 ---@protected
 ---@param path string
@@ -528,14 +509,14 @@ Node:virtual("remove_node")
 ---@return boolean updated
 function Node:_remove_node(path, remove_empty_parents)
   local updated = false
-  local node = self:get_child_if_loaded(path)
+  local node = self:get_node(path)
   while node and node.parent and node ~= self do
     if node.parent and node.parent._children then
       for i = #node.parent._children, 1, -1 do
         local child = node.parent._children[i]
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
-          if child.__node_type == "filesystem" then
+          if child.TYPE == "filesystem" then
             maybe_remove_watcher(child)
           end
           table.remove(node.parent._children, i)
@@ -611,11 +592,16 @@ function Node:populate_from_paths(paths, node_creator)
   ---@param node Yat.Node
   local function sort_children(node)
     if node._children then
+      local empty = node._children == 0
       ---@diagnostic disable-next-line:invisible
-      node.empty = #node._children == 0
-      table.sort(node._children, node.node_comparator)
-      for _, child in ipairs(node._children) do
-        sort_children(child)
+      node.empty = empty
+      if not empty then
+        table.sort(node._children, node.node_comparator)
+        for _, child in ipairs(node._children) do
+          if child._children then
+            sort_children(child)
+          end
+        end
       end
     end
   end
@@ -638,7 +624,7 @@ end
 ---Returns an iterator function for this `node`'s children.
 ---@generic T : Yat.Node
 ---@param self T
----@param opts? { reverse?: boolean, from?: T }
+---@param opts? {reverse?: boolean, from?: T}
 ---  - {opts.reverse?} `boolean`
 ---  - {opts.from?} T
 ---@return fun(): integer, T iterator
@@ -740,12 +726,12 @@ function Node:expand(opts)
   end
 end
 
----Returns the child node specified by `path` if it has been loaded.
+---Returns the child node specified by `path`, if it exists.
 ---@generic T : Yat.Node
 ---@param self T
 ---@param path string
----@return T|nil
-function Node:get_child_if_loaded(path)
+---@return T|nil node
+function Node:get_node(path)
   ---@cast self Yat.Node
   if self.path == path then
     return self
@@ -759,7 +745,7 @@ function Node:get_child_if_loaded(path)
       if child.path == path then
         return child
       elseif child:is_ancestor_of(path) then
-        return child:get_child_if_loaded(path)
+        return child:get_node(path)
       end
     end
   end
@@ -821,7 +807,6 @@ do
       end
     end
   end
-  Node:virtual("refresh")
 end
 
 return Node

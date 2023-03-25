@@ -8,23 +8,21 @@ local utils = require("ya-tree.utils")
 ---@class Yat.Node.Git : Yat.Node
 ---@field new fun(self: Yat.Node.Git, fs_node: Yat.Fs.Node, parent?: Yat.Node.Git): Yat.Node.Git
 ---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Git): Yat.Node.Git
----@field class fun(self: Yat.Node.Git): Yat.Node.Git
----@field super Yat.Node
 ---
----@field protected __node_type "git"
+---@field public TYPE "git"
 ---@field public parent? Yat.Node.Git
 ---@field private _children? Yat.Node.Git[]
 ---@field public repo Yat.Git.Repo
 ---@field package editable boolean
 local GitNode = meta.create_class("Yat.Node.Git", Node)
-GitNode.__node_type = "git"
 
 ---Creates a new git status node.
 ---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Node.Git the parent node.
 function GitNode:init(fs_node, parent)
-  self.super:init(fs_node, parent)
+  Node.init(self, fs_node, parent)
+  self.TYPE = "git"
   self.editable = self._type == "file"
   if self:is_directory() then
     self.empty = true
@@ -68,7 +66,7 @@ end
 function GitNode:_scandir() end
 
 ---@async
----@param opts? { refresh_git?: boolean }
+---@param opts? {refresh_git?: boolean}
 ---  - {opts.refresh_git?} `boolean` whether to refresh the git status, default: `true`
 ---@return Yat.Node.Git first_leaf_node
 function GitNode:refresh(opts)

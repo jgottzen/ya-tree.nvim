@@ -1,294 +1,342 @@
-----------------------------------------------------------------------------------------------------
--- Based on: https://github.com/jpatte/yaci.lua
---
--- With improvements from https://github.com/sindrets/diffview.nvim/blob/main/lua/diffview/oop.lua
-----------------------------------------------------------------------------------------------------
+-- modified version of middleclass
 
-local M = {}
+local meta = {
+  _VERSION = "middleclass v4.1.1",
+  _DESCRIPTION = "Object Orientation for Lua",
+  _URL = "https://github.com/kikito/middleclass",
+  _LICENSE = [[
+    MIT LICENSE
+    Copyright (c) 2011 Enrique García Cota
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the
+    "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish,
+    distribute, sublicense, and/or sell copies of the Software, and to
+    permit persons to whom the Software is furnished to do so, subject to
+    the following conditions:
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+    OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+    MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+    TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+  ]],
+}
 
----Associations between an object an its virtuals.
----@type table<Yat.Class, { virtuals: table<string, function> }>
-local CLASSES = setmetatable({}, { __mode = "k" })
-
----Return a shallow copy of table t
-local function duplicate(t)
-  local t2 = {}
-  for k, v in pairs(t) do
-    t2[k] = v
-  end
-  return t2
-end
+---@alias Yat.Object.Method fun(self: Yat.Object, ...):any
+---@alias Yat.Class.Method fun(self: Yat.Class, ...):any
 
 ---@param class Yat.Class
----@return Yat.Object?
-local function new_instance(class, ...)
-  -- selene: allow(shadowing)
+---@param f? table<string, Yat.Object.Method>|Yat.Object.Method
+---@return Yat.Object.Method
+local function create_index_wrapper(class, f)
+  if f == nil then
+    ---@diagnostic disable-next-line:return-type-mismatch
+    return class.__instance_dict
+  elseif type(f) == "function" then
+    ---@param self Yat.Object
+    ---@param name string
+    return function(self, name)
+      local value = class.__instance_dict[name]
 
-  ---@param class Yat.Class
-  ---@param virtuals? string[]
-  ---@return Yat.Object
-  ---@diagnostic disable-next-line:redefined-local
-  local function make_instance(class, virtuals)
-    ---@type Yat.Object
-    local instance = duplicate(virtuals)
-    instance.__class = class
-
-    if class:super() ~= nil then
-      instance.super = make_instance(class:super(), virtuals)
-      rawset(instance.super, "__lower", instance)
-    else
-      instance.super = {}
+      if value ~= nil then
+        return value
+      else
+        return f(self, name)
+      end
     end
+  else -- if  type(f) == "table" then
+    ---@param _ Yat.Object
+    ---@param name string
+    return function(_, name)
+      local value = class.__instance_dict[name]
 
-    setmetatable(instance, class.static)
-
-    return instance
-  end
-
-  local instance = make_instance(class, CLASSES[class].virtuals)
-  ---@diagnostic disable-next-line:invisible
-  instance:init(...)
-  return instance
-end
-
----@param class Yat.Class
----@param function_name string
-local function make_virtual(class, function_name)
-  local fn = class.static[function_name]
-  if fn == nil then
-    fn = function()
-      error("Attempt to call an undefined abstract method '" .. function_name .. "'")
+      if value ~= nil then
+        return value
+      else
+        return f[name]
+      end
     end
   end
-  CLASSES[class].virtuals[function_name] = fn
 end
 
----Try to cast an instance into an instance of one of its super- or subclasses
 ---@param class Yat.Class
----@param instance Yat.Object
-local function try_cast(class, instance)
-  -- is it already the right class?
-  if instance.class == class then
-    return instance
-  end
+---@param name string
+---@param f Yat.Object.Method
+local function propagate_instance_method(class, name, f)
+  f = name == "__index" and create_index_wrapper(class, f) or f
+  class.__instance_dict[name] = f
 
-  local current = instance.__lower
-  -- search lower in the hierarchy
-  while current ~= nil do
-    if current.__class == class then
-      return current
+  for subclass in pairs(class.subclasses) do
+    if rawget(subclass.__declared_methods, name) == nil then
+      propagate_instance_method(subclass, name, f)
     end
-    current = current.__lower
   end
-
-  -- instance is not a sub- or super-type of class
-  return nil
 end
 
----Same as try_cast but raise an error in case of failure
 ---@param class Yat.Class
----@param instance Yat.Object
-local function secure_cast(class, instance)
-  local cast = try_cast(class, instance)
-  if cast == nil then
-    error("Failed to cast " .. tostring(instance) .. " to a " .. class:name())
+---@param name string
+---@param f Yat.Object.Method
+local function declare_instance_method(class, name, f)
+  class.__declared_methods[name] = f
+
+  if f == nil and class.super then
+    f = class.super.__instance_dict[name]
   end
-  return cast
+
+  propagate_instance_method(class, name, f)
 end
 
----@param instance Yat.Object
-local function instsance_init_definition(instance)
-  ---@diagnostic disable-next-line:invisible
-  instance.super:init()
+---@param self Yat.Class
+---@param ... any
+---@return Yat.Object
+local function call(self, ...)
+  return self:new(...)
 end
 
----@param instance Yat.Object
----@param key string
----@param value any
-local function instance_newindex(instance, key, value)
-  -- first check if this field isn't already defined higher in the hierarchy
-  if instance.super[key] ~= nil then
-    -- update the old value
-    instance.super[key] = value
-  else
-    -- create the field
-    rawset(instance, key, value)
-  end
-end
-
----@generic T
----@param base Yat.Class
+---@generic T : Yat.Object
 ---@param name `T`
+---@param super? Yat.Class
 ---@return T
-local function subclass(base, name)
-  if type(name) ~= "string" then
-    name = "Unnamed"
-  end
-
-  ---@type Yat.Object
-  local class = {}
-
-  -- need to copy everything here because events can't be found through metatables
-  local static = base.static
-  local instance_internals = {
-    __tostring = static.__tostring,
-    __eq = static.__eq,
-    __add = static.__add,
-    __sub = static.__sub,
-    __mul = static.__mul,
-    __div = static.__div,
-    __mod = static.__mod,
-    __pow = static.__pow,
-    __unm = static.__unm,
-    __len = static.__len,
-    __lt = static.__lt,
-    __le = static.__le,
-    __concat = static.__concat,
-    __call = static.__call,
-    __newindex = instance_newindex,
-    init = instsance_init_definition,
-    class = function()
-      return class
-    end,
-    instance_of = function(_, other)
-      return class == other or base:isa(other)
-    end,
-  }
-
-  -- Look for field 'key' in instance 'instance'
-  ---@param self Yat.Object
-  ---@param key string
-  function instance_internals.__index(self, key)
-    local res = instance_internals[key]
-    if res ~= nil then
-      return res
-    end
-
-    return self.super[key] -- Is it somewhere higher in the hierarchy?
-  end
+local function create_class(name, super)
+  local dict = {}
+  dict.__index = dict
 
   ---@class Yat.Class
-  ---@field static { [string]: function }
+  ---@field protected allocate fun(class: Yat.Class): Yat.Object
   ---@field new fun(class: Yat.Class, ...): Yat.Object
-  ---@field subclass fun(self: Yat.Class, name: string): Yat.Class
-  ---@field virtual fun(self: Yat.Class, method: string)
-  ---@field cast fun(self: Yat.Class, other: Yat.Object): Yat.Class
-  ---@field try_cast fun(self: Yat.Class, other: Yat.Object): Yat.Class?
-  ---@field name fun(self: Yat.Class): string
-  ---@field super fun(self: Yat.Class): Yat.Class
-  ---@field isa fun(self: Yat.Class, other: Yat.Object): boolean
-  local class_internals = {
-    static = instance_internals,
-    new = new_instance,
-    subclass = subclass,
-    virtual = make_virtual,
-    cast = secure_cast,
-    trycast = try_cast,
-    name = function(_)
-      return name --[[@as string]]
-    end,
-    super = function(_)
-      return base
-    end,
-    isa = function(_, other)
-      return class == other or base:isa(other)
-    end,
+  ---@field name string
+  ---@field subclass fun(self: Yat.Class, name: string): Yat.Object
+  ---@field protected subclassed fun(self: Yat.Class, other: Yat.Class)
+  ---@field is_subclass_of fun(self: Yat.Class, other: Yat.Class): boolean
+  local class = {
+    name = name,
+    super = super,
+    ---@type table<string, Yat.Class.Method>
+    static = {},
+    ---@private
+    ---@type table<string, Yat.Object.Method>
+    __instance_dict = dict,
+    ---@private
+    ---@type table<string, Yat.Object.Method>
+    __declared_methods = {},
+    ---@private
+    ---@type table<Yat.Class, boolean>
+    subclasses = setmetatable({}, { __mode = "k" }),
   }
-  CLASSES[class] = { virtuals = duplicate(CLASSES[base].virtuals) }
 
-  -- selene: allow(shadowing)
-
-  ---@param class Yat.Class
-  ---@param name string
-  ---@param method fun(...): any
-  ---@diagnostic disable-next-line:redefined-local
-  local function new_method(class, name, method)
-    instance_internals[name] = method
-    if CLASSES[class].virtuals[name] ~= nil then
-      CLASSES[class].virtuals[name] = method
-    end
+  if super then
+    setmetatable(class.static, {
+      __index = function(_, k)
+        local result = rawget(dict, k)
+        if result == nil then
+          return super.static[k]
+        end
+        return result
+      end,
+    })
+  else
+    setmetatable(class.static, {
+      __index = function(_, k)
+        return rawget(dict, k)
+      end,
+    })
   end
 
   setmetatable(class, {
-    __newindex = new_method,
-    __index = function(_, key)
-      return class_internals[key] or class_internals.static[key] or base[key]
-    end,
+    __index = class.static,
     __tostring = function()
       return "<class " .. name .. ">"
     end,
-    __call = new_instance,
+    __call = call,
+    __newindex = declare_instance_method,
   })
 
   return class
 end
 
----@class Yat.Object
----@field package __class Yat.Class
----@field package __lower Yat.Object
----@field protected init fun(self: Yat.Object, ...)
----@field class fun(self: Yat.Object): Yat.Class
----@field super Yat.Object
----@field subclass fun(self: Yat.Class, name: string): Yat.Object
----@field static Yat.Object
----@field virtual fun(self: Yat.Object, method: string)
----@field instance_of fun(self: Yat.Object, class: Yat.Object): boolean
-local Object = {}
+---@param class Yat.Class
+---@param mixin Yat.Mixin
+---@return Yat.Object
+local function include_mixin(class, mixin)
+  assert(type(mixin) == "table", "mixin must be a table")
 
-local function object_new_item()
-  error("Do not modify the 'Yat.Object' class, subclass it instead.")
+  for name, method in pairs(mixin) do
+    if name ~= "included" and name ~= "static" then
+      class[name] = method
+    end
+  end
+
+  for name, method in pairs(mixin.static or {}) do
+    class.static[name] = method
+  end
+
+  ---@diagnostic disable-next-line:invisible
+  if type(mixin.included) == "function" then
+    ---@diagnostic disable-next-line:invisible
+    mixin:included(class)
+  end
+
+  return class --[[@as Yat.Object]]
 end
 
-local object_instance = {
-  __newindex = object_new_item,
-  ---@param self Yat.Object
+---@class Yat.DefaultMixin : Yat.Mixin
+local DefaultMixin = {
   __tostring = function(self)
-    return "<class " .. self:class():name() .. ">"
+    return tostring(self.class)
   end,
-  init = function() end,
-  class = function()
-    return Object
-  end,
-  instance_of = function(_, other)
-    return other == Object
-  end,
-}
-object_instance.__index = object_instance
 
-local object_class = {
-  static = object_instance,
-  new = new_instance,
-  subclass = subclass,
-  cast = secure_cast,
-  trycast = try_cast,
-  name = function()
-    return "Object"
-  end,
-  super = function()
-    return nil
-  end,
-  isa = function(_, other)
-    return other == Object
-  end,
-}
-CLASSES[Object] = { virtuals = {} }
+  -- selene: allow(unused_variable)
 
-setmetatable(Object, {
-  __newindex = object_new_item,
-  __index = object_class,
-  __tostring = function()
-    return "<class Object>"
+  ---@protected
+  ---@param self Yat.Object
+  ---@param ... any
+  ---@diagnostic disable-next-line:unused-local
+  init = function(self, ...) end,
+
+  ---@param self Yat.Object
+  ---@param class Yat.Class
+  ---@return boolean
+  instance_of = function(self, class)
+    return type(class) == "table"
+      and type(self) == "table"
+      and (
+        self.class == class
+        or type(self.class) == "table" and type(self.class.is_subclass_of) == "function" and self.class:is_subclass_of(class)
+      )
   end,
-  __call = new_instance,
-})
+
+  static = {
+    ---@protected
+    ---@param self Yat.Class
+    ---@return Yat.Object
+    allocate = function(self)
+      assert(type(self) == "table", "Make sure that you are using 'Class:allocate' instead of 'Class.allocate'")
+      return setmetatable({ class = self }, self.__instance_dict)
+    end,
+
+    ---@param self Yat.Class
+    ---@param ... any
+    ---@return Yat.Object
+    new = function(self, ...)
+      assert(type(self) == "table", "Make sure that you are using 'Class:new' instead of 'Class.new'")
+      ---@diagnostic disable-next-line:invisible
+      local instance = self:allocate()
+      ---@diagnostic disable-next-line:invisible
+      instance:init(...)
+      return instance
+    end,
+
+    ---@generic T : Yat.Object
+    ---@param self Yat.Class
+    ---@param name `T`
+    ---@return T class
+    subclass = function(self, name)
+      assert(type(self) == "table", "Make sure that you are using 'Class:subclass' instead of 'Class.subclass'")
+      assert(type(name) == "string", "You must provide a name(string) for your class")
+
+      local subclass = create_class(name, self)
+
+      for methodName, f in pairs(self.__instance_dict) do
+        if not (methodName == "__index" and type(f) == "table") then
+          propagate_instance_method(subclass, methodName, f)
+        end
+      end
+      subclass.init = function(instance, ...)
+        ---@diagnostic disable-next-line:undefined-field
+        return self.init(instance, ...)
+      end
+
+      self.subclasses[subclass] = true
+      ---@diagnostic disable-next-line:invisible
+      self:subclassed(subclass)
+
+      return subclass
+    end,
+
+    -- selene: allow(unused_variable)
+
+    ---@protected
+    ---@param self Yat.Class
+    ---@param other Yat.Class
+    ---@diagnostic disable-next-line:unused-local
+    subclassed = function(self, other) end,
+
+    ---@param self Yat.Class
+    ---@param other Yat.Class
+    ---@return boolean
+    is_subclass_of = function(self, other)
+      return type(other) == "table" and type(self.super) == "table" and (self.super == other or self.super:is_subclass_of(other))
+    end,
+
+    ---@param self Yat.Class
+    ---@param mixin Yat.Mixin
+    ---@return Yat.Class
+    include = function(self, mixin)
+      assert(type(self) == "table", "Make sure you that you are using 'Class:include' instead of 'Class.include'")
+      include_mixin(self, mixin)
+      return self
+    end,
+  },
+}
 
 ---@generic T : Yat.Object
 ---@param name `T`
 ---@param super? Yat.Object
 ---@return T
-function M.create_class(name, super)
-  super = super or Object
-  return super:subclass(name)
+function meta.create_class(name, super)
+  assert(type(name) == "string", "A name (string) is needed for the new class")
+  return super and super:subclass(name) or include_mixin(create_class(name), DefaultMixin)
 end
 
-return M
+---@class Yat.Object
+---@field class Yat.Class
+---@field static table<string, function>
+local Object = {}
+
+---The constructor must be defined on subclasses.
+---@private
+---@param ... any constructor paramaters
+---@return Yat.Object
+---@diagnostic disable-next-line:missing-return
+function Object:new(...) end
+
+---@protected
+---@param ... any constructor paramaters
+function Object:init(...) end
+
+-- selene: allow(unused_variable)
+
+---@param class Yat.Object
+---@return boolean
+---@diagnostic disable-next-line:unused-local,missing-return
+function Object:instance_of(class) end
+
+-- selene: allow(unused_variable)
+
+---@generic T : Yat.Object
+---@param name `T`
+---@return T
+---@diagnostic disable-next-line:unused-local,missing-return
+function Object:subclass(name) end
+
+-- selene: allow(unused_variable)
+
+---@generic T : Yat.Object
+---@param mixin Yat.Mixin
+---@return T
+---@diagnostic disable-next-line:unused-local,missing-return
+function Object:include(mixin) end
+
+-- selene: allow(unused_variable)
+
+---@class Yat.Mixin
+---@field protected included? fun(self: Yat.Mixin, class: Yat.Class)
+---@field static? table<string, fun(self: Yat.Object, ...: any)>
+---@diagnostic disable-next-line:unused-local
+local Mixin = {}
+
+return meta

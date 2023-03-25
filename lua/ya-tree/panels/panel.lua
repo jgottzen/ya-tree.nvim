@@ -40,11 +40,6 @@ local WIN_OPTIONS = {
 
 ---@abstract
 ---@class Yat.Panel : Yat.Object
----@field new async fun(self: Yat.Panel, type: Yat.Panel.Type, sidebar: Yat.Sidebar, title: string, icon: string, actions: table<string, Yat.Action>): Yat.Panel
----@overload async fun(type: Yat.Panel.Type, sidebar: Yat.Sidebar, title: string, icon: string, actions: table<string, Yat.Action>): Yat.Panel
----@field class fun(self: Yat.Panel): Yat.Class
----@field static Yat.Panel
----@field private __lower Yat.Panel
 ---
 ---@field public TYPE Yat.Panel.Type
 ---@field public sidebar Yat.Sidebar
@@ -61,7 +56,7 @@ local WIN_OPTIONS = {
 local Panel = meta.create_class("Yat.Panel")
 
 function Panel.__tostring(self)
-  return string.format("<class %s(TYPE=%s, winid=%s, bufnr=%s)>", self:class():name(), self.TYPE, self._winid, self._bufnr)
+  return string.format("<%s(TYPE=%s, winid=%s, bufnr=%s)>", self.class.name, self.TYPE, self._winid, self._bufnr)
 end
 
 ---@async
@@ -160,13 +155,14 @@ end
 
 -- selene: allow(unused_variable)
 
----@virtual
+---@abstract
 ---@protected
 ---@param action Yat.Action
 ---@return function|string handler
----@diagnostic disable-next-line:unused-local,missing-return
-function Panel:create_keymap_function(action) end
-Panel:virtual("create_keymap_function")
+---@diagnostic disable-next-line:unused-local
+function Panel:create_keymap_function(action)
+  error("Must be implemented by subclasses")
+end
 
 do
   local POSITIONS_TO_WINCMD = { left = "H", right = "L" }
@@ -329,6 +325,9 @@ do
   end
 end
 
+---@async
+function Panel:refresh() end
+
 -- selene: allow(unused_variable)
 
 ---@async
@@ -350,7 +349,6 @@ end
 function Panel:draw(...)
   error("Must be implemented by subclasses")
 end
-Panel:virtual("draw")
 
 ---@param lines string[]
 ---@param highlights Yat.Ui.HighlightGroup[][]
@@ -463,6 +461,5 @@ end
 ---@param new_cwd string
 ---@diagnostic disable-next-line:unused-local
 function Panel:on_cwd_changed(new_cwd) end
-Panel:virtual("on_cwd_changed")
 
 return Panel

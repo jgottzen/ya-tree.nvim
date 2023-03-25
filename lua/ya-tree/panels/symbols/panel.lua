@@ -16,9 +16,6 @@ local uv = vim.loop
 ---@class Yat.Panel.Symbols : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.Symbols, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Symbols
 ---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Symbols
----@field class fun(self: Yat.Panel.Symbols): Yat.Panel.Symbols
----@field static Yat.Panel.Symbols
----@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "symbols"
 ---@field public root Yat.Node.Symbol
@@ -34,7 +31,7 @@ local SymbolsPanel = meta.create_class("Yat.Panel.Symbols", TreePanel)
 function SymbolsPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local root = self:create_root_node(path)
-  self.super:init("symbols", sidebar, config.title, config.icon, keymap, renderers, root)
+  TreePanel.init(self, "symbols", sidebar, config.title, config.icon, keymap, renderers, root)
   if self:has_renderer("modified") then
     self:register_buffer_modified_event()
   end

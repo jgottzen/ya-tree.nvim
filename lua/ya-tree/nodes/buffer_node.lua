@@ -18,11 +18,10 @@ local fn = vim.fn
 ---@class Yat.Node.Buffer : Yat.Node
 ---@field new fun(self: Yat.Node.Buffer, node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Node.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Node.Buffer
 ---@overload fun(node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Node.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Node.Buffer
----@field class fun(self: Yat.Node.Buffer): Yat.Node.Buffer
----@field super Yat.Node
 ---
----@field type fun(self: Yat.Node.Buffer): Yat.Node.Buffer.Type
----@field protected __node_type "buffer"
+---@field public type fun(self: Yat.Node.Buffer): Yat.Node.Buffer.Type
+---
+---@field public TYPE "buffer"
 ---@field public parent? Yat.Node.Buffer
 ---@field private _type Yat.Node.Buffer.Type
 ---@field private _children? Yat.Node.Buffer[]
@@ -30,14 +29,13 @@ local fn = vim.fn
 ---@field public bufnr? integer
 ---@field public bufhidden? boolean
 local BufferNode = meta.create_class("Yat.Node.Buffer", Node)
-BufferNode.__node_type = "buffer"
 
 ---@param other Yat.Node.Buffer
 function BufferNode.__eq(self, other)
   if self._type == "terminal" then
     return other._type == "terminal" and self.bufname == other.bufname or false
   else
-    return self.super:__eq(other)
+    return Node.__eq(self, other)
   end
 end
 
@@ -52,7 +50,8 @@ local TERMINALS_CONTAINER_PATH = "/yatree://terminals/container"
 ---@param modified? boolean if the buffer is modified.
 ---@param hidden? boolean if the buffer is listed.
 function BufferNode:init(node_data, parent, bufname, bufnr, modified, hidden)
-  self.super:init(node_data, parent)
+  Node.init(self, node_data, parent)
+  self.TYPE = "buffer"
   self.bufname = bufname
   self.bufnr = bufnr
   self.modified = modified or false
@@ -97,14 +96,14 @@ function BufferNode:is_ancestor_of(path)
   if is_path_terminal(path) then
     return self.parent == nil or self:is_terminals_container()
   else
-    return self.super.is_ancestor_of(self, path)
+    return Node.is_ancestor_of(self, path)
   end
 end
 
 ---@param cmd Yat.Action.Files.Open.Mode
 function BufferNode:edit(cmd)
   if self._type == "file" then
-    self.super:edit(cmd)
+    Node.edit(self, cmd)
   end
 
   for _, win in ipairs(api.nvim_list_wins()) do
@@ -133,6 +132,7 @@ function BufferNode:is_terminals_container()
   return self.path:find(TERMINALS_CONTAINER_PATH, 1, true) ~= nil
 end
 
+---@private
 ---@return integer? index
 ---@return Yat.Node.Buffer? container
 function BufferNode:get_terminals_container()
@@ -153,7 +153,7 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
   end
 
   local _, container = self:get_terminals_container()
-  if container and container:is_terminals_container() then
+  if container then
     for _, child in ipairs(container._children) do
       if child.bufname == file and child.bufnr == bufnr then
         child.bufhidden = hidden
@@ -173,7 +173,7 @@ function BufferNode:node_comparator(other)
   elseif other:is_terminals_container() then
     return true
   end
-  return self.super:node_comparator(other)
+  return Node.node_comparator(self, other)
 end
 
 ---@protected
@@ -181,15 +181,14 @@ function BufferNode:_scandir() end
 
 ---Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
 ---@async
----@param opts? {force_scan?: boolean, to?: string}
----  - {opts.force_scan?} `boolean` rescan directories.
+---@param opts? {to?: string}
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return Yat.Node.Buffer|nil node if {opts.to} is specified, and found.
 function BufferNode:expand(opts)
   if opts and opts.to and is_path_terminal(opts.to) then
     opts.to = self:terminal_name_to_path(opts.to)
   end
-  return self.super.expand(self, opts)
+  return Node.expand(self, opts)
 end
 
 ---@async
@@ -256,7 +255,7 @@ local function add_terminal_buffer_to_container(container, terminal)
 end
 
 ---@async
----@param opts? { root_path?: string }
+---@param opts? {root_path?: string}
 --- -- {opts.root_path?} `string`
 ---@return Yat.Node.Buffer first_leaf_node
 function BufferNode:refresh(opts)

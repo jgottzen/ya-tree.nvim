@@ -13,9 +13,6 @@ local uv = vim.loop
 ---@class Yat.Panel.CallHierarchy : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.CallHierarchy, sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.CallHierarchy
 ---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.CallHierarchy
----@field class fun(self: Yat.Panel.CallHierarchy): Yat.Panel.CallHierarchy
----@field static Yat.Panel.CallHierarchy
----@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "call_hierarchy"
 ---@field public root Yat.Node.CallHierarchy|Yat.Node.Text
@@ -34,7 +31,7 @@ function CallHierarchyPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local text = "Waiting for LSP..."
   local root = TextNode:new(text, path, false)
-  self.super:init("call_hierarchy", sidebar, config.title, config.icon, keymap, renderers, root)
+  TreePanel.init(self, "call_hierarchy", sidebar, config.title, config.icon, keymap, renderers, root)
   self._direction = "incoming"
   defer(function()
     local edit_winid = self.sidebar:edit_win()
@@ -77,7 +74,8 @@ function CallHierarchyPanel:set_direction(direction)
     ---@type integer, integer?
     local bufnr, winid
     if self.root:instance_of(CallHierarchyNode) then
-      bufnr = self.root:bufnr()
+      local root = self.root --[[@as Yat.Node.CallHierarchy]]
+      bufnr = root:bufnr()
       winid = ui.get_window_for_buffer(bufnr)
     else
       winid = self.sidebar:edit_win()
@@ -137,7 +135,7 @@ end
 ---@return Yat.Ui.HighlightGroup[][] highlights
 function CallHierarchyPanel:render_header()
   local direction = self._direction:gsub("^%l", string.upper)
-  local line, highligts = self.super:render_header()
+  local line, highligts = TreePanel.render_header(self)
   return line .. " | " .. direction, highligts
 end
 

@@ -9,23 +9,21 @@ local utils = require("ya-tree.utils")
 ---@class Yat.Node.Search : Yat.Node
 ---@field new fun(self: Yat.Node.Search, fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
 ---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
----@field class fun(self: Yat.Node.Search): Yat.Node.Search
----@field super Yat.Node
 ---
----@field protected __node_type "search"
+---@field public TYPE "search"
 ---@field public parent? Yat.Node.Search
 ---@field private _children? Yat.Node.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
 local SearchNode = meta.create_class("Yat.Node.Search", Node)
-SearchNode.__node_type = "search"
 
 ---Creates a new search node.
 ---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Node.Search the parent node.
 function SearchNode:init(fs_node, parent)
-  self.super:init(fs_node, parent)
+  Node.init(self, fs_node, parent)
+  self.TYPE = "search"
   if self:is_directory() then
     self.empty = true
     self.expanded = true

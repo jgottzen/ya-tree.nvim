@@ -72,7 +72,7 @@ function M.goto_node_in_files_panel(panel, node)
 end
 
 ---@async
----@param panel Yat.Panel.Tree
+---@param panel Yat.Panel
 function M.refresh_panel(panel)
   panel:refresh()
 end

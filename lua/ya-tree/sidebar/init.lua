@@ -25,7 +25,6 @@ local M = {
 ---@class Yat.Sidebar : Yat.Object
 ---@field new async fun(self: Yat.Sidebar, tabpage: integer): Yat.Sidebar
 ---@overload async fun(tabpage: integer): Yat.Sidebar
----@field class fun(self: Yat.Sidebar): Yat.Class
 ---
 ---@field private _tabpage integer
 ---@field private layout { left: Yat.Sidebar.Layout, right: Yat.Sidebar.Layout }
@@ -45,8 +44,8 @@ function Sidebar.__tostring(self)
   end
 
   return string.format(
-    "<class %s(%s, left=[%s], right=[%s])>",
-    self:class():name(),
+    "<%s(tabpage=%s, left=[%s], right=[%s])>",
+    self.class.name,
     self._tabpage,
     panel_layout_tostring(self.layout.left),
     panel_layout_tostring(self.layout.right)

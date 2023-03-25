@@ -77,8 +77,6 @@ end
 ---@class Yat.Git.Repo : Yat.Object
 ---@field protected new async fun(self: Yat.Git.Repo, toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo
 ---@overload async fun(toplevel: string, git_dir: string, branch: string, is_yadm: boolean): Yat.Git.Repo
----@field class fun(self: Yat.Git.Repo): Yat.Git.Repo
----@field protected virtual fun(self: Yat.Git.Repo, method: string)
 ---
 ---@field public toplevel string
 ---@field public remote_url string

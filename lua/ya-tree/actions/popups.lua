@@ -240,7 +240,7 @@ function M.show_node_info(_, node)
   end
 
   local lines, highlight_groups
-  if node:node_type() == "buffer" and node.extension == "terminal" then
+  if node.TYPE == "buffer" and node.extension == "terminal" then
     ---@cast node Yat.Node.Buffer
     if node:is_terminal() then
       lines, highlight_groups = create_terminal_info(node)

@@ -9,10 +9,8 @@ local Node = require("ya-tree.nodes.node")
 ---@class Yat.Node.CallHierarchy : Yat.Node
 ---@field new fun(self: Yat.Node.CallHierarchy, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
 ---@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
----@field class fun(self: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
----@field super Yat.Node
 ---
----@field protected __node_type "call_hierarchy"
+---@field public TYPE "call_hierarchy"
 ---@field public parent? Yat.Node.CallHierarchy
 ---@field private _children? Yat.Node.CallHierarchy[]
 ---@field private file string
@@ -23,7 +21,6 @@ local Node = require("ya-tree.nodes.node")
 ---@field public detail? string
 ---@field public position Lsp.Range
 local CallHierarchyNode = meta.create_class("Yat.Node.CallHierarchy", Node)
-CallHierarchyNode.__node_type = "call_hierarchy"
 
 ---@private
 ---@param name string
@@ -34,11 +31,12 @@ CallHierarchyNode.__node_type = "call_hierarchy"
 ---@param bufnr integer
 ---@param parent? Yat.Node.CallHierarchy
 function CallHierarchyNode:init(name, path, kind, detail, position, bufnr, file, parent)
-  self.super:init({
+  Node.init(self, {
     name = name,
     path = path,
     _type = "file",
   }, parent)
+  self.TYPE = "call_hierarchy"
   self.file = file
   self._bufnr = bufnr
   self._lsp_client_id = parent and parent._lsp_client_id
@@ -93,6 +91,7 @@ function CallHierarchyNode:add_node(call_hierarchy)
   self:add_child(call_hierarchy)
 end
 
+---@private
 ---@param call_hierarchy Lsp.CallHierarchy.IncomingCall|Lsp.CallHierarchy.OutgoingCall
 function CallHierarchyNode:add_child(call_hierarchy)
   local item = call_hierarchy.from or call_hierarchy.to
@@ -123,7 +122,9 @@ function CallHierarchyNode:add_child(call_hierarchy)
 end
 
 ---@async
----@param opts { call_site: Lsp.CallHierarchy.Item, direction: Yat.CallHierarchy.Direction }
+---@param opts {call_site: Lsp.CallHierarchy.Item, direction: Yat.CallHierarchy.Direction}
+---  - {opts.call_site?} `Lsp.CallHierarchy.Item` which call site to create a call hierarchy from.
+---  - {opts.direction?} `Yat.CallHierarchy.Direction` the direction of calls to genereate.
 function CallHierarchyNode:refresh(opts)
   if self.parent then
     return self.parent:refresh(opts)

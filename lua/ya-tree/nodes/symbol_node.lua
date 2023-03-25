@@ -8,10 +8,8 @@ local symbol_kind = require("ya-tree.lsp.symbol_kind")
 ---@class Yat.Node.Symbol : Yat.Node
 ---@field new fun(self: Yat.Node.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
 ---@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
----@field class fun(self: Yat.Node.Symbol): Yat.Node.Symbol
----@field super Yat.Node
 ---
----@field protected __node_type "symbol"
+---@field public TYPE "symbol"
 ---@field public parent? Yat.Node.Symbol
 ---@field private _children? Yat.Node.Symbol[]
 ---@field private file string
@@ -22,7 +20,6 @@ local symbol_kind = require("ya-tree.lsp.symbol_kind")
 ---@field public detail? string
 ---@field public position Lsp.Range
 local SymbolNode = meta.create_class("Yat.Node.Symbol", Node)
-SymbolNode.__node_type = "symbol"
 
 ---@private
 ---@param name string
@@ -32,11 +29,12 @@ SymbolNode.__node_type = "symbol"
 ---@param position Lsp.Range
 ---@param parent? Yat.Node.Symbol
 function SymbolNode:init(name, path, kind, detail, position, parent)
-  self.super:init({
+  Node.init(self, {
     name = name,
     path = path,
     _type = "file",
   }, parent)
+  self.TYPE = "symbol"
   if kind == symbol_kind.FILE then
     self._children = {}
     self.empty = true
@@ -131,7 +129,9 @@ function SymbolNode:add_child(symbol)
 end
 
 ---@async
----@param opts? { bufnr?: integer, use_cache?: boolean }
+---@param opts? {bufnr?: integer, use_cache?: boolean}
+---  - {opts.bufnr?} `integer` which buffer to use, default: the currently set buffer.
+---  - {opts.use_cache?} `boolean` whether to use cached data, default: `false`.
 function SymbolNode:refresh(opts)
   opts = opts or {}
   if self.parent then

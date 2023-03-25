@@ -149,7 +149,7 @@ function M.icon(node, context, renderer)
     return
   end
 
-  local node_type = node:node_type()
+  local node_type = node.TYPE
   local icon, highlight
   if
     node_type == "buffer" and node--[[@as Yat.Node.Buffer]]:is_terminals_container()
@@ -219,9 +219,9 @@ end
 ---@param renderer Yat.Config.Renderers.Builtin.Name
 ---@return Yat.Ui.RenderResult[] results
 function M.name(node, context, renderer)
+  local node_type = node.TYPE
   if context.depth == 0 then
     local padding, text, highlight = "", nil, hl.ROOT_NAME
-    local node_type = node:node_type()
     if node_type == "text" then
       padding = renderer.padding
       text = node.name
@@ -262,7 +262,7 @@ function M.name(node, context, renderer)
       highlight = hl.CHAR_DEVICE_FILE_NAME
     elseif node:is_block_device() then
       highlight = hl.BLOCK_DEVICE_FILE_NAME
-    elseif node:node_type() == "buffer" then
+    elseif node_type == "buffer" then
       ---@cast node Yat.Node.Buffer
       if node:is_terminal() then
         highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
@@ -469,7 +469,7 @@ end
 function M.buffer_info(node, _, renderer)
   local bufnr = -1
   local hidden = false
-  if node:node_type() == "buffer" then
+  if node.TYPE == "buffer" then
     ---@cast node Yat.Node.Buffer
     bufnr = node.bufnr or -1
     hidden = node.bufhidden or false

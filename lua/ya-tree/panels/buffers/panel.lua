@@ -12,9 +12,6 @@ local uv = vim.loop
 ---@class Yat.Panel.Buffers : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.Buffers, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Buffers
 ---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Buffers
----@field class fun(self: Yat.Panel.Buffers): Yat.Panel.Buffers
----@field static Yat.Panel.Buffers
----@field super Yat.Panel.Tree
 ---
 ---@field public TYPE "buffers"
 ---@field public root Yat.Node.Buffer
@@ -32,7 +29,7 @@ function BuffersPanel:init(sidebar, config, keymap, renderers)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   local root = BufferNode:new(fs_node)
   root.repo = git.get_repo_for_path(fs_node.path)
-  self.super:init("buffers", sidebar, config.title, config.icon, keymap, renderers, root)
+  TreePanel.init(self, "buffers", sidebar, config.title, config.icon, keymap, renderers, root)
   self.current_node = self.root:refresh() or root
   self:register_buffer_modified_event()
   self:register_buffer_saved_event()
@@ -66,7 +63,7 @@ function BuffersPanel:on_buffer_new(bufnr, file)
     if buftype == "terminal" then
       node = self.root:add_node(file, bufnr, true)
     else
-      node = self.root:get_child_if_loaded(file)
+      node = self.root:get_node(file)
       if not node then
         if self.root:is_ancestor_of(file) then
           log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)

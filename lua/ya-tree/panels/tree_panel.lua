@@ -1,4 +1,3 @@
-local git = require("ya-tree.git")
 local job = require("ya-tree.job")
 local log = require("ya-tree.log").get("panels")
 local meta = require("ya-tree.meta")
@@ -12,11 +11,6 @@ local api = vim.api
 
 ---@abstract
 ---@class Yat.Panel.Tree : Yat.Panel
----@field new async fun(self: Yat.Panel.Tree, type: Yat.Panel.Type, sidebar: Yat.Sidebar, title: string, icon: string, actions: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers, node: Yat.Node): Yat.Panel.Tree
----@overload async fun(type: Yat.Panel.Type, sidebar: Yat.Sidebar, title: string, icon: string, actions: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers, node: Yat.Node): Yat.Panel.Tree
----@field class fun(self: Yat.Panel.Tree): Yat.Class
----@field static Yat.Panel.Tree
----@field super Yat.Panel
 ---
 ---@field public root Yat.Node
 ---@field public current_node Yat.Node
@@ -29,8 +23,8 @@ local TreePanel = meta.create_class("Yat.Panel.Tree", Panel)
 
 function TreePanel.__tostring(self)
   return string.format(
-    "<class %s(TYPE=%s, winid=%s, bufnr=%s, root=%s)>",
-    self:class():name(),
+    "<%s(TYPE=%s, winid=%s, bufnr=%s, root=%s)>",
+    self.class.name,
     self.TYPE,
     self:winid(),
     self:bufnr(),
@@ -48,7 +42,7 @@ end
 ---@param renderers Yat.Panel.TreeRenderers
 ---@param root Yat.Node
 function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
-  self.super:init(_type, sidebar, title, icon, keymap)
+  Panel.init(self, _type, sidebar, title, icon, keymap)
   self.root = root
   self.current_node = self.root
   self.path_lookup = {}
@@ -118,7 +112,7 @@ end
 function TreePanel:on_buffer_modified(bufnr, file, match)
   if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
     local modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
-    local node = self.root:get_child_if_loaded(file)
+    local node = self.root:get_node(file)
     if node and node.modified ~= modified then
       node.modified = modified
       self:draw()
@@ -145,10 +139,10 @@ end
 function TreePanel:on_buffer_saved(bufnr, file, match)
   if self.root:is_ancestor_of(file) then
     log.debug("changed file %q is in panel %s", file, tostring(self))
-    local parent = self.root:get_child_if_loaded(file)
+    local parent = self.root:get_node(file)
     if parent then
       parent:refresh()
-      local node = parent:get_child_if_loaded(file)
+      local node = parent:get_node(file)
       if node then
         node.modified = false
         scheduler()
@@ -284,13 +278,11 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
----@virtual
 ---@protected
 ---@param dir string
 ---@param filenames string[]
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_fs_changed_event(dir, filenames) end
-TreePanel:virtual("on_fs_changed_event")
 
 do
   ---@type string[]
@@ -354,14 +346,12 @@ end
 
 -- selene: allow(unused_variable)
 
----@virtual
 ---@protected
 ---@param node Yat.Node
----@return fun(bufnr: integer, node?: Yat.Node)|string complete_func
+---@return fun(bufnr: integer)|string complete_func
 ---@return string? search_root
 ---@diagnostic disable-next-line:unused-local,missing-return
 function TreePanel:get_complete_func_and_search_root(node) end
-TreePanel:virtual("get_complete_func_and_search_root")
 
 ---@async
 ---@param node Yat.Node
@@ -401,11 +391,9 @@ end
 -- selene: allow(unused_variable)
 
 ---@async
----@virtual
 ---@param path string
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:change_root_node(path) end
-TreePanel:virtual("change_root_node")
 
 ---@async
 function TreePanel:refresh()
@@ -424,7 +412,7 @@ end
 ---@param repo Yat.Git.Repo
 ---@param path string
 function TreePanel:set_git_repo_for_path(repo, path)
-  local node = self.root:get_child_if_loaded(path) or self.root:get_child_if_loaded(repo.toplevel)
+  local node = self.root:get_node(path) or self.root:get_node(repo.toplevel)
   if node and node.repo ~= repo then
     log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
     node:set_git_repo(repo)
@@ -488,7 +476,7 @@ end
 ---@return Yat.Node|nil
 function TreePanel:get_node_at_row(row)
   local path = self.path_lookup[row]
-  return path and self.root:get_child_if_loaded(path) or nil
+  return path and self.root:get_node(path) or nil
 end
 
 ---@return Yat.Node[]
@@ -506,7 +494,7 @@ function TreePanel:get_nodes(from, to)
   for row = from, to do
     local path = self.path_lookup[row]
     if path then
-      local node = self.root:get_child_if_loaded(path)
+      local node = self.root:get_node(path)
       if node then
         nodes[#nodes + 1] = node
       end
@@ -664,7 +652,7 @@ local function render_node(node, context, renderers)
       for _, result in ipairs(results) do
         if result.text then
           if not result.highlight then
-            log.error("renderer %s didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
+            log.error("renderer %q didn't return a highlight name for node %q, renderer returned %s", renderer.name, node.path, result)
           end
           pos, content[#content + 1], highlights[#highlights + 1] = line_part(pos, result.padding or "", result.text, result.highlight)
         end
@@ -681,7 +669,7 @@ end
 function TreePanel:render()
   local config = require("ya-tree.config").config
   ---@type string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
-  local lines, highlights, context, linenr = {}, {}, { panel_type = self.TYPE, config = config, indent_markers = {} }, 0
+  local lines, highlights, context, linenr = {}, {}, { panel_type = self.TYPE, config = config, indent_markers = {} }, 1
   local directory_renderers, file_renderers = self.renderers.directory, self.renderers.file
   self.path_lookup = {}
 
@@ -698,6 +686,7 @@ function TreePanel:render()
     lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
 
     if has_children and node.expanded then
+      ---@param child Yat.Node
       local children = vim.tbl_filter(function(child)
         return not child:is_hidden(config)
       end, node:children()) --[=[@as Yat.Node[]]=]
@@ -708,7 +697,6 @@ function TreePanel:render()
     end
   end
 
-  linenr = 1
   lines[linenr], highlights[linenr] = self:render_header()
   append_node(self.root, 0, false)
 
