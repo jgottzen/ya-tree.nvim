@@ -75,7 +75,6 @@ function M.indentation(node, context, renderer)
   local marker_at = context.indent_markers
   ---@type Yat.Ui.RenderResult[]
   local results = {}
-  local text
   if renderer.use_indent_marker then
     if context.depth == 0 then
       if node:has_children() then
@@ -93,14 +92,14 @@ function M.indentation(node, context, renderer)
         highlight = hl.INDENT_MARKER,
       }
       for i = 1, context.depth do
-        local marker
-        local highlight = hl.INDENT_MARKER
+        local text, marker, highlight
         if i == context.depth and renderer.use_expander_marker and node:has_children() then
           marker = node.expanded and renderer.expanded_marker or renderer.collapsed_marker
           highlight = hl.INDENT_EXPANDER
         else
           marker = ((i == context.depth or context.depth == 1) and context.last_child) and renderer.last_indent_marker
             or renderer.indent_marker
+          highlight = hl.INDENT_MARKER
         end
 
         if marker_at[i] or i == context.depth then
@@ -116,12 +115,13 @@ function M.indentation(node, context, renderer)
       end
     end
   elseif renderer.use_expander_marker then
-    local highlight = hl.INDENT_MARKER
+    local text, highlight
     if node:has_children() then
       text = string.rep("  ", context.depth) .. (node.expanded and renderer.expanded_marker or renderer.collapsed_marker) .. " "
       highlight = hl.INDENT_EXPANDER
     else
       text = string.rep("  ", context.depth + 1)
+      highlight = hl.INDENT_MARKER
     end
     results[#results + 1] = {
       padding = renderer.padding,
@@ -129,10 +129,9 @@ function M.indentation(node, context, renderer)
       highlight = highlight,
     }
   else
-    text = string.rep("  ", context.depth)
     results[#results + 1] = {
       padding = renderer.padding,
-      text = text,
+      text = string.rep("  ", context.depth),
       highlight = hl.INDENT_MARKER,
     }
   end
@@ -408,7 +407,7 @@ function M.symlink_target(node, _, renderer)
         {
           padding = renderer.padding,
           text = renderer.arrow_icon .. " " .. node.relative_link_to,
-          highlight = node.link_orphan and hl.ERROR_FILE_NAME or hl.SYMBOLIC_LINK_TARGET,
+          highlight = hl.SYMBOLIC_LINK_TARGET,
         },
       }
     end

@@ -21,7 +21,6 @@ function M.run(opts, on_complete)
     ---@type string[]
     stderr_data = {},
     handle = nil,
-    ---@type integer|nil
     pid = nil,
   }
 
@@ -77,7 +76,7 @@ function M.run(opts, on_complete)
         state.stderr_data[#state.stderr_data + 1] = data
       end
     end)
-    return state.pid
+    return state.pid --[[@as integer|nil]]
   else
     log.error("failed to spawn %q, error=%s", opts.cmd, tostring(state.pid))
     state.stdout:close()
