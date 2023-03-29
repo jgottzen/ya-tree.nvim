@@ -5,9 +5,11 @@ local Path = require("ya-tree.path")
 local api = vim.api
 
 local M = {
+  ---@private
   ---@type table<string, Diagnostic[]>
   current_diagnostics = {},
-  ---@type table<string, integer>
+  ---@private
+  ---@type table<string, DiagnosticSeverity>
   current_diagnostic_severities = {},
 }
 
@@ -18,14 +20,14 @@ function M.diagnostics_of(path)
 end
 
 ---@param path string
----@return integer|nil
+---@return DiagnosticSeverity|nil
 function M.severity_of(path)
   return M.current_diagnostic_severities[path]
 end
 
 ---@param diagnostics Diagnostic[]
 local function on_diagnostics_changed(diagnostics)
-  ---@type table<string, Diagnostic[]>, table<string, integer>
+  ---@type table<string, Diagnostic[]>, table<string, DiagnosticSeverity>
   local new_diagnostics, new_severity_diagnostics = {}, {}
   for _, diagnostic in ipairs(diagnostics) do
     ---@diagnostic disable-next-line:undefined-field
