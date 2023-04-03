@@ -1,3 +1,4 @@
+local bit = require("bit")
 local log = require("ya-tree.log").get("fs")
 local Path = require("ya-tree.path")
 local utils = require("ya-tree.utils")

@@ -7,5 +7,3 @@ globals:
     any: true
   jit:
     any: true
-  bit:
-    any: true

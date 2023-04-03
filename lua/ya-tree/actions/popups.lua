@@ -1,3 +1,4 @@
+local bit = require("bit")
 local fs = require("ya-tree.fs")
 local hl = require("ya-tree.ui.highlights")
 local nui = require("ya-tree.ui.nui")
