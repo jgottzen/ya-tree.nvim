@@ -1,6 +1,9 @@
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.Buffers.SupportedActions
+---| "system_open"
+---| "show_node_info"
+---|
 ---| "cd_to"
 ---| "toggle_filter"
 ---
@@ -40,6 +43,9 @@ function M.setup(config)
   local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.Buffers.SupportedActions[]
   local supported_actions = utils.tbl_unique({
+    builtin.general.system_open,
+    builtin.general.show_node_info,
+
     builtin.files.cd_to,
     builtin.files.toggle_filter,
 

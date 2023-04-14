@@ -2,6 +2,9 @@ local completion = require("ya-tree.completion")
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.GitStatus.SupportedActions
+---| "system_open"
+---| "show_node_info"
+---|
 ---| "rename"
 ---
 ---| "cd_to"
@@ -46,6 +49,9 @@ function M.setup(config)
   local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.GitStatus.SupportedActions[]
   local supported_actions = utils.tbl_unique({
+    builtin.general.system_open,
+    builtin.general.show_node_info,
+
     builtin.files.rename,
 
     builtin.files.cd_to,

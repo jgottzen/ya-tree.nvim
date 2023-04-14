@@ -4,6 +4,9 @@ local utils = require("ya-tree.utils")
 local fn = vim.fn
 
 ---@alias Yat.Panel.Files.SupportedActions
+---| "system_open"
+---| "show_node_info"
+---
 ---| "add"
 ---| "rename"
 ---| "delete"
@@ -58,6 +61,9 @@ function M.setup(config)
   local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.Files.SupportedActions[]
   local supported_actions = utils.tbl_unique({
+    builtin.general.system_open,
+    builtin.general.show_node_info,
+
     builtin.files.add,
     builtin.files.rename,
     builtin.files.delete,

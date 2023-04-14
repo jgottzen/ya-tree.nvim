@@ -4,9 +4,7 @@ local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.Tree.SupportedActions
 ---| "close_sidebar"
----| "system_open"
 ---| "open_help"
----| "show_node_info"
 ---| "close_panel"
 ---
 ---| "open_git_status_panel"
@@ -43,9 +41,7 @@ local M = {
   ---@type Yat.Panel.Tree.SupportedActions[]
   supported_actions = utils.tbl_unique({
     builtin.general.close_sidebar,
-    builtin.general.system_open,
     builtin.general.open_help,
-    builtin.general.show_node_info,
     builtin.general.close_panel,
 
     builtin.general.open_git_status_panel,

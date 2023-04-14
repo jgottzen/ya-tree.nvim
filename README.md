@@ -659,8 +659,6 @@ local DEFAULT = {
           ["<C-g>"] = "open_git_status_panel",
           ["b"] = "open_buffers_panel",
           ["gc"] = "open_call_hierarchy_panel",
-          ["gx"] = "system_open",
-          ["<C-i>"] = "show_node_info",
           ["<CR>"] = "open",
           ["o"] = "open",
           ["<2-LeftMouse>"] = "open",
@@ -732,8 +730,6 @@ local DEFAULT = {
           ["gs"] = "open_symbols_panel",
           ["<C-g>"] = "open_git_status_panel",
           ["b"] = "open_buffers_panel",
-          ["gx"] = "system_open",
-          ["<C-i>"] = "show_node_info",
           ["<CR>"] = "open",
           ["o"] = "open",
           ["<2-LeftMouse>"] = "open",
@@ -1335,9 +1331,7 @@ The actions supported by the trees are:
 ```lua
 ---@alias Yat.Panel.Symbols.SupportedActions
 ---| "close_sidebar"
----| "system_open"
 ---| "open_help"
----| "show_node_info"
 ---| "close_panel"
 ---
 ---| "open_git_status_panel"
@@ -1388,9 +1382,7 @@ The actions supported by the trees are:
 ```lua
 ---@alias Yat.Panel.CallHierarchy.SupportedActions
 ---| "close_sidebar"
----| "system_open"
 ---| "open_help"
----| "show_node_info"
 ---| "close_panel"
 ---
 ---| "open_git_status_panel"
