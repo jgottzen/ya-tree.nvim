@@ -162,7 +162,7 @@ end
 ---@return string search_root
 function GitStatusPanel:get_complete_func_and_search_root()
   return function(bufnr)
-    return self:complete_func_loaded_nodes(bufnr)
+    self:complete_func_loaded_nodes(bufnr)
   end, self.root.path
 end
 

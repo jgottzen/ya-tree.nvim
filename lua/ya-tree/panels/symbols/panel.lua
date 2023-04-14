@@ -92,8 +92,10 @@ end
 ---@private
 ---@param bufnr integer
 function SymbolsPanel:on_buffer_saved(bufnr)
-  self.root:refresh({ bufnr = bufnr, use_cache = false })
-  self:draw()
+  if self.root:bufnr() == bufnr then
+    self.root:refresh({ use_cache = false })
+    self:draw(self.current_node)
+  end
 end
 
 ---@async
@@ -105,7 +107,7 @@ function SymbolsPanel:on_buffer_enter(bufnr, file)
   if ok and buftype == "" and file ~= "" and self.root.path ~= file and fs.is_file(file) then
     self.root = self:create_root_node(file, bufnr)
     self.current_node = self.root
-    self:draw()
+    self:draw(self.current_node)
   end
 end
 
@@ -198,7 +200,7 @@ end
 ---@return string search_root
 function SymbolsPanel:get_complete_func_and_search_root()
   return function(bufnr)
-    return self:complete_func_loaded_nodes(bufnr)
+    self:complete_func_loaded_nodes(bufnr)
   end, self.root.path
 end
 

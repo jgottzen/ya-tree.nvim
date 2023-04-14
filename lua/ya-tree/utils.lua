@@ -185,7 +185,7 @@ function M.get_current_buffers()
 end
 
 ---@return boolean
-function M.is_buffer_directory()
+function M.is_current_buffer_directory()
   local bufnr = api.nvim_get_current_buf()
   local bufname = api.nvim_buf_get_name(bufnr)
   if not is_directory(bufname) then

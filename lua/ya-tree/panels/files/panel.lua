@@ -380,7 +380,7 @@ function FilesPanel:get_complete_func_and_search_root(node)
     if config.completion.on == "node" then
       ---@param bufnr integer
       fn = function(bufnr)
-        return self:complete_func_file_in_path(bufnr, node)
+        self:complete_func_file_in_path(bufnr, node)
       end
       search_root = node.path
     else
@@ -389,7 +389,7 @@ function FilesPanel:get_complete_func_and_search_root(node)
       end
       ---@param bufnr integer
       fn = function(bufnr)
-        return self:complete_func_file_in_path(bufnr)
+        self:complete_func_file_in_path(bufnr, self.root)
       end
       search_root = self.root.path
     end

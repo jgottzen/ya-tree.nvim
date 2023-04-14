@@ -133,7 +133,9 @@ local function parse_open_command_input(fargs)
   local panel_type = fargs[panel_pos]
   local args = panel_pos < #fargs and { unpack(fargs, panel_pos + 1) } or nil
   local panel_args = require("ya-tree.sidebar").parse_command_arguments(panel_type, args)
-  return { focus = focus, panel = panel_type, panel_args = panel_args }
+  ---@type Yat.OpenWindowArgs
+  local open_args = { focus = focus, panel = panel_type, panel_args = panel_args }
+  return open_args
 end
 
 ---@param opts? Yat.Config
@@ -156,7 +158,7 @@ function M.setup(opts)
     vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
   end
 
-  local autocmd_will_open = config.hijack_netrw and require("ya-tree.utils").is_buffer_directory()
+  local autocmd_will_open = config.hijack_netrw and require("ya-tree.utils").is_current_buffer_directory()
   if not autocmd_will_open and config.auto_open.on_setup then
     M._loading = true
     run(function()

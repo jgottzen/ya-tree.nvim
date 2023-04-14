@@ -73,7 +73,7 @@ function Sidebar:init(tabpage)
     if panel then
       self.layout.left.panels[#self.layout.left.panels + 1] = {
         panel = panel,
-        show = (panel_layout.show == nil or panel_layout.show == true) and true or false,
+        show = panel_layout.show == nil or panel_layout.show == true,
         height = panel_layout.height and ui.normalize_height(panel_layout.height),
       }
     end
@@ -83,7 +83,7 @@ function Sidebar:init(tabpage)
     if panel then
       self.layout.right.panels[#self.layout.right.panels + 1] = {
         panel = panel,
-        show = (panel_layout.show == nil or panel_layout.show == true) and true or false,
+        show = panel_layout.show == nil or panel_layout.show == true,
         height = panel_layout.height and ui.normalize_height(panel_layout.height),
       }
     end

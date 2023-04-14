@@ -2,12 +2,14 @@ local job = require("ya-tree.job")
 local log = require("ya-tree.log").get("panels")
 local meta = require("ya-tree.meta")
 local Panel = require("ya-tree.panels.panel")
+local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
 local void = require("ya-tree.async").void
 
 local api = vim.api
+local fn = vim.fn
 
 ---@abstract
 ---@class Yat.Panel.Tree : Yat.Panel
@@ -326,18 +328,18 @@ _G._ya_tree_panels_trees_file_in_path_complete = function(start, base)
   if start == 1 then
     return 0
   end
-  return vim.fn.getcompletion(base, "file_in_path")
+  return fn.getcompletion(base, "file_in_path")
 end
 
 ---@param bufnr integer
----@param node? Yat.Node
+---@param node Yat.Node
 function TreePanel:complete_func_file_in_path(bufnr, node)
-  local home = os.getenv("HOME") --[[@as string]]
-  local path = node and node.path or self.root.path
+  local home = fn.expand("$HOME")
+  local path = node.path
   api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_panels_trees_file_in_path_complete")
   api.nvim_buf_set_option(bufnr, "omnifunc", "")
   -- only complete on _all_ files if the node is located below the home dir
-  if #path > #home then
+  if vim.startswith(path, home .. Path.path.sep) then
     api.nvim_buf_set_option(bufnr, "path", path .. "/**")
   else
     api.nvim_buf_set_option(bufnr, "path", path .. "/*")
@@ -598,6 +600,7 @@ function TreePanel:open_node(node, cmd)
   node:edit(cmd)
 end
 
+---@protected
 function TreePanel:move_cursor_to_name()
   local winid = self:winid()
   if not winid then

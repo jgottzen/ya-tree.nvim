@@ -367,7 +367,7 @@ function M.system_open(_, node)
     return
   end
 
-  local args = vim.deepcopy(config.system_open.args or {}) --[=[@as string[]]=]
+  local args = vim.deepcopy(config.system_open.args)
   table.insert(args, node.absolute_link_to or node.path)
   local code, _, stderr = job.async_run({ cmd = config.system_open.cmd, args = args, detached = true })
   if code ~= 0 then

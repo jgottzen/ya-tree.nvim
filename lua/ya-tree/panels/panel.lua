@@ -308,7 +308,7 @@ do
 
   ---@return integer from, integer to
   function Panel:get_selected_rows()
-    local mode = api.nvim_get_mode().mode --[[@as string]]
+    local mode = api.nvim_get_mode().mode
     if mode == "v" or mode == "V" then
       local from = fn.getpos("v")[2] --[[@as integer]]
       local to = api.nvim_win_get_cursor(self._winid)[1]

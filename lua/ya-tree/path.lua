@@ -30,6 +30,7 @@ path.root = (function()
     end
   else
     ---@param base? string
+    ---@return string
     return function(base)
       base = base or uv.cwd() --[[@as string]]
       return base:sub(1, 1) .. ":\\"
