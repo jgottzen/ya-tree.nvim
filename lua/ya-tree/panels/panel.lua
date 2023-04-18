@@ -296,9 +296,12 @@ end
 ---@protected
 function Panel:close()
   if self._winid then
-    local ok, err = pcall(api.nvim_win_close, self._winid, true)
+    local ok = pcall(api.nvim_win_close, self._winid, true)
     if not ok then
-      log.error("error closing window %q: %s", self._winid, err)
+      -- this only happens if the panel is the last window,
+      -- meaning that it's the current window and ok to force close
+      log.info("last window, force closing")
+      vim.cmd.quit({ bang = true, mods = { silent = true } })
     end
   end
 end

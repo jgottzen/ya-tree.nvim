@@ -479,7 +479,7 @@ end
 
 ---@param callback fun(panel: Yat.Panel)
 function M.for_each_sidebar_and_panel(callback)
-  for _, sidebar in ipairs(M._sidebars) do
+  for _, sidebar in pairs(M._sidebars) do
     sidebar:for_each_panel(callback)
   end
 end
@@ -491,6 +491,7 @@ function M.delete_sidebars_for_nonexisting_tabpages()
 
   for tabpage, sidebar in pairs(M._sidebars) do
     if not vim.tbl_contains(tabpages, tabpage) then
+      log.info("deleting sidebar for tabpage %s", tabpage)
       M._sidebars[tabpage] = nil
       sidebar:delete()
     else
@@ -520,34 +521,45 @@ function M.delete_sidebars_for_nonexisting_tabpages()
   end
 end
 
+local WIN_AND_TAB_CLOSED_DEFER_TIME = 100
+
+---@param bufnr integer
 ---@param winid integer
-local function on_win_closed(winid)
-  local sidebar = M.get_sidebar(api.nvim_get_current_tabpage())
-  if ui.is_window_floating(winid) or not (sidebar and sidebar:is_open()) then
+local function on_win_closed(bufnr, winid)
+  -- the tabpage for the closed window
+  local tabpage = api.nvim_win_get_tabpage(winid)
+  local sidebar = M.get_sidebar(tabpage)
+  if ui.is_window_floating(winid) or vim.bo[bufnr].filetype == "ya-tree-panel" or not (sidebar and sidebar:is_open()) then
     return
   end
 
-  -- defer until the window in question has closed, so that we can check only the remaining windows
+  -- defer until the window in question - and any other temporary window - has closed, so that we can check only the remaining windows
   vim.defer_fn(function()
+    -- if the tabpage no longer exists, then all windows in it have already closed, there is nothing to do
+    if not api.nvim_tabpage_is_valid(tabpage) then
+      return
+    end
+    -- the tabpage still exists and a sidebar is open in it
     local open_panels = 0
     sidebar:for_each_panel(function(panel)
       if panel:is_open() then
         open_panels = open_panels + 1
       end
     end)
-    if #api.nvim_tabpage_list_wins(0) == open_panels and vim.bo.filetype == "ya-tree-panel" then
+    -- check that the only windows in the tabpage are the sidebar windows
+    if #api.nvim_tabpage_list_wins(tabpage) == open_panels then
       -- check that there are no buffers with unsaved modifications,
       -- if so, just return
-      for _, bufnr in ipairs(api.nvim_list_bufs()) do
-        if api.nvim_buf_is_loaded(bufnr) and api.nvim_buf_get_option(bufnr, "modified") then
+      for _, _bufnr in ipairs(api.nvim_list_bufs()) do
+        if api.nvim_buf_is_loaded(_bufnr) and api.nvim_buf_get_option(_bufnr, "modified") then
           return
         end
       end
+      log.info("sidebar is last window(s), closing")
       sidebar:close()
-      log.debug("is last window, closing it")
-      vim.cmd("silent q!")
+      -- all windows in the tabpage has closed, the TabClosed event fires here
     end
-  end, 100)
+  end, WIN_AND_TAB_CLOSED_DEFER_TIME)
 end
 
 ---@return boolean
@@ -723,7 +735,7 @@ function M.setup(config)
       group = group,
       callback = function(input)
         local winid = tonumber(input.match) --[[@as integer]]
-        on_win_closed(winid)
+        on_win_closed(input.buf, winid)
       end,
       desc = "Closing the sidebar if it is the last window in the tabpage",
     })
@@ -751,7 +763,9 @@ function M.setup(config)
   end
   api.nvim_create_autocmd("TabClosed", {
     group = group,
-    callback = M.delete_sidebars_for_nonexisting_tabpages,
+    callback = function()
+      vim.defer_fn(M.delete_sidebars_for_nonexisting_tabpages, WIN_AND_TAB_CLOSED_DEFER_TIME)
+    end,
     desc = "Clean up after closing tabpage",
   })
   api.nvim_create_autocmd("WinLeave", {
