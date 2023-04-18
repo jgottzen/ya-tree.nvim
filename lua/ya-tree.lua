@@ -7,11 +7,6 @@ local M = {
   _loading = false,
 }
 
--- needed for neodev
-
----@alias Callback fun()
----@alias Number number
-
 ---@class Yat.OpenWindowArgs
 ---@field focus? boolean Whether to focus the sidebar.
 ---@field panel? Yat.Panel.Type A specific panel to open, and/or focus.
