@@ -3,8 +3,6 @@ local utils = require("ya-tree.utils")
 ---@alias Yat.Panel.Symbols.SupportedActions
 ---| "toggle_filter"
 ---
----| "search_for_node_in_panel"
----
 ---| "toggle_ignored"
 ---
 ---| "focus_prev_diagnostic_item"
@@ -32,8 +30,6 @@ function M.setup(config)
   ---@type Yat.Panel.Symbols.SupportedActions[]
   local supported_actions = utils.tbl_unique({
     builtin.files.toggle_filter,
-
-    builtin.search.search_for_node_in_panel,
 
     builtin.git.toggle_ignored,
 

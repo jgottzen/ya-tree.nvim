@@ -681,7 +681,6 @@ local DEFAULT = {
           [">"] = "focus_next_sibling",
           ["K"] = "focus_first_sibling",
           ["J"] = "focus_last_sibling",
-          ["S"] = "search_for_node_in_panel",
           ["[e"] = "focus_prev_diagnostic_item",
           ["]e"] = "focus_next_diagnostic_item",
         },
@@ -752,7 +751,6 @@ local DEFAULT = {
           [">"] = "focus_next_sibling",
           ["K"] = "focus_first_sibling",
           ["J"] = "focus_last_sibling",
-          ["S"] = "search_for_node_in_panel",
           ["gt"] = "toggle_call_direction",
           ["gc"] = "create_call_hierarchy_from_buffer_position",
         },
@@ -1365,8 +1363,6 @@ The actions supported by the trees are:
 ---|
 ---| "toggle_filter"
 ---
----| "search_for_node_in_panel"
----
 ---| "toggle_ignored"
 ---
 ---| "focus_prev_diagnostic_item"
@@ -1414,8 +1410,6 @@ The actions supported by the trees are:
 ---| "focus_first_sibling"
 ---| "focus_last_sibling"
 ---|
----| "search_for_node_in_panel"
----
 ---| "toggle_call_direction"
 ---| "create_call_hierarchy_from_buffer_position"
 ```

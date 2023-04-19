@@ -1,8 +1,6 @@
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.CallHierarchy.SupportedActions
----| "search_for_node_in_panel"
----
 ---| "toggle_call_direction"
 ---| "create_call_hierarchy_from_buffer_position"
 ---
@@ -27,8 +25,6 @@ function M.setup(config)
   local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.CallHierarchy.SupportedActions[]
   local supported_actions = utils.tbl_unique({
-    builtin.search.search_for_node_in_panel,
-
     builtin.call_hierarchy.toggle_call_direction,
     builtin.call_hierarchy.create_call_hierarchy_from_buffer_position,
 
