@@ -1,10 +1,8 @@
 local fs = require("ya-tree.fs")
-local fs_watcher = require("ya-tree.fs.watcher")
+local FsNode = require("ya-tree.nodes.fs_node")
 local git = require("ya-tree.git")
 local hl = require("ya-tree.ui.highlights")
 local log = require("ya-tree.log").get("panels")
-local meta = require("ya-tree.meta")
-local Node = require("ya-tree.nodes.node")
 local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local SearchNode = require("ya-tree.nodes.search_node")
@@ -19,22 +17,22 @@ local uv = vim.loop
 ---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Files
 ---
 ---@field public TYPE "files"
----@field public root Yat.Node|Yat.Node.Search
----@field public current_node Yat.Node|Yat.Node.Search
----@field private files_root Yat.Node
----@field private files_current_node Yat.Node
+---@field public root Yat.Node.Filesystem|Yat.Node.Search
+---@field public current_node Yat.Node.Filesystem|Yat.Node.Search
+---@field private files_root Yat.Node.Filesystem
+---@field private files_current_node Yat.Node.Filesystem
 ---@field public focus_path_on_fs_event? string|"expand"
 ---@field private mode "files"|"search"
-local FilesPanel = meta.create_class("Yat.Panel.Files", TreePanel)
+local FilesPanel = TreePanel:subclass("Yat.Panel.Files")
 
 ---Creates a new filesystem node tree root.
 ---@async
 ---@param path string the path
----@param old_root? Yat.Node the previous root
----@return Yat.Node root
+---@param old_root? Yat.Node.Filesystem the previous root
+---@return Yat.Node.Filesystem root
 local function create_root_node(path, old_root)
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
-  local root = Node:new(fs_node)
+  local root = FsNode:new(fs_node)
 
   -- if the tree root was moved on level up, i.e the new root is the parent of the old root, add it to the tree
   if old_root and Path:new(old_root.path):parent().filename == root.path then
@@ -77,7 +75,7 @@ end
 
 ---@async
 ---@private
----@param node Yat.Node
+---@param node Yat.Node.Filesystem
 function FilesPanel:check_node_for_git_repo(node)
   log.debug("checking if %s is in a git repository", node.path)
   local repo = git.create_repo(node.path)
@@ -87,19 +85,48 @@ function FilesPanel:check_node_for_git_repo(node)
   end
 end
 
----@param node Yat.Node
-local function maybe_remove_watchers(node)
-  ---@diagnostic disable-next-line:invisible
-  if node:is_directory() and node._fs_event_registered then
-    ---@diagnostic disable-next-line:invisible
-    node._fs_event_registered = false
-    fs_watcher.remove_watcher(node.path)
+---@return boolean
+function FilesPanel:is_in_search_mode()
+  return self.mode == "search"
+end
+
+---@param repo Yat.Git.Repo
+---@param path string
+function FilesPanel:set_git_repo_for_path(repo, path)
+  local node = self.root:get_node(path) or self.root:get_node(repo.toplevel)
+  if node then
+    log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
+    node:set_git_repo(repo)
+    self:draw()
+  end
+  if self.mode == "search" then
+    node = self.files_root:get_node(path) or self.files_root:get_node(repo.toplevel)
+    if node then
+      log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
+      node:set_git_repo(repo)
+    end
   end
 end
 
+---@return Yat.Git.Repo[]
+function FilesPanel:get_git_repos()
+  ---@type table<Yat.Git.Repo, boolean>
+  local found_toplevels = {}
+  self.files_root:walk(function(node)
+    if node.repo then
+      if not found_toplevels[node.repo] then
+        found_toplevels[node.repo] = true
+      end
+      if not node.repo:is_yadm() then
+        return true
+      end
+    end
+  end)
+  return vim.tbl_keys(found_toplevels)
+end
+
 function FilesPanel:delete()
-  self.files_root:walk(maybe_remove_watchers)
-  maybe_remove_watchers(self.files_root)
+  self.files_root:remove_watcher(true)
   TreePanel.delete(self)
 end
 
@@ -187,7 +214,6 @@ function FilesPanel:command_arguments(args)
     if path then
       local config = require("ya-tree.config").config
       local node = self.root:expand({ to = path })
-      local do_tcd = false
       if node then
         local hidden, reason = node:is_hidden(config)
         if hidden and reason then
@@ -198,18 +224,17 @@ function FilesPanel:command_arguments(args)
           end
         end
         log.info("navigating to %q", path)
+        self:draw(node)
       else
         log.info('cannot expand to path %q in the "files" panel, changing root', path)
         self:change_root_node(path)
         node = self.root:expand({ to = path })
-        do_tcd = true
-      end
-      self:draw(node)
-      if do_tcd and config.cwd.update_from_panel then
-        p = Path:new(path)
-        path = p:is_dir() and p.filename or p:parent().filename
-        log.debug("issueing tcd autocmd to %q", path)
-        vim.cmd.tcd(vim.fn.fnameescape(path))
+        if config.cwd.update_from_panel then
+          p = Path:new(path)
+          path = p:is_dir() and p.filename or p:parent().filename
+          log.debug("issueing tcd autocmd to %q", path)
+          vim.cmd.tcd(vim.fn.fnameescape(path))
+        end
       end
     end
   end
@@ -222,7 +247,7 @@ end
 function FilesPanel:update_tree_root_node(new_root)
   new_root = Path:new(new_root):absolute()
   if self.files_root.path ~= new_root then
-    local root
+    local root --[[@as Yat.Node.Filesystem?]]
     if self.files_root:is_ancestor_of(new_root) then
       log.debug("current root %s is ancestor of new root %q, expanding to it", tostring(self.files_root), new_root)
       -- the new root is located 'below' the current root,
@@ -239,7 +264,7 @@ function FilesPanel:update_tree_root_node(new_root)
       -- walk upwards from the current root's parent and see if it's already loaded, if so, us it
       root = self.files_root
       while root.parent do
-        root = root.parent --[[@as Yat.Node]]
+        root = root.parent --[[@as Yat.Node.Filesystem]]
         root:refresh()
         if root.path == new_root then
           break
@@ -279,10 +304,9 @@ function FilesPanel:change_root_node(path)
   if not self:update_tree_root_node(path) then
     local root = self.files_root
     while root.parent do
-      root = root.parent --[[@as Yat.Node]]
+      root = root.parent --[[@as Yat.Node.Filesystem]]
     end
-    root:walk(maybe_remove_watchers)
-    maybe_remove_watchers(root)
+    root:remove_watcher(true)
     self.files_root = create_root_node(path, self.files_root)
   end
 
@@ -294,6 +318,7 @@ function FilesPanel:change_root_node(path)
   self.current_node = self.files_root:expand({ to = self.current_node.path }) or self.files_root
   self.mode = "files"
   self:draw(self.current_node)
+  self.sidebar:remove_unused_git_repos()
 end
 
 ---@return string line
@@ -326,22 +351,22 @@ end
 ---@async
 ---@param path string
 ---@param term string
+---@param focus boolean
 ---@return integer|string matches_or_error
-function FilesPanel:search(path, term)
+function FilesPanel:search(path, term, focus)
   if self.mode == "files" then
     self.mode = "search"
-    self.files_current_node = self.current_node
+    self.files_current_node = self.current_node --[[@as Yat.Node.Filesystem]]
     self.root = create_search_root(path)
   elseif self.root.path ~= path then
     self.root = create_search_root(path)
   end
-  self.current_node = self.root
-  local result_node, matches_or_error = self
-    .root--[[@as Yat.Node.Search]]
-    :search(term)
+  local root = self.root --[[@as Yat.Node.Search]]
+  self.current_node = root
+  local result_node, matches_or_error = root:search(term)
   if result_node then
     self.current_node = result_node
-    self:draw(self.current_node)
+    self:draw(focus and self.current_node or nil)
   end
   return matches_or_error
 end
@@ -360,11 +385,12 @@ function FilesPanel:close_search(draw)
 end
 
 ---@protected
----@param node Yat.Node|Yat.Node.Search
+---@param node? Yat.Node.Filesystem|Yat.Node.Search
 ---@return fun(bufnr: integer)
 ---@return string search_root
 function FilesPanel:get_complete_func_and_search_root(node)
   local config = require("ya-tree.config").config.panels.files
+  node = node or self.root
   local fn, search_root
   if type(config.completion.setup) == "function" then
     ---@param bufnr integer
@@ -380,7 +406,7 @@ function FilesPanel:get_complete_func_and_search_root(node)
     if config.completion.on == "node" then
       ---@param bufnr integer
       fn = function(bufnr)
-        self:complete_func_file_in_path(bufnr, node)
+        self:complete_func_file_in_path(bufnr, node.path)
       end
       search_root = node.path
     else
@@ -389,7 +415,7 @@ function FilesPanel:get_complete_func_and_search_root(node)
       end
       ---@param bufnr integer
       fn = function(bufnr)
-        self:complete_func_file_in_path(bufnr, self.root)
+        self:complete_func_file_in_path(bufnr, self.root.path)
       end
       search_root = self.root.path
     end

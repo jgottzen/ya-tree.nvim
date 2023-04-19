@@ -1,8 +1,6 @@
 local job = require("ya-tree.job")
 local log = require("ya-tree.log").get("panels")
-local meta = require("ya-tree.meta")
 local Panel = require("ya-tree.panels.panel")
-local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local ui = require("ya-tree.ui")
 local utils = require("ya-tree.utils")
@@ -19,9 +17,9 @@ local fn = vim.fn
 ---@field private previous_row integer
 ---@field protected path_lookup { [integer]: string, [integer]: string }
 ---@field protected renderers Yat.Panel.TreeRenderers
----@field protected _directory_min_diagnostic_severity DiagnosticSeverity
----@field protected _file_min_diagnostic_severity DiagnosticSeverity
-local TreePanel = meta.create_class("Yat.Panel.Tree", Panel)
+---@field protected _container_min_diagnostic_severity DiagnosticSeverity
+---@field protected _leaf_min_diagnostic_severity DiagnosticSeverity
+local TreePanel = Panel:subclass("Yat.Panel.Tree")
 
 function TreePanel.__tostring(self)
   return string.format(
@@ -34,7 +32,6 @@ function TreePanel.__tostring(self)
   )
 end
 
----@async
 ---@protected
 ---@param _type Yat.Panel.Type
 ---@param sidebar Yat.Sidebar
@@ -53,20 +50,20 @@ function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
   for _, renderer in ipairs(self.renderers.directory) do
     if renderer.name == "diagnostics" then
       local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
-      self._directory_min_diagnostic_severity = renderer_config.directory_min_severity
+      self._container_min_diagnostic_severity = renderer_config.directory_min_severity
       break
     end
   end
-  self._directory_min_diagnostic_severity = self._directory_min_diagnostic_severity or vim.diagnostic.severity.ERROR
+  self._container_min_diagnostic_severity = self._container_min_diagnostic_severity or vim.diagnostic.severity.ERROR
 
   for _, renderer in ipairs(self.renderers.file) do
     if renderer.name == "diagnostics" then
       local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
-      self._file_min_diagnostic_severity = renderer_config.file_min_severity
+      self._leaf_min_diagnostic_severity = renderer_config.file_min_severity
       break
     end
   end
-  self._file_min_diagnostic_severity = self._file_min_diagnostic_severity or vim.diagnostic.severity.HINT
+  self._leaf_min_diagnostic_severity = self._leaf_min_diagnostic_severity or vim.diagnostic.severity.HINT
 end
 
 ---@param name Yat.Ui.Renderer.Name
@@ -86,13 +83,13 @@ function TreePanel:has_renderer(name)
 end
 
 ---@return DiagnosticSeverity severity
-function TreePanel:directory_min_severity()
-  return self._directory_min_diagnostic_severity
+function TreePanel:container_min_severity()
+  return self._container_min_diagnostic_severity
 end
 
 ---@return DiagnosticSeverity severity
-function TreePanel:file_min_severity()
-  return self._file_min_diagnostic_severity
+function TreePanel:leaf_min_severity()
+  return self._leaf_min_diagnostic_severity
 end
 
 ---@protected
@@ -310,7 +307,7 @@ do
     local config = require("ya-tree.config").config
     paths = {}
     self.root:walk(function(node)
-      if not node:is_directory() and not node:is_hidden(config) then
+      if not node:is_container() and not node:is_hidden(config) then
         paths[#paths + 1] = node.path:sub(#self.root.path + 2)
       end
     end)
@@ -332,14 +329,13 @@ _G._ya_tree_panels_trees_file_in_path_complete = function(start, base)
 end
 
 ---@param bufnr integer
----@param node Yat.Node
-function TreePanel:complete_func_file_in_path(bufnr, node)
+---@param path string
+function TreePanel:complete_func_file_in_path(bufnr, path)
   local home = fn.expand("$HOME")
-  local path = node.path
   api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_panels_trees_file_in_path_complete")
   api.nvim_buf_set_option(bufnr, "omnifunc", "")
   -- only complete on _all_ files if the node is located below the home dir
-  if vim.startswith(path, home .. Path.path.sep) then
+  if vim.startswith(path, home .. utils.os_sep) then
     api.nvim_buf_set_option(bufnr, "path", path .. "/**")
   else
     api.nvim_buf_set_option(bufnr, "path", path .. "/*")
@@ -348,18 +344,21 @@ end
 
 -- selene: allow(unused_variable)
 
+---@abstract
 ---@protected
----@param node Yat.Node
----@return fun(bufnr: integer)|string complete_func
----@return string? search_root
+---@param node? Yat.Node
+---@return fun(bufnr: integer)|string|nil complete_func
+---@return string|nil search_root
 ---@diagnostic disable-next-line:unused-local,missing-return
 function TreePanel:get_complete_func_and_search_root(node) end
 
 ---@async
----@param node Yat.Node
+---@param node? Yat.Node.FsBasedNode
 function TreePanel:search_for_node(node)
   local completion, search_root = self:get_complete_func_and_search_root(node)
-  search_root = search_root or self.root.path
+  if not search_root then
+    return
+  end
 
   local path = ui.nui_input({ title = " Path: ", completion = completion })
   if path then
@@ -390,13 +389,6 @@ function TreePanel:search_for_node(node)
   end
 end
 
--- selene: allow(unused_variable)
-
----@async
----@param path string
----@diagnostic disable-next-line:unused-local
-function TreePanel:change_root_node(path) end
-
 ---@async
 function TreePanel:refresh()
   if self.refreshing or vim.v.exiting ~= vim.NIL then
@@ -409,17 +401,6 @@ function TreePanel:refresh()
   self.root:refresh({ recurse = true, refresh_git = true })
   self:draw(self:get_current_node())
   self.refreshing = false
-end
-
----@param repo Yat.Git.Repo
----@param path string
-function TreePanel:set_git_repo_for_path(repo, path)
-  local node = self.root:get_node(path) or self.root:get_node(repo.toplevel)
-  if node and node.repo ~= repo then
-    log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
-    node:set_git_repo(repo)
-    self:draw()
-  end
 end
 
 ---@protected

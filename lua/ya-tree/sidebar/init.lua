@@ -294,8 +294,7 @@ end
 function Sidebar:open_panel(panel_type, focus)
   local side, panel_layout = self:get_side_and_layout_for_panel(panel_type)
   if side and panel_layout then
-    panel_layout.show = true
-    self:open_side(side)
+    self:open_side(side, panel_type)
     local panel = panel_layout.panel
     if not focus then
       api.nvim_set_current_win(self:edit_win())
@@ -356,11 +355,11 @@ end
 
 ---@async
 ---@param focus boolean
----@param repo Yat.Git.Repo
+---@param repo? Yat.Git.Repo
 ---@return Yat.Panel.GitStatus? panel
 function Sidebar:git_status_panel(focus, repo)
   local panel = self:open_panel("git_status", focus) --[[@as Yat.Panel.GitStatus?]]
-  if panel then
+  if panel and repo then
     panel:change_root_node(repo)
   end
   return panel
@@ -419,9 +418,9 @@ local function get_edit_win_candidate(tabpage)
         break
       end
     end
-    log.info("cannot find a window to use an edit window, using current window")
+    log.warn("cannot find a window to use an edit window, using current window")
   else
-    log.info("current winid %s is a edit window", winid)
+    log.debug("current winid %s is a edit window", winid)
   end
   return winid
 end
@@ -447,16 +446,17 @@ function Sidebar:change_cwd(new_cwd)
   end)
 end
 
+---@async
 ---@param path string
 ---@param repo Yat.Git.Repo
 function Sidebar:set_git_repo_for_path(path, repo)
-  local TreePanel = require("ya-tree.panels.tree_panel")
   M.for_each_sidebar_and_panel(function(panel)
-    if panel:instance_of(TreePanel) then
-      ---@cast panel Yat.Panel.Tree
-      panel:set_git_repo_for_path(repo, path)
-    end
+    panel:set_git_repo_for_path(repo, path)
   end)
+end
+
+function Sidebar:remove_unused_git_repos()
+  M.remove_unused_git_repos()
 end
 
 ---@param tabpage integer
@@ -484,33 +484,15 @@ function M.for_each_sidebar_and_panel(callback)
   end
 end
 
-function M.delete_sidebars_for_nonexisting_tabpages()
-  local TreePanel = require("ya-tree.panels.tree_panel")
-  ---@type table<string, boolean>, integer[]
-  local found_toplevels, tabpages = {}, api.nvim_list_tabpages()
-
-  for tabpage, sidebar in pairs(M._sidebars) do
-    if not vim.tbl_contains(tabpages, tabpage) then
-      log.info("deleting sidebar for tabpage %s", tabpage)
-      M._sidebars[tabpage] = nil
-      sidebar:delete()
-    else
-      sidebar:for_each_panel(function(panel)
-        if panel:instance_of(TreePanel) then
-          ---@cast panel Yat.Panel.Tree
-          panel.root:walk(function(node)
-            if node.repo then
-              if not found_toplevels[node.repo.toplevel] then
-                found_toplevels[node.repo.toplevel] = true
-              end
-              if not node.repo:is_yadm() then
-                return true
-              end
-            end
-          end)
-        end
-      end)
-    end
+function M.remove_unused_git_repos()
+  ---@type table<string, boolean>
+  local found_toplevels = {}
+  for _, sidebar in pairs(M._sidebars) do
+    sidebar:for_each_panel(function(panel)
+      for _, repo in pairs(panel:get_git_repos() or {}) do
+        found_toplevels[repo.toplevel] = true
+      end
+    end)
   end
 
   local git = require("ya-tree.git")
@@ -519,6 +501,20 @@ function M.delete_sidebars_for_nonexisting_tabpages()
       git.remove_repo(repo)
     end
   end
+end
+
+function M.delete_sidebars_for_nonexisting_tabpages()
+  ---@type integer[]
+  local tabpages = api.nvim_list_tabpages()
+  for tabpage, sidebar in pairs(M._sidebars) do
+    if not vim.tbl_contains(tabpages, tabpage) then
+      log.info("deleting sidebar for tabpage %s", tabpage)
+      M._sidebars[tabpage] = nil
+      sidebar:delete()
+    end
+  end
+
+  M.remove_unused_git_repos()
 end
 
 local WIN_AND_TAB_CLOSED_DEFER_TIME = 100
@@ -618,15 +614,14 @@ local function on_buf_enter(bufnr, file)
     panel = sidebar:files_panel(true)
     if panel then
       local node = panel.root:expand({ to = file })
-      local do_tcd = false
       if not node then
         panel:change_root_node(file)
-        do_tcd = true
-      end
-      panel:draw(node)
-      if do_tcd and config.cwd.update_from_panel then
-        log.debug("issueing tcd autocmd to %q", file)
-        vim.cmd.tcd(vim.fn.fnameescape(file))
+        if config.cwd.update_from_panel then
+          log.debug("issueing tcd autocmd to %q", file)
+          vim.cmd.tcd(vim.fn.fnameescape(file))
+        end
+      else
+        panel:draw(node)
       end
     end
   elseif sidebar and config.move_buffers_from_sidebar_window then

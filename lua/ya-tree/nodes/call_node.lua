@@ -1,7 +1,6 @@
 local diagnostics = require("ya-tree.diagnostics")
 local log = require("ya-tree.log").get("nodes")
 local lsp = require("ya-tree.lsp")
-local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 
 ---@alias Yat.CallHierarchy.Direction "incoming"|"outgoing"
@@ -15,12 +14,12 @@ local Node = require("ya-tree.nodes.node")
 ---@field private _children? Yat.Node.CallHierarchy[]
 ---@field private file string
 ---@field private _bufnr integer
----@field private _lsp_client_id? integer
+---@field private _lsp_client_id integer
 ---@field private direction Yat.CallHierarchy.Direction
 ---@field public kind Lsp.Symbol.Kind
 ---@field public detail? string
 ---@field public position Lsp.Range
-local CallHierarchyNode = meta.create_class("Yat.Node.CallHierarchy", Node)
+local CallHierarchyNode = Node:subclass("Yat.Node.CallHierarchy")
 
 ---@private
 ---@param name string
@@ -34,12 +33,14 @@ function CallHierarchyNode:init(name, path, kind, detail, position, bufnr, file,
   Node.init(self, {
     name = name,
     path = path,
-    _type = "file",
+    container = false,
   }, parent)
   self.TYPE = "call_hierarchy"
   self.file = file
   self._bufnr = bufnr
-  self._lsp_client_id = parent and parent._lsp_client_id
+  if parent then
+    self._lsp_client_id = parent._lsp_client_id
+  end
   self.kind = kind
   if detail then
     self.detail = detail:gsub("[\n\r]", " "):gsub("%s+", " ")
@@ -83,22 +84,14 @@ function CallHierarchyNode:edit(cmd)
   lsp.open_location(self._lsp_client_id, self.file, self.position)
 end
 
----@protected
-function CallHierarchyNode:_scandir() end
-
----@param call_hierarchy Lsp.CallHierarchy.IncomingCall|Lsp.CallHierarchy.OutgoingCall
-function CallHierarchyNode:add_node(call_hierarchy)
-  self:add_child(call_hierarchy)
-end
-
 ---@private
 ---@param call_hierarchy Lsp.CallHierarchy.IncomingCall|Lsp.CallHierarchy.OutgoingCall
 function CallHierarchyNode:add_child(call_hierarchy)
   local item = call_hierarchy.from or call_hierarchy.to
   if not self._children then
     self._children = {}
+    self.container = true
   end
-  self.empty = false
   local file = vim.uri_to_fname(item.uri)
   local path = file .. "/" .. item.name
   local has_chilren = #call_hierarchy.fromRanges > 1
@@ -112,7 +105,6 @@ function CallHierarchyNode:add_child(call_hierarchy)
   self._children[#self._children + 1] = node
   if has_chilren then
     node._children = {}
-    node.empty = false
     for _, from_range in ipairs(call_hierarchy.fromRanges) do
       path = node.path .. "/" .. (#node._children + 1)
       local child = CallHierarchyNode:new(item.name, path, item.kind, item.detail, from_range, self._bufnr, file, self)
@@ -132,16 +124,17 @@ function CallHierarchyNode:refresh(opts)
   log.debug("refreshing %q, bufnr=%s", self.name, self.bufnr)
 
   self._children = {}
-  self.empty = true
   local client_id, call_hierarchy
   if opts.direction == "incoming" then
     client_id, call_hierarchy = lsp.incoming_calls(self._bufnr, opts.call_site)
   else
     client_id, call_hierarchy = lsp.outgoing_calls(self._bufnr, opts.call_site)
   end
-  self._lsp_client_id = client_id
-  for _, item in ipairs(call_hierarchy) do
-    self:add_child(item)
+  if client_id then
+    self._lsp_client_id = client_id
+    for _, item in ipairs(call_hierarchy) do
+      self:add_child(item)
+    end
   end
 end
 

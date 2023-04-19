@@ -108,13 +108,6 @@ function M.join_path(first, second)
 end
 
 ---@param path string
----@param root string
----@return string relative_path
-function M.relative_path_for(path, root)
-  return Path:new(path):make_relative(root)
-end
-
----@param path string
 ---@return string name
 function M.get_file_name(path)
   if path:sub(-1) == os_sep then

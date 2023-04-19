@@ -2,7 +2,6 @@ local BufferNode = require("ya-tree.nodes.buffer_node")
 local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local log = require("ya-tree.log").get("panels")
-local meta = require("ya-tree.meta")
 local Path = require("ya-tree.path")
 local TreePanel = require("ya-tree.panels.tree_panel")
 
@@ -16,7 +15,7 @@ local uv = vim.loop
 ---@field public TYPE "buffers"
 ---@field public root Yat.Node.Buffer
 ---@field public current_node Yat.Node.Buffer
-local BuffersPanel = meta.create_class("Yat.Panel.Buffers", TreePanel)
+local BuffersPanel = TreePanel:subclass("Yat.Panel.Buffers")
 
 ---@async
 ---@private
@@ -42,6 +41,34 @@ function BuffersPanel:init(sidebar, config, keymap, renderers)
   self:register_diagnostics_changed_event()
 
   log.info("created panel %s", tostring(self))
+end
+
+---@param repo Yat.Git.Repo
+---@param path string
+function BuffersPanel:set_git_repo_for_path(repo, path)
+  local node = self.root:get_node(path) or self.root:get_node(repo.toplevel)
+  if node then
+    log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
+    node:set_git_repo(repo)
+    self:draw()
+  end
+end
+
+---@return Yat.Git.Repo[]
+function BuffersPanel:get_git_repos()
+  ---@type table<Yat.Git.Repo, boolean>
+  local found_toplevels = {}
+  self.root:walk(function(node)
+    if node.repo then
+      if not found_toplevels[node.repo] then
+        found_toplevels[node.repo] = true
+      end
+      if not node.repo:is_yadm() then
+        return true
+      end
+    end
+  end)
+  return vim.tbl_keys(found_toplevels)
 end
 
 ---@private

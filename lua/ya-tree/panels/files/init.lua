@@ -100,6 +100,17 @@ function M.setup(config)
     unpack(vim.deepcopy(tree_actions.supported_actions)),
   })
 
+  local sorting = config.panels.files.sorting
+  if not (sorting.directories_first and not sorting.case_sensitive and sorting.sort_by == "name") then
+    local FilesystemNode = require("ya-tree.nodes.fs_node")
+    local sort_by = sorting.sort_by
+    if type(sort_by) == "function" then
+      FilesystemNode.node_comparator = sort_by
+    else
+      FilesystemNode.node_comparator = FilesystemNode.static.create_comparator(sorting.directories_first, sorting.case_sensitive, sort_by)
+    end
+  end
+
   M.keymap = tree_actions.create_mappings("files", config.panels.files.mappings.list, supported_actions)
 
   return true

@@ -1,72 +1,50 @@
 local diagnostics = require("ya-tree.diagnostics")
-local fs = require("ya-tree.fs")
-local fs_watcher = require("ya-tree.fs.watcher")
 local log = require("ya-tree.log").get("nodes")
 local meta = require("ya-tree.meta")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Node.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"|string
 
----@class Yat.NodeStatic
+---@alias Yat.Node.Params { name: string, path: string, container: boolean, [string]?: any }
 
+---@abstract
 ---@class Yat.Node : Yat.Object
----@field new fun(self: Yat.Node, fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
----@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node): Yat.Node
----@field static Yat.NodeStatic
 ---
 ---@field public TYPE Yat.Node.Type
 ---@field public name string
 ---@field public path string
+---@field protected container boolean
 ---@field public parent? Yat.Node
----@field protected _type Luv.FileType
----@field package _children? Yat.Node[]
----@field protected empty? boolean
----@field public extension? string
----@field public executable? boolean
----@field protected link boolean
----@field public absolute_link_to? string
----@field public relative_link_to string
----@field public link_orphan? boolean
----@field public link_name? string
----@field public link_extension? string
+---@field protected _children? Yat.Node[]
 ---@field public modified boolean
----@field public repo? Yat.Git.Repo
----@field protected _clipboard_status Yat.Actions.Clipboard.Action|nil
----@field package scanned? boolean
+---@field protected _clipboard_status? Yat.Actions.Clipboard.Action
 ---@field public expanded? boolean
----@field package _fs_event_registered boolean
+---@field public node_comparator? fun(a: Yat.Node, b: Yat.Node):boolean
+---@field public git_status? fun(self: Yat.Node):string|nil
 local Node = meta.create_class("Yat.Node")
-
----@param other Yat.Node
-function Node.__eq(self, other)
-  return self.path == other.path
-end
 
 function Node.__tostring(self)
   return string.format("(%s, %s)", self.TYPE, self.path)
 end
 
+---@param other Yat.Node
+function Node.__eq(self, other)
+  return self.TYPE == other.TYPE and self.path == other.path
+end
+
 ---@protected
----@param fs_node Yat.Fs.Node filesystem data.
+---@param params Yat.Node.Params node parameters.
 ---@param parent? Yat.Node the parent node.
-function Node:init(fs_node, parent)
-  for k, v in pairs(fs_node) do
+function Node:init(params, parent)
+  for k, v in pairs(params) do
     if type(v) ~= "function" then
       self[k] = v
     end
   end
-  self.TYPE = "filesystem"
   self.parent = parent
   self.modified = false
-  if self:is_directory() then
+  if self:is_container() then
     self._children = {}
-  end
-
-  -- inherit any git repo
-  if parent and parent.repo then
-    self.repo = parent.repo
   end
 
   log.trace("created node %s", self)
@@ -74,8 +52,11 @@ end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` doens't recurse into
 ---any children of that node, but continues with the next child, if any.
----@param visitor fun(node: Yat.Node):boolean?
+---@generic T : Yat.Node
+---@param self T
+---@param visitor fun(node: T):boolean?
 function Node:walk(visitor)
+  ---@cast self Yat.Node
   if visitor(self) then
     return
   end
@@ -92,22 +73,17 @@ end
 function Node:get_debug_info(output_to_log)
   ---@type table<string, any>
   local t = { __class = self.class.name }
-  local ignored_props = { "class" }
   for k, v in pairs(self) do
-    local val
     if type(v) == "table" then
-      if k == "parent" or k == "repo" then
-        val = tostring(v)
+      if v.class then
+        t[k] = tostring(v)
       elseif k == "_children" then
-        val = vim.tbl_map(tostring, v)
-      elseif not vim.tbl_contains(ignored_props, k) then
-        val = v
+        t[k] = vim.tbl_map(tostring, v)
+      elseif k ~= "class" then
+        t[k] = v
       end
     elseif type(v) ~= "function" then
-      val = v
-    end
-    if not t[k] then
-      t[k] = val
+      t[k] = v
     end
   end
   if output_to_log then
@@ -116,243 +92,52 @@ function Node:get_debug_info(output_to_log)
   return t
 end
 
----@package
----@param fs_node Yat.Fs.Node filesystem data.
-function Node:_merge_new_data(fs_node)
-  if self.TYPE == "filesystem" then
-    if self:is_directory() and fs_node._type ~= "directory" and self._fs_event_registered then
-      self._fs_event_registered = false
-      fs_watcher.remove_watcher(self.path)
-    elseif not self:is_directory() and fs_node._type == "directory" and not self._fs_event_registered then
-      self._fs_event_registered = true
-      fs_watcher.watch_dir(self.path)
-    end
-  end
-  for k, v in pairs(fs_node) do
+---@protected
+---@param params Yat.Node.Params node parameters.
+function Node:merge_new_data(params)
+  for k, v in pairs(params) do
     if type(self[k]) ~= "function" then
       self[k] = v
     else
-      log.error("self.%s is a function, this should not happen!", k)
+      log.error("self.%s is a function, this is not allowed!", k)
     end
   end
 end
 
----@param a Yat.Node
----@param b Yat.Node
----@return boolean
-function Node.static.node_comparator_name_case_insensitve(a, b)
-  local ad = a:is_directory()
-  local bd = b:is_directory()
-  if ad and not bd then
-    return true
-  elseif not ad and bd then
-    return false
-  end
-  return a.name:lower() < b.name:lower()
+---@return boolean container
+function Node:is_container()
+  return self.container
 end
 
----@param directories_first boolean
----@param case_sensitive boolean
----@param by Yat.Node.SortBy
-function Node.static.create_comparator(directories_first, case_sensitive, by)
-  ---@param a Yat.Node
-  ---@param b Yat.Node
-  ---@return boolean
-  Node.node_comparator = function(a, b)
-    if directories_first then
-      local ad = a:is_directory()
-      local bd = b:is_directory()
-      if ad and not bd then
-        return true
-      elseif not ad and bd then
-        return false
-      end
-    end
-    local aby, bby
-    if by == "type" then
-      aby = a:is_link() and "link" or a._type
-      bby = b:is_link() and "link" or b._type
-    elseif by == "extension" then
-      aby = a.extension and a.extension ~= "" and a.extension or a.name
-      bby = b.extension and b.extension ~= "" and b.extension or b.name
-    else
-      aby = a.name
-      bby = b.name
-    end
-    if not case_sensitive then
-      aby = aby:lower()
-      bby = bby:lower()
-    end
-    return aby < bby
-  end
-end
-
-Node.node_comparator = Node.static.node_comparator_name_case_insensitve
-
----@async
----@param node Yat.Node
-local function maybe_remove_watcher(node)
-  if node:is_directory() and node._fs_event_registered then
-    node._fs_event_registered = false
-    fs_watcher.remove_watcher(node.path)
-  end
-end
-
----@param node Yat.Node
-local function maybe_add_watcher(node)
-  if node:is_directory() and not node._fs_event_registered then
-    node._fs_event_registered = true
-    fs_watcher.watch_dir(node.path)
-  end
-end
-
----@virtual
----@protected
-function Node:_scandir()
-  log.debug("scanning directory %q", self.path)
-  -- keep track of the current children
-  ---@type table<string, Yat.Node>
-  local children = {}
-  for _, child in ipairs(self._children) do
-    children[child.path] = child
-  end
-
-  self._children = {}
-  for _, fs_node in ipairs(fs.scan_dir(self.path)) do
-    local child = children[fs_node.path]
-    if child then
-      log.trace("merging node %q with new data", fs_node.path)
-      child:_merge_new_data(fs_node)
-      children[fs_node.path] = nil
-    else
-      log.trace("creating new node for %q", fs_node.path)
-      child = Node:new(fs_node, self)
-      child._clipboard_status = self._clipboard_status
-      maybe_add_watcher(child)
-    end
-    self._children[#self._children + 1] = child
-  end
-  table.sort(self._children, self.node_comparator)
-  self.empty = #self._children == 0
-  self.scanned = true
-  maybe_add_watcher(self)
-
-  -- remove any watchers for any children that was remomved
-  for _, child in pairs(children) do
-    if child:is_directory() then
-      child:walk(maybe_remove_watcher)
-      maybe_remove_watcher(child)
-    end
-  end
-
-  scheduler()
-
-  local buffers = utils.get_current_buffers()
-  for _, child in ipairs(self._children) do
-    local buffer = buffers[child.path]
-    child.modified = buffer and buffer.modified or false
-  end
-end
-
----@protected
----@param repo Yat.Git.Repo
-function Node:_set_git_repo_on_node_and_children(repo)
-  self.repo = repo
-  if self._children then
-    for _, child in ipairs(self._children) do
-      if not child.repo then
-        child:_set_git_repo_on_node_and_children(repo)
-      end
-    end
-  end
-end
-
----@param repo Yat.Git.Repo
-function Node:set_git_repo(repo)
-  local toplevel = repo.toplevel
-  if toplevel == self.path then
-    log.debug("node %q is the toplevel of repo %s, setting repo on node and all child nodes", self.path, tostring(repo))
-    -- this node is the git toplevel directory, set the property on self
-    self:_set_git_repo_on_node_and_children(repo)
-  else
-    log.debug("node %q is not the toplevel of repo %s, walking up the tree", self.path, tostring(repo))
-    if #toplevel < #self.path then
-      -- this node is below the git toplevel directory,
-      -- walk the tree upwards until we hit the topmost node
-      local node = self
-      while node.parent and #toplevel <= #node.parent.path do
-        node = node.parent --[[@as Yat.Node]]
-      end
-      log.debug("node %q is the top of the tree, setting repo on node and all child nodes", node.path, tostring(repo))
-      node:_set_git_repo_on_node_and_children(repo)
-    else
-      log.error("git repo with toplevel %s is somehow below this node %s, this should not be possible", toplevel, self.path)
-      log.error("self=%s", self)
-      log.error("repo=%s", repo)
-    end
-  end
-end
-
----@return Luv.FileType
-function Node:type()
-  return self._type
-end
-
+---@abstract
 ---@return boolean editable
 function Node:is_editable()
-  return self._type == "file"
+  error("is_editable must be implemented by subclasses")
 end
 
----@return boolean
-function Node:is_directory()
-  return self._type == "directory"
-end
+---@param node Yat.Node
+---@return string
+function Node:relative_path_to(node)
+  local double = utils.os_sep .. utils.os_sep
+  local path, to = self.path:gsub(double, utils.os_sep), node.path:gsub(double, utils.os_sep)
+  if path == to then
+    return "."
+  else
+    if to:sub(#to, #to) ~= utils.os_sep then
+      to = to .. utils.os_sep
+    end
 
----@return boolean
-function Node:is_file()
-  return self._type == "file"
-end
-
----@return boolean
-function Node:is_link()
-  return self.link == true
-end
-
----@return boolean
-function Node:is_fifo()
-  return self._type == "fifo"
-end
-
----@return boolean
-function Node:is_socket()
-  return self._type == "socket"
-end
-
----@return boolean
-function Node:is_char_device()
-  return self._type == "char"
-end
-
----@return boolean
-function Node:is_block_device()
-  return self._type == "block"
-end
-
----@async
----@return uv.aliases.fs_stat_table|nil stat
-function Node:fs_stat()
-  return fs.lstat(self.path)
+    if path:sub(1, #to) == to then
+      path = path:sub(#to + 1, -1)
+    end
+  end
+  return path
 end
 
 ---@param path string
 ---@return boolean
 function Node:is_ancestor_of(path)
-  return self:has_children() and #self.path < #path and vim.startswith(path, self.path .. utils.os_sep)
-end
-
----@return boolean
-function Node:is_empty()
-  return self.empty == true
+  return self:has_children() and vim.startswith(path, self.path .. utils.os_sep)
 end
 
 ---@return boolean
@@ -360,51 +145,22 @@ function Node:has_children()
   return self._children ~= nil
 end
 
----@return boolean
-function Node:is_dotfile()
-  return self.name:sub(1, 1) == "."
-end
+---@alias Yat.Node.HiddenReason "filter"|"git"|string
 
----@return boolean
-function Node:is_git_ignored()
-  return self.repo and self.repo:is_ignored(self.path, self._type) or false
-end
-
----@alias Yat.Node.HiddenReason "filter"|"git"
+-- selene: allow(unused_variable)
 
 ---@param config Yat.Config
 ---@return boolean hidden
 ---@return Yat.Node.HiddenReason? reason
+---@diagnostic disable-next-line:unused-local
 function Node:is_hidden(config)
-  if config.filters.enable then
-    if config.filters.dotfiles and self:is_dotfile() then
-      return true, "filter"
-    elseif vim.tbl_contains(config.filters.custom, self.name) then
-      return true, "filter"
-    end
-  end
-  if not config.git.show_ignored then
-    if self:is_git_ignored() then
-      return true, "git"
-    end
-  end
   return false
-end
-
----@return string|nil
-function Node:git_status()
-  return self.repo and self.repo:status():of(self.path, self._type)
-end
-
----@return boolean
-function Node:is_git_repository_root()
-  return self.repo and self.repo.toplevel == self.path or false
 end
 
 ---@param status Yat.Actions.Clipboard.Action|nil
 function Node:set_clipboard_status(status)
   self._clipboard_status = status
-  if self:is_directory() then
+  if self:is_container() then
     for _, child in ipairs(self._children) do
       child:set_clipboard_status(status)
     end
@@ -429,85 +185,28 @@ function Node:children()
   return self._children
 end
 
----@param cmd Yat.Action.Files.Open.Mode
-function Node:edit(cmd)
-  vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(self.path) } })
-end
+-- selene: allow(unused_variable)
+
+---@abstract
+---@param cmd string
+---@diagnostic disable-next-line:unused-local
+function Node:edit(cmd) end
 
 ---@async
+---@abstract
 ---@generic T : Yat.Node
 ---@param self T
----@param path string
----@return T? node
-function Node:add_node(path)
-  ---@cast self Yat.Node
-  return self:_add_node(path, function(fs_node, parent)
-    local node = self.class:new(fs_node, parent) --[[@as Yat.Node]]
-    if node.TYPE == "filesystem" then
-      maybe_add_watcher(node)
-    end
-    return node
-  end)
-end
-
----@async
----@protected
----@generic T : Yat.Node
----@param self T
----@param path string
----@param node_creator fun(fs_node: Yat.Fs.Node, parent: T): T
+---@param ... any
 ---@return T|nil node
-function Node:_add_node(path, node_creator)
-  if not fs.exists(path) then
-    log.error("no file node found for %q", path)
-    return nil
-  end
-
-  ---@cast self Yat.Node
-  local rest = path:sub(#self.path + 1)
-  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true })
-  local node = self
-  for i = 1, #splits do
-    local name = splits[i]
-    local found = false
-    for _, child in ipairs(node._children) do
-      if child.name == name then
-        found = true
-        node = child
-        break
-      end
-    end
-    if not found then
-      local fs_node = fs.node_for(node.path .. utils.os_sep .. name)
-      if fs_node then
-        local child = node_creator(fs_node, node)
-        log.debug("adding child %q to parent %q", child.path, node.path)
-        node._children[#node._children + 1] = child
-        node.empty = false
-        table.sort(node._children, self.node_comparator)
-        node = child
-      else
-        log.error("cannot create fs node for %q", node.path .. utils.os_sep .. name)
-        return nil
-      end
-    end
-  end
-
-  scheduler()
-  return node
-end
-
----@param path string
----@return boolean updated
-function Node:remove_node(path)
-  return self:_remove_node(path, false)
-end
+function Node:add_node(...) end
 
 ---@protected
+function Node:on_node_removed() end
+
 ---@param path string
----@param remove_empty_parents boolean
+---@param remove_empty_parents? boolean
 ---@return boolean updated
-function Node:_remove_node(path, remove_empty_parents)
+function Node:remove_node(path, remove_empty_parents)
   local updated = false
   local node = self:get_node(path)
   while node and node.parent and node ~= self do
@@ -516,16 +215,13 @@ function Node:_remove_node(path, remove_empty_parents)
         local child = node.parent._children[i]
         if child == node then
           log.debug("removing child %q from parent %q", child.path, node.parent.path)
-          if child.TYPE == "filesystem" then
-            maybe_remove_watcher(child)
-          end
           table.remove(node.parent._children, i)
+          child:on_node_removed()
           updated = true
           break
         end
       end
       if #node.parent._children == 0 then
-        node.parent.empty = true
         node = node.parent
         if not remove_empty_parents then
           return updated
@@ -536,89 +232,6 @@ function Node:_remove_node(path, remove_empty_parents)
     end
   end
   return updated
-end
-
----@param node Yat.Node
-function Node:add_child(node)
-  if self._children then
-    self._children[#self._children + 1] = node
-    self.empty = false
-    table.sort(self._children, self.node_comparator)
-  end
-end
-
----@async
----@protected
----@generic T : Yat.Node
----@param self T
----@param paths string[]
----@param node_creator async fun(path: string, parent: T, directory: boolean): T|nil
----@return T first_leaf_node
-function Node:populate_from_paths(paths, node_creator)
-  ---@cast self Yat.Node
-  ---@type table<string, Yat.Node>
-  local node_map = { [self.path] = self }
-
-  ---@param path string
-  ---@param parent Yat.Node
-  ---@param directory boolean
-  local function add_node(path, parent, directory)
-    local node = node_creator(path, parent, directory)
-    if node then
-      parent._children[#parent._children + 1] = node
-      node_map[node.path] = node
-    end
-  end
-
-  local min_path_size = #self.path
-  for _, path in ipairs(paths) do
-    local parents = Path:new(path):parents() --[=[@as string[]]=]
-    for i = #parents, 1, -1 do
-      local parent_path = parents[i]
-      -- skip paths 'above' the root node
-      if #parent_path > min_path_size then
-        local parent = node_map[parent_path]
-        if not parent then
-          local grand_parent = node_map[parents[i + 1]]
-          add_node(parent_path, grand_parent, true)
-        end
-      end
-    end
-
-    local parent = node_map[parents[1]]
-    add_node(path, parent, false)
-  end
-
-  ---@param node Yat.Node
-  local function sort_children(node)
-    if node._children then
-      local empty = node._children == 0
-      ---@diagnostic disable-next-line:invisible
-      node.empty = empty
-      if not empty then
-        table.sort(node._children, node.node_comparator)
-        for _, child in ipairs(node._children) do
-          if child._children then
-            sort_children(child)
-          end
-        end
-      end
-    end
-  end
-
-  sort_children(self)
-
-  local first_leaf_node = self
-  while first_leaf_node and first_leaf_node._children do
-    if first_leaf_node._children[1] then
-      first_leaf_node = first_leaf_node._children[1]
-    else
-      break
-    end
-  end
-
-  scheduler()
-  return first_leaf_node
 end
 
 ---Returns an iterator function for this `node`'s children.
@@ -685,12 +298,11 @@ function Node:collapse(opts)
   end
 end
 
----Expands the node, if it is a directory. If the node hasn't been scanned before, will scan the directory.
+---Expands the node, if it has children.
 ---@async
 ---@generic T : Yat.Node
 ---@param self T
----@param opts? {force_scan?: boolean, to?: string}
----  - {opts.force_scan?} `boolean` rescan directories.
+---@param opts? {to?: string}
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return T|nil node if {opts.to} is specified, and found.
 function Node:expand(opts)
@@ -698,9 +310,6 @@ function Node:expand(opts)
   log.debug("expanding %q", self.path)
   opts = opts or {}
   if self._children then
-    if not self.scanned or opts.force_scan then
-      self:_scandir()
-    end
     self.expanded = true
   end
 
@@ -736,9 +345,6 @@ function Node:get_node(path)
   if self.path == path then
     return self
   end
-  if not self._children then
-    return
-  end
 
   if self:is_ancestor_of(path) then
     for _, child in ipairs(self._children) do
@@ -751,62 +357,12 @@ function Node:get_node(path)
   end
 end
 
-do
-  ---@async
-  ---@param node Yat.Node
-  ---@param recurse boolean
-  ---@param refresh_git boolean
-  ---@param refreshed_git_repos table<string, boolean>
-  local function refresh_directory_node(node, recurse, refresh_git, refreshed_git_repos)
-    if refresh_git and node.repo and not refreshed_git_repos[node.repo.toplevel] then
-      node.repo:status():refresh({ ignored = true })
-      refreshed_git_repos[node.repo.toplevel] = true
-    end
-    if node.scanned then
-      ---@diagnostic disable-next-line:invisible
-      node:_scandir()
+-- selene: allow(unused_variable)
 
-      if recurse then
-        for _, child in ipairs(node:children()) do
-          if child:is_directory() then
-            refresh_directory_node(child, true, refresh_git, refreshed_git_repos)
-          end
-        end
-      end
-    end
-  end
-
-  ---@async
-  ---@virtual
-  ---@param opts? { recurse?: boolean, refresh_git?: boolean }
-  ---  - {opts.recurse?} `boolean` whether to perform a recursive refresh, default: `false`.
-  ---  - {opts.refresh_git?} `boolean` whether to refresh the git status, default: `false`.
-  function Node:refresh(opts)
-    opts = opts or {}
-    local recurse = opts.recurse or false
-    local refresh_git = opts.refresh_git or false
-    log.debug("refreshing %q, recurse=%s, refresh_git=%s", self.path, recurse, refresh_git)
-
-    if self:is_directory() then
-      refresh_directory_node(self, recurse, refresh_git, {})
-    else
-      local fs_node = fs.node_for(self.path)
-      if fs_node then
-        self:_merge_new_data(fs_node)
-      else
-        for i = #self.parent._children, 1, -1 do
-          local child = self.parent._children[i]
-          if child == self then
-            table.remove(self.parent._children, i)
-            break
-          end
-        end
-      end
-      if refresh_git and self.repo then
-        self.repo:status():refresh_path(self.path)
-      end
-    end
-  end
-end
+---@abstract
+---@async
+---@param opts? table<string, any>
+---@diagnostic disable-next-line:unused-local
+function Node:refresh(opts) end
 
 return Node

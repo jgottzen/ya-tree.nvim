@@ -6,16 +6,18 @@ local utils = require("ya-tree.utils")
 local fn = vim.fn
 
 local M = {
-  ---@type Yat.Node[]
+  ---@type Yat.Node.Filesystem[]
   queue = {},
 }
 
 ---@alias Yat.Actions.Clipboard.Action "copy"|"cut"
 
----@param panel Yat.Panel.Tree
+---@param panel Yat.Panel.Files
 ---@param action Yat.Actions.Clipboard.Action
 local function cut_or_copy_nodes(panel, action)
-  for _, node in ipairs(panel:get_selected_nodes()) do
+  for _, node in
+    ipairs(panel:get_selected_nodes() --[=[@as Yat.Node.Filesystem[]]=])
+  do
     -- copying the root node will not work
     if panel.root ~= node then
       local skip = false
@@ -42,15 +44,21 @@ local function cut_or_copy_nodes(panel, action)
 end
 
 ---@async
----@param panel Yat.Panel.Tree
-function M.copy_node(panel)
-  cut_or_copy_nodes(panel, "copy")
+---@param panel Yat.Panel.Files
+---@param _ Yat.Node.Filesystem
+function M.copy_node(panel, _)
+  if not panel:is_in_search_mode() then
+    cut_or_copy_nodes(panel, "copy")
+  end
 end
 
 ---@async
----@param panel Yat.Panel.Tree
-function M.cut_node(panel)
-  cut_or_copy_nodes(panel, "cut")
+---@param panel Yat.Panel.Files
+---@param _ Yat.Node.Filesystem
+function M.cut_node(panel, _)
+  if not panel:is_in_search_mode() then
+    cut_or_copy_nodes(panel, "cut")
+  end
 end
 
 local function clear_clipboard()
@@ -62,16 +70,19 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Files
----@param node Yat.Node
+---@param node Yat.Node.Filesystem
 function M.paste_nodes(panel, node)
+  if panel:is_in_search_mode() then
+    return
+  end
+
   ---@async
   ---@param dir string
-  ---@param nodes_to_paste Yat.Node[]
-  ---@return { node: Yat.Node, destination: string, replace: boolean }[]
-  local function get_nodes_to_paste(dir, nodes_to_paste)
-    ---@type { node: Yat.Node, destination: string, replace: boolean }[]
+  ---@return { node: Yat.Node.Filesystem, destination: string, replace: boolean }[]
+  local function get_nodes_to_paste(dir)
+    ---@type { node: Yat.Node.Filesystem, destination: string, replace: boolean }[]
     local items = {}
-    for _, node_to_paste in ipairs(nodes_to_paste) do
+    for _, node_to_paste in ipairs(M.queue) do
       if not fs.exists(node_to_paste.path) then
         utils.warn(string.format("Item %q does not exist, cannot %s!", node_to_paste.path, node_to_paste:clipboard_status()))
       else
@@ -107,16 +118,15 @@ function M.paste_nodes(panel, node)
     return items
   end
 
-  -- paste can only be done into directories
   if not node:is_directory() then
-    node = node.parent --[[@as Yat.Node]]
+    node = node.parent --[[@as Yat.Node.Filesystem]]
   end
 
   if #M.queue > 0 then
-    local nodes = get_nodes_to_paste(node.path, M.queue)
+    local items = get_nodes_to_paste(node.path)
     local pasted = false
     panel.focus_path_on_fs_event = "expand"
-    for _, item in ipairs(nodes) do
+    for _, item in ipairs(items) do
       local ok = false
       if item.node:clipboard_status() == "copy" then
         if item.node:is_directory() then
@@ -146,8 +156,9 @@ function M.paste_nodes(panel, node)
 end
 
 ---@async
----@param panel Yat.Panel.Tree
-function M.clear_clipboard(panel)
+---@param panel Yat.Panel.Files
+---@param _ Yat.Node.Filesystem
+function M.clear_clipboard(panel, _)
   clear_clipboard()
   panel:draw()
   utils.notify("Clipboard cleared!")
@@ -171,8 +182,8 @@ end
 ---@param panel Yat.Panel.Tree
 ---@param node Yat.Node
 function M.copy_root_relative_path_to_clipboard(panel, node)
-  local relative = utils.relative_path_for(node.path, panel.root.path)
-  if node:is_directory() then
+  local relative = node:relative_path_to(panel.root)
+  if node:is_container() then
     relative = relative .. utils.os_sep
   end
   copy_to_system_clipboard(relative)

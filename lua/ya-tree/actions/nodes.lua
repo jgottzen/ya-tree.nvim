@@ -140,10 +140,11 @@ function M.focus_last_sibling(panel, node)
   end
 end
 
+---@generic T : Yat.Node
 ---@param panel Yat.Panel.Tree
----@param start_node Yat.Node
+---@param start_node T
 ---@param forward boolean
----@param predicate fun(node: Yat.Node): boolean
+---@param predicate fun(node: T): boolean
 local function focus_first_node_that_matches(panel, start_node, forward, predicate)
   local node = panel:get_first_node_that_matches(start_node, forward, predicate)
   if node then
@@ -153,7 +154,7 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Tree
----@param start Yat.Node
+---@param start Yat.Node.FsBasedNode
 function M.focus_prev_git_item(panel, start)
   local config = require("ya-tree.config").config
   focus_first_node_that_matches(panel, start, false, function(node)
@@ -163,7 +164,7 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Tree
----@param start Yat.Node
+---@param start Yat.Node.FsBasedNode
 function M.focus_next_git_item(panel, start)
   local config = require("ya-tree.config").config
   focus_first_node_that_matches(panel, start, true, function(node)
@@ -177,13 +178,13 @@ end
 ---@param forward boolean
 local function focus_diagnostic_item(panel, start, forward)
   local config = require("ya-tree.config").config
-  local directory_min_diagnostic_severity = panel:directory_min_severity()
-  local file_min_diagnostic_severity = panel:file_min_severity()
+  local container_min_diagnostic_severity = panel:container_min_severity()
+  local leaf_min_diagnostic_severity = panel:leaf_min_severity()
   focus_first_node_that_matches(panel, start, forward, function(node)
     if not node:is_hidden(config) then
       local severity = node:diagnostic_severity()
       if severity then
-        local target_severity = node:is_directory() and directory_min_diagnostic_severity or file_min_diagnostic_severity
+        local target_severity = node:is_container() and container_min_diagnostic_severity or leaf_min_diagnostic_severity
         return severity <= target_severity
       end
     end

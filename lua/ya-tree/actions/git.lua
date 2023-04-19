@@ -4,7 +4,7 @@ local utils = require("ya-tree.utils")
 local M = {}
 
 ---@async
----@param panel Yat.Panel.Tree
+---@param panel Yat.Panel
 function M.toggle_ignored(panel)
   local config = require("ya-tree.config").config
   config.git.show_ignored = not config.git.show_ignored
@@ -14,13 +14,16 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.check_node_for_git(panel, node)
   if not require("ya-tree.config").config.git.enable then
     utils.notify("Git is not enabled.")
     return
   end
 
+  if not node:is_directory() then
+    node = node.parent --[[@as Yat.Node.FsBasedNode]]
+  end
   if not node.repo or node.repo:is_yadm() then
     local repo = require("ya-tree.git").create_repo(node.path)
     if repo then
@@ -35,7 +38,7 @@ end
 
 ---@async
 ---@param _ Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.stage(_, node)
   if node.repo then
     local err = node.repo:index():add(node.path)
@@ -48,7 +51,7 @@ end
 
 ---@async
 ---@param _ Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.unstage(_, node)
   if node.repo then
     local err = node.repo:index():restore(node.path, true)
@@ -61,7 +64,7 @@ end
 
 ---@async
 ---@param _ Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.revert(_, node)
   if node.repo then
     local err = node.repo:index():restore(node.path, false)

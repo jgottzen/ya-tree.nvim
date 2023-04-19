@@ -124,11 +124,17 @@ local function close_popup()
 end
 
 ---@async
----@param node Yat.Node
----@param stat uv.aliases.fs_stat_table
----@return string[] lines
----@return Yat.Ui.HighlightGroup[][] highlights
-local function create_fs_info(node, stat)
+---@param node Yat.Node.FsBasedNode
+---@return string[]|nil lines
+---@return Yat.Ui.HighlightGroup[][]|nil highlights
+local function create_fs_info(node)
+  local stat = node:fs_stat()
+  scheduler()
+  if not stat then
+    utils.warn(string.format("Could not read filesystem data for %q", node.path))
+    return
+  end
+
   local format_string = "%13s: %s "
   local left_column_end = 13
   local right_column_start = 15
@@ -138,7 +144,7 @@ local function create_fs_info(node, stat)
   local lines = {
     string.format(format_string, "Name", node.name),
     "",
-    string.format(format_string, "Type", node:is_link() and "Symbolic Link" or NODE_TYPE_MAP[node:type()] or "Unknown"),
+    string.format(format_string, "Type", node:is_link() and "Symbolic Link" or NODE_TYPE_MAP[node:fs_type()] or "Unknown"),
     string.format(format_string, "Location", node.parent and node.parent.path or Path:new(node.path):parent().filename),
     string.format(format_string, "Size", is_directory and "-" or utils.format_size(stat.size)),
     "",
@@ -159,7 +165,7 @@ local function create_fs_info(node, stat)
   if node:is_link() then
     lines[#lines + 1] = string.format(format_string, "Points to", node.absolute_link_to)
     lines[#lines + 1] = ""
-    local highlight = node.link_orphan and "Error" or (node:is_directory() and "Directory" or hl.FILE_NAME)
+    local highlight = node.link_orphan and "Error" or (is_directory and hl.DIRECTORY_NAME or hl.FILE_NAME)
     highlights[#highlights + 1] =
       { { name = "Label", from = 1, to = left_column_end }, { name = highlight, from = right_column_start, to = -1 } }
     highlights[#highlights + 1] = {}
@@ -228,7 +234,7 @@ end
 
 ---@async
 ---@param _ Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.show_node_info(_, node)
   if popup ~= nil then
     if node.path == popup.path then
@@ -241,21 +247,18 @@ function M.show_node_info(_, node)
   end
 
   local lines, highlight_groups
-  if node.TYPE == "buffer" and node.extension == "terminal" then
+  if node.TYPE == "buffer" then
     ---@cast node Yat.Node.Buffer
     if node:is_terminal() then
       lines, highlight_groups = create_terminal_info(node)
-    else
-      return
+    elseif not node:is_terminals_container() then
+      lines, highlight_groups = create_fs_info(node)
     end
   else
-    local stat = node:fs_stat()
-    scheduler()
-    if not stat then
-      utils.warn(string.format("Could not read filesystem data for %q", node.path))
-      return
-    end
-    lines, highlight_groups = create_fs_info(node, stat)
+    lines, highlight_groups = create_fs_info(node)
+  end
+  if not lines or not highlight_groups then
+    return
   end
   local max_width = 0
   for _, line in ipairs(lines) do

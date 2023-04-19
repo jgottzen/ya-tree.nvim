@@ -12,7 +12,6 @@ local M = {
   ---@field auto_open Yat.Config.AutoOpen Auto-open configuration.
   ---@field cwd Yat.Config.Cwd Current working directory configuration.
   ---@field dir_watcher Yat.Config.DirWatcher Directory watching configuration.
-  ---@field sorting Yat.Config.Sorting Sorting configuration.
   ---@field search Yat.Config.Search Search configuration.
   ---@field filters Yat.Config.Filters Filters configuration.
   ---@field git Yat.Config.Git Git configuration.
@@ -74,18 +73,6 @@ local M = {
     dir_watcher = {
       enable = true,
       exclude = {},
-    },
-
-    ---@alias Yat.Node.SortBy "name"|"type"|"extension"
-
-    ---@class Yat.Config.Sorting
-    ---@field directories_first boolean Whether to sort directories first, default: `true`.
-    ---@field case_sensitive boolean Whether to use case sensitive sort, default: `false`.
-    ---@field sort_by Yat.Node.SortBy|fun(a: Yat.Node, b: Yat.Node):boolean What to sort by, or a user specified function, default: `"name"`.
-    sorting = {
-      directories_first = true,
-      case_sensitive = false,
-      sort_by = "name",
     },
 
     ---@class Yat.Config.Search
@@ -244,6 +231,19 @@ local M = {
           on = "root",
           setup = nil,
         },
+
+        ---@alias Yat.Node.Filesystem.SortBy "name"|"type"|"extension"
+
+        ---@class Yat.Config.Panels.Files.Sorting
+        ---@field directories_first boolean Whether to sort directories first, default: `true`.
+        ---@field case_sensitive boolean Whether to use case sensitive sort, default: `false`.
+        ---@field sort_by Yat.Node.Filesystem.SortBy|fun(a: Yat.Node.Filesystem, b: Yat.Node.Filesystem):boolean What to sort by, or a user specified function, default: `"name"`.
+        sorting = {
+          directories_first = true,
+          case_sensitive = false,
+          sort_by = "name",
+        },
+
         ---@class Yat.Config.Panels.Files.Mappings : Yat.Config.Panels.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Panel.Files.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
@@ -698,10 +698,14 @@ local M = {
 
         ---@class Yat.Config.Renderers.Builtin.Icon : Yat.Config.BaseRendererConfig
         ---@field padding string The padding to use to the left of the renderer, default: `""`.
+        ---@field default_container string The default icon for containers, default: `"󰙅"`.
+        ---@field default_leaf string The default icon for leafs, default: `""`.
         ---@field directory Yat.Config.Renderers.Icon.Directory Directory icon rendering configuration.
         ---@field file Yat.Config.Renderers.Icon.File File icon rendering configuration.
         icon = {
           padding = "",
+          default_container = "󰙅",
+          default_leaf = "",
 
           ---@class Yat.Config.Renderers.Icon.Directory
           ---@field default string The icon for closed directories, default: `""`.
@@ -958,17 +962,6 @@ function M.setup(opts)
   end
   if M.config.search.max_results == 0 then
     utils.warn("'search.max_results' is set to 0, disabling it, this can cause performance issues!")
-  end
-
-  local sorting = M.config.sorting
-  if not (sorting.directories_first and not sorting.case_sensitive and sorting.sort_by == "name") then
-    local Node = require("ya-tree.nodes.node")
-    local sort_by = sorting.sort_by
-    if type(sort_by) == "function" then
-      Node.node_comparator = sort_by
-    else
-      Node.static.create_comparator(sorting.directories_first, sorting.case_sensitive, sort_by)
-    end
   end
 
   return M.config

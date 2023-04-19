@@ -8,6 +8,11 @@ local M = {
   INDENT_MARKER = "YaTreeIndentMarker",
   INDENT_EXPANDER = "YaTreeIndentExpander",
 
+  ERROR = "YaTreeError",
+
+  CONTAINER_ICON = "YaTreeContainerIcon",
+  LEAF_ICON = "YaTreeLeafIcon",
+
   DIRECTORY_ICON = "YaTreeDirectoryIcon",
   SYMBOLIC_DIRECTORY_ICON = "YaTreeSymbolicDirectoryIcon",
 
@@ -30,7 +35,6 @@ local M = {
   CHAR_DEVICE_FILE_NAME = "YaTreeCharDeviceFileName",
   BLOCK_DEVICE_FILE_NAME = "YaTreeBlockDeviceFileName",
   EXECUTABLE_FILE_NAME = "YaTreeExecutableFileName",
-  ERROR_FILE_NAME = "YaTreeErrorFileName",
 
   MODIFIED = "YaTreeFileModified",
 
@@ -138,6 +142,11 @@ function M.setup()
   create_highlight(M.INDENT_MARKER, nil, { fg = "#5a524c" })
   create_highlight(M.INDENT_EXPANDER, { M.DIRECTORY_ICON })
 
+  create_highlight(M.ERROR, nil, { fg = "#080808", bg = "#ff0000" })
+
+  create_highlight(M.CONTAINER_ICON, { "Directory" })
+  create_highlight(M.LEAF_ICON, { "Normal" })
+
   create_highlight(M.DIRECTORY_ICON, { "Directory" })
   create_highlight(M.SYMBOLIC_DIRECTORY_ICON, { M.DIRECTORY_ICON })
 
@@ -160,7 +169,6 @@ function M.setup()
   create_highlight(M.CHAR_DEVICE_FILE_NAME, { M.CHAR_DEVICE_FILE_ICON })
   create_highlight(M.BLOCK_DEVICE_FILE_NAME, { M.BLOCK_DEVICE_FILE_ICON })
   create_highlight(M.EXECUTABLE_FILE_NAME, { M.FILE_NAME })
-  create_highlight(M.ERROR_FILE_NAME, nil, { fg = "#080808", bg = "#ff0000" })
 
   create_highlight(M.MODIFIED, nil, { fg = normal_fg, bold = true })
 

@@ -2,13 +2,11 @@ local CallHierarchyNode = require("ya-tree.nodes.call_node")
 local defer = require("ya-tree.async").defer
 local log = require("ya-tree.log").get("panels")
 local lsp = require("ya-tree.lsp")
-local meta = require("ya-tree.meta")
 local TextNode = require("ya-tree.nodes.text_node")
 local TreePanel = require("ya-tree.panels.tree_panel")
 local ui = require("ya-tree.ui")
 
 local api = vim.api
-local uv = vim.loop
 
 ---@class Yat.Panel.CallHierarchy : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.CallHierarchy, sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.CallHierarchy
@@ -19,7 +17,7 @@ local uv = vim.loop
 ---@field public current_node Yat.Node.CallHierarchy|Yat.Node.Text
 ---@field private _direction Yat.CallHierarchy.Direction
 ---@field private call_site? Lsp.CallHierarchy.Item
-local CallHierarchyPanel = meta.create_class("Yat.Panel.CallHierarchy", TreePanel)
+local CallHierarchyPanel = TreePanel:subclass("Yat.Panel.CallHierarchy")
 
 ---@async
 ---@private
@@ -28,9 +26,7 @@ local CallHierarchyPanel = meta.create_class("Yat.Panel.CallHierarchy", TreePane
 ---@param keymap table<string, Yat.Action>
 ---@param renderers Yat.Panel.TreeRenderers
 function CallHierarchyPanel:init(sidebar, config, keymap, renderers)
-  local path = uv.cwd() --[[@as string]]
-  local text = "Waiting for LSP..."
-  local root = TextNode:new(text, path, false)
+  local root = TextNode:new("Waiting for LSP...", "/")
   TreePanel.init(self, "call_hierarchy", sidebar, config.title, config.icon, keymap, renderers, root)
   self._direction = "incoming"
   defer(function()
@@ -57,11 +53,7 @@ function CallHierarchyPanel:create_call_hierarchy(winid, bufnr, file)
     self.root:refresh({ call_site = self.call_site, direction = self._direction })
     self.root:expand()
   else
-    if err then
-      self.root = TextNode:new(err, file, false)
-    else
-      self.root = TextNode:new("No call site at cursor position", file, false)
-    end
+    self.root = TextNode:new(err or "No call site at cursor position", "/")
   end
   self:draw()
 end

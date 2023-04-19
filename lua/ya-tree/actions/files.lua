@@ -16,7 +16,8 @@ local M = {}
 
 ---@async
 ---@param panel Yat.Panel.Tree
-function M.open(panel)
+---@param _ Yat.Node
+function M.open(panel, _)
   local nodes = panel:get_selected_nodes()
   if #nodes == 1 then
     local node = nodes[1]
@@ -122,13 +123,10 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.cd_to(panel, node)
   if not node:is_directory() then
-    if not node.parent then
-      return
-    end
-    node = node.parent --[[@as Yat.Node]]
+    node = node.parent --[[@as Yat.Node.FsBasedNode]]
   end
   log.debug("cd to %q", node.path)
   change_root(panel, node.path)
@@ -136,15 +134,20 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Tree
-function M.cd_up(panel)
-  local new_cwd = panel.root.parent and panel.root.parent.path or Path:new(panel.root.path):parent().filename
+---@param _ Yat.Node.FsBasedNode
+function M.cd_up(panel, _)
+  local root = panel.root --[[@as Yat.Node.FsBasedNode]]
+  if root:is_root_directory() then
+    return
+  end
+  local new_cwd = root.parent and root.parent.path or Path:new(root.path):parent().filename
   log.debug("changing root directory one level up from %q to %q", panel.root.path, new_cwd)
 
   change_root(panel, new_cwd)
 end
 
 ---@async
----@param panel Yat.Panel.Tree
+---@param panel Yat.Panel
 function M.toggle_filter(panel)
   local config = require("ya-tree.config").config
   config.filters.enable = not config.filters.enable
@@ -154,28 +157,28 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Files
----@param node Yat.Node
 ---@param path string
-local function prepare_add_rename(panel, node, path)
-  local parent = Path:new(path):parent():absolute()
-  if panel.root:is_ancestor_of(path) or panel.root.path == parent then
+---@param new_path string
+local function prepare_add_rename(panel, path, new_path)
+  local parent = Path:new(new_path):parent():absolute()
+  if panel.root:is_ancestor_of(new_path) or panel.root.path == parent then
     -- expand to the parent path so the tree will detect and display the added file/directory
-    if parent ~= node.path then
+    if parent ~= path then
       panel.root:expand({ to = parent })
       vim.schedule(function()
         panel:draw()
       end)
     end
-    panel.focus_path_on_fs_event = path
+    panel.focus_path_on_fs_event = new_path
   end
 end
 
 ---@async
 ---@param panel Yat.Panel.Files
----@param node Yat.Node
+---@param node Yat.Node.Filesystem
 function M.add(panel, node)
   if not node:is_directory() then
-    node = node.parent --[[@as Yat.Node]]
+    node = node.parent --[[@as Yat.Node.Filesystem]]
   end
 
   local title = " New file (an ending " .. utils.os_sep .. " will create a directory): "
@@ -192,7 +195,7 @@ function M.add(panel, node)
     path = path:sub(1, -2)
   end
 
-  prepare_add_rename(panel, node, path)
+  prepare_add_rename(panel, node.path, path)
   local success
   if is_directory then
     success = fs.create_dir(path)
@@ -209,7 +212,7 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Files|Yat.Panel.GitStatus
----@param node Yat.Node
+---@param node Yat.Node.Filesystem|Yat.Node.Git
 function M.rename(panel, node)
   -- prohibit renaming the root node
   if panel.root == node then
@@ -224,8 +227,9 @@ function M.rename(panel, node)
     return
   end
 
-  if panel.TYPE == "files" then
-    prepare_add_rename(panel --[[@as Yat.Panel.Files]], node, path)
+  local files_panel = panel.TYPE == "files" and panel or panel.sidebar:get_panel("files") --[[@as Yat.Panel.Files?]]
+  if files_panel then
+    prepare_add_rename(files_panel, node.path, path)
   end
   if node.repo then
     local err = node.repo:index():move(node.path, path)
@@ -246,13 +250,13 @@ function M.rename(panel, node)
 end
 
 ---@async
----@param selected_nodes Yat.Node[]
+---@param selected_nodes Yat.Node.Filesystem[]
 ---@param root_path string
 ---@param confirm boolean
 ---@param title_prefix string
----@return Yat.Node[] nodes, Yat.Node? node_to_focus
+---@return Yat.Node.Filesystem[] nodes, Yat.Node.Filesystem? node_to_focus
 local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_prefix)
-  ---@type Yat.Node[]
+  ---@type Yat.Node.Filesystem[]
   local nodes = {}
   for _, node in ipairs(selected_nodes) do
     -- prohibit deleting the root node
@@ -272,7 +276,7 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
 
   local config = require("ya-tree.config").config
 
-  ---@type Yat.Node
+  ---@type Yat.Node.Filesystem?
   local node_to_focus
   local first_node = nodes[1]
   if first_node then
@@ -303,7 +307,7 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Files
----@param _ Yat.Node
+---@param _ Yat.Node.Filesystem
 function M.delete(panel, _)
   local nodes, node_to_focus = get_nodes_to_delete(panel:get_selected_nodes(), panel.root.path, true, "Delete")
   if #nodes == 0 then
@@ -328,7 +332,7 @@ end
 
 ---@async
 ---@param panel Yat.Panel.Files
----@param _ Yat.Node
+---@param _ Yat.Node.Filesystem
 function M.trash(panel, _)
   local trash = require("ya-tree.config").config.trash
   if not trash.enable then
@@ -340,7 +344,7 @@ function M.trash(panel, _)
     return
   end
 
-  ---@param node Yat.Node
+  ---@param node Yat.Node.Filesystem
   local files = vim.tbl_map(function(node)
     return node.path
   end, nodes) --[=[@as string[]]=]
@@ -359,7 +363,7 @@ end
 
 ---@async
 ---@param _ Yat.Panel.Tree
----@param node Yat.Node
+---@param node Yat.Node.FsBasedNode
 function M.system_open(_, node)
   local config = require("ya-tree.config").config
   if not config.system_open.cmd then

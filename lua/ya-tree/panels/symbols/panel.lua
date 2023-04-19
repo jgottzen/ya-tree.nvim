@@ -1,9 +1,7 @@
 local defer = require("ya-tree.async").defer
 local fs = require("ya-tree.fs")
-local git = require("ya-tree.git")
 local log = require("ya-tree.log").get("panels")
 local lsp = require("ya-tree.lsp")
-local meta = require("ya-tree.meta")
 local scheduler = require("ya-tree.async").scheduler
 local symbol_kind = require("ya-tree.lsp.symbol_kind")
 local SymbolNode = require("ya-tree.nodes.symbol_node")
@@ -20,7 +18,7 @@ local uv = vim.loop
 ---@field public TYPE "symbols"
 ---@field public root Yat.Node.Symbol
 ---@field public current_node Yat.Node.Symbol
-local SymbolsPanel = meta.create_class("Yat.Panel.Symbols", TreePanel)
+local SymbolsPanel = TreePanel:subclass("Yat.Panel.Symbols")
 
 ---@async
 ---@private
@@ -70,7 +68,6 @@ function SymbolsPanel:create_root_node(path, bufnr)
     start = { line = 0, character = 0 },
     ["end"] = { line = -1, character = -1 },
   })
-  root.repo = git.get_repo_for_path(path)
 
   if bufnr then
     if do_defer then

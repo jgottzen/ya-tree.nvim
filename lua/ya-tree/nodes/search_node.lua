@@ -1,12 +1,11 @@
 local fs = require("ya-tree.fs")
+local FsBasedNode = require("ya-tree.nodes.fs_based_node")
 local git = require("ya-tree.git")
 local job = require("ya-tree.job")
 local log = require("ya-tree.log").get("nodes")
-local meta = require("ya-tree.meta")
-local Node = require("ya-tree.nodes.node")
 local utils = require("ya-tree.utils")
 
----@class Yat.Node.Search : Yat.Node
+---@class Yat.Node.Search : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Search, fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
 ---@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
 ---
@@ -15,23 +14,20 @@ local utils = require("ya-tree.utils")
 ---@field private _children? Yat.Node.Search[]
 ---@field public search_term? string
 ---@field private _search_options? { cmd: string, args: string[] }
-local SearchNode = meta.create_class("Yat.Node.Search", Node)
+local SearchNode = FsBasedNode:subclass("Yat.Node.Search")
 
 ---Creates a new search node.
 ---@protected
 ---@param fs_node Yat.Fs.Node filesystem data.
 ---@param parent? Yat.Node.Search the parent node.
 function SearchNode:init(fs_node, parent)
-  Node.init(self, fs_node, parent)
+  FsBasedNode.init(self, fs_node, parent)
   self.TYPE = "search"
   if self:is_directory() then
     self.empty = true
     self.expanded = true
   end
 end
-
----@protected
-function SearchNode:_scandir() end
 
 ---@return boolean hidden
 function SearchNode:is_hidden()

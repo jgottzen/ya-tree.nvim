@@ -277,7 +277,7 @@ function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   local err, lstat = fs_lstat(path)
   if not lstat then
-    log.info("cannot fs_lstat path %q, %s", path, err)
+    log.debug("cannot fs_lstat path %q, %s", path, err)
     return nil
   end
 

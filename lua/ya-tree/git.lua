@@ -233,10 +233,10 @@ function Repo:_remove_git_watcher()
 end
 
 ---@param path string
----@param _type Luv.FileType
+---@param directory boolean
 ---@return boolean ignored
-function Repo:is_ignored(path, _type)
-  path = _type == "directory" and (path .. os_sep) or path
+function Repo:is_ignored(path, directory)
+  path = directory and (path .. os_sep) or path
   for _, ignored in ipairs(self._status.status._ignored) do
     if ignored:sub(-1) == os_sep then
       -- directory ignore
@@ -268,7 +268,7 @@ function Repo:command(args, null_terminated)
     log.error("error running git command, %s", table.concat(message, " "))
     return {}, err
   end
-  return results, err
+  return results
 end
 
 ---@async
@@ -383,7 +383,7 @@ do
   ---@async
   ---@param path string
   ---@return string|nil status
-  function GitStatus:refresh_path(path)
+  function GitStatus:refresh_file_path(path)
     if fs.is_directory(path) then
       log.error("only individual paths are supported by this method!")
       return
@@ -391,7 +391,7 @@ do
     local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
       log.debug("refresh_status status called within 1 second, returning")
-      return self:of(path, "file")
+      return self:of(path, false)
     end
     local args = create_status_arguments({ header = false, ignored = false })
     args[#args + 1] = path
@@ -412,7 +412,7 @@ do
       end
     end
 
-    local relative_path = utils.relative_path_for(path, self.repo.toplevel)
+    local relative_path = Path:new(path):make_relative(self.repo.toplevel)
     local i, found = 1, false
     while i <= #results do
       local line = results[i]
@@ -444,7 +444,7 @@ do
     end
 
     scheduler()
-    return self:of(path, "file")
+    return self:of(path, false)
   end
 
   ---@async
@@ -676,12 +676,12 @@ function GitStatus:_parse_porcelainv2_ignored_row(line)
 end
 
 ---@param path string
----@param _type Luv.FileType
+---@param directory boolean
 ---@return string|nil status
-function GitStatus:of(path, _type)
+function GitStatus:of(path, directory)
   local status = self.status._changed_entries[path] or self.status._propagated_changed_entries[path]
   if not status then
-    path = _type == "directory" and (path .. os_sep) or path
+    path = directory and (path .. os_sep) or path
     for _path, _status in pairs(self.status._changed_entries) do
       if _status == "?" and _path:sub(-1) == os_sep and vim.startswith(path, _path) then
         return _status

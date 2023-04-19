@@ -1,7 +1,6 @@
 local diagnostics = require("ya-tree.diagnostics")
 local log = require("ya-tree.log").get("nodes")
 local lsp = require("ya-tree.lsp")
-local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 local symbol_kind = require("ya-tree.lsp.symbol_kind")
 
@@ -14,12 +13,12 @@ local symbol_kind = require("ya-tree.lsp.symbol_kind")
 ---@field private _children? Yat.Node.Symbol[]
 ---@field private file string
 ---@field private _bufnr integer
----@field private _lsp_client_id? integer
+---@field private _lsp_client_id integer
 ---@field private _tags Lsp.Symbol.Tag[]
 ---@field public kind Lsp.Symbol.Kind
 ---@field public detail? string
 ---@field public position Lsp.Range
-local SymbolNode = meta.create_class("Yat.Node.Symbol", Node)
+local SymbolNode = Node:subclass("Yat.Node.Symbol")
 
 ---@private
 ---@param name string
@@ -32,12 +31,11 @@ function SymbolNode:init(name, path, kind, detail, position, parent)
   Node.init(self, {
     name = name,
     path = path,
-    _type = "file",
+    container = kind == symbol_kind.FILE,
   }, parent)
   self.TYPE = "symbol"
   if kind == symbol_kind.FILE then
     self._children = {}
-    self.empty = true
   end
   self.file = parent and parent.file or path
   if parent then
@@ -100,20 +98,9 @@ function SymbolNode:edit(cmd)
   end
 end
 
----@protected
-function SymbolNode:_scandir() end
-
----@param symbol Lsp.Symbol.Document
-function SymbolNode:add_node(symbol)
-  self:add_child(symbol)
-end
-
+---@private
 ---@param symbol Lsp.Symbol.Document
 function SymbolNode:add_child(symbol)
-  if not self._children then
-    self._children = {}
-  end
-  self.empty = false
   local path = self.path .. "/" .. symbol.name .. (#self._children + 1)
   local node = SymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)
   node.symbol = symbol
@@ -122,6 +109,8 @@ function SymbolNode:add_child(symbol)
   end
   self._children[#self._children + 1] = node
   if symbol.children then
+    node._children = {}
+    node.container = true
     for _, child_symbol in ipairs(symbol.children) do
       node:add_child(child_symbol)
     end
@@ -146,11 +135,13 @@ function SymbolNode:refresh(opts)
   log.debug("refreshing %q, bufnr=%s, refresh=%s", self.path, bufnr, refresh)
 
   self._children = {}
-  self.empty = true
+  self.container = true
   local client_id, symbols = lsp.symbols(bufnr, refresh)
-  self._lsp_client_id = client_id
-  for _, symbol in ipairs(symbols) do
-    self:add_child(symbol)
+  if client_id then
+    self._lsp_client_id = client_id
+    for _, symbol in ipairs(symbols) do
+      self:add_child(symbol)
+    end
   end
 end
 

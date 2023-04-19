@@ -1,37 +1,47 @@
-local meta = require("ya-tree.meta")
 local Node = require("ya-tree.nodes.node")
 
 ---@class Yat.Node.Text : Yat.Node
----@field new fun(self: Yat.Node.Text, text: string, path: string, container: boolean, parent?: Yat.Node.Text): Yat.Node.Text
----@overload fun(text: string, path: string, container: boolean, parent?: Yat.Node.Text): Yat.Node.Text
+---@field new fun(self: Yat.Node.Text, text: string, path: string, container?: boolean, parent?: Yat.Node.Text): Yat.Node.Text
+---@overload fun(text: string, path: string, container?: boolean, parent?: Yat.Node.Text): Yat.Node.Text
 ---
 ---@field public TYPE "text"
 ---@field public parent? Yat.Node.Text
 ---@field private _children? Yat.Node.Text[]
-local TextNode = meta.create_class("Yat.Node.Text", Node)
+local TextNode = Node:subclass("Yat.Node.Text")
 
 ---@protected
 ---@param text string
 ---@param path string
----@param container boolean
+---@param container? boolean
 ---@param parent? Yat.Node.Text
 function TextNode:init(text, path, container, parent)
   Node.init(self, {
     name = text,
     path = path,
-    _type = container and "directory" or "file",
+    container = container or false,
   }, parent)
   self.TYPE = "text"
 end
 
----@return boolean
+---@return boolean editable
 function TextNode:is_editable()
   return false
 end
 
----@protected
-function TextNode:_scandir() end
+---@return boolean hidden
+function TextNode:is_hidden()
+  return false
+end
 
-function TextNode:refresh(...) end
+---@param text string
+---@param path string
+---@param container? boolean
+function TextNode:add_node(text, path, container)
+  if not self.container then
+    self.container = true
+    self._children = {}
+  end
+  self._children[#self._children + 1] = TextNode:new(text, path, container, self)
+end
 
 return TextNode

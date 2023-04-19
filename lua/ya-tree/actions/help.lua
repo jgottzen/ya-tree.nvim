@@ -165,7 +165,7 @@ local function render_mappings_for_for_panel(current_tab, all_panel_types, keyma
 end
 
 ---@async
----@param panel Yat.Panel.Tree
+---@param panel Yat.Panel
 function M.open_help(panel)
   local keymaps = require("ya-tree.panels").keymaps()
   local current_panel_type = panel.TYPE

@@ -59,7 +59,6 @@ function Panel.__tostring(self)
   return string.format("<%s(TYPE=%s, winid=%s, bufnr=%s)>", self.class.name, self.TYPE, self._winid, self._bufnr)
 end
 
----@async
 ---@protected
 ---@param _type Yat.Panel.Type
 ---@param sidebar Yat.Sidebar
@@ -85,6 +84,19 @@ function Panel:delete()
   self:remove_all_yatree_events()
   self.sidebar = nil
 end
+
+-- selene: allow(unused_variable)
+
+---@async
+---@abstract
+---@param repo Yat.Git.Repo
+---@param path string
+---@diagnostic disable-next-line:unused-local
+function Panel:set_git_repo_for_path(repo, path) end
+
+---@abstract
+---@return Yat.Git.Repo[]|nil
+function Panel:get_git_repos() end
 
 ---@return integer? winid
 function Panel:winid()
@@ -161,7 +173,7 @@ end
 ---@return function|string handler
 ---@diagnostic disable-next-line:unused-local
 function Panel:create_keymap_function(action)
-  error("Must be implemented by subclasses")
+  error("create_keymap_function must be implemented by subclasses")
 end
 
 do
@@ -350,7 +362,7 @@ end
 ---@param ... any
 ---@diagnostic disable-next-line:unused-vararg
 function Panel:draw(...)
-  error("Must be implemented by subclasses")
+  error("draw must be implemented by subclasses")
 end
 
 ---@param lines string[]

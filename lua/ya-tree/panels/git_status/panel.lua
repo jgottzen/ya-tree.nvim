@@ -2,11 +2,11 @@ local fs = require("ya-tree.fs")
 local git = require("ya-tree.git")
 local GitNode = require("ya-tree.nodes.git_node")
 local log = require("ya-tree.log").get("panels")
-local meta = require("ya-tree.meta")
 local Path = require("ya-tree.path")
 local scheduler = require("ya-tree.async").scheduler
 local TextNode = require("ya-tree.nodes.text_node")
 local TreePanel = require("ya-tree.panels.tree_panel")
+local utils = require("ya-tree.utils")
 
 local uv = vim.loop
 
@@ -17,7 +17,7 @@ local uv = vim.loop
 ---@field public TYPE "git_status"
 ---@field public root Yat.Node.Git|Yat.Node.Text
 ---@field public current_node Yat.Node.Git|Yat.Node.Text
-local GitStatusPanel = meta.create_class("Yat.Panel.GitStatus", TreePanel)
+local GitStatusPanel = TreePanel:subclass("Yat.Panel.GitStatus")
 
 ---@async
 ---@param repo Yat.Git.Repo
@@ -46,7 +46,7 @@ function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
     root = create_root_node(repo)
   else
     local path = uv.cwd() --[[@as string]]
-    root = TextNode:new(path .. " is not a Git repository", path, false)
+    root = TextNode:new(path .. " is not a Git repository", "/")
   end
   TreePanel.init(self, "git_status", sidebar, config.title, config.icon, keymap, renderers, root)
   self.current_node = self.root:refresh() or root
@@ -60,21 +60,29 @@ function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
   log.info("created panel %s", tostring(self))
 end
 
+---@return Yat.Git.Repo[]|nil
+function GitStatusPanel:get_git_repos()
+  if self.root:instance_of(GitNode) then
+    return { self.root.repo }
+  end
+end
+
 ---@async
 ---@param _ integer
 ---@param file string
 function GitStatusPanel:on_buffer_saved(_, file)
-  if self.root:is_ancestor_of(file) then
+  if self.root:instance_of(GitNode) and self.root:is_ancestor_of(file) then
+    local root = self.root --[[@as Yat.Node.Git]]
     log.debug("changed file %q is in tree %s", file, tostring(self))
-    local node = self.root:get_node(file)
+    local node = root:get_node(file)
     if node then
       node.modified = false
     end
-    local git_status = self.root.repo:status():refresh_path(file)
+    local git_status = root.repo:status():refresh_file_path(file)
     if not node and git_status then
-      self.root:add_node(file)
+      root:add_node(file)
     elseif node and not git_status then
-      self.root:remove_node(file)
+      root:remove_node(file, true)
     end
     self:draw(self:get_current_node())
   end
@@ -133,6 +141,8 @@ function GitStatusPanel:command_arguments(args)
     local path = (p:exists() and p:is_dir()) and p:absolute() or nil
     if path then
       self:change_root_node(path)
+    else
+      utils.notify(string.format("The path %q does not exist.", args.dir))
     end
   end
 end
@@ -146,7 +156,10 @@ function GitStatusPanel:change_root_node(path_or_repo)
   else
     repo = path_or_repo
   end
-  if not repo or repo == self.root.repo then
+  if not repo then
+    utils.notify(string.format("No Git repository found in %q.", path_or_repo))
+    return
+  elseif repo == self.root.repo then
     return
   end
   local old_root = self.root

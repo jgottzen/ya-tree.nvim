@@ -1,7 +1,7 @@
 local M = {}
 
----@param panel Yat.Panel.Tree
-function M.close_sidebar(panel, _)
+---@param panel Yat.Panel
+function M.close_sidebar(panel)
   panel.sidebar:close()
 end
 

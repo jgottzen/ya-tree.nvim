@@ -16,6 +16,7 @@ do
   end
 end
 
+local FsBasedNode = require("ya-tree.nodes.fs_based_node")
 local hl = require("ya-tree.ui.highlights")
 local log = require("ya-tree.log").get("ui")
 local utils = require("ya-tree.utils")
@@ -153,57 +154,61 @@ function M.icon(node, context, renderer)
   if
     node_type == "buffer" and node--[[@as Yat.Node.Buffer]]:is_terminals_container()
   then
+    ---@cast node Yat.Node.Buffer
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
   elseif node_type == "symbol" or node_type == "call_hierarchy" then
     ---@cast node Yat.Node.Symbol|Yat.Node.CallHierarchy
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
-  elseif node:is_directory() then
-    icon = renderer.directory.custom[node.name]
-    if not icon then
-      if node:is_link() then
-        icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
-      else
-        if node.expanded then
-          icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
-        else
-          icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
-        end
-      end
-    end
-    highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
-  elseif node:is_fifo() then
-    icon = renderer.file.fifo
-    highlight = hl.FIFO_FILE_ICON
-  elseif node:is_socket() then
-    icon = renderer.file.socket
-    highlight = hl.SOCKET_FILE_ICON
-  elseif node:is_char_device() then
-    icon = renderer.file.char
-    highlight = hl.CHAR_DEVICE_FILE_ICON
-  elseif node:is_block_device() then
-    icon = renderer.file.block
-    highlight = hl.BLOCK_DEVICE_FILE_ICON
   else
-    if node:is_link() then
-      if node.link_name and node.link_extension then
-        icon, highlight = get_icon(node.link_name, node.link_extension, renderer.file.symlink, hl.SYMBOLIC_FILE_ICON)
+    if node:instance_of(FsBasedNode) then
+      ---@cast node Yat.Node.FsBasedNode
+      if node:is_directory() then
+        icon = renderer.directory.custom[node.name]
+        if not icon then
+          if node:is_link() then
+            icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
+          else
+            if node.expanded then
+              icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
+            else
+              icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
+            end
+          end
+        end
+        highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
+      elseif node:is_fifo() then
+        icon = renderer.file.fifo
+        highlight = hl.FIFO_FILE_ICON
+      elseif node:is_socket() then
+        icon = renderer.file.socket
+        highlight = hl.SOCKET_FILE_ICON
+      elseif node:is_char_device() then
+        icon = renderer.file.char
+        highlight = hl.CHAR_DEVICE_FILE_ICON
+      elseif node:is_block_device() then
+        icon = renderer.file.block
+        highlight = hl.BLOCK_DEVICE_FILE_ICON
+      elseif node:is_link() then
+        if node.link_name and node.link_extension then
+          icon, highlight = get_icon(node.link_name, node.link_extension, renderer.file.symlink, hl.SYMBOLIC_FILE_ICON)
+        else
+          icon = renderer.file.symlink
+          highlight = hl.SYMBOLIC_FILE_ICON
+        end
       else
-        icon = renderer.file.symlink
-        highlight = hl.SYMBOLIC_FILE_ICON
+        icon, highlight = get_icon(node.name, node.extension, renderer.file.default, hl.DEFAULT_FILE_ICON)
       end
-    else
-      icon, highlight = get_icon(node.name, node.extension, renderer.file.default, hl.DEFAULT_FILE_ICON)
     end
+  end
 
-    -- if the icon lookup didn't return anything use the defaults
-    if not icon then
-      icon = node:is_link() and renderer.file.symlink or renderer.file.default
-    end
-    if not highlight then
-      highlight = node:is_link() and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
-    end
+  -- if the icon lookup didn't return anything use the defaults
+  if not icon then
+    icon = node:is_container() and renderer.default_container or renderer.default_leaf
+  end
+  if not highlight then
+    highlight = node:is_container() and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
   end
 
   return { {
@@ -241,42 +246,49 @@ function M.name(node, context, renderer)
   end
 
   local highlight
-  if renderer.use_git_status_colors then
-    local git_status = node:git_status()
+  if renderer.use_git_status_colors and node:instance_of(FsBasedNode) then
+    local git_status = node--[[@as Yat.Node.FsBasedNode]]:git_status()
     if git_status then
       highlight = M.helpers.get_git_status_highlight(git_status)
     end
   end
 
   if not highlight then
-    if node:is_directory() then
+    if node:is_container() then
       highlight = hl.DIRECTORY_NAME
-    elseif node:is_file() then
-      highlight = hl.FILE_NAME
-    elseif node:is_fifo() then
-      highlight = hl.FIFO_FILE_NAME
-    elseif node:is_socket() then
-      highlight = hl.SOCKET_FILE_NAME
-    elseif node:is_char_device() then
-      highlight = hl.CHAR_DEVICE_FILE_NAME
-    elseif node:is_block_device() then
-      highlight = hl.BLOCK_DEVICE_FILE_NAME
-    elseif node_type == "buffer" then
-      ---@cast node Yat.Node.Buffer
-      if node:is_terminal() then
-        highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
+    elseif node:instance_of(FsBasedNode) then
+      ---@cast node Yat.Node.FsBasedNode
+      if node:is_file() then
+        highlight = hl.FILE_NAME
+      elseif node:is_fifo() then
+        highlight = hl.FIFO_FILE_NAME
+      elseif node:is_socket() then
+        highlight = hl.SOCKET_FILE_NAME
+      elseif node:is_char_device() then
+        highlight = hl.CHAR_DEVICE_FILE_NAME
+      elseif node:is_block_device() then
+        highlight = hl.BLOCK_DEVICE_FILE_NAME
+      elseif node_type == "buffer" then
+        ---@cast node Yat.Node.Buffer
+        if node:is_terminal() then
+          highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
+        end
       end
+    else
+      highlight = hl.FILE_NAME
     end
 
-    if context.config.git.show_ignored then
-      if node:is_git_ignored() then
+    if context.config.git.show_ignored and node:instance_of(FsBasedNode) then
+      if
+        node--[[@as Yat.Node.FsBasedNode]]:is_git_ignored()
+      then
         highlight = hl.GIT_IGNORED
       end
     end
   end
 
   local name = node.name
-  if renderer.trailing_slash and node:is_directory() then
+  if renderer.trailing_slash and node:is_container() then
     name = name .. utils.os_sep
   end
 
@@ -306,80 +318,83 @@ end
 ---@param renderer Yat.Config.Renderers.Builtin.Repository
 ---@return Yat.Ui.RenderResult[]|nil results
 function M.repository(node, context, renderer)
-  if node:is_git_repository_root() or (context.depth == 0 and node.repo) then
-    local repo = node.repo --[[@as Yat.Git.Repo]]
-    local icon = renderer.icons.remote.default
-    if repo.remote_url then
-      for k, v in pairs(renderer.icons.remote) do
-        if k ~= "default" then
-          if repo.remote_url:find(k, 1, true) then
-            icon = v
-            break
+  if node:instance_of(FsBasedNode) then
+    ---@cast node Yat.Node.FsBasedNode
+    if node:is_git_repository_root() or (context.depth == 0 and node.repo) then
+      local repo = node.repo --[[@as Yat.Git.Repo]]
+      local icon = renderer.icons.remote.default
+      if repo.remote_url then
+        for k, v in pairs(renderer.icons.remote) do
+          if k ~= "default" then
+            if repo.remote_url:find(k, 1, true) then
+              icon = v
+              break
+            end
           end
         end
       end
+
+      local results = { {
+        padding = renderer.padding,
+        text = icon .. " ",
+        highlight = hl.GIT_REPO_TOPLEVEL,
+      } }
+
+      if renderer.show_status then
+        local status = repo:status():meta()
+        if status.behind > 0 and renderer.icons.behind ~= "" then
+          results[#results + 1] = {
+            padding = renderer.padding,
+            text = renderer.icons.behind .. status.behind,
+            highlight = hl.GIT_BEHIND_COUNT,
+          }
+        end
+        if status.ahead > 0 and renderer.icons.ahead ~= "" then
+          results[#results + 1] = {
+            padding = status.behind and "" or renderer.padding,
+            text = renderer.icons.ahead .. status.ahead,
+            highlight = hl.GIT_AHEAD_COUNT,
+          }
+        end
+        if status.stashed > 0 and renderer.icons.stashed ~= "" then
+          results[#results + 1] = {
+            padding = renderer.padding,
+            text = renderer.icons.stashed .. status.stashed,
+            highlight = hl.GIT_STASH_COUNT,
+          }
+        end
+        if status.unmerged > 0 and renderer.icons.unmerged ~= "" then
+          results[#results + 1] = {
+            padding = renderer.padding,
+            text = renderer.icons.unmerged .. status.unmerged,
+            highlight = hl.GIT_UNMERGED_COUNT,
+          }
+        end
+        if status.staged > 0 and renderer.icons.staged ~= "" then
+          results[#results + 1] = {
+            padding = renderer.padding,
+            text = renderer.icons.staged .. status.staged,
+            highlight = hl.GIT_STAGED_COUNT,
+          }
+        end
+        if status.unstaged > 0 and renderer.icons.unstaged ~= "" then
+          results[#results + 1] = {
+            padding = renderer.padding,
+            text = renderer.icons.unstaged .. status.unstaged,
+            highlight = hl.GIT_UNSTAGED_COUNT,
+          }
+        end
+        if status.untracked > 0 and renderer.icons.untracked ~= "" then
+          results[#results + 1] = {
+            padding = renderer.padding,
+            text = renderer.icons.untracked .. status.untracked,
+            highlight = hl.GIT_UNTRACKED_COUNT,
+          }
+        end
+      end
+
+      return results
     end
-
-    local results = { {
-      padding = renderer.padding,
-      text = icon .. " ",
-      highlight = hl.GIT_REPO_TOPLEVEL,
-    } }
-
-    if renderer.show_status then
-      local status = repo:status():meta()
-      if status.behind > 0 and renderer.icons.behind ~= "" then
-        results[#results + 1] = {
-          padding = renderer.padding,
-          text = renderer.icons.behind .. status.behind,
-          highlight = hl.GIT_BEHIND_COUNT,
-        }
-      end
-      if status.ahead > 0 and renderer.icons.ahead ~= "" then
-        results[#results + 1] = {
-          padding = status.behind and "" or renderer.padding,
-          text = renderer.icons.ahead .. status.ahead,
-          highlight = hl.GIT_AHEAD_COUNT,
-        }
-      end
-      if status.stashed > 0 and renderer.icons.stashed ~= "" then
-        results[#results + 1] = {
-          padding = renderer.padding,
-          text = renderer.icons.stashed .. status.stashed,
-          highlight = hl.GIT_STASH_COUNT,
-        }
-      end
-      if status.unmerged > 0 and renderer.icons.unmerged ~= "" then
-        results[#results + 1] = {
-          padding = renderer.padding,
-          text = renderer.icons.unmerged .. status.unmerged,
-          highlight = hl.GIT_UNMERGED_COUNT,
-        }
-      end
-      if status.staged > 0 and renderer.icons.staged ~= "" then
-        results[#results + 1] = {
-          padding = renderer.padding,
-          text = renderer.icons.staged .. status.staged,
-          highlight = hl.GIT_STAGED_COUNT,
-        }
-      end
-      if status.unstaged > 0 and renderer.icons.unstaged ~= "" then
-        results[#results + 1] = {
-          padding = renderer.padding,
-          text = renderer.icons.unstaged .. status.unstaged,
-          highlight = hl.GIT_UNSTAGED_COUNT,
-        }
-      end
-      if status.untracked > 0 and renderer.icons.untracked ~= "" then
-        results[#results + 1] = {
-          padding = renderer.padding,
-          text = renderer.icons.untracked .. status.untracked,
-          highlight = hl.GIT_UNTRACKED_COUNT,
-        }
-      end
-    end
-
-    return results
   end
 end
 
@@ -388,28 +403,31 @@ end
 ---@param renderer Yat.Config.Renderers.Builtin.SymlinkTarget
 ---@return Yat.Ui.RenderResult[]|nil result
 function M.symlink_target(node, _, renderer)
-  if node:is_link() then
-    if node.link_orphan then
-      return {
-        {
-          padding = renderer.padding,
-          text = renderer.arrow_icon .. " ",
-          highlight = hl.SYMBOLIC_LINK_TARGET,
-        },
-        {
-          padding = "",
-          text = node.relative_link_to,
-          highlight = hl.ERROR_FILE_NAME,
-        },
-      }
-    else
-      return {
-        {
-          padding = renderer.padding,
-          text = renderer.arrow_icon .. " " .. node.relative_link_to,
-          highlight = hl.SYMBOLIC_LINK_TARGET,
-        },
-      }
+  if node:instance_of(FsBasedNode) then
+    ---@cast node Yat.Node.FsBasedNode
+    if node:is_link() then
+      if node.link_orphan then
+        return {
+          {
+            padding = renderer.padding,
+            text = renderer.arrow_icon .. " ",
+            highlight = hl.SYMBOLIC_LINK_TARGET,
+          },
+          {
+            padding = "",
+            text = node.relative_link_to,
+            highlight = hl.ERROR,
+          },
+        }
+      else
+        return {
+          {
+            padding = renderer.padding,
+            text = renderer.arrow_icon .. " " .. node.relative_link_to,
+            highlight = hl.SYMBOLIC_LINK_TARGET,
+          },
+        }
+      end
     end
   end
 end
@@ -419,7 +437,7 @@ end
 ---@param renderer Yat.Config.Renderers.Builtin.GitStatus
 ---@return Yat.Ui.RenderResult[]|nil results
 function M.git_status(node, context, renderer)
-  if context.config.git.enable then
+  if context.config.git.enable and node.git_status then
     local git_status = node:git_status()
     if git_status then
       local results = {}
@@ -446,7 +464,7 @@ end
 function M.diagnostics(node, context, renderer)
   if context.config.diagnostics.enable then
     local severity = node:diagnostic_severity()
-    if severity and (severity <= (node:is_directory() and renderer.directory_min_severity or renderer.file_min_severity)) then
+    if severity and (severity <= (node:is_container() and renderer.directory_min_severity or renderer.file_min_severity)) then
       local diagnostic = M.helpers.get_diagnostic_icon_and_highligt(severity)
       if diagnostic then
         return {
