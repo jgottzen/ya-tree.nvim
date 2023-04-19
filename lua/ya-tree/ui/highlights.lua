@@ -92,6 +92,30 @@ local M = {
   SECTION_NAME = "YaTreeSectionName",
 }
 
+local nvim_get_hl = (function()
+  local version = vim.version()
+  if version.major == 0 and version.minor < 9 then
+    ---@param name string
+    ---@return table<string, any>|nil
+    return function(name)
+      ---@diagnostic disable-next-line:undefined-field
+      local ok, group = pcall(api.nvim_get_hl_by_name, name, true)
+      if ok then
+        return group
+      end
+    end
+  else
+    ---@param name string
+    ---@return table<string, any>|nil
+    return function(name)
+      local group = api.nvim_get_hl(0, { name = name, link = true })
+      if not vim.tbl_isempty(group) then
+        return group
+      end
+    end
+  end
+end)()
+
 ---@param number integer
 ---@return string
 local function dec_to_hex(number)
@@ -102,9 +126,9 @@ end
 ---@param fallback string
 ---@return string
 local function get_foreground_color_from_hl(name, fallback)
-  local success, group = pcall(api.nvim_get_hl_by_name, name, true)
-  if success and group.foreground then
-    return "#" .. dec_to_hex(group.foreground)
+  local group = nvim_get_hl(name)
+  if group and (group.fg or group.foreground) then
+    return "#" .. dec_to_hex(group.fg or group.foreground)
   end
   return fallback
 end
@@ -116,8 +140,8 @@ end
 local function create_highlight(name, links, highlight, fallback)
   if links then
     for _, link in ipairs(links) do
-      local ok = pcall(api.nvim_get_hl_by_name, link, true)
-      if ok then
+      local group = nvim_get_hl(link)
+      if group then
         highlight = { link = link }
         break
       end
