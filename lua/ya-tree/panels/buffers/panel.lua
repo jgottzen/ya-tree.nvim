@@ -9,8 +9,8 @@ local api = vim.api
 local uv = vim.loop
 
 ---@class Yat.Panel.Buffers : Yat.Panel.Tree
----@field new async fun(self: Yat.Panel.Buffers, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Buffers
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Buffers
+---@field new async fun(self: Yat.Panel.Buffers, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Buffers
+---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Buffers
 ---
 ---@field public TYPE "buffers"
 ---@field public root Yat.Node.Buffer
@@ -22,13 +22,14 @@ local BuffersPanel = TreePanel:subclass("Yat.Panel.Buffers")
 ---@param sidebar Yat.Sidebar
 ---@param config Yat.Config.Panels.Buffers
 ---@param keymap table<string, Yat.Action>
----@param renderers Yat.Panel.TreeRenderers
+---@param renderers { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }
 function BuffersPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local fs_node = fs.node_for(path) --[[@as Yat.Fs.Node]]
   local root = BufferNode:new(fs_node)
   root.repo = git.get_repo_for_path(fs_node.path)
-  TreePanel.init(self, "buffers", sidebar, config.title, config.icon, keymap, renderers, root)
+  local panel_renderers = { container = renderers.directory, leaf = renderers.file }
+  TreePanel.init(self, "buffers", sidebar, config.title, config.icon, keymap, panel_renderers, root)
   self.current_node = self.root:refresh() or root
   self:register_buffer_modified_event()
   self:register_buffer_saved_event()

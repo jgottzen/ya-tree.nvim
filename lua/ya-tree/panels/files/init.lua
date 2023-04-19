@@ -45,8 +45,12 @@ local fn = vim.fn
 ---@type Yat.Panel.Factory
 local M = {
   ---@private
-  ---@type Yat.Panel.TreeRenderers
-  renderers = {},
+  renderers = {
+    ---@type Yat.Panel.Tree.Ui.Renderer[]
+    directory = {},
+    ---@type Yat.Panel.Tree.Ui.Renderer[]
+    file = {},
+  },
   ---@type table<string, Yat.Action>
   keymap = {},
 }
@@ -55,7 +59,8 @@ local M = {
 ---@return boolean success
 function M.setup(config)
   local tree_renderers = require("ya-tree.panels.tree_renderers")
-  M.renderers = tree_renderers.create_renderers("files", config.panels.files.renderers)
+  local config_renderers = config.panels.files.renderers
+  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("files", config_renderers.directory, config_renderers.file)
 
   local tree_actions = require("ya-tree.panels.tree_actions")
   local builtin = require("ya-tree.actions.builtin")

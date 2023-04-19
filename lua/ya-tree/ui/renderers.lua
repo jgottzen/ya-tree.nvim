@@ -161,45 +161,43 @@ function M.icon(node, context, renderer)
     ---@cast node Yat.Node.Symbol|Yat.Node.CallHierarchy
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
-  else
-    if node:instance_of(FsBasedNode) then
-      ---@cast node Yat.Node.FsBasedNode
-      if node:is_directory() then
-        icon = renderer.directory.custom[node.name]
-        if not icon then
-          if node:is_link() then
-            icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
+  elseif node:instance_of(FsBasedNode) then
+    ---@cast node Yat.Node.FsBasedNode
+    if node:is_directory() then
+      icon = renderer.directory.custom[node.name]
+      if not icon then
+        if node:is_link() then
+          icon = node.expanded and renderer.directory.symlink_expanded or renderer.directory.symlink
+        else
+          if node.expanded then
+            icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
           else
-            if node.expanded then
-              icon = node:is_empty() and renderer.directory.empty_expanded or renderer.directory.expanded
-            else
-              icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
-            end
+            icon = node:is_empty() and renderer.directory.empty or renderer.directory.default
           end
         end
-        highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
-      elseif node:is_fifo() then
-        icon = renderer.file.fifo
-        highlight = hl.FIFO_FILE_ICON
-      elseif node:is_socket() then
-        icon = renderer.file.socket
-        highlight = hl.SOCKET_FILE_ICON
-      elseif node:is_char_device() then
-        icon = renderer.file.char
-        highlight = hl.CHAR_DEVICE_FILE_ICON
-      elseif node:is_block_device() then
-        icon = renderer.file.block
-        highlight = hl.BLOCK_DEVICE_FILE_ICON
-      elseif node:is_link() then
-        if node.link_name and node.link_extension then
-          icon, highlight = get_icon(node.link_name, node.link_extension, renderer.file.symlink, hl.SYMBOLIC_FILE_ICON)
-        else
-          icon = renderer.file.symlink
-          highlight = hl.SYMBOLIC_FILE_ICON
-        end
-      else
-        icon, highlight = get_icon(node.name, node.extension, renderer.file.default, hl.DEFAULT_FILE_ICON)
       end
+      highlight = node:is_link() and hl.SYMBOLIC_DIRECTORY_ICON or hl.DIRECTORY_ICON
+    elseif node:is_fifo() then
+      icon = renderer.file.fifo
+      highlight = hl.FIFO_FILE_ICON
+    elseif node:is_socket() then
+      icon = renderer.file.socket
+      highlight = hl.SOCKET_FILE_ICON
+    elseif node:is_char_device() then
+      icon = renderer.file.char
+      highlight = hl.CHAR_DEVICE_FILE_ICON
+    elseif node:is_block_device() then
+      icon = renderer.file.block
+      highlight = hl.BLOCK_DEVICE_FILE_ICON
+    elseif node:is_link() then
+      if node.link_name and node.link_extension then
+        icon, highlight = get_icon(node.link_name, node.link_extension, renderer.file.symlink, hl.SYMBOLIC_FILE_ICON)
+      else
+        icon = renderer.file.symlink
+        highlight = hl.SYMBOLIC_FILE_ICON
+      end
+    else
+      icon, highlight = get_icon(node.name, node.extension, renderer.file.default, hl.DEFAULT_FILE_ICON)
     end
   end
 
@@ -208,7 +206,7 @@ function M.icon(node, context, renderer)
     icon = node:is_container() and renderer.default_container or renderer.default_leaf
   end
   if not highlight then
-    highlight = node:is_container() and hl.SYMBOLIC_FILE_ICON or hl.DEFAULT_FILE_ICON
+    highlight = node:is_container() and hl.CONTAINER_ICON or hl.LEAF_ICON
   end
 
   return { {
@@ -246,20 +244,20 @@ function M.name(node, context, renderer)
   end
 
   local highlight
-  if renderer.use_git_status_colors and node:instance_of(FsBasedNode) then
-    local git_status = node--[[@as Yat.Node.FsBasedNode]]:git_status()
+  if renderer.use_git_status_colors and node.git_status then
+    local git_status = node:git_status()
     if git_status then
       highlight = M.helpers.get_git_status_highlight(git_status)
     end
   end
 
   if not highlight then
-    if node:is_container() then
-      highlight = hl.DIRECTORY_NAME
-    elseif node:instance_of(FsBasedNode) then
+    if node:instance_of(FsBasedNode) then
       ---@cast node Yat.Node.FsBasedNode
       if node:is_file() then
         highlight = hl.FILE_NAME
+      elseif node:is_directory() then
+        highlight = hl.DIRECTORY_NAME
       elseif node:is_fifo() then
         highlight = hl.FIFO_FILE_NAME
       elseif node:is_socket() then
@@ -274,16 +272,14 @@ function M.name(node, context, renderer)
           highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
         end
       end
-    else
-      highlight = hl.FILE_NAME
-    end
 
-    if context.config.git.show_ignored and node:instance_of(FsBasedNode) then
-      if
-        node--[[@as Yat.Node.FsBasedNode]]:is_git_ignored()
-      then
+      if context.config.git.show_ignored and node:is_git_ignored() then
         highlight = hl.GIT_IGNORED
       end
+    elseif node:is_container() then
+      highlight = hl.CONTAINER_NAME
+    else
+      highlight = hl.LEAF_NAME
     end
   end
 

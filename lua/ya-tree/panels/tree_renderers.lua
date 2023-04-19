@@ -8,19 +8,12 @@ local M = {}
 ---@field fn Yat.Ui.RendererFunction
 ---@field config? Yat.Config.BaseRendererConfig
 
----@class Yat.Panel.TreeRenderers
----@field directory Yat.Panel.Tree.Ui.Renderer[]
----@field file Yat.Panel.Tree.Ui.Renderer[]
-
----@class Yat.Panel.Ui.Renderer
----@field name Yat.Ui.Renderer.Name
----@field fn Yat.Ui.RendererFunction
----@field config? Yat.Config.BaseRendererConfig
-
 ---@param panel_type Yat.Panel.Type
----@param panel_renderers Yat.Config.Panels.TreeRenderers
----@return Yat.Panel.TreeRenderers
-function M.create_renderers(panel_type, panel_renderers)
+---@param container_renderers Yat.Config.Panels.TreeRenderer[]
+---@param leaf_renderers Yat.Config.Panels.TreeRenderer[]
+---@return Yat.Panel.Tree.Ui.Renderer[] container_renderers
+---@return Yat.Panel.Tree.Ui.Renderer[] leaf_renderers
+function M.create_renderers(panel_type, container_renderers, leaf_renderers)
   local renderers = require("ya-tree.ui.renderers")
 
   ---@param renderer_type string
@@ -49,26 +42,23 @@ function M.create_renderers(panel_type, panel_renderers)
     utils.warn("Invalid renderer:\n" .. vim.inspect(tree_renderer))
   end
 
-  ---@type Yat.Panel.TreeRenderers
-  local tree_renderers = {
-    directory = {},
-    file = {},
-  }
-  for _, directory_renderer in ipairs(panel_renderers.directory) do
-    local renderer = create_renderer("directory", directory_renderer)
+  ---@type Yat.Panel.Tree.Ui.Renderer[], Yat.Panel.Tree.Ui.Renderer[]
+  local containers, leafs = {}, {}
+  for _, container_renderer in ipairs(container_renderers) do
+    local renderer = create_renderer("container", container_renderer)
     if renderer then
-      tree_renderers.directory[#tree_renderers.directory + 1] = renderer
+      containers[#containers + 1] = renderer
     end
   end
 
-  for _, file_renderer in ipairs(panel_renderers.file) do
-    local renderer = create_renderer("file", file_renderer)
+  for _, leaf_renderer in ipairs(leaf_renderers) do
+    local renderer = create_renderer("leaf", leaf_renderer)
     if renderer then
-      tree_renderers.file[#tree_renderers.file + 1] = renderer
+      leafs[#leafs + 1] = renderer
     end
   end
 
-  return tree_renderers
+  return containers, leafs
 end
 
 return M

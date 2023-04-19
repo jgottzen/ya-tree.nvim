@@ -13,8 +13,8 @@ local api = vim.api
 local uv = vim.loop
 
 ---@class Yat.Panel.Files : Yat.Panel.Tree
----@field new async fun(self: Yat.Panel.Files, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Files
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Files
+---@field new async fun(self: Yat.Panel.Files, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Files
+---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Files
 ---
 ---@field public TYPE "files"
 ---@field public root Yat.Node.Filesystem|Yat.Node.Search
@@ -53,11 +53,12 @@ end
 ---@param sidebar Yat.Sidebar
 ---@param config Yat.Config.Panels.Files
 ---@param keymap table<string, Yat.Action>
----@param renderers Yat.Panel.TreeRenderers
+---@param renderers { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }
 function FilesPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local root = create_root_node(path)
-  TreePanel.init(self, "files", sidebar, config.title, config.icon, keymap, renderers, root)
+  local panel_renderers = { container = renderers.directory, leaf = renderers.file }
+  TreePanel.init(self, "files", sidebar, config.title, config.icon, keymap, panel_renderers, root)
   self.mode = "files"
   self.files_root = root
   self.files_current_node = root

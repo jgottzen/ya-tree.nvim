@@ -11,8 +11,8 @@ local utils = require("ya-tree.utils")
 local uv = vim.loop
 
 ---@class Yat.Panel.GitStatus : Yat.Panel.Tree
----@field new async fun(self: Yat.Panel.GitStatus, sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
+---@field new async fun(self: Yat.Panel.GitStatus, sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
+---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
 ---
 ---@field public TYPE "git_status"
 ---@field public root Yat.Node.Git|Yat.Node.Text
@@ -34,7 +34,7 @@ end
 ---@param sidebar Yat.Sidebar
 ---@param config Yat.Config.Panels.GitStatus
 ---@param keymap table<string, Yat.Action>
----@param renderers Yat.Panel.TreeRenderers
+---@param renderers { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }
 ---@param repo? Yat.Git.Repo
 function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
   if not repo then
@@ -48,7 +48,8 @@ function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
     local path = uv.cwd() --[[@as string]]
     root = TextNode:new(path .. " is not a Git repository", "/")
   end
-  TreePanel.init(self, "git_status", sidebar, config.title, config.icon, keymap, renderers, root)
+  local panel_renderers = { container = renderers.directory, leaf = renderers.file }
+  TreePanel.init(self, "git_status", sidebar, config.title, config.icon, keymap, panel_renderers, root)
   self.current_node = self.root:refresh() or root
   self:register_buffer_modified_event()
   self:register_buffer_saved_event()

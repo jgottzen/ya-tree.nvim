@@ -3,24 +3,24 @@ local api = vim.api
 local M = {
   NS = api.nvim_create_namespace("YaTreeHighlights"),
 
+  ERROR = "YaTreeError",
+
   ROOT_NAME = "YaTreeRootName",
 
   INDENT_MARKER = "YaTreeIndentMarker",
   INDENT_EXPANDER = "YaTreeIndentExpander",
 
-  ERROR = "YaTreeError",
-
   CONTAINER_ICON = "YaTreeContainerIcon",
-  LEAF_ICON = "YaTreeLeafIcon",
-
   DIRECTORY_ICON = "YaTreeDirectoryIcon",
   SYMBOLIC_DIRECTORY_ICON = "YaTreeSymbolicDirectoryIcon",
 
+  CONTAINER_NAME = "YaTreeContainerName",
   DIRECTORY_NAME = "YaTreeDirectoryName",
   EMPTY_DIRECTORY_NAME = "YaTreeEmptyDirectoryName",
   SYMBOLIC_DIRECTORY_NAME = "YaTreeSymbolicDirectoryName",
   EMPTY_SYMBOLIC_DIRECTORY_NAME = "YaTreeEmptySymbolicDirectoryName",
 
+  LEAF_ICON = "YaTreeLeafIcon",
   DEFAULT_FILE_ICON = "YaTreeDefaultFileIcon",
   SYMBOLIC_FILE_ICON = "YaTreeSymbolicFileIcon",
   FIFO_FILE_ICON = "YaTreeFifoFileIcon",
@@ -28,6 +28,7 @@ local M = {
   CHAR_DEVICE_FILE_ICON = "YaTreeCharDeviceFileIcon",
   BLOCK_DEVICE_FILE_ICON = "YaTreeBlockDeviceFileIcon",
 
+  LEAF_NAME = "YaTreeLeafName",
   FILE_NAME = "YaTreeFileName",
   SYMBOLIC_FILE_NAME = "YaTreeSymbolicFileName",
   FIFO_FILE_NAME = "YaTreeFifoFileName",
@@ -89,7 +90,6 @@ local M = {
 
   SECTION_ICON = "YaTreeSectionIcon",
   SECTION_NAME = "YaTreeSectionName",
-  SECTION_DIVIDER = "YaTreeSecionSeparator",
 }
 
 ---@param number integer
@@ -137,24 +137,24 @@ end
 function M.setup()
   local normal_fg = get_foreground_color_from_hl("Normal", "#d4be98")
 
+  create_highlight(M.ERROR, nil, { fg = "#080808", bg = "#ff0000" })
+
   create_highlight(M.ROOT_NAME, nil, { fg = "#ddc7a1", bold = true })
 
   create_highlight(M.INDENT_MARKER, nil, { fg = "#5a524c" })
   create_highlight(M.INDENT_EXPANDER, { M.DIRECTORY_ICON })
 
-  create_highlight(M.ERROR, nil, { fg = "#080808", bg = "#ff0000" })
-
-  create_highlight(M.CONTAINER_ICON, { "Directory" })
-  create_highlight(M.LEAF_ICON, { "Normal" })
-
+  create_highlight(M.CONTAINER_ICON, { M.DIRECTORY_ICON })
   create_highlight(M.DIRECTORY_ICON, { "Directory" })
   create_highlight(M.SYMBOLIC_DIRECTORY_ICON, { M.DIRECTORY_ICON })
 
+  create_highlight(M.CONTAINER_NAME, { M.DIRECTORY_NAME })
   create_highlight(M.DIRECTORY_NAME, { "Directory" })
   create_highlight(M.SYMBOLIC_DIRECTORY_NAME, { M.DIRECTORY_NAME })
   create_highlight(M.EMPTY_DIRECTORY_NAME, { M.DIRECTORY_NAME })
   create_highlight(M.EMPTY_SYMBOLIC_DIRECTORY_NAME, { M.DIRECTORY_NAME })
 
+  create_highlight(M.LEAF_ICON, { M.DEFAULT_FILE_ICON })
   create_highlight(M.DEFAULT_FILE_ICON, { "Normal" })
   create_highlight(M.SYMBOLIC_FILE_ICON, { M.DEFAULT_FILE_ICON })
   create_highlight(M.FIFO_FILE_ICON, nil, { fg = "#af0087" })
@@ -162,6 +162,7 @@ function M.setup()
   create_highlight(M.CHAR_DEVICE_FILE_ICON, nil, { fg = "#87d75f" })
   create_highlight(M.BLOCK_DEVICE_FILE_ICON, nil, { fg = "#5f87d7" })
 
+  create_highlight(M.LEAF_NAME, { M.FILE_NAME })
   create_highlight(M.FILE_NAME, { "Normal" })
   create_highlight(M.SYMBOLIC_FILE_NAME, { M.FILE_NAME })
   create_highlight(M.FIFO_FILE_NAME, { M.FIFO_FILE_ICON })
@@ -223,7 +224,6 @@ function M.setup()
 
   create_highlight(M.SECTION_ICON, { M.SECTION_NAME })
   create_highlight(M.SECTION_NAME, nil, { fg = "#5f87d7" })
-  create_highlight(M.SECTION_DIVIDER, { M.DIM_TEXT })
 end
 
 return M

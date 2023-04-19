@@ -1,5 +1,3 @@
-local fn = vim.fn
-
 local M = {
   ---@class Yat.Config
   ---@field close_if_last_window boolean Close the sidebar when it is the last window in the tabpage, default: `false`.
@@ -198,15 +196,10 @@ local M = {
     ---@field name Yat.Ui.Renderer.Name The name of the renderer.
     ---@field override Yat.Config.BaseRendererConfig The renderer specific configuration.
 
-    ---@class Yat.Config.Panels.TreeRenderers
-    ---@field directory Yat.Config.Panels.TreeRenderer[] Which renderers to use for directories, in order.
-    ---@field file Yat.Config.Panels.TreeRenderer[] Which renderers to use for files, in order
-
     ---@class Yat.Config.Panels.Panel
     ---@field title string The name of panel.
     ---@field icon string The icon for the panel.
     ---@field mappings Yat.Config.Panels.Mappings The panel specific mappings.
-    ---@field renderers Yat.Config.Panels.TreeRenderers The panel specific renderers.
 
     ---@class Yat.Config.Panels
     ---@field files Yat.Config.Panels.Files Files panel configuration.
@@ -214,16 +207,19 @@ local M = {
     ---@field call_hierarchy Yat.Config.Panels.CallHierarchy Call hierarchy panel configuration.
     ---@field git_status Yat.Config.Panels.GitStatus Git Status panel configuration.
     ---@field buffers Yat.Config.Panels.Buffers Buffers panel configuration.
-    ---@field [Yat.Panel.Type] Yat.Config.Panels.Panel
+    ---@field [Yat.Panel.Type] Yat.Config.Panels.Panel Custom panel configuration.
     panels = {
-      ---@class Yat.Config.Panels.Files : Yat.Config.Panels.Panel
+      ---@class Yat.Config.Panels.Files
       ---@field title string The name of the panel, default: `"Files"`.
       ---@field icon string The icon for the panel, default: `""`.
+      ---@field completion Yat.Config.Panels.Files.Completion Completion configuration.
+      ---@field sorting Yat.Config.Panels.Files.Sorting Sorting configuration.
       ---@field mappings Yat.Config.Panels.Files.Mappings Panel specific mappings.
       ---@field renderers Yat.Config.Panels.Files.Renderers Panel specific renderers.
       files = {
         title = "Files",
         icon = "",
+
         ---@class Yat.Config.Panels.Files.Completion
         ---@field on "root"|"node" Whether to complete on the panel root directory or the current node, ignored if `setup` is set, default: `"root"`.
         ---@field setup? fun(panel: Yat.Panel.Files, node: Yat.Node): string function for setting up completion, the returned string will be set as `completefunc`, default: `nil`.
@@ -244,7 +240,7 @@ local M = {
           sort_by = "name",
         },
 
-        ---@class Yat.Config.Panels.Files.Mappings : Yat.Config.Panels.Mappings
+        ---@class Yat.Config.Panels.Files.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Panel.Files.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
@@ -309,10 +305,11 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+
         ---@alias Yat.Config.Panels.Files.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|"clipboard"|string
         ---@alias Yat.Config.Panels.Files.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"clipboard"|string
 
-        ---@class Yat.Config.Panels.Files.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@class Yat.Config.Panels.Files.Renderers
         ---@field directory { name : Yat.Config.Panels.Files.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
         ---@field file { name : Yat.Config.Panels.Files.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
@@ -339,7 +336,7 @@ local M = {
         },
       },
 
-      ---@class Yat.Config.Panels.GitStatus : Yat.Config.Panels.Panel
+      ---@class Yat.Config.Panels.GitStatus
       ---@field title string The name of the panel, default: `"Git"`.
       ---@field icon string The icon for the panel, default: `""`.
       ---@field mappings Yat.Config.Panels.GitStatus.Mappings Panel specific mappings.
@@ -347,7 +344,8 @@ local M = {
       git_status = {
         title = "Git Status",
         icon = "",
-        ---@class Yat.Config.Panels.GitStatus.Mappings : Yat.Config.Panels.Mappings
+
+        ---@class Yat.Config.Panels.GitStatus.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Panel.GitStatus.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
@@ -399,10 +397,11 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+
         ---@alias Yat.Config.Panels.GitStatus.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
         ---@alias Yat.Config.Panels.GitStatus.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|string
 
-        ---@class Yat.Config.Panels.GitStatus.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@class Yat.Config.Panels.GitStatus.Renderers
         ---@field directory { name : Yat.Config.Panels.GitStatus.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
         ---@field file { name : Yat.Config.Panels.GitStatus.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
@@ -427,7 +426,7 @@ local M = {
         },
       },
 
-      ---@class Yat.Config.Panels.Symbols : Yat.Config.Panels.Panel
+      ---@class Yat.Config.Panels.Symbols
       ---@field title string The name of the panel, default: `"Lsp Symbols"`.
       ---@field icon string The icon for the panel, default" `""`.
       ---@field scroll_buffer_to_symbol boolean Whether to scroll the file to the current symbol, default: `true`.
@@ -437,7 +436,8 @@ local M = {
         title = "Lsp Symbols",
         icon = "",
         scroll_buffer_to_symbol = true,
-        ---@class Yat.Config.Panels.Symbols.Mappings : Yat.Config.Panels.Mappings
+
+        ---@class Yat.Config.Panels.Symbols.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Panel.Symbols.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
@@ -475,21 +475,22 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
-        ---@alias Yat.Config.Panels.Symbols.DirectoryRendererName "indentation"|"icon"|"name"|"modified"|"symbol_details"|"diagnostics"|string
-        ---@alias Yat.Config.Panels.Symbols.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|"diagnostics"|string
 
-        ---@class Yat.Config.Panels.Symbols.Renderers : Yat.Config.Panels.TreeRenderers
-        ---@field directory { name : Yat.Config.Panels.Symbols.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
-        ---@field file { name : Yat.Config.Panels.Symbols.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@alias Yat.Config.Panels.Symbols.ContainerRendererName "indentation"|"icon"|"name"|"modified"|"symbol_details"|"diagnostics"|string
+        ---@alias Yat.Config.Panels.Symbols.LeafRendererName "indentation"|"icon"|"name"|"symbol_details"|"diagnostics"|string
+
+        ---@class Yat.Config.Panels.Symbols.Renderers
+        ---@field container { name : Yat.Config.Panels.Symbols.ContainerRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@field leaf { name : Yat.Config.Panels.Symbols.LeafRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
-          directory = {
+          container = {
             { name = "indentation" },
             { name = "icon" },
             { name = "name" },
             { name = "symbol_details" },
             { name = "diagnostics" },
           },
-          file = {
+          leaf = {
             { name = "indentation" },
             { name = "icon" },
             { name = "name" },
@@ -499,15 +500,16 @@ local M = {
         },
       },
 
-      ---@class Yat.Config.Panels.CallHierarchy : Yat.Config.Panels.Panel
+      ---@class Yat.Config.Panels.CallHierarchy
       ---@field title string The name of the panel, default: `"Call Hierarchy"`.
-      ---@field icon string The icon for the panel, default" `""`.
+      ---@field icon string The icon for the panel, default" `""`.
       ---@field mappings Yat.Config.Panels.CallHierarchy.Mappings Panel specific mappings.
       ---@field renderers Yat.Config.Panels.CallHierarchy.Renderers Panel specific renderers.
       call_hierarchy = {
         title = "Call Hierarchy",
-        icon = "", --  , ,
-        ---@class Yat.Config.Panels.CallHierarchy.Mappings : Yat.Config.Panels.Mappings
+        icon = "",
+
+        ---@class Yat.Config.Panels.CallHierarchy.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Panel.CallHierarchy.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
@@ -545,20 +547,21 @@ local M = {
             ["gc"] = "create_call_hierarchy_from_buffer_position",
           },
         },
-        ---@alias Yat.Config.Panels.CallHierarchy.DirectoryRendererName "indentation"|"icon"|"name"|"symbol_details"|string
-        ---@alias Yat.Config.Panels.CallHierarchy.FileRendererName "indentation"|"icon"|"name"|"symbol_details"|string
 
-        ---@class Yat.Config.Panels.CallHierarchy.Renderers : Yat.Config.Panels.TreeRenderers
-        ---@field directory { name : Yat.Config.Panels.CallHierarchy.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
-        ---@field file { name : Yat.Config.Panels.CallHierarchy.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@alias Yat.Config.Panels.CallHierarchy.ContainerRendererName "indentation"|"icon"|"name"|"symbol_details"|string
+        ---@alias Yat.Config.Panels.CallHierarchy.LeafRendererName "indentation"|"icon"|"name"|"symbol_details"|string
+
+        ---@class Yat.Config.Panels.CallHierarchy.Renderers
+        ---@field container { name : Yat.Config.Panels.CallHierarchy.ContainerRendererName, override : Yat.Config.BaseRendererConfig }[]
+        ---@field leaf { name : Yat.Config.Panels.CallHierarchy.LeafRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
-          directory = {
+          container = {
             { name = "indentation" },
             { name = "icon" },
             { name = "name" },
             { name = "symbol_details" },
           },
-          file = {
+          leaf = {
             { name = "indentation" },
             { name = "icon" },
             { name = "name" },
@@ -567,7 +570,7 @@ local M = {
         },
       },
 
-      ---@class Yat.Config.Panels.Buffers : Yat.Config.Panels.Panel
+      ---@class Yat.Config.Panels.Buffers
       ---@field title string The name of the panel, default: `"Buffers"`.
       ---@field icon string The icon for the panel, default: `""`.
       ---@field mappings Yat.Config.Panels.Buffers.Mappings Panel specific mappings.
@@ -576,7 +579,7 @@ local M = {
         title = "Buffers",
         icon = "",
 
-        ---@class Yat.Config.Panels.Buffers.Mappings: Yat.Config.Panels.Mappings
+        ---@class Yat.Config.Panels.Buffers.Mappings
         ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
         ---@field list table<string, Yat.Panel.Buffers.SupportedActions|string> Map of key mappings, an empty string, `""`, disables the mapping.
         mappings = {
@@ -628,10 +631,11 @@ local M = {
             ["]e"] = "focus_next_diagnostic_item",
           },
         },
+
         ---@alias Yat.Config.Panels.Buffers.DirectoryRendererName "indentation"|"icon"|"name"|"repository"|"symlink_target"|"git_status"|"diagnostics"|string
         ---@alias Yat.Config.Panels.Buffers.FileRendererName "indentation"|"icon"|"name"|"symlink_target"|"modified"|"git_status"|"diagnostics"|"buffer_info"|string
 
-        ---@class Yat.Config.Panels.Buffers.Renderers : Yat.Config.Panels.TreeRenderers
+        ---@class Yat.Config.Panels.Buffers.Renderers
         ---@field directory { name : Yat.Config.Panels.Buffers.DirectoryRendererName, override : Yat.Config.BaseRendererConfig }[]
         ---@field file { name : Yat.Config.Panels.Buffers.FileRendererName, override : Yat.Config.BaseRendererConfig }[]
         renderers = {
@@ -889,13 +893,12 @@ M.setup_called = false
 ---@return Yat.Config config
 function M.setup(opts)
   opts = opts or {}
-  M.config = vim.tbl_deep_extend("force", M.default, opts) --[[@as Yat.Config]]
+  M.config = vim.tbl_deep_extend("force", M.default, opts)
   M.setup_called = true
-
-  local utils = require("ya-tree.utils")
 
   -- make sure any custom panel configs have the required shape
   for _, panel in pairs(M.config.panels) do
+    ---@cast panel Yat.Config.Panels.Panel
     if not panel.mappings then
       panel.mappings = {}
     end
@@ -905,11 +908,16 @@ function M.setup(opts)
   end
   if opts.panels then
     for name, panel in pairs(opts.panels) do
+      ---@cast name Yat.Panel.Type
+      ---@cast panel Yat.Config.Panels.Panel
       if panel.mappings and panel.mappings.disable_defaults then
         M.config.panels[name].mappings.list = opts.panels[name].mappings.list or {}
       end
     end
   end
+
+  local fn = vim.fn
+  local utils = require("ya-tree.utils")
 
   if not M.config.system_open.cmd then
     if utils.is_linux then

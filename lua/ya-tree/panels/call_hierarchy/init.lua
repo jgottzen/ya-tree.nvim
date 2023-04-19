@@ -9,8 +9,12 @@ local utils = require("ya-tree.utils")
 ---@type Yat.Panel.Factory
 local M = {
   ---@private
-  ---@type Yat.Panel.TreeRenderers
-  renderers = {},
+  renderers = {
+    ---@type Yat.Panel.Tree.Ui.Renderer[]
+    container = {},
+    ---@type Yat.Panel.Tree.Ui.Renderer[]
+    leaf = {},
+  },
   ---@type table<string, Yat.Action>
   keymap = {},
 }
@@ -19,7 +23,8 @@ local M = {
 ---@return boolean success
 function M.setup(config)
   local tree_renderers = require("ya-tree.panels.tree_renderers")
-  M.renderers = tree_renderers.create_renderers("call_hierarchy", config.panels.call_hierarchy.renderers)
+  local config_renderers = config.panels.call_hierarchy.renderers
+  M.renderers.container, M.renderers.leaf = tree_renderers.create_renderers("call_hierarchy", config_renderers.container, config_renderers.leaf)
 
   local tree_actions = require("ya-tree.panels.tree_actions")
   local builtin = require("ya-tree.actions.builtin")

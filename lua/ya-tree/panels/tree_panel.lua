@@ -16,7 +16,7 @@ local fn = vim.fn
 ---@field public current_node Yat.Node
 ---@field private previous_row integer
 ---@field protected path_lookup { [integer]: string, [integer]: string }
----@field protected renderers Yat.Panel.TreeRenderers
+---@field protected renderers { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }
 ---@field protected _container_min_diagnostic_severity DiagnosticSeverity
 ---@field protected _leaf_min_diagnostic_severity DiagnosticSeverity
 local TreePanel = Panel:subclass("Yat.Panel.Tree")
@@ -38,7 +38,7 @@ end
 ---@param title string
 ---@param icon string
 ---@param keymap table<string, Yat.Action>
----@param renderers Yat.Panel.TreeRenderers
+---@param renderers { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }
 ---@param root Yat.Node
 function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
   Panel.init(self, _type, sidebar, title, icon, keymap)
@@ -47,7 +47,7 @@ function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
   self.path_lookup = {}
   self.renderers = renderers
 
-  for _, renderer in ipairs(self.renderers.directory) do
+  for _, renderer in ipairs(self.renderers.container) do
     if renderer.name == "diagnostics" then
       local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
       self._container_min_diagnostic_severity = renderer_config.directory_min_severity
@@ -56,7 +56,7 @@ function TreePanel:init(_type, sidebar, title, icon, keymap, renderers, root)
   end
   self._container_min_diagnostic_severity = self._container_min_diagnostic_severity or vim.diagnostic.severity.ERROR
 
-  for _, renderer in ipairs(self.renderers.file) do
+  for _, renderer in ipairs(self.renderers.leaf) do
     if renderer.name == "diagnostics" then
       local renderer_config = renderer.config --[[@as Yat.Config.Renderers.Builtin.Diagnostics]]
       self._leaf_min_diagnostic_severity = renderer_config.file_min_severity
@@ -69,12 +69,12 @@ end
 ---@param name Yat.Ui.Renderer.Name
 ---@return boolean
 function TreePanel:has_renderer(name)
-  for _, renderer in ipairs(self.renderers.directory) do
+  for _, renderer in ipairs(self.renderers.container) do
     if renderer.name == name then
       return true
     end
   end
-  for _, renderer in ipairs(self.renderers.file) do
+  for _, renderer in ipairs(self.renderers.leaf) do
     if renderer.name == name then
       return true
     end
@@ -654,7 +654,7 @@ function TreePanel:render()
   local config = require("ya-tree.config").config
   ---@type string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
   local lines, highlights, context, linenr = {}, {}, { panel_type = self.TYPE, config = config, indent_markers = {} }, 1
-  local directory_renderers, file_renderers = self.renderers.directory, self.renderers.file
+  local container_renderers, leaf_renderers = self.renderers.container, self.renderers.leaf
   self.path_lookup = {}
 
   ---@param node Yat.Node
@@ -667,7 +667,7 @@ function TreePanel:render()
     self.path_lookup[node.path] = linenr
     self.path_lookup[linenr] = node.path
     local has_children = node:has_children()
-    lines[linenr], highlights[linenr] = render_node(node, context, has_children and directory_renderers or file_renderers)
+    lines[linenr], highlights[linenr] = render_node(node, context, has_children and container_renderers or leaf_renderers)
 
     if has_children and node.expanded then
       ---@param child Yat.Node

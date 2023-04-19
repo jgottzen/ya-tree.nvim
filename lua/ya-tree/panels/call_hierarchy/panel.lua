@@ -9,8 +9,8 @@ local ui = require("ya-tree.ui")
 local api = vim.api
 
 ---@class Yat.Panel.CallHierarchy : Yat.Panel.Tree
----@field new async fun(self: Yat.Panel.CallHierarchy, sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.CallHierarchy
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.CallHierarchy
+---@field new async fun(self: Yat.Panel.CallHierarchy, sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.CallHierarchy
+---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.CallHierarchy
 ---
 ---@field public TYPE "call_hierarchy"
 ---@field public root Yat.Node.CallHierarchy|Yat.Node.Text
@@ -24,7 +24,7 @@ local CallHierarchyPanel = TreePanel:subclass("Yat.Panel.CallHierarchy")
 ---@param sidebar Yat.Sidebar
 ---@param config Yat.Config.Panels.CallHierarchy
 ---@param keymap table<string, Yat.Action>
----@param renderers Yat.Panel.TreeRenderers
+---@param renderers { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }
 function CallHierarchyPanel:init(sidebar, config, keymap, renderers)
   local root = TextNode:new("Waiting for LSP...", "/")
   TreePanel.init(self, "call_hierarchy", sidebar, config.title, config.icon, keymap, renderers, root)

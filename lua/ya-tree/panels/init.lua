@@ -66,6 +66,7 @@ function M.setup(config, configured_panels)
   M._registered_panels = {}
   M._keymaps = {}
   for panel_type in pairs(config.panels) do
+    ---@cast panel_type Yat.Panel.Type
     if vim.tbl_contains(configured_panels, panel_type) then
       ---@type boolean, Yat.Panel.Factory?
       local ok, panel = pcall(require, "ya-tree.panels." .. panel_type)
@@ -104,6 +105,9 @@ function M.setup(config, configured_panels)
   end
   if not M._registered_panels["symbols"] then
     remove_keymap(builtin.general.open_symbols_panel)
+  end
+  if not M._registered_panels["call_hierarchy"] then
+    remove_keymap(builtin.general.open_call_hierarchy_panel)
   end
 
   return vim.tbl_keys(M._registered_panels)

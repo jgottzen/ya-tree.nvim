@@ -12,8 +12,8 @@ local api = vim.api
 local uv = vim.loop
 
 ---@class Yat.Panel.Symbols : Yat.Panel.Tree
----@field new async fun(self: Yat.Panel.Symbols, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Symbols
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: Yat.Panel.TreeRenderers): Yat.Panel.Symbols
+---@field new async fun(self: Yat.Panel.Symbols, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Symbols
+---@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Symbols
 ---
 ---@field public TYPE "symbols"
 ---@field public root Yat.Node.Symbol
@@ -25,7 +25,7 @@ local SymbolsPanel = TreePanel:subclass("Yat.Panel.Symbols")
 ---@param sidebar Yat.Sidebar
 ---@param config Yat.Config.Panels.Symbols
 ---@param keymap table<string, Yat.Action>
----@param renderers Yat.Panel.TreeRenderers
+---@param renderers { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }
 function SymbolsPanel:init(sidebar, config, keymap, renderers)
   local path = uv.cwd() --[[@as string]]
   local root = self:create_root_node(path)
