@@ -197,7 +197,7 @@ function M.open_help(panel)
     popup:map("n", tostring(i), function()
       current_tab = i
       lines, highlight_groups = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
-      popup:set_content(lines, highlight_groups)
+      nui.set_content_for_popup(popup, lines, highlight_groups)
     end, { noremap = true })
   end
   popup:map("n", "<Tab>", function()
@@ -206,7 +206,7 @@ function M.open_help(panel)
       current_tab = 1
     end
     lines, highlight_groups = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
-    popup:set_content(lines, highlight_groups)
+    nui.set_content_for_popup(popup, lines, highlight_groups)
   end, { noremap = true })
   popup:map("n", "<S-Tab>", function()
     current_tab = current_tab - 1
@@ -214,7 +214,7 @@ function M.open_help(panel)
       current_tab = #panel_types
     end
     lines, highlight_groups = render_mappings_for_for_panel(current_tab, panel_types, keymaps, width)
-    popup:set_content(lines, highlight_groups)
+    nui.set_content_for_popup(popup, lines, highlight_groups)
   end, { noremap = true })
 end
 

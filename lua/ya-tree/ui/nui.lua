@@ -120,26 +120,6 @@ do
   end
 end
 
----@class Yat.Ui.Popup : NuiPopup
----@overload fun(...): Yat.Ui.Popup
----@diagnostic disable-next-line:undefined-field
-local Popup = NuiPopup:extend("Yat.Ui.Popup")
-
----@param lines string[]
----@param highlight_groups? Yat.Ui.HighlightGroup[][]
-function Popup:set_content(lines, highlight_groups)
-  api.nvim_buf_set_option(self.bufnr, "modifiable", true)
-  api.nvim_buf_set_lines(self.bufnr, 0, -1, false, lines)
-  if highlight_groups then
-    for line, highlight_group in ipairs(highlight_groups) do
-      for _, highlight in ipairs(highlight_group) do
-        api.nvim_buf_add_highlight(self.bufnr, self.ns_id, highlight.name, line - 1, highlight.from, highlight.to)
-      end
-    end
-  end
-  api.nvim_buf_set_option(self.bufnr, "modifiable", false)
-end
-
 ---@class Yat.Ui.PopupOpts
 ---@field title string
 ---@field relative? string defaults to "cursor".
@@ -155,7 +135,7 @@ end
 ---@field highlight_groups? Yat.Ui.HighlightGroup[][]
 
 ---@param opts Yat.Ui.PopupOpts
----@return Yat.Ui.Popup
+---@return NuiPopup
 function M.popup(opts)
   local border = Config.config.popups.border
   local options = {
@@ -186,7 +166,7 @@ function M.popup(opts)
     }
   end
 
-  local popup = Popup(options)
+  local popup = NuiPopup(options)
 
   if opts.close_keys then
     for _, key in ipairs(opts.close_keys) do
@@ -208,12 +188,28 @@ function M.popup(opts)
   end
 
   if opts.lines then
-    popup:set_content(opts.lines, opts.highlight_groups)
+    M.set_content_for_popup(popup, opts.lines, opts.highlight_groups)
   end
 
   popup:mount()
 
   return popup
+end
+
+---@param popup NuiPopup
+---@param lines string[]
+---@param highlight_groups? Yat.Ui.HighlightGroup[][]
+function M.set_content_for_popup(popup, lines, highlight_groups)
+  api.nvim_buf_set_option(popup.bufnr, "modifiable", true)
+  api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
+  if highlight_groups then
+    for line, highlight_group in ipairs(highlight_groups) do
+      for _, highlight in ipairs(highlight_group) do
+        api.nvim_buf_add_highlight(popup.bufnr, popup.ns_id, highlight.name, line - 1, highlight.from, highlight.to)
+      end
+    end
+  end
+  api.nvim_buf_set_option(popup.bufnr, "modifiable", false)
 end
 
 return M

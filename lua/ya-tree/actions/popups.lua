@@ -112,7 +112,7 @@ local PERMISSION_HLS = {
 
 local augroup = api.nvim_create_augroup("YaTreeNodeInfoPopup", { clear = true })
 
----@class Yat.Action.Popup.NodeInfo : Yat.Ui.Popup
+---@class Yat.Action.Popup.NodeInfo : NuiPopup
 ---@field path string
 
 ---@type Yat.Action.Popup.NodeInfo?
