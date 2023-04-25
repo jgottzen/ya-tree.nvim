@@ -5,7 +5,6 @@ local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Node = require("ya-tree.nodes.node")
 local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
-local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.FsBasedNodeStatic
 
@@ -122,7 +121,7 @@ end
 ---@return boolean
 function FsBasedNode:is_ancestor_of(path)
   if self:is_directory() then
-    local self_path = self:is_root_directory() and self.path or (self.path .. utils.os_sep)
+    local self_path = self:is_root_directory() and self.path or (self.path .. Path.path.sep)
     return vim.startswith(path, self_path)
   end
   return false
@@ -216,7 +215,7 @@ function FsBasedNode:_add_node(path, node_creator)
   local log = Logger.get("nodes")
   ---@cast self Yat.Node.FsBasedNode
   local rest = path:sub(#self.path + 1)
-  local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true })
+  local splits = vim.split(rest, Path.path.sep, { plain = true, trimempty = true })
   local node = self
   for i = 1, #splits do
     local name = splits[i]
@@ -229,7 +228,8 @@ function FsBasedNode:_add_node(path, node_creator)
       end
     end
     if not found then
-      local child = node_creator(node.path .. utils.os_sep .. name, node, i < #splits and "directory" or "unknown")
+      local child_path = node.path .. Path.path.sep .. name
+      local child = node_creator(child_path, node, i < #splits and "directory" or "unknown")
       if child then
         log.debug("adding child %q to parent %q", child.path, node.path)
         node._children[#node._children + 1] = child
@@ -238,7 +238,7 @@ function FsBasedNode:_add_node(path, node_creator)
         end
         node = child
       else
-        log.error("cannot create node for %q", node.path .. utils.os_sep .. name)
+        log.error("cannot create node for %q", child_path)
         return nil
       end
     end

@@ -11,8 +11,6 @@ local meta = require("ya-tree.meta")
 local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
-local os_sep = Path.path.sep
-
 local uv = vim.loop
 
 local M = {
@@ -239,9 +237,10 @@ end
 ---@param directory boolean
 ---@return boolean ignored
 function Repo:is_ignored(path, directory)
-  path = directory and (path .. os_sep) or path
+  local sep = Path.path.sep
+  path = directory and (path .. sep) or path
   for _, ignored in ipairs(self._status.status._ignored) do
-    if ignored:sub(-1) == os_sep then
+    if ignored:sub(-1) == sep then
       -- directory ignore
       if vim.startswith(path, ignored) then
         return true
@@ -561,7 +560,7 @@ local function make_absolute_path(toplevel, relative_path)
   if utils.is_windows == true then
     relative_path = windowize_path(relative_path)
   end
-  return utils.join_path(toplevel, relative_path)
+  return fs.join_path(toplevel, relative_path)
 end
 
 ---@private
@@ -686,11 +685,12 @@ end
 ---@param directory boolean
 ---@return string|nil status
 function GitStatus:of(path, directory)
+  local sep = Path.path.sep
   local status = self.status._changed_entries[path] or self.status._propagated_changed_entries[path]
   if not status then
-    path = directory and (path .. os_sep) or path
+    path = directory and (path .. sep) or path
     for _path, _status in pairs(self.status._changed_entries) do
-      if _status == "?" and _path:sub(-1) == os_sep and vim.startswith(path, _path) then
+      if _status == "?" and _path:sub(-1) == sep and vim.startswith(path, _path) then
         return _status
       end
     end

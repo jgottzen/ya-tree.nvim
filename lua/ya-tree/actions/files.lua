@@ -183,8 +183,8 @@ function M.add(panel, node)
     node = node.parent --[[@as Yat.Node.Filesystem]]
   end
 
-  local title = " New file (an ending " .. utils.os_sep .. " will create a directory): "
-  local path = ui.nui_input({ title = title, default = node.path .. utils.os_sep, completion = "file", width = #title + 4 })
+  local title = " New file (an ending " .. Path.path.sep .. " will create a directory): "
+  local path = ui.nui_input({ title = title, default = node.path .. Path.path.sep, completion = "file", width = #title + 4 })
   if not path then
     return
   elseif fs.exists(path) then
@@ -192,7 +192,7 @@ function M.add(panel, node)
     return
   end
 
-  local is_directory = path:sub(-1) == utils.os_sep
+  local is_directory = path:sub(-1) == Path.path.sep
   if is_directory then
     path = path:sub(1, -2)
   end

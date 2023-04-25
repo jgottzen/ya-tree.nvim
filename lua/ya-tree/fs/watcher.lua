@@ -2,9 +2,10 @@ local lazy = require("ya-tree.lazy")
 
 local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local debounce = lazy.require("ya-tree.debounce") ---@module "ya-tree.debounce"
-local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
-local events = lazy.require("ya-tree.events") ---@module "ya-tree.events"
+local event = require("ya-tree.events.event")
+local events = require("ya-tree.events")
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local M = {
@@ -20,11 +21,11 @@ local setup_done = false
 
 ---@param config Yat.Config
 local function setup(config)
-  M._exclude_patterns = { { utils.os_sep .. ".git", utils.os_sep .. ".git" .. utils.os_sep } }
+  local sep = Path.path.sep
+  M._exclude_patterns = { { sep .. ".git", sep .. ".git" .. sep } }
   for _, ignored in ipairs(config.dir_watcher.exclude) do
-    M._exclude_patterns[#M._exclude_patterns + 1] = { utils.os_sep .. ignored, utils.os_sep .. ignored .. utils.os_sep }
+    M._exclude_patterns[#M._exclude_patterns + 1] = { sep .. ignored, sep .. ignored .. sep }
   end
-  events.on_autocmd_event(event.autocmd.LEAVE_PRE, "YA_TREE_WATCHER_CLEANUP", M.stop_all)
   setup_done = true
 end
 
@@ -112,5 +113,7 @@ function M.stop_all()
   end
   M._watchers = {}
 end
+
+events.on_autocmd_event(event.autocmd.LEAVE_PRE, "YA_TREE_WATCHER_CLEANUP", M.stop_all)
 
 return M

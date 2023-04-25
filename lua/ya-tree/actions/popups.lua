@@ -27,7 +27,7 @@ local NODE_TYPE_MAP = {
 -- taken from https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/scandir.lua
 local get_username, get_groupname
 do
-  if jit and utils.os_sep ~= "\\" then
+  if jit and Path.path.sep ~= "\\" then
     local ffi = require("ffi")
 
     ffi.cdef([[

@@ -66,7 +66,7 @@ function SymbolsPanel:create_root_node(path, bufnr)
       end
     end
   end
-  local name = utils.get_file_name(path)
+  local name = fs.name_from_path(path)
   local root = SymbolNode:new(name, path, symbol_kind.FILE, nil, {
     start = { line = 0, character = 0 },
     ["end"] = { line = -1, character = -1 },

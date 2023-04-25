@@ -6,6 +6,7 @@ local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.ev
 local job = lazy.require("ya-tree.job") ---@module "ya-tree.job"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Panel = require("ya-tree.panels.panel")
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
 local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
@@ -326,7 +327,7 @@ function TreePanel:complete_func_file_in_path(bufnr, path)
   api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_panels_trees_file_in_path_complete")
   api.nvim_buf_set_option(bufnr, "omnifunc", "")
   -- only complete on _all_ files if the node is located below the home dir
-  if vim.startswith(path, home .. utils.os_sep) then
+  if vim.startswith(path, home .. Path.path.sep) then
     api.nvim_buf_set_option(bufnr, "path", path .. "/**")
   else
     api.nvim_buf_set_option(bufnr, "path", path .. "/*")
@@ -366,7 +367,7 @@ function TreePanel:search_for_node(node)
 
       if #lines > 0 then
         local first = lines[1]
-        if first:sub(-1) == utils.os_sep then
+        if first:sub(-1) == Path.path.sep then
           first = first:sub(1, -2)
         end
         local result_node = self.root:expand({ to = first })

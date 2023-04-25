@@ -41,6 +41,27 @@ local fs_closedir = wrap(uv.fs_closedir, 2, true)
 ---@type async fun(path: string): err: string|nil, path: string|nil
 local fs_readlink = wrap(uv.fs_readlink, 2, true)
 
+---@param first string
+---@param second string
+---@return string path
+function M.join_path(first, second)
+  if Path.is_root(first) then
+    return string.format("%s%s", first, second)
+  else
+    return string.format("%s%s%s", first, Path.path.sep, second)
+  end
+end
+
+---@param path string
+---@return string name
+function M.name_from_path(path)
+  if path:sub(-1) == Path.path.sep then
+    path = path:sub(1, -2)
+  end
+  local splits = vim.split(path, Path.path.sep, { plain = true })
+  return splits[#splits]
+end
+
 ---@param path string
 ---@return boolean is_file
 function M.is_file(path)
@@ -100,7 +121,7 @@ end
 ---@param name string the name of the directory
 ---@return Yat.Fs.DirectoryNode node
 local function directory_node(dir, name)
-  local path = utils.join_path(dir, name)
+  local path = M.join_path(dir, name)
   local empty = is_empty(path)
 
   return {
@@ -127,7 +148,7 @@ M.st_mode_masks = {
 ---@param stat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.FileNode node
 local function file_node(dir, name, stat)
-  local path = utils.join_path(dir, name)
+  local path = M.join_path(dir, name)
   local extension = name:match(".?[^.]+%.(.*)") or ""
   local executable
   if utils.is_windows then
@@ -222,7 +243,7 @@ end
 ---@param lstat? uv.aliases.fs_stat_table
 ---@return Yat.Fs.DirectoryLinkNode|Yat.Fs.FileLinkNode|nil node
 local function link_node(dir, name, lstat)
-  local path = utils.join_path(dir, name)
+  local path = M.join_path(dir, name)
   local rel_link_to, err, abs_link_to
   err, abs_link_to = fs_readlink(path)
   if err then
@@ -243,7 +264,7 @@ local function link_node(dir, name, lstat)
     if _type == "directory" then
       node = directory_node(dir, name)
     elseif _type == "file" or _type == "fifo" or _type == "socket" or _type == "char" or _type == "block" then
-      local link_name = utils.get_file_name(abs_link_to)
+      local link_name = M.name_from_path(abs_link_to)
       local link_extension = link_name:match(".?[^.]+%.(.*)") or "" --[[@as string]]
 
       node = file_node(dir, name, stat)
@@ -283,7 +304,7 @@ function M.node_for(path)
   end
 
   local parent_path = p:parent():absolute()
-  local name = utils.get_file_name(path)
+  local name = M.name_from_path(path)
   if lstat.type == "directory" then
     return directory_node(parent_path, name)
   elseif lstat.type == "file" then
@@ -470,7 +491,7 @@ function M.create_dir(path)
       local dirs = vim.split(abs_path, Path.path.sep, { plain = true })
       local acc = ""
       for _, dir in ipairs(dirs) do
-        local current = utils.join_path(acc, dir)
+        local current = M.join_path(acc, dir)
         local stat = uv.fs_stat(current)
         if stat then
           if stat.type == "directory" then
@@ -544,7 +565,7 @@ function M.remove_dir(path)
     if not name then
       break
     end
-    local to_remove = utils.join_path(path, name)
+    local to_remove = M.join_path(path, name)
     if _type == "directory" then
       if not M.remove_dir(to_remove) then
         return false

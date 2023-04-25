@@ -1,6 +1,6 @@
 local get_icon
 do
-  local icons_availble, icons = pcall(require, "nvim-web-devicons")
+  local icons_availble, icons = nil, nil
 
   ---@param filename string
   ---@param extension string
@@ -8,6 +8,10 @@ do
   ---@param fallback_highlight string
   ---@return string icon, string highlight
   get_icon = function(filename, extension, fallback_icon, fallback_highlight)
+    if icons_availble == nil then
+      icons_availble, icons = pcall(require, "nvim-web-devicons")
+    end
+
     if icons_availble then
       return icons.get_icon(filename, extension)
     else
@@ -21,7 +25,7 @@ local lazy = require("ya-tree.lazy")
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
 local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
-local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 ---@class Yat.Ui.RenderContext
 ---@field panel_type Yat.Panel.Type
@@ -234,8 +238,8 @@ function M.name(node, context, renderer)
       text = node.name
     else
       text = fn.fnamemodify(node.path, renderer.root_folder_format)
-      if text:sub(-1) ~= utils.os_sep then
-        text = text .. utils.os_sep
+      if text:sub(-1) ~= Path.path.sep then
+        text = text .. Path.path.sep
       end
     end
     return { {
@@ -287,7 +291,7 @@ function M.name(node, context, renderer)
 
   local name = node.name
   if renderer.trailing_slash and node:is_container() then
-    name = name .. utils.os_sep
+    name = name .. Path.path.sep
   end
 
   return { {

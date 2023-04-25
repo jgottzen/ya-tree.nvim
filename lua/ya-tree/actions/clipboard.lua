@@ -2,6 +2,7 @@ local lazy = require("ya-tree.lazy")
 
 local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
 local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
@@ -88,7 +89,7 @@ function M.paste_nodes(panel, node)
       if not fs.exists(node_to_paste.path) then
         utils.warn(string.format("Item %q does not exist, cannot %s!", node_to_paste.path, node_to_paste:clipboard_status()))
       else
-        local destination = utils.join_path(dir, node_to_paste.name)
+        local destination = fs.join_path(dir, node_to_paste.name)
         local skip = false
         local replace = false
         if fs.exists(destination) then
@@ -103,7 +104,7 @@ function M.paste_nodes(panel, node)
               utils.notify(string.format("No new name given, not pasting item %q to %q.", node_to_paste.name, destination))
               skip = true
             else
-              destination = utils.join_path(dir, name)
+              destination = fs.join_path(dir, name)
               Logger.get("actions").debug("new destination=%q", destination)
             end
           else
@@ -186,7 +187,7 @@ end
 function M.copy_root_relative_path_to_clipboard(panel, node)
   local relative = node:relative_path_to(panel.root)
   if node:is_container() then
-    relative = relative .. utils.os_sep
+    relative = relative .. Path.path.sep
   end
   copy_to_system_clipboard(relative)
 end

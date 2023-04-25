@@ -245,6 +245,49 @@ local function clean_paths(paths)
   return cleaned
 end
 
+---@param paths string[]
+---@return string|nil path
+local function find_common_ancestor(paths)
+  if #paths == 0 then
+    return nil
+  end
+
+  local os_sep = Path.path.sep
+  table.sort(paths, function(a, b)
+    return #a < #b
+  end)
+  ---@type string[], string[][]
+  local common_ancestor, splits = {}, {}
+  for i, path in ipairs(paths) do
+    splits[i] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
+  end
+
+  for pos, dir_name in ipairs(splits[1]) do
+    local matched = true
+    local split_index = 2
+    while split_index <= #splits and matched do
+      if #splits[split_index] < pos then
+        matched = false
+        break
+      end
+      matched = splits[split_index][pos] == dir_name
+      split_index = split_index + 1
+    end
+    if matched then
+      common_ancestor[#common_ancestor + 1] = dir_name
+    else
+      break
+    end
+  end
+
+  local path = table.concat(common_ancestor, os_sep)
+  if #path == 0 then
+    return nil
+  else
+    return path
+  end
+end
+
 ---@param tree_root_path string
 ---@param paths string[]
 ---@return string root_path
@@ -256,9 +299,9 @@ local function get_buffers_root_path(tree_root_path, paths)
   elseif size == 1 then
     root_path = Path:new(paths[1]):parent().filename
   else
-    root_path = utils.find_common_ancestor(paths) or tree_root_path
+    root_path = find_common_ancestor(paths) or tree_root_path
   end
-  if vim.startswith(root_path, tree_root_path .. utils.os_sep) then
+  if vim.startswith(root_path, tree_root_path .. Path.path.sep) then
     root_path = tree_root_path
   end
   return root_path

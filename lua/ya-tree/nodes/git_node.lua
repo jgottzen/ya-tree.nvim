@@ -4,7 +4,7 @@ local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
 local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
-local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 ---@class Yat.Node.Git : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Git, fs_node: Yat.Fs.Node, parent?: Yat.Node.Git): Yat.Node.Git
@@ -73,9 +73,9 @@ local function create_node(path, parent, _type)
   local exists = fs_node ~= nil
   if not fs_node then
     fs_node = {
-      name = utils.get_file_name(path),
+      name = fs.name_from_path(path),
       path = path,
-      _type = _type == "unknown" and (path:sub(-1) == utils.os_sep and "directory" or "file") or _type,
+      _type = _type == "unknown" and (path:sub(-1) == Path.path.sep and "directory" or "file") or _type,
     }
   end
   local node = GitNode:new(fs_node, parent)

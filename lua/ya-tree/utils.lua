@@ -1,12 +1,6 @@
-local lazy = require("ya-tree.lazy")
-
-local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
-local Path = require("ya-tree.path")
-
 local api = vim.api
 local fn = vim.fn
 local uv = vim.loop
-local os_sep = Path.path.sep
 
 local M = {}
 
@@ -34,7 +28,6 @@ function M.tbl_unique(list)
   return vim.tbl_keys(uniques)
 end
 
-M.os_sep = os_sep
 M.is_linux = fn.has("unix") == 1
 M.is_macos = not M.is_linux and (fn.has("mac") == 1 or fn.has("macunix") == 1)
 M.is_windows = not M.is_macos and (fn.has("win32") == 1 or fn.has("win32unix") == 1)
@@ -57,69 +50,6 @@ do
   end
 end
 
----@param paths string[]
----@return string|nil path
-function M.find_common_ancestor(paths)
-  if #paths == 0 then
-    return nil
-  end
-
-  table.sort(paths, function(a, b)
-    return #a < #b
-  end)
-  ---@type string[], string[][]
-  local common_ancestor, splits = {}, {}
-  for i, path in ipairs(paths) do
-    splits[i] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
-  end
-
-  for pos, dir_name in ipairs(splits[1]) do
-    local matched = true
-    local split_index = 2
-    while split_index <= #splits and matched do
-      if #splits[split_index] < pos then
-        matched = false
-        break
-      end
-      matched = splits[split_index][pos] == dir_name
-      split_index = split_index + 1
-    end
-    if matched then
-      common_ancestor[#common_ancestor + 1] = dir_name
-    else
-      break
-    end
-  end
-
-  local path = table.concat(common_ancestor, os_sep)
-  if #path == 0 then
-    return nil
-  else
-    return path
-  end
-end
-
----@param first string
----@param second string
----@return string path
-function M.join_path(first, second)
-  if Path.is_root(first) then
-    return string.format("%s%s", first, second)
-  else
-    return string.format("%s%s%s", first, os_sep, second)
-  end
-end
-
----@param path string
----@return string name
-function M.get_file_name(path)
-  if path:sub(-1) == os_sep then
-    path = path:sub(1, -2)
-  end
-  local splits = vim.split(path, os_sep, { plain = true })
-  return splits[#splits]
-end
-
 do
   local UNITS = { "B", "KB", "MB", "GB", "TB" }
 
@@ -138,13 +68,6 @@ do
 
     return (UNITS[pow] == nil) and (size .. " B") or (value .. " " .. UNITS[pow])
   end
-end
-
----@param path string
----@return boolean is_directory
-local function is_directory(path)
-  local stat = uv.fs_stat(path)
-  return stat and stat.type == "directory" or false
 end
 
 ---@class Yat.Node.Buffer.FileData
@@ -172,12 +95,19 @@ function M.get_current_buffers()
       elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
         buffers[path] = {
           bufnr = bufnr,
-          modified = api.nvim_buf_get_option(bufnr, "modified"), --[[@as boolean]]
+          modified = api.nvim_buf_get_option(bufnr, "modified"),
         }
       end
     end
   end
   return buffers, terminals
+end
+
+---@param path string
+---@return boolean is_directory
+local function is_directory(path)
+  local stat = uv.fs_stat(path)
+  return stat and stat.type == "directory" or false
 end
 
 ---@return boolean
@@ -220,7 +150,7 @@ do
       if cmd == "fd" or cmd == "fdfind" then
         if not FD_HAS_MAX_RESULTS or not FDFIND_HAS_MAX_RESULTS then
           if coroutine.running() then
-            async.scheduler()
+            require("ya-tree.async").scheduler()
           end
           FD_HAS_MAX_RESULTS = fn.executable("fd") == 1 and has_max_results("fd")
           FDFIND_HAS_MAX_RESULTS = fn.executable("fdfind") == 1 and has_max_results("fdfind")

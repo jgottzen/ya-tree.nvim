@@ -3,7 +3,7 @@ local lazy = require("ya-tree.lazy")
 local diagnostics = lazy.require("ya-tree.diagnostics") ---@module "ya-tree.diagnostics"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local meta = require("ya-tree.meta")
-local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 ---@alias Yat.Node.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"|string
 
@@ -120,13 +120,13 @@ end
 ---@param node Yat.Node
 ---@return string
 function Node:relative_path_to(node)
-  local double = utils.os_sep .. utils.os_sep
-  local path, to = self.path:gsub(double, utils.os_sep), node.path:gsub(double, utils.os_sep)
+  local double = Path.path.sep .. Path.path.sep
+  local path, to = self.path:gsub(double, Path.path.sep), node.path:gsub(double, Path.path.sep)
   if path == to then
     return "."
   else
-    if to:sub(#to, #to) ~= utils.os_sep then
-      to = to .. utils.os_sep
+    if to:sub(#to, #to) ~= Path.path.sep then
+      to = to .. Path.path.sep
     end
 
     if path:sub(1, #to) == to then
@@ -139,7 +139,7 @@ end
 ---@param path string
 ---@return boolean
 function Node:is_ancestor_of(path)
-  return self:has_children() and vim.startswith(path, self.path .. utils.os_sep)
+  return self:has_children() and vim.startswith(path, self.path .. Path.path.sep)
 end
 
 ---@return boolean
