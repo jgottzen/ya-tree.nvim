@@ -1,6 +1,8 @@
-local events = require("ya-tree.events")
-local hl = require("ya-tree.ui.highlights")
-local log = require("ya-tree.log").get("panels")
+local lazy = require("ya-tree.lazy")
+
+local events = lazy.require("ya-tree.events") ---@module "ya-tree.events"
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local meta = require("ya-tree.meta")
 
 local api = vim.api
@@ -77,7 +79,7 @@ function Panel:init(_type, sidebar, title, icon, keymap)
 end
 
 function Panel:delete()
-  log.info("deleting panel %s", tostring(self))
+  Logger.get("panels").info("deleting panel %s", tostring(self))
   self:close()
   self:remove_all_autocmd_events()
   self:remove_all_git_events()
@@ -140,7 +142,7 @@ end
 ---@private
 function Panel:create_buffer()
   self._bufnr = api.nvim_create_buf(false, false)
-  log.debug("created buffer %s", self._bufnr)
+  Logger.get("panels").debug("created buffer %s", self._bufnr)
   api.nvim_buf_set_name(self._bufnr, "YaTree://YaTree" .. self._bufnr)
 
   for k, v in pairs(BUF_OPTIONS) do
@@ -151,6 +153,7 @@ end
 
 ---@private
 function Panel:apply_mappings()
+  local log = Logger.get("panels")
   local opts = { buffer = self:bufnr(), silent = true, nowait = true }
   for key, action in pairs(self.keymap) do
     local rhs = self:create_keymap_function(action)
@@ -183,6 +186,7 @@ do
   ---@param position Yat.Ui.Position
   ---@param width? integer
   function Panel:create_window(position, width)
+    local log = Logger.get("panels")
     if position == "left" or position == "right" then
       vim.cmd.vsplit({ mods = { noautocmd = true } })
       vim.cmd.wincmd({ POSITIONS_TO_WINCMD[position], mods = { noautocmd = true } })
@@ -239,6 +243,7 @@ end
 
 ---@private
 function Panel:_on_win_closed()
+  local log = Logger.get("panels")
   log.debug("window %s was closed", self._winid)
 
   local ok, result = pcall(api.nvim_del_augroup_by_id, self.window_augroup)
@@ -268,7 +273,7 @@ function Panel:on_win_closed() end
 
 function Panel:restore()
   if self._winid and self._bufnr then
-    log.info("restoring canvas buffer to buffer %s", self._bufnr)
+    Logger.get("panels").info("restoring canvas buffer to buffer %s", self._bufnr)
     win_set_buf_noautocmd(self._winid, self._bufnr)
   end
 end
@@ -300,8 +305,8 @@ end
 ---@param height integer
 function Panel:set_height(height)
   if self._winid then
+    Logger.get("panels").debug("setting window height to %q for panel %q", height, self.TYPE)
     api.nvim_win_set_height(self._winid, height)
-    log.debug("setting window height to %q for panel %q", height, self.TYPE)
   end
 end
 
@@ -312,7 +317,7 @@ function Panel:close()
     if not ok then
       -- this only happens if the panel is the last window,
       -- meaning that it's the current window and ok to force close
-      log.info("last window, force closing")
+      Logger.get("panels").info("last window, force closing")
       vim.cmd.quit({ bang = true, mods = { silent = true } })
     end
   end
@@ -375,7 +380,7 @@ function Panel:set_content(lines, highlights)
     for _, highlight in ipairs(line_highlights) do
       -- guard against bugged out renderer highlights, which will cause an avalanche of errors...
       if not highlight.name then
-        log.error("missing highlight name for line=%s, hl=%s", tostring(lines[linenr]), highlight)
+        Logger.get("panels").error("missing highlight name for line=%s, hl=%s", tostring(lines[linenr]), highlight)
       else
         api.nvim_buf_add_highlight(self._bufnr, hl.NS, highlight.name, linenr - 1, highlight.from, highlight.to)
       end

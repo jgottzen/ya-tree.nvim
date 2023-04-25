@@ -1,4 +1,6 @@
-local log = require("ya-tree.log").get("actions")
+local lazy = require("ya-tree.lazy")
+
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 
 local M = {
   ---@type table<Yat.Actions.Name, Yat.Action>
@@ -30,7 +32,7 @@ function M.define_action(name, fn, desc, modes, node_independent, user_defined)
     user_defined = user_defined == true,
   }
   if M.actions[name] then
-    log.info("overriding action %q with %s", name, action)
+    Logger.get("actions").info("overriding action %q with %s", name, action)
   end
   M.actions[name] = action
 end
@@ -163,6 +165,7 @@ local function define_actions(config)
     true
   )
 
+  local log = Logger.get("actions")
   for name, action in pairs(config.actions) do
     log.debug("defining user action %q", name)
     M.define_action(name, action.fn, action.desc, action.modes, action.node_independent, true)

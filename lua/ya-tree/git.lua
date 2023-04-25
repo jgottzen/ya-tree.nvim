@@ -1,18 +1,22 @@
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local event = require("ya-tree.events.event")
 local events = require("ya-tree.events")
-local fs = require("ya-tree.fs")
-local job = require("ya-tree.job")
-local log = require("ya-tree.log").get("git")
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local job = lazy.require("ya-tree.job") ---@module "ya-tree.job"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local meta = require("ya-tree.meta")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
-local void = require("ya-tree.async").void
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local os_sep = Path.path.sep
 
 local uv = vim.loop
 
 local M = {
+  ---@private
   ---@type table<string, Yat.Git.Repo>
   repos = {},
 }
@@ -58,7 +62,7 @@ local function get_repo_info(path, cmd)
   }
 
   local result = command(args, false, cmd)
-  scheduler()
+  async.scheduler()
   if #result == 0 then
     return nil, "", ""
   end
@@ -170,9 +174,8 @@ function Repo:init(toplevel, git_dir, branch, is_yadm)
 
   self:_get_remote_url()
 
-  local config = require("ya-tree.config").config
-  if config.git.watch_git_dir then
-    self:_add_git_watcher(config)
+  if Config.config.git.watch_git_dir then
+    self:_add_git_watcher(Config.config)
   end
 end
 
@@ -184,20 +187,20 @@ end
 ---@private
 ---@param config Yat.Config
 function Repo:_add_git_watcher(config)
+  local log = Logger.get("git")
   if not self._git_dir_watcher then
     ---@param err string
     ---@type fun(err?: string)
-    local fs_poll_callback = void(function(err)
+    local fs_poll_callback = async.void(function(err)
       log.debug("fs_poll for %s", tostring(self))
       if err then
         log.error("git dir watcher for %q encountered an error: %s", self._git_dir, err)
         return
       end
 
-      local event = require("ya-tree.events.event").git
       local fs_changes = self._status:refresh({ ignored = true })
-      scheduler()
-      events.fire_git_event(event.DOT_GIT_DIR_CHANGED, self, fs_changes)
+      async.scheduler()
+      events.fire_git_event(event.git.DOT_GIT_DIR_CHANGED, self, fs_changes)
     end)
 
     local result, message
@@ -227,7 +230,7 @@ function Repo:_remove_git_watcher()
     self._git_dir_watcher:close()
     self._git_dir_watcher = nil
     if vim.v.exiting == vim.NIL then
-      log.debug("stopping fs_poll for repo %s", tostring(self))
+      Logger.get("git").debug("stopping fs_poll for repo %s", tostring(self))
     end
   end
 end
@@ -262,10 +265,10 @@ function Repo:command(args, null_terminated)
   -- always run in the the toplevel directory, so all paths are relative the root,
   -- this way we can just concatenate the paths returned by git with the toplevel
   local results, err = command({ "--git-dir=" .. self._git_dir, "-C", self.toplevel, unpack(args) }, null_terminated)
-  scheduler()
+  async.scheduler()
   if err then
     local message = vim.split(err, "\n", { plain = true, trimempty = true })
-    log.error("error running git command, %s", table.concat(message, " "))
+    Logger.get("git").error("error running git command, %s", table.concat(message, " "))
     return {}, err
   end
   return results
@@ -384,6 +387,7 @@ do
   ---@param path string
   ---@return string|nil status
   function GitStatus:refresh_file_path(path)
+    local log = Logger.get("git")
     if fs.is_directory(path) then
       log.error("only individual paths are supported by this method!")
       return
@@ -443,7 +447,7 @@ do
       end
     end
 
-    scheduler()
+    async.scheduler()
     return self:of(path, false)
   end
 
@@ -452,15 +456,18 @@ do
   ---  - {opts.ignored?} `boolean`
   ---@return boolean fs_changes
   function GitStatus:refresh(opts)
+    local log = Logger.get("git")
     local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
       log.debug("refresh_status status called within 1 second, returning")
       return false
     end
     opts = opts or {}
-    local config = require("ya-tree.config").config
-    local args =
-      create_status_arguments({ header = true, ignored = opts.ignored, all_untracked = config.git.all_untracked or self.repo._is_yadm })
+    local args = create_status_arguments({
+      header = true,
+      ignored = opts.ignored,
+      all_untracked = Config.config.git.all_untracked or self.repo._is_yadm,
+    })
     log.debug("git status for %q", self.repo.toplevel)
     local results, err = self.repo:command(args, true)
     if err then
@@ -511,7 +518,7 @@ do
     -- that signify a fs change, comparing the number of entries gives it a decent chance
     fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self.status._changed_entries)
 
-    scheduler()
+    async.scheduler()
     return fs_changes
   end
 end
@@ -695,6 +702,7 @@ end
 ---@param path string
 ---@return Yat.Git.Repo|nil repo a `Repo` object or `nil` if the path is not in a git repo.
 function M.create_repo(path)
+  local log = Logger.get("git")
   -- check if it's already cached
   local cached = M.repos[path]
   if cached then
@@ -702,8 +710,7 @@ function M.create_repo(path)
     return cached
   end
 
-  local config = require("ya-tree.config").config
-  if not config.git.enable then
+  if not Config.config.git.enable then
     return nil
   end
 
@@ -713,12 +720,12 @@ function M.create_repo(path)
 
   local toplevel, git_dir, branch = get_repo_info(path)
   local is_yadm = false
-  if not toplevel and config.git.yadm.enable then
+  if not toplevel and Config.config.git.yadm.enable then
     if vim.startswith(path, Path.path.home) and #command({ "ls-files", path }, false, "yadm") ~= 0 then
       toplevel, git_dir, branch = get_repo_info(path, "yadm")
       is_yadm = toplevel ~= nil
     end
-    scheduler()
+    async.scheduler()
   end
 
   if not toplevel then
@@ -742,7 +749,7 @@ end
 function M.remove_repo(repo)
   repo:_remove_git_watcher()
   M.repos[repo.toplevel] = nil
-  log.debug("removed repo %s from cache", tostring(repo))
+  Logger.get("git").debug("removed repo %s from cache", tostring(repo))
 end
 
 ---@param path string
@@ -767,8 +774,7 @@ function M.get_repo_for_path(path)
   end
 end
 
-local event = require("ya-tree.events.event").autocmd
-events.on_autocmd_event(event.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", function()
+events.on_autocmd_event(event.autocmd.LEAVE_PRE, "YA_TREE_GIT_CLEANUP", function()
   for _, repo in pairs(M.repos) do
     repo:_remove_git_watcher()
   end

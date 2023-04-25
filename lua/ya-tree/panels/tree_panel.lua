@@ -1,10 +1,13 @@
-local job = require("ya-tree.job")
-local log = require("ya-tree.log").get("panels")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
+local job = lazy.require("ya-tree.job") ---@module "ya-tree.job"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Panel = require("ya-tree.panels.panel")
-local scheduler = require("ya-tree.async").scheduler
-local ui = require("ya-tree.ui")
-local utils = require("ya-tree.utils")
-local void = require("ya-tree.async").void
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 local fn = vim.fn
@@ -94,8 +97,7 @@ end
 
 ---@protected
 function TreePanel:register_buffer_modified_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_MODIFIED
-  self:register_autocmd_event(event, function(bufnr, file, match)
+  self:register_autocmd_event(event.autocmd.BUFFER_MODIFIED, function(bufnr, file, match)
     self:on_buffer_modified(bufnr, file, match)
   end)
 end
@@ -121,8 +123,7 @@ end
 
 ---@protected
 function TreePanel:register_buffer_saved_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_SAVED
-  self:register_autocmd_event(event, function(bufnr, file, match)
+  self:register_autocmd_event(event.autocmd.BUFFER_SAVED, function(bufnr, file, match)
     self:on_buffer_saved(bufnr, file, match)
   end)
 end
@@ -137,14 +138,14 @@ end
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_buffer_saved(bufnr, file, match)
   if self.root:is_ancestor_of(file) then
-    log.debug("changed file %q is in panel %s", file, tostring(self))
+    Logger.get("panels").debug("changed file %q is in panel %s", file, tostring(self))
     local parent = self.root:get_node(file)
     if parent then
       parent:refresh()
       local node = parent:get_node(file)
       if node then
         node.modified = false
-        scheduler()
+        async.scheduler()
         self:draw()
       end
     end
@@ -153,8 +154,7 @@ end
 
 ---@protected
 function TreePanel:register_buffer_enter_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_ENTER
-  self:register_autocmd_event(event, function(bufnr, file, match)
+  self:register_autocmd_event(event.autocmd.BUFFER_ENTER, function(bufnr, file, match)
     self:on_buffer_enter(bufnr, file, match)
   end)
 end
@@ -168,7 +168,7 @@ end
 ---@param match string
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_buffer_enter(bufnr, file, match)
-  if self:is_open() and require("ya-tree.config").config.follow_focused_file then
+  if self:is_open() and Config.config.follow_focused_file then
     self:expand_to_buffer(bufnr, file)
   end
 end
@@ -183,11 +183,11 @@ function TreePanel:expand_to_buffer(bufnr, bufname)
   end
 
   if self.root:is_ancestor_of(bufname) or self.root.path == bufname then
-    log.debug("focusing on node %q", bufname)
+    Logger.get("panels").debug("focusing on node %q", bufname)
     local node = self.root:expand({ to = bufname })
     if node then
       -- we need to allow the event loop to catch up when we enter a buffer after one was closed
-      scheduler()
+      async.scheduler()
       self:draw(node)
     end
   end
@@ -195,19 +195,17 @@ end
 
 ---@protected
 function TreePanel:register_dir_changed_event()
-  local config = require("ya-tree.config").config
-  if config.cwd.follow then
-    local event = require("ya-tree.events.event").autocmd.DIR_CHANGED
+  if Config.config.cwd.follow then
     ---@param scope "window"|"tabpage"|"global"|"auto"
     ---@param new_cwd string
-    self:register_autocmd_event(event, function(_, new_cwd, scope)
+    self:register_autocmd_event(event.autocmd.DIR_CHANGED, function(_, new_cwd, scope)
       -- currently not available in the table passed to the callback
       if not vim.v.event.changed_window then
         local current_tabpage = api.nvim_get_current_tabpage()
         -- if the autocmd was fired because of a switch to a tab or window with a different
         -- cwd than the previous tab/window, it can safely be ignored.
         if scope == "global" or (scope == "tabpage" and current_tabpage == self.tabpage) then
-          log.debug("scope=%s, cwd=%s", scope, new_cwd)
+          Logger.get("panels").debug("scope=%s, cwd=%s", scope, new_cwd)
           self:on_cwd_changed(new_cwd)
         end
       end
@@ -217,10 +215,8 @@ end
 
 ---@protected
 function TreePanel:register_dot_git_dir_changed_event()
-  local config = require("ya-tree.config").config
-  if config.git.enable then
-    local event = require("ya-tree.events.event").git.DOT_GIT_DIR_CHANGED
-    self:register_git_event(event, function(repo, fs_changes)
+  if Config.config.git.enable then
+    self:register_git_event(event.git.DOT_GIT_DIR_CHANGED, function(repo, fs_changes)
       self:on_dot_git_dir_changed(repo, fs_changes)
     end)
   end
@@ -235,17 +231,15 @@ end
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_dot_git_dir_changed(repo, fs_changes)
   if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or vim.startswith(self.root.path, repo.toplevel)) then
-    log.debug("git repo %s changed", tostring(repo))
+    Logger.get("panels").debug("git repo %s changed", tostring(repo))
     self:draw(self:get_current_node())
   end
 end
 
 ---@protected
 function TreePanel:register_diagnostics_changed_event()
-  local config = require("ya-tree.config").config
-  if config.diagnostics.enable then
-    local event = require("ya-tree.events.event").ya_tree.DIAGNOSTICS_CHANGED
-    self:register_ya_tree_event(event, function(severity_changed)
+  if Config.config.diagnostics.enable then
+    self:register_ya_tree_event(event.ya_tree.DIAGNOSTICS_CHANGED, function(severity_changed)
       self:on_diagnostics_event(severity_changed)
     end)
   end
@@ -265,10 +259,8 @@ end
 
 ---@protected
 function TreePanel:register_fs_changed_event()
-  local config = require("ya-tree.config").config
-  if config.dir_watcher.enable then
-    local event = require("ya-tree.events.event").ya_tree.FS_CHANGED
-    self:register_ya_tree_event(event, function(dir, filename)
+  if Config.config.dir_watcher.enable then
+    self:register_ya_tree_event(event.ya_tree.FS_CHANGED, function(dir, filename)
       self:on_fs_changed_event(dir, filename)
     end)
   end
@@ -304,10 +296,9 @@ do
 
   ---@param bufnr integer
   function TreePanel:complete_func_loaded_nodes(bufnr)
-    local config = require("ya-tree.config").config
     paths = {}
     self.root:walk(function(node)
-      if not node:is_container() and not node:is_hidden(config) then
+      if not node:is_container() and not node:is_hidden(Config.config) then
         paths[#paths + 1] = node.path:sub(#self.root.path + 2)
       end
     end)
@@ -360,9 +351,10 @@ function TreePanel:search_for_node(node)
     return
   end
 
+  local log = Logger.get("panels")
   local path = ui.nui_input({ title = " Path: ", completion = completion })
   if path then
-    local cmd, args = utils.build_search_arguments(path, search_root, false)
+    local cmd, args = utils.build_search_arguments(path, search_root, false, Config.config)
     if not cmd then
       return
     end
@@ -378,7 +370,7 @@ function TreePanel:search_for_node(node)
           first = first:sub(1, -2)
         end
         local result_node = self.root:expand({ to = first })
-        scheduler()
+        async.scheduler()
         self:draw(result_node)
       else
         utils.notify(string.format("%q cannot be found in the tree", path))
@@ -391,6 +383,7 @@ end
 
 ---@async
 function TreePanel:refresh()
+  local log = Logger.get("panels")
   if self.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return
@@ -413,7 +406,7 @@ function TreePanel:create_keymap_function(action)
       if node then
         self.current_node = node
       end
-      void(action.fn)(self, node)
+      async.void(action.fn)(self, node)
     end
   end
 end
@@ -558,17 +551,15 @@ end
 
 ---@param node Yat.Node
 function TreePanel:focus_node(node)
-  local config = require("ya-tree.config").config
-
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
-  while node and node:is_hidden(config) and node.parent do
+  while node and node:is_hidden(Config.config) and node.parent do
     node = node.parent
   end
   if node then
     local row = self.path_lookup[node.path]
     if row then
-      log.debug("node %s is at row %s", node.path, row)
+      Logger.get("panels").debug("node %s is at row %s", node.path, row)
       self:focus_row(row)
     end
   end
@@ -630,6 +621,7 @@ local function render_node(node, context, renderers)
   ---@type string[], Yat.Ui.HighlightGroup[]
   local content, highlights, pos = {}, {}, 0
 
+  local log = Logger.get("panels")
   for _, renderer in ipairs(renderers) do
     local results = renderer.fn(node, context, renderer.config)
     if results then
@@ -651,9 +643,8 @@ end
 ---@return string[] lines
 ---@return Yat.Ui.HighlightGroup[][] highlights
 function TreePanel:render()
-  local config = require("ya-tree.config").config
   ---@type string[], Yat.Ui.HighlightGroup[][], Yat.Ui.RenderContext
-  local lines, highlights, context, linenr = {}, {}, { panel_type = self.TYPE, config = config, indent_markers = {} }, 1
+  local lines, highlights, context, linenr = {}, {}, { panel_type = self.TYPE, config = Config.config, indent_markers = {} }, 1
   local container_renderers, leaf_renderers = self.renderers.container, self.renderers.leaf
   self.path_lookup = {}
 
@@ -672,7 +663,7 @@ function TreePanel:render()
     if has_children and node.expanded then
       ---@param child Yat.Node
       local children = vim.tbl_filter(function(child)
-        return not child:is_hidden(config)
+        return not child:is_hidden(Config.config)
       end, node:children()) --[=[@as Yat.Node[]]=]
       local nr_of_children = #children
       for i, child in ipairs(children) do

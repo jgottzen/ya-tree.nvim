@@ -1,11 +1,14 @@
-local fs = require("ya-tree.fs")
-local job = require("ya-tree.job")
-local log = require("ya-tree.log").get("actions")
-local node_actions = require("ya-tree.actions.nodes")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local ui = require("ya-tree.ui")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local job = lazy.require("ya-tree.job") ---@module "ya-tree.job"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local node_actions = lazy.require("ya-tree.actions.nodes") ---@module "ya-tree.actions.nodes"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 local fn = vim.fn
@@ -80,7 +83,7 @@ local function preview(panel, node, focus)
     if not focus then
       -- a scheduler call is required here for the event loop to to update the ui state
       -- otherwise the focus will happen before the buffer is opened, and the buffer will keep the focus
-      scheduler()
+      async.scheduler()
       panel:focus()
     end
   end
@@ -113,8 +116,7 @@ end
 ---@param panel Yat.Panel.Tree
 ---@param new_root string
 local function change_root(panel, new_root)
-  local config = require("ya-tree.config").config
-  if config.cwd.update_from_panel then
+  if Config.config.cwd.update_from_panel then
     vim.cmd.tcd(fn.fnameescape(new_root))
   else
     panel.sidebar:change_cwd(new_root)
@@ -128,7 +130,7 @@ function M.cd_to(panel, node)
   if not node:is_directory() then
     node = node.parent --[[@as Yat.Node.FsBasedNode]]
   end
-  log.debug("cd to %q", node.path)
+  Logger.get("actions").debug("cd to %q", node.path)
   change_root(panel, node.path)
 end
 
@@ -141,7 +143,7 @@ function M.cd_up(panel, _)
     return
   end
   local new_cwd = root.parent and root.parent.path or Path:new(root.path):parent().filename
-  log.debug("changing root directory one level up from %q to %q", panel.root.path, new_cwd)
+  Logger.get("actions").debug("changing root directory one level up from %q to %q", panel.root.path, new_cwd)
 
   change_root(panel, new_cwd)
 end
@@ -149,9 +151,9 @@ end
 ---@async
 ---@param panel Yat.Panel
 function M.toggle_filter(panel)
-  local config = require("ya-tree.config").config
+  local config = Config.config
   config.filters.enable = not config.filters.enable
-  log.debug("toggling filter to %s", config.filters.enable)
+  Logger.get("actions").debug("toggling filter to %s", config.filters.enable)
   panel.sidebar:draw()
 end
 
@@ -274,14 +276,12 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
     end
   end
 
-  local config = require("ya-tree.config").config
-
   ---@type Yat.Node.Filesystem?
   local node_to_focus
   local first_node = nodes[1]
   if first_node then
     for _, node in first_node.parent:iterate_children({ from = first_node, reverse = true }) do
-      if node and not node:is_hidden(config) then
+      if node and not node:is_hidden(Config.config) then
         node_to_focus = node
         break
       end
@@ -290,7 +290,7 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
       local last_node = nodes[#nodes]
       if last_node then
         for _, node in last_node.parent:iterate_children({ from = last_node }) do
-          if node and not node:is_hidden(config) then
+          if node and not node:is_hidden(Config.config) then
             node_to_focus = node
             break
           end
@@ -334,7 +334,7 @@ end
 ---@param panel Yat.Panel.Files
 ---@param _ Yat.Node.Filesystem
 function M.trash(panel, _)
-  local trash = require("ya-tree.config").config.trash
+  local trash = Config.config.trash
   if not trash.enable then
     return
   end
@@ -351,6 +351,7 @@ function M.trash(panel, _)
 
   if #files > 0 then
     panel.focus_path_on_fs_event = node_to_focus and node_to_focus.path
+    local log = Logger.get("actions")
     log.debug("trashing files %s", files)
     local code, _, stderr = job.async_run({ cmd = "trash", args = files })
     if code ~= 0 then
@@ -365,7 +366,7 @@ end
 ---@param _ Yat.Panel.Tree
 ---@param node Yat.Node.FsBasedNode
 function M.system_open(_, node)
-  local config = require("ya-tree.config").config
+  local config = Config.config
   if not config.system_open.cmd then
     utils.warn("No sytem open command set, or OS cannot be recognized!")
     return
@@ -375,7 +376,7 @@ function M.system_open(_, node)
   table.insert(args, node.absolute_link_to or node.path)
   local code, _, stderr = job.async_run({ cmd = config.system_open.cmd, args = args, detached = true })
   if code ~= 0 then
-    log.error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)
+    Logger.get("actions").error("%q with args %s failed with code %s and message %s", config.system_open.cmd, args, code, stderr)
     utils.warn(string.format("%q returned error code %q and message:\n\n%s", config.system_open.cmd, code, stderr))
   end
 end

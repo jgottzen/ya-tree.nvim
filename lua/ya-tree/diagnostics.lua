@@ -1,6 +1,10 @@
-local event = require("ya-tree.events.event").ya_tree
-local events = require("ya-tree.events")
-local Path = require("ya-tree.path")
+local lazy = require("ya-tree.lazy")
+
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local debounce = lazy.require("ya-tree.debounce") ---@module "ya-tree.debounce"
+local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
+local events = lazy.require("ya-tree.events") ---@module "ya-tree.events"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 local api = vim.api
 
@@ -49,8 +53,7 @@ local function on_diagnostics_changed(diagnostics)
     end
   end
 
-  local config = require("ya-tree.config").config
-  if config.diagnostics.propagate_to_parents then
+  if Config.config.diagnostics.propagate_to_parents then
     for path, severity in pairs(new_severity_diagnostics) do
       for _, parent in next, Path:new(path):parents() do
         local parent_severity = new_severity_diagnostics[parent]
@@ -85,18 +88,17 @@ local function on_diagnostics_changed(diagnostics)
     severity_changed = new_severity_count ~= previous_severity_count
   end
 
-  events.fire_yatree_event(event.DIAGNOSTICS_CHANGED, severity_changed)
+  events.fire_yatree_event(event.ya_tree.DIAGNOSTICS_CHANGED, severity_changed)
 end
 
 ---@param config Yat.Config
 function M.setup(config)
   if config.diagnostics.enable then
-    local debounced_trailing = require("ya-tree.debounce").debounce_trailing
     local group = api.nvim_create_augroup("YaTreeDiagnostics", { clear = true })
     api.nvim_create_autocmd("DiagnosticChanged", {
       group = group,
       pattern = "*",
-      callback = debounced_trailing(function(args)
+      callback = debounce.debounce_trailing(function(args)
         on_diagnostics_changed(args.data.diagnostics)
       end, config.diagnostics.debounce_time),
       desc = "Diagnostics handler",

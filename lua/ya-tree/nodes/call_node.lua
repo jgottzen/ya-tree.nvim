@@ -1,7 +1,9 @@
-local diagnostics = require("ya-tree.diagnostics")
-local log = require("ya-tree.log").get("nodes")
-local lsp = require("ya-tree.lsp")
+local lazy = require("ya-tree.lazy")
+
+local diagnostics = lazy.require("ya-tree.diagnostics") ---@module "ya-tree.diagnostics"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Node = require("ya-tree.nodes.node")
+local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
 
 ---@alias Yat.CallHierarchy.Direction "incoming"|"outgoing"
 
@@ -121,7 +123,7 @@ function CallHierarchyNode:refresh(opts)
   if self.parent then
     return self.parent:refresh(opts)
   end
-  log.debug("refreshing %q, bufnr=%s", self.name, self.bufnr)
+  Logger.get("nodes").debug("refreshing %q, bufnr=%s", self.name, self.bufnr)
 
   self._children = {}
   local client_id, call_hierarchy

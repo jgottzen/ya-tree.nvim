@@ -1,10 +1,12 @@
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
 local bit = require("bit")
-local fs = require("ya-tree.fs")
-local hl = require("ya-tree.ui.highlights")
-local nui = require("ya-tree.ui.nui")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
+local nui = lazy.require("ya-tree.ui.nui") ---@module "ya-tree.ui.nui"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 
@@ -129,7 +131,7 @@ end
 ---@return Yat.Ui.HighlightGroup[][]|nil highlights
 local function create_fs_info(node)
   local stat = node:fs_stat()
-  scheduler()
+  async.scheduler()
   if not stat then
     utils.warn(string.format("Could not read filesystem data for %q", node.path))
     return

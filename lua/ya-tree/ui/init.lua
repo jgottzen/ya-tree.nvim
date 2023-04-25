@@ -1,4 +1,7 @@
-local nui = require("ya-tree.ui.nui")
+local lazy = require("ya-tree.lazy")
+
+local nui = lazy.require("ya-tree.ui.nui") ---@module "ya-tree.ui.nui"
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
 local wrap = require("ya-tree.async").wrap
 
 local api = vim.api
@@ -64,7 +67,6 @@ M.select = wrap(vim.ui.select, 3, true)
 
 ---@param config Yat.Config
 function M.setup(config)
-  local hl = require("ya-tree.ui.highlights")
   hl.setup()
   require("ya-tree.ui.renderers").setup(config)
 

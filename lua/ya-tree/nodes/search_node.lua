@@ -1,9 +1,12 @@
-local fs = require("ya-tree.fs")
+local lazy = require("ya-tree.lazy")
+
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
-local git = require("ya-tree.git")
-local job = require("ya-tree.job")
-local log = require("ya-tree.log").get("nodes")
-local utils = require("ya-tree.utils")
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local job = lazy.require("ya-tree.job") ---@module "ya-tree.job"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.Search : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Search, fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
@@ -44,7 +47,7 @@ function SearchNode:search(term)
   end
 
   if term then
-    local cmd, args = utils.build_search_arguments(term, self.path, true)
+    local cmd, args = utils.build_search_arguments(term, self.path, true, Config.config)
     if not cmd then
       return nil, "No suitable search command found!"
     end
@@ -57,6 +60,7 @@ function SearchNode:search(term)
   end
   local cmd, args = self._search_options.cmd, self._search_options.args
 
+  local log = Logger.get("nodes")
   self._children = {}
   self.empty = true
   local code, stdout, stderr = job.async_run({ cmd = cmd, args = args, cwd = self.path })

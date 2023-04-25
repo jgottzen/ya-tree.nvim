@@ -1,6 +1,7 @@
-local events = require("ya-tree.events.event")
-local log = require("ya-tree.log").get("events")
-local void = require("ya-tree.async").void
+local lazy = require("ya-tree.lazy")
+
+local a = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 
 local api = vim.api
 
@@ -56,6 +57,8 @@ do
   ---@type table<string, Yat.Events.Handler.YaTree[]>
   M._yatree_event_listeners = setmetatable({}, mt)
 
+  local events = require("ya-tree.events.event")
+
   for _, ns in pairs(events) do
     for name, event in pairs(ns) do
       EVENT_NAMES[event] = name
@@ -100,7 +103,7 @@ do
     local handlers = M._autocmd_event_listeners[event_name]
     if #handlers > 0 then
       if vim.v.exiting == vim.NIL then
-        log.trace("calling handlers for autocmd %q", input.event)
+        Logger.get("events").trace("calling handlers for autocmd %q", input.event)
       end
       for _, handler in ipairs(handlers) do
         handler.callback(input.buf, input.file, input.match)
@@ -111,6 +114,7 @@ do
   ---@param event Yat.Events.AutocmdEvent
   ---@param event_name string
   local function _create_autcmd(event, event_name)
+    local log = Logger.get("events")
     local autocmd = EVENT_TO_AUTOCMDS[event]
     local id = M._autocmd_ids_and_event_names[event_name]
     if id then
@@ -146,6 +150,7 @@ end
 ---@param id string
 ---@param callback fun(...)
 local function add_listener(event_name, listeners, id, callback)
+  local log = Logger.get("events")
   for i = #listeners, 1, -1 do
     if listeners[i].id == id then
       log.warn("event %q already has a handler with id %q registered, removing old handler from list", event_name, id)
@@ -170,13 +175,14 @@ function M.on_autocmd_event(event, id, async, callback)
   if not M._autocmd_ids_and_event_names[event_name] then
     create_autocmd(event, event_name)
   end
-  add_listener(event_name, M._autocmd_event_listeners[event_name], id, async and void(callback) or callback)
+  add_listener(event_name, M._autocmd_event_listeners[event_name], id, async and a.void(callback) or callback)
 end
 
 ---@param event_name string
 ---@param listeners { id: string, handler: fun(...) }[]
 ---@param id string
 local function remove_listener(event_name, listeners, id)
+  local log = Logger.get("events")
   for i = #listeners, 1, -1 do
     if listeners[i].id == id then
       log.debug("removing event handler %q for event %q", id, event_name)
@@ -223,7 +229,7 @@ end
 function M.fire_git_event(event, repo, fs_changes)
   local event_name = EVENT_NAMES[event]
   if vim.v.exiting == vim.NIL then
-    log.trace("calling handlers for event %q", event_name)
+    Logger.get("events").trace("calling handlers for event %q", event_name)
   end
   for _, handler in pairs(M._git_event_listeners[event_name]) do
     handler.callback(repo, fs_changes)
@@ -241,7 +247,7 @@ function M.on_yatree_event(event, id, async, callback)
     async = false
   end
   local event_name = EVENT_NAMES[event]
-  add_listener(event_name, M._yatree_event_listeners[event_name], id, async and void(callback) or callback)
+  add_listener(event_name, M._yatree_event_listeners[event_name], id, async and a.void(callback) or callback)
 end
 
 ---@param event Yat.Events.YaTreeEvent
@@ -256,7 +262,7 @@ end
 function M.fire_yatree_event(event, ...)
   local event_name = EVENT_NAMES[event]
   if vim.v.exiting == vim.NIL then
-    log.debug("calling handlers for event %q", event_name)
+    Logger.get("events").debug("calling handlers for event %q", event_name)
   end
   for _, handler in pairs(M._yatree_event_listeners[event_name]) do
     handler.callback(...)

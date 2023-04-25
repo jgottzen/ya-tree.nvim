@@ -1,7 +1,9 @@
-local fs = require("ya-tree.fs")
-local log = require("ya-tree.log").get("actions")
-local ui = require("ya-tree.ui")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local fn = vim.fn
 
@@ -102,7 +104,7 @@ function M.paste_nodes(panel, node)
               skip = true
             else
               destination = utils.join_path(dir, name)
-              log.debug("new destination=%q", destination)
+              Logger.get("actions").debug("new destination=%q", destination)
             end
           else
             utils.notify(string.format("Skipping item %q.", node_to_paste.path))

@@ -1,5 +1,7 @@
-local log = require("ya-tree.log").get("job")
-local wrap = require("ya-tree.async").wrap
+local lazy = require("ya-tree.lazy")
+
+local async = require("ya-tree.async")
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 
 local uv = vim.loop
 
@@ -13,6 +15,7 @@ local M = {}
 ---@param on_complete fun(code: integer, stdout?: string, stderr?: string)
 ---@return integer|nil pid
 function M.run(opts, on_complete)
+  local log = Logger.get("job")
   local state = {
     stdout = uv.new_pipe(false),
     stderr = uv.new_pipe(false),
@@ -94,7 +97,7 @@ end
 ---  - {opts.args} `string[]`
 ---  - {opts.cwd?} `string`
 ---  - {opts.detached?} `boolean`
-M.async_run = wrap(function(opts, callback)
+M.async_run = async.wrap(function(opts, callback)
   M.run(opts, function(code, stdout, stderr)
     callback(code, stdout, stderr)
   end)

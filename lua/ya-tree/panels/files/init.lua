@@ -1,5 +1,11 @@
-local completion = require("ya-tree.completion")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local builtin = lazy.require("ya-tree.actions.builtin") ---@module "ya-tree.actions.builtin"
+local completion = lazy.require("ya-tree.completion") ---@module "ya-tree.completion"
+local FilesPanel = lazy.require("ya-tree.panels.files.panel") ---@module "ya-tree.panels.files.panel"
+local tree_actions = lazy.require("ya-tree.panels.tree_actions") ---@module "ya-tree.panels.tree_actions"
+local tree_renderers = lazy.require("ya-tree.panels.tree_renderers") ---@module "ya-tree.panels.tree_renderers"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local fn = vim.fn
 
@@ -58,12 +64,9 @@ local M = {
 ---@param config Yat.Config
 ---@return boolean success
 function M.setup(config)
-  local tree_renderers = require("ya-tree.panels.tree_renderers")
-  local config_renderers = config.panels.files.renderers
-  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("files", config_renderers.directory, config_renderers.file)
+  local renderers = config.panels.files.renderers
+  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("files", renderers.directory, renderers.file)
 
-  local tree_actions = require("ya-tree.panels.tree_actions")
-  local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.Files.SupportedActions[]
   local supported_actions = utils.tbl_unique({
     builtin.general.system_open,
@@ -126,7 +129,7 @@ end
 ---@param config Yat.Config
 ---@return Yat.Panel.Files
 function M.create_panel(sidebar, config)
-  return require("ya-tree.panels.files.panel"):new(sidebar, config.panels.files, M.keymap, M.renderers)
+  return FilesPanel:new(sidebar, config.panels.files, M.keymap, M.renderers)
 end
 
 ---@param current string

@@ -1,5 +1,9 @@
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local M = {}
 
@@ -30,7 +34,7 @@ end
 ---@param panel Yat.Panel
 ---@param node? Yat.Node
 function M.open_git_status_panel(panel, node)
-  if not require("ya-tree.config").config.git.enable then
+  if not Config.config.git.enable then
     utils.notify("Git is not enabled.")
     return
   end
@@ -48,7 +52,7 @@ function M.open_git_status_panel(panel, node)
         repo = node--[[@as Yat.Node.FsBasedNode]].repo
       end
       if not repo or repo:is_yadm() then
-        repo = require("ya-tree.git").create_repo(node.path)
+        repo = git.create_repo(node.path)
       end
       if repo then
         panel.sidebar:set_git_repo_for_path(node.path, repo)
@@ -78,7 +82,7 @@ function M.goto_node_in_files_panel(panel, node)
   if files_panel then
     files_panel:close_search(false)
     local target_node = files_panel.root:expand({ to = node.path })
-    scheduler()
+    async.scheduler()
     files_panel:draw(target_node)
   end
 end

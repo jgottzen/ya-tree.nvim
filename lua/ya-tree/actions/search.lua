@@ -1,8 +1,9 @@
-local nui = require("ya-tree.ui.nui")
-local scheduler = require("ya-tree.async").scheduler
-local ui = require("ya-tree.ui")
-local utils = require("ya-tree.utils")
-local void = require("ya-tree.async").void
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local nui = lazy.require("ya-tree.ui.nui") ---@module "ya-tree.ui.nui"
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local uv = vim.loop
 
@@ -45,7 +46,7 @@ function M.search_interactively(panel, node)
   ---@param term string
   local function delayed_search(ms, term)
     timer:start(ms, 0, function()
-      void(search)(panel, node.path, term, false)
+      async.void(search)(panel, node.path, term, false)
     end)
   end
 
@@ -53,7 +54,7 @@ function M.search_interactively(panel, node)
   local height, width = panel:size()
   nui.input({ title = "Search:", relative = "win", row = height - 2, col = 0, width = width - 2 }, {
     ---@param text string
-    on_change = void(function(text)
+    on_change = async.void(function(text)
       if text == term or text == nil then
         return
       elseif #text == 0 and #term > 0 then
@@ -77,18 +78,18 @@ function M.search_interactively(panel, node)
       end
     end),
     ---@param text string
-    on_submit = void(function(text)
+    on_submit = async.void(function(text)
       if text ~= term or timer:is_active() then
         timer:stop()
         search(panel, node.path, text, true)
       else
         -- let the ui catch up, so that the cursor doens't 'jump' one character left...
-        scheduler()
+        async.scheduler()
         panel:focus_node(panel.current_node)
       end
       timer:close()
     end),
-    on_close = void(function()
+    on_close = async.void(function()
       timer:stop()
       timer:close()
       panel:close_search(true)

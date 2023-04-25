@@ -1,5 +1,8 @@
-local log = require("ya-tree.log").get("panels")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local renderers = lazy.require("ya-tree.ui.renderers") ---@module "ya-tree.ui.renderers"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local M = {}
 
@@ -14,7 +17,7 @@ local M = {}
 ---@return Yat.Panel.Tree.Ui.Renderer[] container_renderers
 ---@return Yat.Panel.Tree.Ui.Renderer[] leaf_renderers
 function M.create_renderers(panel_type, container_renderers, leaf_renderers)
-  local renderers = require("ya-tree.ui.renderers")
+  local log = Logger.get("panels")
 
   ---@param renderer_type string
   ---@param tree_renderer Yat.Config.Panels.TreeRenderer
@@ -29,7 +32,7 @@ function M.create_renderers(panel_type, container_renderers, leaf_renderers)
         if tree_renderer.override then
           for k, v in pairs(tree_renderer.override) do
             if type(k) == "string" then
-              log.debug("overriding tree_type %s %q renderer %q config value for %q with %s", panel_type, renderer_type, renderer.name, k, v)
+              log.debug("overriding %q panel %q renderer %q config value for %q with %s", panel_type, renderer_type, renderer.name, k, v)
               renderer.config[k] = v
             end
           end

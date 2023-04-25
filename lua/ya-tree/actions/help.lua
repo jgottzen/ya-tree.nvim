@@ -1,6 +1,9 @@
-local hl = require("ya-tree.ui.highlights")
-local nui = require("ya-tree.ui.nui")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
+local nui = lazy.require("ya-tree.ui.nui") ---@module "ya-tree.ui.nui"
+local Panels = lazy.require("ya-tree.panels") ---@module "ya-tree.panels"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 
@@ -167,7 +170,7 @@ end
 ---@async
 ---@param panel Yat.Panel
 function M.open_help(panel)
-  local keymaps = require("ya-tree.panels").keymaps()
+  local keymaps = Panels.keymaps()
   local current_panel_type = panel.TYPE
 
   local panel_types = vim.tbl_keys(keymaps) --[=[@as Yat.Panel.Type[]]=]

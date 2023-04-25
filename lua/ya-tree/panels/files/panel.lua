@@ -1,13 +1,16 @@
-local fs = require("ya-tree.fs")
-local FsNode = require("ya-tree.nodes.fs_node")
-local git = require("ya-tree.git")
-local hl = require("ya-tree.ui.highlights")
-local log = require("ya-tree.log").get("panels")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local SearchNode = require("ya-tree.nodes.search_node")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local FsNode = lazy.require("ya-tree.nodes.fs_node") ---@module "ya-tree.nodes.fs_node"
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local SearchNode = lazy.require("ya-tree.nodes.search_node") ---@module "ya-tree.nodes.search_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
-local utils = require("ya-tree.utils")
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 local uv = vim.loop
@@ -71,14 +74,14 @@ function FilesPanel:init(sidebar, config, keymap, renderers)
   self:register_diagnostics_changed_event()
   self:register_fs_changed_event()
 
-  log.info("created panel %s", tostring(self))
+  Logger.get("panels").info("created panel %s", tostring(self))
 end
 
 ---@async
 ---@private
 ---@param node Yat.Node.Filesystem
 function FilesPanel:check_node_for_git_repo(node)
-  log.debug("checking if %s is in a git repository", node.path)
+  Logger.get("panels").debug("checking if %s is in a git repository", node.path)
   local repo = git.create_repo(node.path)
   if repo then
     node:set_git_repo(repo)
@@ -94,6 +97,7 @@ end
 ---@param repo Yat.Git.Repo
 ---@param path string
 function FilesPanel:set_git_repo_for_path(repo, path)
+  local log = Logger.get("panels")
   local node = self.root:get_node(path) or self.root:get_node(repo.toplevel)
   if node then
     log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
@@ -136,6 +140,7 @@ end
 ---@param dir string
 ---@param filenames string[]
 function FilesPanel:on_fs_changed_event(dir, filenames)
+  local log = Logger.get("panels")
   log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, self.focus_path_on_fs_event)
   local is_open = self:is_open()
 
@@ -175,7 +180,7 @@ function FilesPanel:on_fs_changed_event(dir, filenames)
         end
       end
       if self.root == self.files_root and self.path_lookup[dir_node.path] then
-        scheduler()
+        async.scheduler()
         self:draw(new_node or self:get_current_node())
       end
     end
@@ -197,11 +202,10 @@ end
 
 ---@protected
 function FilesPanel:on_win_opened()
-  local config = require("ya-tree.config").config
-  if config.move_cursor_to_name then
+  if Config.config.move_cursor_to_name then
     self:create_move_to_name_autocmd()
   end
-  if config.follow_focused_file then
+  if Config.config.follow_focused_file then
     self:expand_to_current_buffer()
   end
 end
@@ -209,11 +213,12 @@ end
 ---@async
 ---@param args table<string, string>
 function FilesPanel:command_arguments(args)
+  local log = Logger.get("panels")
   if args.path then
     local p = Path:new(args.path)
     local path = p:exists() and p:absolute() or nil
     if path then
-      local config = require("ya-tree.config").config
+      local config = Config.config
       local node = self.root:expand({ to = path })
       if node then
         local hidden, reason = node:is_hidden(config)
@@ -246,6 +251,7 @@ end
 ---@param new_root string
 ---@return boolean `false` if the current tree cannot walk up or down to reach the specified directory.
 function FilesPanel:update_tree_root_node(new_root)
+  local log = Logger.get("panels")
   new_root = Path:new(new_root):absolute()
   if self.files_root.path ~= new_root then
     local root --[[@as Yat.Node.Filesystem?]]
@@ -294,6 +300,7 @@ end
 ---@async
 ---@param path string
 function FilesPanel:change_root_node(path)
+  local log = Logger.get("panels")
   if not fs.is_directory(path) then
     path = Path:new(path):parent():absolute()
   end
@@ -379,7 +386,7 @@ function FilesPanel:close_search(draw)
     self.root = self.files_root
     self.current_node = self.files_current_node
     if draw then
-      scheduler()
+      async.scheduler()
       self:draw(self.current_node)
     end
   end
@@ -390,7 +397,7 @@ end
 ---@return fun(bufnr: integer)
 ---@return string search_root
 function FilesPanel:get_complete_func_and_search_root(node)
-  local config = require("ya-tree.config").config.panels.files
+  local config = Config.config.panels.files
   node = node or self.root
   local fn, search_root
   if type(config.completion.setup) == "function" then

@@ -1,9 +1,11 @@
-local fs = require("ya-tree.fs")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
-local fs_watcher = require("ya-tree.fs.watcher")
-local log = require("ya-tree.log").get("nodes")
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
+local fs_watcher = lazy.require("ya-tree.fs.watcher") ---@module "ya-tree.fs.watcher"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.FilesystemStatic : Yat.Node.FsBasedNodeStatic
 
@@ -97,6 +99,7 @@ end
 
 ---@package
 function FilesystemNode:scandir()
+  local log = Logger.get("nodes")
   log.debug("scanning directory %q", self.path)
   -- keep track of the current children
   ---@type table<string, Yat.Node.Filesystem>
@@ -130,7 +133,7 @@ function FilesystemNode:scandir()
     child:remove_watcher(true)
   end
 
-  scheduler()
+  async.scheduler()
 
   local buffers = utils.get_current_buffers()
   for _, child in ipairs(self._children) do
@@ -174,7 +177,7 @@ end
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return Yat.Node.Filesystem|nil node if {opts.to} is specified, and found.
 function FilesystemNode:expand(opts)
-  log.debug("expanding %q", self.path)
+  Logger.get("nodes").debug("expanding %q", self.path)
   opts = opts or {}
   if self._children and (not self.scanned or opts.force_scan) then
     self:scandir()
@@ -214,7 +217,7 @@ function FilesystemNode:refresh(opts)
   opts = opts or {}
   local recurse = opts.recurse == true
   local refresh_git = opts.refresh_git == true
-  log.debug("refreshing %q, recurse=%s, refresh_git=%s", self.path, recurse, refresh_git)
+  Logger.get("nodes").debug("refreshing %q, recurse=%s, refresh_git=%s", self.path, recurse, refresh_git)
 
   if self:is_directory() then
     self:refresh_directory_node(recurse, refresh_git, {})

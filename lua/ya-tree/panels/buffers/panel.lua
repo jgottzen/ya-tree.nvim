@@ -1,8 +1,12 @@
-local BufferNode = require("ya-tree.nodes.buffer_node")
-local fs = require("ya-tree.fs")
-local git = require("ya-tree.git")
-local log = require("ya-tree.log").get("panels")
-local Path = require("ya-tree.path")
+local lazy = require("ya-tree.lazy")
+
+local BufferNode = lazy.require("ya-tree.nodes.buffer_node") ---@module "ya-tree.nodes.buffer_node"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local TreePanel = require("ya-tree.panels.tree_panel")
 
 local api = vim.api
@@ -41,7 +45,7 @@ function BuffersPanel:init(sidebar, config, keymap, renderers)
   self:register_dot_git_dir_changed_event()
   self:register_diagnostics_changed_event()
 
-  log.info("created panel %s", tostring(self))
+  Logger.get("panels").info("created panel %s", tostring(self))
 end
 
 ---@param repo Yat.Git.Repo
@@ -49,7 +53,7 @@ end
 function BuffersPanel:set_git_repo_for_path(repo, path)
   local node = self.root:get_node(path) or self.root:get_node(repo.toplevel)
   if node then
-    log.debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
+    Logger.get("panels").debug("setting git repo for panel %s on node %s", self.TYPE, node.path)
     node:set_git_repo(repo)
     self:draw()
   end
@@ -74,8 +78,7 @@ end
 
 ---@private
 function BuffersPanel:register_buffer_new_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_NEW
-  self:register_autocmd_event(event, function(bufnr, file)
+  self:register_autocmd_event(event.autocmd.BUFFER_NEW, function(bufnr, file)
     self:on_buffer_new(bufnr, file)
   end)
 end
@@ -85,6 +88,7 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersPanel:on_buffer_new(bufnr, file)
+  local log = Logger.get("panels")
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   if (buftype == "" and fs.is_file(file)) or buftype == "terminal" then
     local node
@@ -106,7 +110,7 @@ function BuffersPanel:on_buffer_new(bufnr, file)
       end
     end
 
-    if not require("ya-tree.config").config.follow_focused_file then
+    if not Config.config.follow_focused_file then
       node = self:get_current_node()
     end
     self:draw(node)
@@ -115,8 +119,7 @@ end
 
 ---@private
 function BuffersPanel:register_buffer_hidden_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_HIDDEN
-  self:register_autocmd_event(event, function(bufnr, file)
+  self:register_autocmd_event(event.autocmd.BUFFER_HIDDEN, function(bufnr, file)
     self:on_buffer_hidden(bufnr, file)
   end)
 end
@@ -137,8 +140,7 @@ end
 
 ---@private
 function BuffersPanel:register_buffer_displayed_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_DISPLAYED
-  self:register_autocmd_event(event, function(bufnr, file)
+  self:register_autocmd_event(event.autocmd.BUFFER_DISPLAYED, function(bufnr, file)
     self:on_buffer_displayed(bufnr, file)
   end)
 end
@@ -157,8 +159,7 @@ end
 
 ---@private
 function BuffersPanel:register_buffer_deleted_event()
-  local event = require("ya-tree.events.event").autocmd.BUFFER_DELETED
-  self:register_autocmd_event(event, function(bufnr, file)
+  self:register_autocmd_event(event.autocmd.BUFFER_DELETED, function(bufnr, file)
     self:on_buffer_deleted(bufnr, file)
   end)
 end
@@ -173,7 +174,7 @@ function BuffersPanel:on_buffer_deleted(bufnr, file)
     if buftype == "" and not Path.is_absolute_path(file) then
       file = Path:new(file):absolute()
     end
-    log.debug("removing buffer %q from buffer tree", file)
+    Logger.get("panels").debug("removing buffer %q from buffer tree", file)
     local updated = self.root:remove_node(file, bufnr, buftype == "terminal")
     local cwd = uv.cwd() --[[@as string]]
     if #self.root:children() <= 1 and self.root.path ~= cwd then
@@ -188,11 +189,10 @@ end
 
 ---@protected
 function BuffersPanel:on_win_opened()
-  local config = require("ya-tree.config").config
-  if config.move_cursor_to_name then
+  if Config.config.move_cursor_to_name then
     self:create_move_to_name_autocmd()
   end
-  if config.follow_focused_file then
+  if Config.config.follow_focused_file then
     self:expand_to_current_buffer()
   end
 end

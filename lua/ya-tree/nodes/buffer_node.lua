@@ -1,10 +1,12 @@
-local fs = require("ya-tree.fs")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
-local git = require("ya-tree.git")
-local log = require("ya-tree.log").get("nodes")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 local fn = vim.fn
@@ -158,7 +160,7 @@ function BufferNode:set_terminal_hidden(file, bufnr, hidden)
     for _, child in ipairs(container._children) do
       if child.bufname == file and child.bufnr == bufnr then
         child.bufhidden = hidden
-        log.debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
+        Logger.get("nodes").debug("setting buffer %s (%q) 'hidden' to %q", child.bufnr, child.bufname, hidden)
         return true
       end
     end
@@ -227,7 +229,7 @@ local function add_terminal_buffer_to_container(container, terminal)
     extension = "terminal",
   }, container, terminal.name, terminal.bufnr, false, hidden)
   container:add_child(node)
-  log.debug("adding terminal buffer %s (%q)", node.bufnr, node.bufname)
+  Logger.get("nodes").debug("adding terminal buffer %s (%q)", node.bufnr, node.bufname)
   return node
 end
 
@@ -272,12 +274,12 @@ function BufferNode:refresh(opts)
   end
 
   opts = opts or {}
-  scheduler()
+  async.scheduler()
   local buffers, terminals = utils.get_current_buffers()
   local paths = clean_paths(vim.tbl_keys(buffers))
   local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
   if root_path ~= self.path then
-    log.debug("setting new root path to %q", root_path)
+    Logger.get("nodes").debug("setting new root path to %q", root_path)
     local fs_node = fs.node_for(root_path) --[[@as Yat.Fs.Node]]
     self:merge_new_data(fs_node)
     self.expanded = true
@@ -339,7 +341,7 @@ function BufferNode:add_node(path, bufnr, is_terminal)
           node.repo = git.get_repo_for_path(node.path)
         end
         if is_buffer_node then
-          log.debug("adding buffer %s (%q)", node.bufnr, node.bufname)
+          Logger.get("nodes").debug("adding buffer %s (%q)", node.bufnr, node.bufname)
         end
         return node
       end
@@ -352,6 +354,7 @@ end
 ---@param is_terminal boolean
 ---@return boolean updated
 function BufferNode:remove_node(path, bufnr, is_terminal)
+  local log = Logger.get("nodes")
   if self.parent then
     self.parent:remove_node(path, bufnr, is_terminal)
   end

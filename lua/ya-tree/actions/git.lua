@@ -1,14 +1,18 @@
-local log = require("ya-tree.log").get("actions")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local M = {}
 
 ---@async
 ---@param panel Yat.Panel
 function M.toggle_ignored(panel)
-  local config = require("ya-tree.config").config
+  local config = Config.config
   config.git.show_ignored = not config.git.show_ignored
-  log.debug("toggling git ignored to %s", config.git.show_ignored)
+  Logger.get("actions").debug("toggling git ignored to %s", config.git.show_ignored)
   panel.sidebar:draw()
 end
 
@@ -16,7 +20,7 @@ end
 ---@param panel Yat.Panel.Tree
 ---@param node Yat.Node.FsBasedNode
 function M.check_node_for_git(panel, node)
-  if not require("ya-tree.config").config.git.enable then
+  if not Config.config.git.enable then
     utils.notify("Git is not enabled.")
     return
   end
@@ -25,7 +29,7 @@ function M.check_node_for_git(panel, node)
     node = node.parent --[[@as Yat.Node.FsBasedNode]]
   end
   if not node.repo or node.repo:is_yadm() then
-    local repo = require("ya-tree.git").create_repo(node.path)
+    local repo = git.create_repo(node.path)
     if repo then
       panel.sidebar:set_git_repo_for_path(node.path, repo)
     else

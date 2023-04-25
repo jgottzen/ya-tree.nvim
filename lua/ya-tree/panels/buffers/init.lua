@@ -1,4 +1,10 @@
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local BuffersPanel = lazy.require("ya-tree.panels.buffers.panel") ---@module "ya-tree.panels.buffers.panel"
+local builtin = lazy.require("ya-tree.actions.builtin") ---@module "ya-tree.actions.builtin"
+local tree_actions = lazy.require("ya-tree.panels.tree_actions") ---@module "ya-tree.panels.tree_actions"
+local tree_renderers = lazy.require("ya-tree.panels.tree_renderers") ---@module "ya-tree.panels.tree_renderers"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@alias Yat.Panel.Buffers.SupportedActions
 ---| "system_open"
@@ -40,12 +46,9 @@ local M = {
 ---@param config Yat.Config
 ---@return boolean success
 function M.setup(config)
-  local tree_renderers = require("ya-tree.panels.tree_renderers")
-  local config_renderers = config.panels.buffers.renderers
-  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("buffers", config_renderers.directory, config_renderers.file)
+  local renderers = config.panels.buffers.renderers
+  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("buffers", renderers.directory, renderers.file)
 
-  local tree_actions = require("ya-tree.panels.tree_actions")
-  local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.Buffers.SupportedActions[]
   local supported_actions = utils.tbl_unique({
     builtin.general.system_open,
@@ -82,7 +85,7 @@ end
 ---@param config Yat.Config
 ---@return Yat.Panel.Buffers
 function M.create_panel(sidebar, config)
-  return require("ya-tree.panels.buffers.panel"):new(sidebar, config.panels.buffers, M.keymap, M.renderers)
+  return BuffersPanel:new(sidebar, config.panels.buffers, M.keymap, M.renderers)
 end
 
 return M

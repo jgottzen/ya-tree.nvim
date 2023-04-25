@@ -1,7 +1,9 @@
-local diagnostics = require("ya-tree.diagnostics")
-local log = require("ya-tree.log").get("nodes")
+local lazy = require("ya-tree.lazy")
+
+local diagnostics = lazy.require("ya-tree.diagnostics") ---@module "ya-tree.diagnostics"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local meta = require("ya-tree.meta")
-local utils = require("ya-tree.utils")
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@alias Yat.Node.Type "filesystem"|"search"|"buffer"|"git"|"text"|"symbol"|"call_hierarchy"|string
 
@@ -47,7 +49,7 @@ function Node:init(params, parent)
     self._children = {}
   end
 
-  log.trace("created node %s", self)
+  Logger.get("nodes").trace("created node %s", self)
 end
 
 ---Recursively calls `visitor` for this node and each child node, if the function returns `true` the `walk` doens't recurse into
@@ -87,7 +89,7 @@ function Node:get_debug_info(output_to_log)
     end
   end
   if output_to_log then
-    log.info(t)
+    Logger.get("nodes").info(t)
   end
   return t
 end
@@ -99,7 +101,7 @@ function Node:merge_new_data(params)
     if type(self[k]) ~= "function" then
       self[k] = v
     else
-      log.error("self.%s is a function, this is not allowed!", k)
+      Logger.get("nodes").error("self.%s is a function, this is not allowed!", k)
     end
   end
 end
@@ -207,6 +209,7 @@ function Node:on_node_removed() end
 ---@param remove_empty_parents? boolean
 ---@return boolean updated
 function Node:remove_node(path, remove_empty_parents)
+  local log = Logger.get("nodes")
   local updated = false
   local node = self:get_node(path)
   while node and node.parent and node ~= self do
@@ -306,6 +309,7 @@ end
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return T|nil node if {opts.to} is specified, and found.
 function Node:expand(opts)
+  local log = Logger.get("nodes")
   ---@cast self Yat.Node
   log.debug("expanding %q", self.path)
   opts = opts or {}

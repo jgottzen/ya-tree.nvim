@@ -1,5 +1,8 @@
+local lazy = require("ya-tree.lazy")
+
+local Actions = lazy.require("ya-tree.actions") ---@module "ya-tree.actions"
 local builtin = require("ya-tree.actions.builtin")
-local log = require("ya-tree.log").get("panels")
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local utils = require("ya-tree.utils")
 
 ---@alias Yat.Panel.Tree.SupportedActions
@@ -81,7 +84,7 @@ local M = {
 ---@param supported_actions Yat.Actions.Name[]
 ---@return table<string, Yat.Action>
 function M.create_mappings(panel_type, mappings, supported_actions)
-  local actions = require("ya-tree.actions").actions
+  local log = Logger.get("panels")
 
   ---@type table<string, Yat.Action>
   local keymap = {}
@@ -89,13 +92,15 @@ function M.create_mappings(panel_type, mappings, supported_actions)
     if name == "" then
       log.debug("key %q is disabled by user config", key)
     else
-      local action = actions[name]
+      local action = Actions.actions[name]
       if not action then
         log.error("key %q is mapped to 'action' %q, which doesn't exist, mapping ignored", key, name, panel_type)
         utils.warn(string.format("Key %q is mapped to 'action' %q, which doesnt' exist, mapping ignored!", key, name, panel_type))
       elseif not vim.tbl_contains(supported_actions, name) and not action.user_defined then
         log.error("key %q is mapped to 'action' %q, which panel %q doesn't support, mapping ignored", key, name, panel_type)
-        utils.warn(string.format("Key %q is mapped to 'action' %q, which panel %q doesn't support, mapping ignored!", key, name, panel_type))
+        utils.warn(
+          string.format("Key %q is mapped to 'action' %q, which panel %q doesn't support, mapping ignored!", key, name, panel_type)
+        )
       else
         if action then
           keymap[key] = action

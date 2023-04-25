@@ -1,3 +1,7 @@
+local lazy = require("ya-tree.lazy")
+
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+
 local M = {}
 
 ---@async
@@ -68,7 +72,7 @@ do
   ---@param panel Yat.Panel.Tree
   ---@param node Yat.Node
   function M.expand_all_nodes(panel, node)
-    expand(panel.root, 1, require("ya-tree.config").config)
+    expand(panel.root, 1, Config.config)
     panel:draw(node)
   end
 
@@ -77,7 +81,7 @@ do
   ---@param node Yat.Node
   function M.expand_all_child_nodes(panel, node)
     if node:has_children() then
-      expand(node, 1, require("ya-tree.config").config)
+      expand(node, 1, Config.config)
       panel:draw(node)
     end
   end
@@ -95,9 +99,8 @@ end
 ---@param panel Yat.Panel.Tree
 ---@param iterator fun(): integer, Yat.Node
 local function focus_first_non_hidden_node_from_iterator(panel, iterator)
-  local config = require("ya-tree.config").config
   for _, node in iterator do
-    if not node:is_hidden(config) then
+    if not node:is_hidden(Config.config) then
       panel:focus_node(node)
       break
     end
@@ -156,9 +159,8 @@ end
 ---@param panel Yat.Panel.Tree
 ---@param start Yat.Node.FsBasedNode
 function M.focus_prev_git_item(panel, start)
-  local config = require("ya-tree.config").config
   focus_first_node_that_matches(panel, start, false, function(node)
-    return not node:is_hidden(config) and node:git_status() ~= nil
+    return not node:is_hidden(Config.config) and node:git_status() ~= nil
   end)
 end
 
@@ -166,9 +168,8 @@ end
 ---@param panel Yat.Panel.Tree
 ---@param start Yat.Node.FsBasedNode
 function M.focus_next_git_item(panel, start)
-  local config = require("ya-tree.config").config
   focus_first_node_that_matches(panel, start, true, function(node)
-    return not node:is_hidden(config) and node:git_status() ~= nil
+    return not node:is_hidden(Config.config) and node:git_status() ~= nil
   end)
 end
 
@@ -177,11 +178,10 @@ end
 ---@param start Yat.Node
 ---@param forward boolean
 local function focus_diagnostic_item(panel, start, forward)
-  local config = require("ya-tree.config").config
   local container_min_diagnostic_severity = panel:container_min_severity()
   local leaf_min_diagnostic_severity = panel:leaf_min_severity()
   focus_first_node_that_matches(panel, start, forward, function(node)
-    if not node:is_hidden(config) then
+    if not node:is_hidden(Config.config) then
       local severity = node:diagnostic_severity()
       if severity then
         local target_severity = node:is_container() and container_min_diagnostic_severity or leaf_min_diagnostic_severity

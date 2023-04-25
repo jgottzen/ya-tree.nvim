@@ -1,12 +1,12 @@
+local lazy = require("ya-tree.lazy")
+
 local bit = require("bit")
-local log = require("ya-tree.log").get("fs")
-local Path = require("ya-tree.path")
-local utils = require("ya-tree.utils")
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 local wrap = require("ya-tree.async").wrap
 
 local uv = vim.loop
-
-local os_sep = Path.path.sep
 
 local M = {}
 
@@ -61,7 +61,7 @@ end
 function M.lstat(path)
   local err, stat = fs_lstat(path)
   if not stat then
-    log.error("cannot fs_lstat path %q, %s", path, err)
+    Logger.get("fs").error("cannot fs_lstat path %q, %s", path, err)
   end
   return stat
 end
@@ -70,6 +70,7 @@ end
 ---@param path string
 ---@return boolean empty
 local function is_empty(path)
+  local log = Logger.get("fs")
   local err, fd = fs_opendir(path, 1)
   if not fd then
     log.error("cannot fs_opendir path %q, %s", path, err)
@@ -136,7 +137,7 @@ local function file_node(dir, name, stat)
       local err
       err, stat = fs_lstat(path)
       if err then
-        log.error("cannot fs_lstat path %q, %s", path, err)
+        Logger.get("fs").error("cannot fs_lstat path %q, %s", path, err)
       end
     end
     executable = stat and bit.band(M.st_mode_masks.EXECUTABLE, stat.mode) > 1 or false
@@ -225,11 +226,11 @@ local function link_node(dir, name, lstat)
   local rel_link_to, err, abs_link_to
   err, abs_link_to = fs_readlink(path)
   if err then
-    log.error("cannot fs_readlink path %q, %s", path, err)
+    Logger.get("fs").error("cannot fs_readlink path %q, %s", path, err)
   end
   if not abs_link_to or not Path.is_absolute_path(abs_link_to) then
     rel_link_to = abs_link_to or ""
-    abs_link_to = dir .. os_sep .. abs_link_to
+    abs_link_to = dir .. Path.path.sep .. abs_link_to
   else
     rel_link_to = Path:new(abs_link_to):make_relative(dir)
   end
@@ -277,7 +278,7 @@ function M.node_for(path)
   -- in case of a link, fs_lstat returns info about the link itself instead of the file it refers to
   local err, lstat = fs_lstat(path)
   if not lstat then
-    log.debug("cannot fs_lstat path %q, %s", path, err)
+    Logger.get("fs").debug("cannot fs_lstat path %q, %s", path, err)
     return nil
   end
 
@@ -308,6 +309,7 @@ end
 ---@param dir string the directory to scan.
 ---@return Yat.Fs.Node[] nodes
 function M.scan_dir(dir)
+  local log = Logger.get("fs")
   dir = Path:new(dir):absolute()
   local err, fd = fs_opendir(dir, 50)
   if not fd then
@@ -366,6 +368,7 @@ end
 ---@param replace boolean whether to replace existing files.
 ---@return boolean success success or not
 function M.copy_dir(source, destination, replace)
+  local log = Logger.get("fs")
   local source_path = Path:new(source):absolute()
   local destination_path = Path:new(destination):absolute()
 
@@ -423,6 +426,7 @@ end
 ---@param replace boolean whether to replace an existing file.
 ---@return boolean success success or not.
 function M.copy_file(source, destination, replace)
+  local log = Logger.get("fs")
   source = Path:new(source):absolute()
   destination = Path:new(destination):absolute()
   local success, err = uv.fs_copyfile(source, destination, { excl = not replace })
@@ -439,6 +443,7 @@ end
 ---@param new string new name.
 ---@return boolean success success or not.
 function M.rename(old, new)
+  local log = Logger.get("fs")
   old = Path:new(old):absolute()
   new = Path:new(new):absolute()
   local success, err = uv.fs_rename(old, new)
@@ -454,6 +459,7 @@ end
 ---@param path string the directory to create
 ---@return boolean success success or not.
 function M.create_dir(path)
+  local log = Logger.get("fs")
   local mode = 493 -- 755 in octal
   -- fs_mkdir returns nil if the path already exists, or if the path has parent
   -- directories that has to be created as well
@@ -461,7 +467,7 @@ function M.create_dir(path)
   local success, err = uv.fs_mkdir(abs_path, mode)
   if success == nil then
     if not M.exists(abs_path) then
-      local dirs = vim.split(abs_path, os_sep, { plain = true })
+      local dirs = vim.split(abs_path, Path.path.sep, { plain = true })
       local acc = ""
       for _, dir in ipairs(dirs) do
         local current = utils.join_path(acc, dir)
@@ -500,6 +506,7 @@ end
 ---@param file string path.
 ---@return boolean sucess success or not.
 function M.create_file(file)
+  local log = Logger.get("fs")
   local path = Path:new(file)
 
   if M.create_dir(path:parent().filename) then
@@ -525,6 +532,7 @@ end
 ---@param path string the path to remove.
 ---@return boolean success success or not.
 function M.remove_dir(path)
+  local log = Logger.get("fs")
   local fd, err = uv.fs_scandir(path)
   if not fd then
     log.error("cannot fs_scandir path %q, %s", path, err)
@@ -562,6 +570,7 @@ end
 ---@param path string the path to remove.
 ---@return boolean success success or not.
 function M.remove_file(path)
+  local log = Logger.get("fs")
   local success, err = uv.fs_unlink(path)
   if not success then
     log.error("cannot fs_unlink path %q, %s", path, err)

@@ -1,9 +1,11 @@
-local fs = require("ya-tree.fs")
-local log = require("ya-tree.log").get("nodes")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Node = require("ya-tree.nodes.node")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.FsBasedNodeStatic
 
@@ -175,6 +177,7 @@ end
 
 ---@param repo Yat.Git.Repo
 function FsBasedNode:set_git_repo(repo)
+  local log = Logger.get("nodes")
   if self.repo == repo then
     return
   end
@@ -210,6 +213,7 @@ end
 ---@param node_creator async fun(path: string, parent: T, _type: "directory"|"unknown"): T?
 ---@return T|nil node
 function FsBasedNode:_add_node(path, node_creator)
+  local log = Logger.get("nodes")
   ---@cast self Yat.Node.FsBasedNode
   local rest = path:sub(#self.path + 1)
   local splits = vim.split(rest, utils.os_sep, { plain = true, trimempty = true })
@@ -240,7 +244,7 @@ function FsBasedNode:_add_node(path, node_creator)
     end
   end
 
-  scheduler()
+  async.scheduler()
   return node
 end
 
@@ -315,7 +319,7 @@ function FsBasedNode:populate_from_paths(paths, node_creator)
     end
   end
 
-  scheduler()
+  async.scheduler()
   return first_leaf_node
 end
 

@@ -16,10 +16,12 @@ do
   end
 end
 
+local lazy = require("ya-tree.lazy")
+
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
-local hl = require("ya-tree.ui.highlights")
-local log = require("ya-tree.log").get("ui")
-local utils = require("ya-tree.utils")
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Ui.RenderContext
 ---@field panel_type Yat.Panel.Type
@@ -50,7 +52,7 @@ function M.define_renderer(name, fn, config)
     config = config,
   }
   if M._renderers[name] then
-    log.info("overriding renderer %q with %s", name, renderer)
+    Logger.get("ui").info("overriding renderer %q with %s", name, renderer)
   end
   M._renderers[name] = renderer
 end
@@ -761,6 +763,7 @@ do
     M.define_renderer("clipboard", M.clipboard, renderers.builtin.clipboard)
     M.define_renderer("symbol_details", M.symbol_details, renderers.builtin.symbol_details)
 
+    local log = Logger.get("ui")
     for name, renderer in pairs(renderers) do
       if name ~= "builtin" then
         log.debug("creating renderer %q, %s", name, renderer)

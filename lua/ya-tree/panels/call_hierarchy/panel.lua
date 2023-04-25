@@ -1,10 +1,12 @@
-local CallHierarchyNode = require("ya-tree.nodes.call_node")
-local defer = require("ya-tree.async").defer
-local log = require("ya-tree.log").get("panels")
-local lsp = require("ya-tree.lsp")
-local TextNode = require("ya-tree.nodes.text_node")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local CallHierarchyNode = lazy.require("ya-tree.nodes.call_node") ---@module "ya-tree.nodes.call_node"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
+local TextNode = lazy.require("ya-tree.nodes.text_node") ---@module "ya-tree.nodes.text_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
-local ui = require("ya-tree.ui")
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
 
 local api = vim.api
 
@@ -29,14 +31,14 @@ function CallHierarchyPanel:init(sidebar, config, keymap, renderers)
   local root = TextNode:new("Waiting for LSP...", "/")
   TreePanel.init(self, "call_hierarchy", sidebar, config.title, config.icon, keymap, renderers, root)
   self._direction = "incoming"
-  defer(function()
+  async.defer(function()
     local edit_winid = self.sidebar:edit_win()
     local bufnr = api.nvim_win_get_buf(edit_winid)
     local file = api.nvim_buf_get_name(bufnr)
     self:create_call_hierarchy(edit_winid, bufnr, file)
   end)
 
-  log.info("created panel %s", tostring(self))
+  Logger.get("panels").info("created panel %s", tostring(self))
 end
 
 ---@async
@@ -45,7 +47,7 @@ end
 ---@param bufnr integer
 ---@param file string
 function CallHierarchyPanel:create_call_hierarchy(winid, bufnr, file)
-  log.info("creating call %q hierarchy for file %q (%s)", self._direction, file, bufnr)
+  Logger.get("panels").info("creating call %q hierarchy for file %q (%s)", self._direction, file, bufnr)
   local call_site, err = lsp.call_site(winid, bufnr)
   if call_site then
     self.call_site = call_site
@@ -61,11 +63,11 @@ end
 ---@async
 ---@param direction Yat.CallHierarchy.Direction
 function CallHierarchyPanel:set_direction(direction)
-  if not self.call_site or direction ~= self._direction or self.root:instance_of(TextNode) then
+  if not self.call_site or direction ~= self._direction or self.root.TYPE == "text" then
     self._direction = direction
     ---@type integer, integer?
     local bufnr, winid
-    if self.root:instance_of(CallHierarchyNode) then
+    if self.root.TYPE == "call_hierarchy" then
       local root = self.root --[[@as Yat.Node.CallHierarchy]]
       bufnr = root:bufnr()
       winid = ui.get_window_for_buffer(bufnr)
@@ -104,6 +106,7 @@ end
 
 ---@async
 function CallHierarchyPanel:refresh()
+  local log = Logger.get("panels")
   if self.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return
@@ -111,7 +114,7 @@ function CallHierarchyPanel:refresh()
 
   self.refreshing = true
   log.debug("refreshing %q panel", self.TYPE)
-  if self.root:instance_of(CallHierarchyNode) then
+  if self.root.TYPE == "call_hierarchy" then
     self.root:refresh({ call_site = self.call_site, direction = self._direction })
     self.root:expand()
     self:draw(self.current_node)

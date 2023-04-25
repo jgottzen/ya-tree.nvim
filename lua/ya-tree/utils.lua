@@ -1,3 +1,6 @@
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
 local Path = require("ya-tree.path")
 
 local api = vim.api
@@ -205,9 +208,9 @@ do
   ---@param term string
   ---@param path string
   ---@param glob boolean
+  ---@param config Yat.Config
   ---@return string|nil cmd, string[] arguments
-  function M.build_search_arguments(term, path, glob)
-    local config = require("ya-tree.config").config
+  function M.build_search_arguments(term, path, glob, config)
     local cmd = config.search.cmd
 
     local args
@@ -217,7 +220,7 @@ do
       if cmd == "fd" or cmd == "fdfind" then
         if not FD_HAS_MAX_RESULTS or not FDFIND_HAS_MAX_RESULTS then
           if coroutine.running() then
-            require("ya-tree.async").scheduler()
+            async.scheduler()
           end
           FD_HAS_MAX_RESULTS = fn.executable("fd") == 1 and has_max_results("fd")
           FDFIND_HAS_MAX_RESULTS = fn.executable("fdfind") == 1 and has_max_results("fdfind")

@@ -1,5 +1,7 @@
-local log = require("ya-tree.log").get("lsp")
-local symbol_tag = require("ya-tree.lsp.symbol_tag")
+local lazy = require("ya-tree.lazy")
+
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local symbol_tag = lazy.require("ya-tree.lsp.symbol_tag") ---@module "ya-tree.lsp.symbol_tag"
 local wrap = require("ya-tree.async").wrap
 
 local lsp = vim.lsp
@@ -97,6 +99,7 @@ end
 ---@return integer? client_id
 ---@return Lsp.Symbol.Document[] results
 function M.symbols(bufnr, refresh)
+  local log = Logger.get("lsp")
   if not refresh and M.symbol_cache[bufnr] then
     local t = M.symbol_cache[bufnr]
     return t.client_id, t.symbols
@@ -156,6 +159,7 @@ end
 ---@return Lsp.CallHierarchy.Item|nil call_site
 ---@return string|nil error_message
 function M.call_site(winid, bufnr)
+  local log = Logger.get("lsp")
   if not buf_has_client(bufnr, PREPARE_CALL_HIERARCHY_METHOD) then
     log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, PREPARE_CALL_HIERARCHY_METHOD)
     return nil, "No LSP support..."
@@ -187,7 +191,7 @@ local function create_call_hierarchy(bufnr, method, call_site)
     if message.result then
       return id, message.result
     elseif message.error then
-      log.warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(message.error))
+      Logger.get("lsp").warn("lsp id %s attached to buffer %s returned error: %s", id, bufnr, tostring(message.error))
     end
   end
   return nil, {}
@@ -199,6 +203,7 @@ end
 ---@return integer? client_id
 ---@return Lsp.CallHierarchy.OutgoingCall[]
 function M.outgoing_calls(bufnr, call_site)
+  local log = Logger.get("lsp")
   if not buf_has_client(bufnr, OUTGOING_CALLS_METHOD) then
     log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, OUTGOING_CALLS_METHOD)
     return nil, {}
@@ -214,6 +219,7 @@ end
 ---@return integer? client_id
 ---@return Lsp.CallHierarchy.IncomingCall[]
 function M.incoming_calls(bufnr, call_site)
+  local log = Logger.get("lsp")
   if not buf_has_client(bufnr, INCOMING_CALLS_METHOD) then
     log.debug("buffer %s has no attached LSP client that can handle %q", bufnr, INCOMING_CALLS_METHOD)
     return nil, {}
@@ -228,7 +234,7 @@ local ae = require("ya-tree.events.event").autocmd
 events.on_autocmd_event(ae.BUFFER_DELETED, "YA_TREE_LSP", false, function(bufnr, file)
   if M.symbol_cache[bufnr] then
     M.symbol_cache[bufnr] = nil
-    log.debug("removed bufnr %s (%q) from cache", bufnr, file)
+    Logger.get("lsp").debug("removed bufnr %s (%q) from cache", bufnr, file)
   end
 end)
 

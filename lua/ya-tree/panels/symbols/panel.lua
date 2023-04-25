@@ -1,12 +1,15 @@
-local defer = require("ya-tree.async").defer
-local fs = require("ya-tree.fs")
-local log = require("ya-tree.log").get("panels")
-local lsp = require("ya-tree.lsp")
-local scheduler = require("ya-tree.async").scheduler
-local symbol_kind = require("ya-tree.lsp.symbol_kind")
-local SymbolNode = require("ya-tree.nodes.symbol_node")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
+local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.lsp.symbol_kind"
+local SymbolNode = lazy.require("ya-tree.nodes.symbol_node") ---@module "ya-tree.nodes.symbol_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
-local utils = require("ya-tree.utils")
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 local uv = vim.loop
@@ -38,7 +41,7 @@ function SymbolsPanel:init(sidebar, config, keymap, renderers)
   self:register_lsp_attach_event()
   self:register_diagnostics_changed_event()
 
-  log.info("created panel %s", tostring(self))
+  Logger.get("panels").info("created panel %s", tostring(self))
 end
 
 ---@async
@@ -50,7 +53,7 @@ end
 function SymbolsPanel:create_root_node(path, bufnr)
   local do_defer = bufnr == nil
   if not bufnr then
-    scheduler()
+    async.scheduler()
     bufnr = api.nvim_get_current_buf()
     local buftype = api.nvim_buf_get_option(bufnr, "buftype")
     if buftype == "" then
@@ -71,7 +74,7 @@ function SymbolsPanel:create_root_node(path, bufnr)
 
   if bufnr then
     if do_defer then
-      defer(function()
+      async.defer(function()
         root:refresh({ bufnr = bufnr, use_cache = true })
         root:expand()
         self:draw()
@@ -110,8 +113,7 @@ end
 
 ---@private
 function SymbolsPanel:register_lsp_attach_event()
-  local event = require("ya-tree.events.event").autocmd.LSP_ATTACH
-  self:register_autocmd_event(event, function(bufnr, file)
+  self:register_autocmd_event(event.autocmd.LSP_ATTACH, function(bufnr, file)
     self:on_lsp_attach(bufnr, file)
   end)
 end
@@ -129,11 +131,10 @@ end
 
 ---@protected
 function SymbolsPanel:on_win_opened()
-  local config = require("ya-tree.config").config
-  if config.move_cursor_to_name then
+  if Config.config.move_cursor_to_name then
     self:create_move_to_name_autocmd()
   end
-  if config.panels.symbols.scroll_buffer_to_symbol then
+  if Config.config.panels.symbols.scroll_buffer_to_symbol then
     api.nvim_create_autocmd("CursorHold", {
       group = self.window_augroup,
       buffer = self:bufnr(),
@@ -170,6 +171,7 @@ end
 
 ---@async
 function SymbolsPanel:refresh()
+  local log = Logger.get("panels")
   if self.refreshing or vim.v.exiting ~= vim.NIL then
     log.debug("refresh already in progress or vim is exiting, aborting refresh")
     return

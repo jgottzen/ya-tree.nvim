@@ -1,5 +1,11 @@
-local completion = require("ya-tree.completion")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local builtin = lazy.require("ya-tree.actions.builtin") ---@module "ya-tree.actions.builtin"
+local completion = lazy.require("ya-tree.completion") ---@module "ya-tree.completion"
+local GitStatusPanel = lazy.require("ya-tree.panels.git_status.panel") ---@module "ya-tree.panels.git_status.panel"
+local tree_actions = lazy.require("ya-tree.panels.tree_actions") ---@module "ya-tree.panels.tree_actions"
+local tree_renderers = lazy.require("ya-tree.panels.tree_renderers") ---@module "ya-tree.panels.tree_renderers"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@alias Yat.Panel.GitStatus.SupportedActions
 ---| "system_open"
@@ -46,12 +52,9 @@ function M.setup(config)
     return false
   end
 
-  local tree_renderers = require("ya-tree.panels.tree_renderers")
-  local config_renderers = config.panels.git_status.renderers
-  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("git_status", config_renderers.directory, config_renderers.file)
+  local renderers = config.panels.git_status.renderers
+  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("git_status", renderers.directory, renderers.file)
 
-  local tree_actions = require("ya-tree.panels.tree_actions")
-  local builtin = require("ya-tree.actions.builtin")
   ---@type Yat.Panel.GitStatus.SupportedActions[]
   local supported_actions = utils.tbl_unique({
     builtin.general.system_open,
@@ -90,7 +93,7 @@ end
 ---@param repo? Yat.Git.Repo
 ---@return Yat.Panel.GitStatus
 function M.create_panel(sidebar, config, repo)
-  return require("ya-tree.panels.git_status.panel"):new(sidebar, config.panels.git_status, M.keymap, M.renderers, repo)
+  return GitStatusPanel:new(sidebar, config.panels.git_status, M.keymap, M.renderers, repo)
 end
 
 ---@param current string

@@ -1,8 +1,11 @@
-local accumulate = require("ya-tree.debounce").accumulate_trailing
-local event = require("ya-tree.events.event")
-local events = require("ya-tree.events")
-local log = require("ya-tree.log").get("fs")
-local utils = require("ya-tree.utils")
+local lazy = require("ya-tree.lazy")
+
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local debounce = lazy.require("ya-tree.debounce") ---@module "ya-tree.debounce"
+local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
+local events = lazy.require("ya-tree.events") ---@module "ya-tree.events"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local M = {
   ---@private
@@ -38,18 +41,18 @@ end
 
 ---@param dir string
 function M.watch_dir(dir)
-  local config = require("ya-tree.config").config
-  if not setup_done then
-    setup(config)
-  end
-  if not config.dir_watcher.enable or is_ignored(dir) then
+  if not Config.config.dir_watcher.enable or is_ignored(dir) then
     return
   end
+  if not setup_done then
+    setup(Config.config)
+  end
 
+  local log = Logger.get("fs")
   local watcher = M._watchers[dir]
   if not watcher then
     ---@param args { err: string|nil, filename: string }[]
-    local handler = accumulate(function(args)
+    local handler = debounce.accumulate_trailing(function(args)
       local filenames = {}
       for _, val in ipairs(args) do
         if val.err then
@@ -84,6 +87,7 @@ end
 function M.remove_watcher(path)
   local watcher = M._watchers[path]
   if watcher then
+    local log = Logger.get("fs")
     watcher.number_of_watchers = watcher.number_of_watchers - 1
     if watcher.number_of_watchers == 0 then
       log.debug("no more watchers on %q, stopping fs_event", path)

@@ -1,12 +1,15 @@
-local fs = require("ya-tree.fs")
-local git = require("ya-tree.git")
-local GitNode = require("ya-tree.nodes.git_node")
-local log = require("ya-tree.log").get("panels")
-local Path = require("ya-tree.path")
-local scheduler = require("ya-tree.async").scheduler
-local TextNode = require("ya-tree.nodes.text_node")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local GitNode = lazy.require("ya-tree.nodes.git_node") ---@module "ya-tree.nodes.git_node"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
+local TextNode = lazy.require("ya-tree.nodes.text_node") ---@module "ya-tree.nodes.text_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
-local utils = require("ya-tree.utils")
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local uv = vim.loop
 
@@ -58,12 +61,12 @@ function GitStatusPanel:init(sidebar, config, keymap, renderers, repo)
   self:register_diagnostics_changed_event()
   self:register_fs_changed_event()
 
-  log.info("created panel %s", tostring(self))
+  Logger.get("panels").info("created panel %s", tostring(self))
 end
 
 ---@return Yat.Git.Repo[]|nil
 function GitStatusPanel:get_git_repos()
-  if self.root:instance_of(GitNode) then
+  if self.root.TYPE == "git" then
     return { self.root.repo }
   end
 end
@@ -72,7 +75,8 @@ end
 ---@param _ integer
 ---@param file string
 function GitStatusPanel:on_buffer_saved(_, file)
-  if self.root:instance_of(GitNode) and self.root:is_ancestor_of(file) then
+  local log = Logger.get("panels")
+  if self.root.TYPE == "git" and self.root:is_ancestor_of(file) then
     local root = self.root --[[@as Yat.Node.Git]]
     log.debug("changed file %q is in tree %s", file, tostring(self))
     local node = root:get_node(file)
@@ -93,7 +97,7 @@ end
 ---@param repo Yat.Git.Repo
 function GitStatusPanel:on_dot_git_dir_changed(repo)
   if vim.v.exiting == vim.NIL and self.root.repo == repo then
-    log.debug("git repo %s changed", tostring(self.root.repo))
+    Logger.get("panels").debug("git repo %s changed", tostring(self.root.repo))
     self.root:refresh({ refresh_git = false })
     self:draw(self:get_current_node())
   end
@@ -104,6 +108,7 @@ end
 ---@param dir string
 ---@param filenames string[]
 function GitStatusPanel:on_fs_changed_event(dir, filenames)
+  local log = Logger.get("panels")
   log.debug("fs_event for dir %q, with files %s", dir, filenames)
   local ui_is_open = self:is_open()
 
@@ -114,7 +119,7 @@ function GitStatusPanel:on_fs_changed_event(dir, filenames)
       self.refreshing = false
 
       if ui_is_open then
-        scheduler()
+        async.scheduler()
         self:draw(self:get_current_node())
       end
     else
@@ -125,11 +130,10 @@ end
 
 ---@protected
 function GitStatusPanel:on_win_opened()
-  local config = require("ya-tree.config").config
-  if config.move_cursor_to_name then
+  if Config.config.move_cursor_to_name then
     self:create_move_to_name_autocmd()
   end
-  if config.follow_focused_file then
+  if Config.config.follow_focused_file then
     self:expand_to_current_buffer()
   end
 end
@@ -166,8 +170,8 @@ function GitStatusPanel:change_root_node(path_or_repo)
   local old_root = self.root
   self.root = create_root_node(repo)
   self.current_node = self.root:refresh() --[[@as Yat.Node.Git]]
-  log.debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
-  scheduler()
+  Logger.get("panels").debug("updated tree root to %s, old root was %s", tostring(self.root), tostring(old_root))
+  async.scheduler()
   self:draw()
 end
 

@@ -1,5 +1,10 @@
-local NuiInput = require("nui.input")
-local NuiPopup = require("nui.popup")
+local lazy = require("ya-tree.lazy")
+
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
+local NuiInput = lazy.require("nui.input") ---@module "nui.input"
+local NuiPopup = lazy.require("nui.popup") ---@module "nui.popup"
+local nui_autocmd = lazy.require("nui.utils.autocmd") ---@module "nui.utils.autocmd"
 
 local api = vim.api
 local fn = vim.fn
@@ -36,9 +41,9 @@ do
   ---  - {callbacks.on_close?} `function(): void`
   ---  - {callbacks.on_change?} `function(text: string): void`
   function M.input(opts, callbacks)
-    local border = require("ya-tree.config").config.popups.border
+    local border = Config.config.popups.border
     local options = {
-      ns_id = require("ya-tree.ui.highlights").NS,
+      ns_id = hl.NS,
       relative = opts.relative or "cursor",
       position = { row = opts.row or 1, col = opts.col or 1 },
       size = opts.width or 30,
@@ -152,9 +157,9 @@ end
 ---@param opts Yat.Ui.PopupOpts
 ---@return Yat.Ui.Popup
 function M.popup(opts)
-  local border = require("ya-tree.config").config.popups.border
+  local border = Config.config.popups.border
   local options = {
-    ns_id = require("ya-tree.ui.highlights").NS,
+    ns_id = hl.NS,
     size = {
       width = opts.width,
       height = opts.height,
@@ -194,8 +199,7 @@ function M.popup(opts)
     end
   end
   if opts.close_on_focus_loss then
-    local event = require("nui.utils.autocmd").event
-    popup:on({ event.BufLeave }, function()
+    popup:on({ nui_autocmd.event.BufLeave }, function()
       popup:unmount()
       if opts.on_close then
         opts.on_close()

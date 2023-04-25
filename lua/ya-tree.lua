@@ -1,4 +1,10 @@
-local run = require("ya-tree.async").run
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local Sidebar = lazy.require("ya-tree.sidebar") ---@module "ya-tree.sidebar"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 
@@ -18,19 +24,19 @@ local M = {
 ---  - {opts.panel?} `Yat.Panel.Type` The panel to open.
 ---  - {opts.panel_args}? `table<string, string>` The panel specific arguments.
 local function open(opts)
-  local log = require("ya-tree.log").get("ya-tree")
+  local log = Logger.get("ya-tree")
   if M._loading then
     local function open_window()
       open(opts)
     end
     log.info("deferring open")
-    vim.defer_fn(require("ya-tree.async").void(open_window), 100)
+    vim.defer_fn(async.void(open_window), 100)
     return
   end
   opts = opts or {}
   log.debug("opening sidebar with %s", opts)
 
-  local sidebar = require("ya-tree.sidebar").get_or_create_sidebar(api.nvim_get_current_tabpage())
+  local sidebar = Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage())
   sidebar:open({ focus = opts.focus, panel = opts.panel, panel_args = opts.panel_args })
 end
 
@@ -39,14 +45,14 @@ end
 ---  - {opts.panel?} `Yat.Panel.Type` The panel to open.
 ---  - {opts.panel_args}? `table<string, string>` The panel specific arguments.
 function M.open(opts)
-  run(function()
+  async.run(function()
     open(opts)
   end)
 end
 
 function M.close()
-  run(function()
-    local sidebar = require("ya-tree.sidebar").get_sidebar(api.nvim_get_current_tabpage())
+  async.run(function()
+    local sidebar = Sidebar.get_sidebar(api.nvim_get_current_tabpage())
     if sidebar and sidebar:is_open() then
       sidebar:close()
     end
@@ -54,8 +60,8 @@ function M.close()
 end
 
 function M.toggle()
-  run(function()
-    local sidebar = require("ya-tree.sidebar").get_sidebar(api.nvim_get_current_tabpage())
+  async.run(function()
+    local sidebar = Sidebar.get_sidebar(api.nvim_get_current_tabpage())
     if sidebar and sidebar:is_open() then
       sidebar:close()
     else
@@ -66,36 +72,36 @@ end
 
 ---@param level Yat.Logger.Level
 function M.set_log_level(level)
-  require("ya-tree.config").config.log.level = level
-  require("ya-tree.log").set_level(level)
+  Config.config.log.level = level
+  Logger.set_level(level)
 end
 
 ---@param namespace Yat.Logger.Namespace
 function M.add_logged_namespace(namespace)
-  local namespaces = require("ya-tree.config").config.log.namespaces
+  local namespaces = Config.config.log.namespaces
   if not vim.tbl_contains(namespaces, namespace) then
     namespaces[#namespaces + 1] = namespace
-    require("ya-tree.log").set_logged_namespaces(namespaces)
+    Logger.set_logged_namespaces(namespaces)
   end
 end
 
 ---@param namespace Yat.Logger.Namespace
 function M.remove_logged_namespace(namespace)
-  local namespaces = require("ya-tree.config").config.log.namespaces
-  require("ya-tree.utils").tbl_remove(namespaces, namespace)
-  require("ya-tree.log").set_logged_namespaces(namespaces)
+  local namespaces = Config.config.log.namespaces
+  utils.tbl_remove(namespaces, namespace)
+  Logger.set_logged_namespaces(namespaces)
 end
 
 ---@param to_console boolean
 function M.set_log_to_console(to_console)
-  require("ya-tree.config").config.log.to_console = to_console
-  require("ya-tree.log").set_log_to_console(to_console)
+  Config.config.log.to_console = to_console
+  Logger.set_log_to_console(to_console)
 end
 
 ---@param to_file boolean
 function M.set_log_to_file(to_file)
-  require("ya-tree.config").config.log.to_file = to_file
-  require("ya-tree.log").set_log_to_file(to_file)
+  Config.config.log.to_file = to_file
+  Logger.set_log_to_file(to_file)
 end
 
 ---@param arg_lead string
@@ -107,7 +113,7 @@ local function complete_open_command(arg_lead, cmdline)
     table.remove(splits, 1)
   end
   if #splits == 2 then
-    local items = require("ya-tree.sidebar").complete_command(arg_lead, nil, {})
+    local items = Sidebar.complete_command(arg_lead, nil, {})
     table.insert(items, 1, "no-focus")
     return vim.tbl_filter(function(item)
       return vim.startswith(item, arg_lead)
@@ -117,7 +123,7 @@ local function complete_open_command(arg_lead, cmdline)
   local panel_pos = splits[2] == "no-focus" and 3 or 2
   local panel_type = splits[panel_pos]
   local args = { unpack(splits, panel_pos + 1) }
-  return require("ya-tree.sidebar").complete_command(arg_lead, panel_type, args)
+  return Sidebar.complete_command(arg_lead, panel_type, args)
 end
 
 ---@param fargs string[]
@@ -127,7 +133,7 @@ local function parse_open_command_input(fargs)
   local panel_pos = focus and 1 or 2
   local panel_type = fargs[panel_pos]
   local args = panel_pos < #fargs and { unpack(fargs, panel_pos + 1) } or nil
-  local panel_args = require("ya-tree.sidebar").parse_command_arguments(panel_type, args)
+  local panel_args = Sidebar.parse_command_arguments(panel_type, args)
   ---@type Yat.OpenWindowArgs
   local open_args = { focus = focus, panel = panel_type, panel_args = panel_args }
   return open_args
@@ -135,29 +141,28 @@ end
 
 ---@param opts? Yat.Config
 function M.setup(opts)
-  local config = require("ya-tree.config").setup(opts)
+  local config = Config.setup(opts)
 
-  local log = require("ya-tree.log")
-  log.set_level(config.log.level)
-  log.set_log_to_console(config.log.to_console)
-  log.set_log_to_file(config.log.to_file)
-  log.set_logged_namespaces(config.log.namespaces)
+  Logger.set_level(config.log.level)
+  Logger.set_log_to_console(config.log.to_console)
+  Logger.set_log_to_file(config.log.to_file)
+  Logger.set_logged_namespaces(config.log.namespaces)
 
   require("ya-tree.diagnostics").setup(config)
   require("ya-tree.ui").setup(config)
   require("ya-tree.actions").setup(config)
-  require("ya-tree.sidebar").setup(config)
+  Sidebar.setup(config)
 
   if config.hijack_netrw then
     vim.cmd([[silent! autocmd! FileExplorer *]])
     vim.cmd([[autocmd VimEnter * ++once silent! autocmd! FileExplorer *]])
   end
 
-  local autocmd_will_open = config.hijack_netrw and require("ya-tree.utils").is_current_buffer_directory()
+  local autocmd_will_open = config.hijack_netrw and utils.is_current_buffer_directory()
   if not autocmd_will_open and config.auto_open.on_setup then
     M._loading = true
-    run(function()
-      require("ya-tree.sidebar").get_or_create_sidebar(api.nvim_get_current_tabpage())
+    async.run(function()
+      Sidebar.get_or_create_sidebar(api.nvim_get_current_tabpage())
       M._loading = false
       open({ focus = config.auto_open.focus_sidebar })
     end)

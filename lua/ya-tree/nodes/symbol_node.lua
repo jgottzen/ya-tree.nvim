@@ -1,8 +1,10 @@
-local diagnostics = require("ya-tree.diagnostics")
-local log = require("ya-tree.log").get("nodes")
-local lsp = require("ya-tree.lsp")
+local lazy = require("ya-tree.lazy")
+
+local diagnostics = lazy.require("ya-tree.diagnostics") ---@module "ya-tree.diagnostics"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
 local Node = require("ya-tree.nodes.node")
-local symbol_kind = require("ya-tree.lsp.symbol_kind")
+local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.lsp.symbol_kind"
 
 ---@class Yat.Node.Symbol : Yat.Node
 ---@field new fun(self: Yat.Node.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
@@ -132,7 +134,7 @@ function SymbolNode:refresh(opts)
   end
   local refresh = opts.use_cache ~= true
   self._bufnr = bufnr
-  log.debug("refreshing %q, bufnr=%s, refresh=%s", self.path, bufnr, refresh)
+  Logger.get("nodes").debug("refreshing %q, bufnr=%s, refresh=%s", self.path, bufnr, refresh)
 
   self._children = {}
   self.container = true

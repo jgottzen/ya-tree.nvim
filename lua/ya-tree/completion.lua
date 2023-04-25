@@ -1,8 +1,10 @@
-local fs = require("ya-tree.fs")
+local lazy = require("ya-tree.lazy")
 
-local M = {}
+local fs = lazy.require("ya-tree.fs")
 
 local fn = vim.fn
+
+local M = {}
 
 ---@param prefix string
 ---@param base string

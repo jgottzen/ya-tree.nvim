@@ -1,9 +1,14 @@
-local fs = require("ya-tree.fs")
-local log = require("ya-tree.log").get("sidebar")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local meta = require("ya-tree.meta")
-local Panels = require("ya-tree.panels")
-local scheduler = require("ya-tree.async").scheduler
-local ui = require("ya-tree.ui")
+local Panels = lazy.require("ya-tree.panels") ---@module "ya-tree.panels"
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 
@@ -56,7 +61,7 @@ end
 ---@private
 ---@param tabpage integer
 function Sidebar:init(tabpage)
-  local config = require("ya-tree.config").config
+  local config = Config.config
   self._tabpage = tabpage
   self.layout = {
     left = {
@@ -89,12 +94,12 @@ function Sidebar:init(tabpage)
     end
   end
 
-  scheduler()
-  log.info("created new sidebar %s", tostring(self))
+  async.scheduler()
+  Logger.get("sidebar").info("created new sidebar %s", tostring(self))
 end
 
 function Sidebar:delete()
-  log.info("deleting sidebar %s", tostring(self))
+  Logger.get("sidebar").info("deleting sidebar %s", tostring(self))
   self:for_each_panel(function(panel)
     panel:delete()
   end)
@@ -144,7 +149,7 @@ end
 ---  - {opts.panel?} `Yat.Panel.Type` A specific panel to open.
 ---  - {opts.panel_args?} `table<string, string>` Any panel specific arguments for `opts.panel`.
 function Sidebar:open(opts)
-  log.debug("sidebar opened with %s", opts)
+  Logger.get("sidebar").debug("sidebar opened with %s", opts)
   opts = opts or {}
   local edit_win = self:edit_win()
   self:open_side("right", opts.panel, opts.panel_args)
@@ -216,6 +221,7 @@ end
 ---@private
 ---@param side Yat.Sidebar.Side
 function Sidebar:reorder_panels(side)
+  local log = Logger.get("sidebar")
   local layout = side == "left" and self.layout.left or self.layout.right
   local pos = 1
   if #layout.panels > 1 then
@@ -410,6 +416,7 @@ end
 ---@param tabpage integer
 ---@return integer winid
 local function get_edit_win_candidate(tabpage)
+  local log = Logger.get("sidebar")
   local winid = api.nvim_tabpage_get_win(tabpage)
   if not is_likely_edit_window(winid) then
     for _, win in ipairs(api.nvim_tabpage_list_wins(tabpage)) do
@@ -495,7 +502,6 @@ function M.remove_unused_git_repos()
     end)
   end
 
-  local git = require("ya-tree.git")
   for toplevel, repo in pairs(git.repos) do
     if not found_toplevels[toplevel] then
       git.remove_repo(repo)
@@ -504,6 +510,7 @@ function M.remove_unused_git_repos()
 end
 
 function M.delete_sidebars_for_nonexisting_tabpages()
+  local log = Logger.get("sidebar")
   ---@type integer[]
   local tabpages = api.nvim_list_tabpages()
   for tabpage, sidebar in pairs(M._sidebars) do
@@ -551,7 +558,7 @@ local function on_win_closed(bufnr, winid)
           return
         end
       end
-      log.info("sidebar is last window(s), closing")
+      Logger.get("sidebar").info("sidebar is last window(s), closing")
       sidebar:close()
       -- all windows in the tabpage has closed, the TabClosed event fires here
     end
@@ -580,12 +587,12 @@ local function on_buf_enter(bufnr, file)
   if buftype ~= "" or file == "" then
     return
   end
-  local config = require("ya-tree.config").config
   local tabpage = api.nvim_get_current_tabpage()
   local current_winid = api.nvim_get_current_win()
   local sidebar = M.get_sidebar(tabpage)
 
-  if config.hijack_netrw and fs.is_directory(file) then
+  local log = Logger.get("sidebar")
+  if Config.config.hijack_netrw and fs.is_directory(file) then
     log.debug("the opened buffer is a directory with path %q", file)
 
     if not sidebar then
@@ -616,7 +623,7 @@ local function on_buf_enter(bufnr, file)
       local node = panel.root:expand({ to = file })
       if not node then
         panel:change_root_node(file)
-        if config.cwd.update_from_panel then
+        if Config.config.cwd.update_from_panel then
           log.debug("issueing tcd autocmd to %q", file)
           vim.cmd.tcd(vim.fn.fnameescape(file))
         end
@@ -624,7 +631,7 @@ local function on_buf_enter(bufnr, file)
         panel:draw(node)
       end
     end
-  elseif sidebar and config.move_buffers_from_sidebar_window then
+  elseif sidebar and Config.config.move_buffers_from_sidebar_window then
     local panel = sidebar:current_panel()
     if panel and panel:winid() == current_winid then
       local edit_winid = sidebar:edit_win()
@@ -721,9 +728,8 @@ function M.setup(config)
   end, config.sidebar.layout.right.panels) --[=[@as Yat.Panel.Type[]]=]
   vim.list_extend(left, right)
 
-  available_panels = Panels.setup(config, require("ya-tree.utils").tbl_unique(left))
+  available_panels = Panels.setup(config, utils.tbl_unique(left))
 
-  local void = require("ya-tree.async").void
   local group = api.nvim_create_augroup("YaTreeSidebar", { clear = true })
   if config.close_if_last_window then
     api.nvim_create_autocmd("WinClosed", {
@@ -737,7 +743,7 @@ function M.setup(config)
   end
   api.nvim_create_autocmd("BufEnter", {
     group = group,
-    callback = void(function(input)
+    callback = async.void(function(input)
       on_buf_enter(input.buf, input.file)
     end),
     desc = "Handle buffers opened in a panel, and opening directory buffers",
@@ -750,7 +756,7 @@ function M.setup(config)
   if config.auto_open.on_new_tab then
     api.nvim_create_autocmd("TabNewEntered", {
       group = group,
-      callback = void(function()
+      callback = async.void(function()
         on_tab_new_enter(config.auto_open.focus_sidebar)
       end),
       desc = "Open sidebar on new tab",

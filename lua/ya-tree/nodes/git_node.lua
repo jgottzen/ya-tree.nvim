@@ -1,8 +1,10 @@
-local fs = require("ya-tree.fs")
+local lazy = require("ya-tree.lazy")
+
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
-local log = require("ya-tree.log").get("nodes")
-local scheduler = require("ya-tree.async").scheduler
-local utils = require("ya-tree.utils")
+local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.Git : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Git, fs_node: Yat.Fs.Node, parent?: Yat.Node.Git): Yat.Node.Git
@@ -101,7 +103,7 @@ function GitNode:refresh(opts)
 
   opts = opts or {}
   local refresh_git = opts.refresh_git ~= false
-  log.debug("refreshing git status node %q", self.path)
+  Logger.get("nodes").debug("refreshing git status node %q", self.path)
   if refresh_git then
     self.repo:status():refresh({ ignored = true })
   end
@@ -110,7 +112,7 @@ function GitNode:refresh(opts)
   self._children = {}
   self.empty = true
   local leaf = self:populate_from_paths(paths, create_node)
-  scheduler()
+  async.scheduler()
   return leaf
 end
 
