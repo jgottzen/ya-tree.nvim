@@ -1,13 +1,43 @@
 local lazy = require("ya-tree.lazy")
 
-local builtin = lazy.require("ya-tree.actions.builtin") ---@module "ya-tree.actions.builtin"
+local builtin = require("ya-tree.actions.builtin")
 local completion = lazy.require("ya-tree.completion") ---@module "ya-tree.completion"
-local GitStatusPanel = lazy.require("ya-tree.panels.git_status.panel") ---@module "ya-tree.panels.git_status.panel"
-local tree_actions = lazy.require("ya-tree.panels.tree_actions") ---@module "ya-tree.panels.tree_actions"
-local tree_renderers = lazy.require("ya-tree.panels.tree_renderers") ---@module "ya-tree.panels.tree_renderers"
-local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@alias Yat.Panel.GitStatus.SupportedActions
+---| "close_sidebar"
+---| "open_help"
+---| "close_panel"
+---
+---| "open_git_status_panel"
+---| "open_symbols_panel"
+---| "open_call_hierarchy_panel"
+---| "open_buffers_panel"
+---
+---| "open"
+---| "vsplit"
+---| "split"
+---| "tabnew"
+---| "preview"
+---| "preview_and_focus"
+---
+---| "copy_name_to_clipboard"
+---| "copy_root_relative_path_to_clipboard"
+---| "copy_absolute_path_to_clipboard"
+---
+---| "close_node"
+---| "close_all_nodes"
+---| "close_all_child_nodes"
+---| "expand_all_nodes"
+---| "expand_all_child_nodes"
+---
+---| "refresh_panel"
+---
+---| "focus_parent"
+---| "focus_prev_sibling"
+---| "focus_next_sibling"
+---| "focus_first_sibling"
+---| "focus_last_sibling"
+---
 ---| "system_open"
 ---| "show_node_info"
 ---|
@@ -29,8 +59,6 @@ local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 ---
 ---| "focus_prev_diagnostic_item"
 ---| "focus_next_diagnostic_item"
----
----| Yat.Panel.Tree.SupportedActions
 
 ---@type Yat.Panel.Factory
 local M = {
@@ -43,20 +71,42 @@ local M = {
   },
   ---@type table<string, Yat.Action>
   keymap = {},
-}
-
----@param config Yat.Config
----@return boolean success
-function M.setup(config)
-  if not config.git.enable then
-    return false
-  end
-
-  local renderers = config.panels.git_status.renderers
-  M.renderers.directory, M.renderers.file = tree_renderers.create_renderers("git_status", renderers.directory, renderers.file)
-
   ---@type Yat.Panel.GitStatus.SupportedActions[]
-  local supported_actions = utils.tbl_unique({
+  supported_actions = {
+    builtin.general.close_sidebar,
+    builtin.general.open_help,
+    builtin.general.close_panel,
+
+    builtin.general.open_git_status_panel,
+    builtin.general.open_symbols_panel,
+    builtin.general.open_call_hierarchy_panel,
+    builtin.general.open_buffers_panel,
+
+    builtin.general.open,
+    builtin.general.vsplit,
+    builtin.general.split,
+    builtin.general.tabnew,
+    builtin.general.preview,
+    builtin.general.preview_and_focus,
+
+    builtin.general.copy_name_to_clipboard,
+    builtin.general.copy_root_relative_path_to_clipboard,
+    builtin.general.copy_absolute_path_to_clipboard,
+
+    builtin.general.close_node,
+    builtin.general.close_all_nodes,
+    builtin.general.close_all_child_nodes,
+    builtin.general.expand_all_nodes,
+    builtin.general.expand_all_child_nodes,
+
+    builtin.general.refresh_panel,
+
+    builtin.general.focus_parent,
+    builtin.general.focus_prev_sibling,
+    builtin.general.focus_next_sibling,
+    builtin.general.focus_first_sibling,
+    builtin.general.focus_last_sibling,
+
     builtin.general.system_open,
     builtin.general.show_node_info,
 
@@ -78,11 +128,20 @@ function M.setup(config)
 
     builtin.diagnostics.focus_prev_diagnostic_item,
     builtin.diagnostics.focus_next_diagnostic_item,
+  },
+}
 
-    unpack(vim.deepcopy(tree_actions.supported_actions)),
-  })
+---@param config Yat.Config
+---@return boolean success
+function M.setup(config)
+  if not config.git.enable then
+    return false
+  end
 
-  M.keymap = tree_actions.create_mappings("git_status", config.panels.git_status.mappings.list, supported_actions)
+  local renderers = config.panels.git_status.renderers
+  local utils = require("ya-tree.panels.tree_utils")
+  M.renderers.directory, M.renderers.file = utils.create_renderers("git_status", renderers.directory, renderers.file)
+  M.keymap = utils.create_mappings("git_status", config.panels.git_status.mappings.list, M.supported_actions)
 
   return true
 end
@@ -93,7 +152,7 @@ end
 ---@param repo? Yat.Git.Repo
 ---@return Yat.Panel.GitStatus
 function M.create_panel(sidebar, config, repo)
-  return GitStatusPanel:new(sidebar, config.panels.git_status, M.keymap, M.renderers, repo)
+  return require("ya-tree.panels.git_status.panel"):new(sidebar, config.panels.git_status, M.keymap, M.renderers, repo)
 end
 
 ---@param current string
