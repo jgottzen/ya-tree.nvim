@@ -29,7 +29,6 @@ local M = {
 
 ---@class Yat.Sidebar : Yat.Object
 ---@field new async fun(self: Yat.Sidebar, tabpage: integer): Yat.Sidebar
----@overload async fun(tabpage: integer): Yat.Sidebar
 ---
 ---@field private _tabpage integer
 ---@field private layout { left: Yat.Sidebar.Layout, right: Yat.Sidebar.Layout }

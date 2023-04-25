@@ -8,7 +8,6 @@ local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.
 
 ---@class Yat.Node.Symbol : Yat.Node
 ---@field new fun(self: Yat.Node.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
----@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
 ---
 ---@field public TYPE "symbol"
 ---@field public parent? Yat.Node.Symbol

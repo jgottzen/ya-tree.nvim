@@ -15,7 +15,6 @@ local uv = vim.loop
 
 ---@class Yat.Panel.GitStatus : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.GitStatus, sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.GitStatus, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }, repo?: Yat.Git.Repo): Yat.Panel.GitStatus
 ---
 ---@field public TYPE "git_status"
 ---@field public root Yat.Node.Git|Yat.Node.Text

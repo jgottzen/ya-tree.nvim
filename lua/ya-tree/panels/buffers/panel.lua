@@ -14,7 +14,6 @@ local uv = vim.loop
 
 ---@class Yat.Panel.Buffers : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.Buffers, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Buffers
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Buffers, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Buffers
 ---
 ---@field public TYPE "buffers"
 ---@field public root Yat.Node.Buffer

@@ -16,7 +16,6 @@ local uv = vim.loop
 
 ---@class Yat.Panel.Symbols : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.Symbols, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Symbols
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Symbols
 ---
 ---@field public TYPE "symbols"
 ---@field public root Yat.Node.Symbol

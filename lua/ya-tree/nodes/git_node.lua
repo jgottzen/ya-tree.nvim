@@ -8,7 +8,6 @@ local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 ---@class Yat.Node.Git : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Git, fs_node: Yat.Fs.Node, parent?: Yat.Node.Git): Yat.Node.Git
----@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Git): Yat.Node.Git
 ---
 ---@field public TYPE "git"
 ---@field public parent? Yat.Node.Git

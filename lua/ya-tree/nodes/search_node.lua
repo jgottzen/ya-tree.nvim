@@ -10,7 +10,6 @@ local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.Search : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Search, fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
----@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Search): Yat.Node.Search
 ---
 ---@field public TYPE "search"
 ---@field public parent? Yat.Node.Search

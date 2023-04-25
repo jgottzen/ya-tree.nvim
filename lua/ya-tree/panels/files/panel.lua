@@ -17,7 +17,6 @@ local uv = vim.loop
 
 ---@class Yat.Panel.Files : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.Files, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Files
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.Files, keymap: table<string, Yat.Action>, renderers: { directory: Yat.Panel.Tree.Ui.Renderer[], file: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Files
 ---
 ---@field public TYPE "files"
 ---@field public root Yat.Node.Filesystem|Yat.Node.Search

@@ -11,7 +11,6 @@ local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 ---@class Yat.Node.Filesystem : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Filesystem, fs_node: Yat.Fs.Node, parent?: Yat.Node.Filesystem): Yat.Node.Filesystem
----@overload fun(fs_node: Yat.Fs.Node, parent?: Yat.Node.Filesystem): Yat.Node.Filesystem
 ---@field public static Yat.Node.FilesystemStatic
 ---
 ---@field public TYPE "filesystem"

@@ -12,7 +12,6 @@ local api = vim.api
 
 ---@class Yat.Panel.CallHierarchy : Yat.Panel.Tree
 ---@field new async fun(self: Yat.Panel.CallHierarchy, sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.CallHierarchy
----@overload async fun(sidebar: Yat.Sidebar, config: Yat.Config.Panels.CallHierarchy, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.CallHierarchy
 ---
 ---@field public TYPE "call_hierarchy"
 ---@field public root Yat.Node.CallHierarchy|Yat.Node.Text

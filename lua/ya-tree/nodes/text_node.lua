@@ -2,7 +2,6 @@ local Node = require("ya-tree.nodes.node")
 
 ---@class Yat.Node.Text : Yat.Node
 ---@field new fun(self: Yat.Node.Text, text: string, path: string, container?: boolean, parent?: Yat.Node.Text): Yat.Node.Text
----@overload fun(text: string, path: string, container?: boolean, parent?: Yat.Node.Text): Yat.Node.Text
 ---
 ---@field public TYPE "text"
 ---@field public parent? Yat.Node.Text

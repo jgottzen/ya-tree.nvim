@@ -90,13 +90,6 @@ local function declare_instance_method(class, name, f)
   propagate_instance_method(class, name, f)
 end
 
----@param self Yat.Class
----@param ... any
----@return Yat.Object
-local function call(self, ...)
-  return self:new(...)
-end
-
 ---@generic T : Yat.Object
 ---@param name `T`
 ---@param super? Yat.Class
@@ -151,7 +144,6 @@ local function create_class(name, super)
     __tostring = function()
       return "<class " .. name .. ">"
     end,
-    __call = call,
     __newindex = declare_instance_method,
   })
 

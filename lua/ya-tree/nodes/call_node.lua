@@ -9,7 +9,6 @@ local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
 
 ---@class Yat.Node.CallHierarchy : Yat.Node
 ---@field new fun(self: Yat.Node.CallHierarchy, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
----@overload fun(name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, bufnr: integer, file: string, parent?: Yat.Node.CallHierarchy): Yat.Node.CallHierarchy
 ---
 ---@field public TYPE "call_hierarchy"
 ---@field public parent? Yat.Node.CallHierarchy
