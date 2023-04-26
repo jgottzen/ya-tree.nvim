@@ -79,10 +79,6 @@ do
     levels[v.level] = k
   end
   local log_file = fmt("%s/%s.log", fn.stdpath("log"), config.name)
-  local dir = require("ya-tree.path"):new(log_file):parent()
-  if not dir:exists() then
-    config.log_file = false
-  end
 
   ---@param value any
   ---@return string
@@ -167,21 +163,21 @@ do
       vim.schedule(function()
         local hl = config.highlight and highlight or nil
         for _, m in ipairs(vim.split(fmt_message, "\n", { plain = true })) do
-          m = fmt("[%s] [%s] %s", level_name, config.name, m)
+          m = fmt("[%-5s] [%s] %s", level_name, config.name, m)
           api.nvim_echo({ { m, hl } }, true, {})
         end
       end)
     end
     if config.to_file then
       vim.schedule(function()
-        local file = io.open(log_file, "a")
+        local file, err = io.open(log_file, "a")
         if file then
-          local m = fmt("[%s] %s %s\n", level_name, os.date("%Y-%m-%d"), fmt_message)
+          local m = fmt("[%-5s] %s %s\n", level_name, os.date("%Y-%m-%d"), fmt_message)
           file:write(m)
           file:close()
         else
           config.to_file = false
-          error("Could not open log file: " .. log_file)
+          error("Could not open log file " .. log_file .. ": " .. err)
         end
       end)
     end

@@ -7,7 +7,7 @@ local uv = vim.loop
 
 local path = {}
 
-path.home = uv.os_homedir()
+path.home = uv.os_homedir() --[[@as string]]
 
 path.sep = (function()
   if jit then
