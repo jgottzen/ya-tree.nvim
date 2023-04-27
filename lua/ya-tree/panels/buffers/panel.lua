@@ -163,6 +163,17 @@ function BuffersPanel:register_buffer_deleted_event()
   end)
 end
 
+---@param root Yat.Node.Buffer
+---@param cwd string
+---@return boolean
+local function should_change_root(root, cwd)
+  if root.path ~= cwd then
+    local children = root:children()
+    return #children <= 1 or (#children == 2 and children[2]:is_terminals_container())
+  end
+  return false
+end
+
 ---@async
 ---@private
 ---@param bufnr integer
@@ -176,7 +187,7 @@ function BuffersPanel:on_buffer_deleted(bufnr, file)
     Logger.get("panels").debug("removing buffer %q from buffer tree", file)
     local updated = self.root:remove_node(file, bufnr, buftype == "terminal")
     local cwd = uv.cwd() --[[@as string]]
-    if #self.root:children() <= 1 and self.root.path ~= cwd then
+    if should_change_root(self.root, cwd) then
       self.root:refresh({ root_path = cwd })
       updated = true
     end
