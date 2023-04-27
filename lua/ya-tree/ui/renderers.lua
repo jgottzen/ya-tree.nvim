@@ -276,6 +276,8 @@ function M.name(node, context, renderer)
         ---@cast node Yat.Node.Buffer
         if node:is_terminal() then
           highlight = node.bufhidden and hl.GIT_IGNORED or hl.FILE_NAME
+        elseif node:is_terminals_container() then
+          highlight = hl.CONTAINER_NAME
         end
       end
 
