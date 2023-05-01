@@ -89,28 +89,19 @@ end
 function BuffersPanel:on_buffer_new(bufnr, file)
   local log = Logger.get("panels")
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if (buftype == "" and fs.is_file(file)) or buftype == "terminal" then
-    local node
-    if buftype == "terminal" then
-      node = self.root:add_node(file, bufnr, true)
-    else
-      node = self.root:get_node(file)
-      if not node then
-        if self.root:is_ancestor_of(file) then
-          log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
-          node = self.root:add_node(file, bufnr, false)
-        else
-          log.debug("buffer %q is not under current buffer tree root %q, refreshing buffer tree", file, self.root.path)
-          self.root:refresh()
-        end
-      elseif node.bufnr ~= bufnr then
-        log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
-        node.bufnr = bufnr
-      end
+  local is_terminal = buftype == "terminal"
+  if (buftype == "" and fs.is_file(file)) or is_terminal then
+    local  node = self.root:get_node(file)
+    if not node then
+      log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
+      node = self.root:add_node(file, bufnr, is_terminal)
+    elseif node.bufnr ~= bufnr then
+      log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)
+      node.bufnr = bufnr
     end
 
     if not Config.config.follow_focused_file then
-      node = self:get_current_node()
+      node = self:get_current_node() --[[@as Yat.Node.Buffer?]]
     end
     self:draw(node)
   end
@@ -163,35 +154,20 @@ function BuffersPanel:register_buffer_deleted_event()
   end)
 end
 
----@param root Yat.Node.Buffer
----@param cwd string
----@return boolean
-local function should_change_root(root, cwd)
-  if root.path ~= cwd then
-    local children = root:children()
-    return #children <= 1 or (#children == 2 and children[2]:is_terminals_container())
-  end
-  return false
-end
-
 ---@async
 ---@private
 ---@param bufnr integer
 ---@param file string
 function BuffersPanel:on_buffer_deleted(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
-  if buftype == "" or buftype == "terminal" then
-    if buftype == "" and not Path.is_absolute_path(file) then
+  local is_fs_buffer = buftype == ""
+  local is_terminal = buftype == "terminal"
+  if is_fs_buffer and fs.is_file(file) or is_terminal then
+    if is_fs_buffer and not Path.is_absolute_path(file) then
       file = Path:new(file):absolute()
     end
     Logger.get("panels").debug("removing buffer %q from buffer tree", file)
-    local updated = self.root:remove_node(file, bufnr, buftype == "terminal")
-    local cwd = uv.cwd() --[[@as string]]
-    if should_change_root(self.root, cwd) then
-      self.root:refresh({ root_path = cwd })
-      updated = true
-    end
-    if updated then
+    if self.root:remove_node(file, bufnr, is_terminal) then
       self:draw(self:get_current_node())
     end
   end

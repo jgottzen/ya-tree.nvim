@@ -24,7 +24,7 @@ local fn = vim.fn
 ---@field public TYPE "buffer"
 ---@field public parent? Yat.Node.Buffer
 ---@field private _type Yat.Node.Buffer.Type
----@field private _children? Yat.Node.Buffer[]
+---@field package _children? Yat.Node.Buffer[]
 ---@field public bufname? string
 ---@field public bufnr? integer
 ---@field public bufhidden? boolean
@@ -245,20 +245,20 @@ local function clean_paths(paths)
 end
 
 ---@param paths string[]
----@return string|nil path
+---@return string path
 local function find_common_ancestor(paths)
-  if #paths == 0 then
-    return nil
+  if #paths == 1 then
+    return paths[1]
   end
 
-  local os_sep = Path.path.sep
   table.sort(paths, function(a, b)
     return #a < #b
   end)
+  local sep = Path.path.sep
   ---@type string[], string[][]
   local common_ancestor, splits = {}, {}
   for i, path in ipairs(paths) do
-    splits[i] = vim.split(Path:new(path):absolute(), os_sep, { plain = true })
+    splits[i] = vim.split(Path:new(path):absolute(), sep, { plain = true })
   end
 
   for pos, dir_name in ipairs(splits[1]) do
@@ -279,47 +279,20 @@ local function find_common_ancestor(paths)
     end
   end
 
-  local path = table.concat(common_ancestor, os_sep)
-  if #path == 0 then
-    return nil
-  else
-    return path
-  end
-end
-
----@param tree_root_path string
----@param paths string[]
----@return string root_path
-local function get_buffers_root_path(tree_root_path, paths)
-  local root_path
-  local size = #paths
-  if size == 0 then
-    root_path = tree_root_path
-  elseif size == 1 then
-    root_path = Path:new(paths[1]):parent().filename
-  else
-    root_path = find_common_ancestor(paths) or tree_root_path
-  end
-  if vim.startswith(root_path, tree_root_path .. Path.path.sep) then
-    root_path = tree_root_path
-  end
-  return root_path
+  return table.concat(common_ancestor, sep)
 end
 
 ---@async
----@param opts? {root_path?: string}
---- -- {opts.root_path?} `string`
 ---@return Yat.Node.Buffer first_leaf_node
-function BufferNode:refresh(opts)
+function BufferNode:refresh()
   if self.parent then
-    return self.parent:refresh(opts)
+    return self.parent:refresh()
   end
 
-  opts = opts or {}
   async.scheduler()
   local buffers, terminals = utils.get_current_buffers()
   local paths = clean_paths(vim.tbl_keys(buffers))
-  local root_path = get_buffers_root_path(opts.root_path or self.path, paths)
+  local root_path = find_common_ancestor({ self.path, unpack(paths) })
   if root_path ~= self.path then
     Logger.get("nodes").debug("setting new root path to %q", root_path)
     local fs_node = fs.node_for(root_path) --[[@as Yat.Fs.Node]]
@@ -329,14 +302,14 @@ function BufferNode:refresh(opts)
 
   self.repo = git.get_repo_for_path(root_path)
   self._children = {}
-  self.empty = true
+  self.empty = #paths == 0
   local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then
-      local buffer_node = buffers[fs_node.path]
-      local bufnr = buffer_node and buffer_node.bufnr or nil
-      local modified = buffer_node and buffer_node.modified or false
-      local node = BufferNode:new(fs_node, parent, buffer_node and path or nil, bufnr, modified, false)
+      local buffer = buffers[fs_node.path]
+      local bufnr = buffer and buffer.bufnr or nil
+      local modified = buffer and buffer.modified or false
+      local node = BufferNode:new(fs_node, parent, buffer and path or nil, bufnr, modified, false)
       if not parent.repo or parent.repo:is_yadm() then
         node.repo = git.get_repo_for_path(node.path)
       end
@@ -374,16 +347,91 @@ function BufferNode:add_node(path, bufnr, is_terminal)
     end
     return add_terminal_buffer_to_container(container, { name = path, bufnr = bufnr })
   else
+    local log = Logger.get("nodes")
+    if not self:is_ancestor_of(path) then
+      ---@async
+      ---@param node_path string
+      ---@param parent? Yat.Node.Buffer
+      ---@return Yat.Node.Buffer node
+      local function create_directory_node(node_path, parent)
+        local fs_node = fs.node_for(node_path) --[[@as Yat.Fs.DirectoryNode]]
+        local node = BufferNode:new(fs_node, parent)
+        if parent then
+          parent:add_child(node)
+        end
+        if not parent or not parent.repo or parent.repo:is_yadm() then
+          node.repo = git.get_repo_for_path(node.path)
+        end
+        return node
+      end
+
+      local i, container = self:get_terminals_container()
+      if i then
+        table.remove(self._children, i)
+      end
+
+      local new_root_path = find_common_ancestor({ path, self.path })
+      if #self._children > 0 then
+        -- create new node from self
+        local old_root = BufferNode:new({ name = self.name, path = self.path, _type = "directory" })
+        old_root.empty = false
+        old_root.repo = self.repo
+        for _, child in ipairs(self._children) do
+          child.parent = old_root
+          old_root._children[#old_root._children + 1] = child
+        end
+        self._children = {}
+
+        local current_root = self.path
+        -- change self to new root
+        log.debug("setting self: %q", new_root_path)
+        local fs_node = fs.node_for(new_root_path) --[[@as Yat.Fs.Node]]
+        self:merge_new_data(fs_node)
+        self.empty = false
+        self.expanded = true
+        self.repo = git.get_repo_for_path(self.path)
+
+        local paths = vim.tbl_filter(function(value)
+          return #value > #new_root_path
+        end, Path:new(current_root):parents()) --[=[@as string[]]=]
+        local parent = self
+        -- create intermediary nodes between new root and old root
+        for _, parent_path in ipairs(paths) do
+          log.debug("creating node %q with parent %q", parent_path, parent.path)
+          parent = create_directory_node(parent_path, parent)
+        end
+        -- set the last new new node as the parent of the old root
+        parent._children[#parent._children + 1] = old_root
+        old_root.parent = parent
+      else
+        -- change self to new root
+        log.debug("setting self: %q", new_root_path)
+        local fs_node = fs.node_for(new_root_path) --[[@as Yat.Fs.Node]]
+        self:merge_new_data(fs_node)
+        self.empty = false
+        self.expanded = true
+        self.repo = git.get_repo_for_path(self.path)
+      end
+
+      if container then
+        container.path = self.path .. TERMINALS_CONTAINER_PATH
+        self._children[#self._children + 1] = container
+        for _, terminal in ipairs(container._children) do
+          terminal.path = container.path .. "/" .. terminal.bufname
+        end
+      end
+    end
+
     return self:_add_node(path, function(path_part, parent)
       local fs_node = fs.node_for(path_part)
       if fs_node then
-        local is_buffer_node = fs_node.path == path
-        local node = BufferNode:new(fs_node, parent, is_buffer_node and path or nil, is_buffer_node and bufnr or nil, false, false)
+        local is_buffer = fs_node.path == path
+        local node = BufferNode:new(fs_node, parent, is_buffer and path or nil, is_buffer and bufnr or nil, false, false)
         if not parent.repo or parent.repo:is_yadm() then
           node.repo = git.get_repo_for_path(node.path)
         end
-        if is_buffer_node then
-          Logger.get("nodes").debug("adding buffer %s (%q)", node.bufnr, node.bufname)
+        if is_buffer then
+          log.debug("adding buffer %s (%q)", node.bufnr, node.bufname)
         end
         return node
       end
@@ -396,13 +444,13 @@ end
 ---@param is_terminal boolean
 ---@return boolean updated
 function BufferNode:remove_node(path, bufnr, is_terminal)
-  local log = Logger.get("nodes")
   if self.parent then
     self.parent:remove_node(path, bufnr, is_terminal)
   end
+  local log = Logger.get("nodes")
 
+  local updated = false
   if is_terminal then
-    local updated = false
     local index, container = self:get_terminals_container()
     if container then
       for i = #container._children, 1, -1 do
@@ -420,10 +468,54 @@ function BufferNode:remove_node(path, bufnr, is_terminal)
         log.debug("no more terminal buffers present, removed container item")
       end
     end
-    return updated
   else
-    return FsBasedNode.remove_node(self, path, true)
+    updated = FsBasedNode.remove_node(self, path, true)
   end
+
+  if updated then
+    local cwd = vim.loop.cwd() --[[@as string]]
+    if cwd ~= self.path then
+      local index, container = self:get_terminals_container()
+      if index then
+        table.remove(self._children, index)
+      end
+
+      if #self._children == 0 then
+        -- no more open buffers, reset root to cwd
+        log.debug("setting self: %q", cwd)
+        local fs_node = fs.node_for(cwd) --[[@as Yat.Fs.DirectoryNode]]
+        self:merge_new_data(fs_node)
+        self.empty = true
+        self.parent = nil
+        self.repo = git.get_repo_for_path(cwd)
+        async.scheduler()
+      else
+        -- walk the tree downwards
+        while #self._children == 1 and self._children[1]._type == "directory" and cwd ~= self.path do
+          local new_root = self._children[1]
+          self._children = new_root._children
+          for _, child in ipairs(self._children) do
+            child.parent = self
+          end
+          self.path = new_root.path
+          self.name = new_root.name
+          new_root._children = nil
+          new_root.parent = nil
+        end
+        log.debug("tried to walk downwards to %q, root is now %q", cwd, self.path)
+      end
+
+      if container then
+        container.path = self.path .. TERMINALS_CONTAINER_PATH
+        self._children[#self._children + 1] = container
+        for _, terminal in ipairs(container._children) do
+          terminal.path = container.path .. "/" .. terminal.bufname
+        end
+      end
+    end
+  end
+
+  return updated
 end
 
 return BufferNode
