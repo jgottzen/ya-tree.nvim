@@ -1,5 +1,4 @@
 local api = vim.api
-local fn = vim.fn
 local uv = vim.loop
 
 ---@class Yat.Logger
@@ -78,7 +77,7 @@ do
   for k, v in ipairs(config.levels) do
     levels[v.level] = k
   end
-  local log_file = fmt("%s/%s.log", fn.stdpath("log"), config.name)
+  local log_file = fmt("%s/%s.log", vim.fn.stdpath("log"), config.name)
 
   ---@param value any
   ---@return string

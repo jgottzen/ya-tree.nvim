@@ -120,13 +120,13 @@ end
 ---@param node Yat.Node
 ---@return string
 function Node:relative_path_to(node)
-  local double = Path.path.sep .. Path.path.sep
-  local path, to = self.path:gsub(double, Path.path.sep), node.path:gsub(double, Path.path.sep)
+  local sep = Path.path.sep
+  local path, to = self.path:gsub(sep .. sep, sep), node.path:gsub(sep .. sep, sep)
   if path == to then
     return "."
   else
-    if to:sub(#to, #to) ~= Path.path.sep then
-      to = to .. Path.path.sep
+    if to:sub(#to, #to) ~= sep then
+      to = to .. sep
     end
 
     if path:sub(1, #to) == to then
@@ -306,7 +306,7 @@ end
 ---@generic T : Yat.Node
 ---@param self T
 ---@param opts? {to?: string}
----  - {opts.to?} `string` recursively expand to the specified path and return it.
+---  - {opts.to?} `string` recursively expand to the specified path and return that `Node`, if found.
 ---@return T|nil node if {opts.to} is specified, and found.
 function Node:expand(opts)
   local log = Logger.get("nodes")

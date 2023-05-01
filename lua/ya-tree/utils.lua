@@ -92,7 +92,7 @@ function M.get_current_buffers()
           name = path,
           bufnr = bufnr,
         }
-      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and fn.buflisted(bufnr) == 1 then
+      elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buflisted then
         buffers[path] = {
           bufnr = bufnr,
           modified = api.nvim_buf_get_option(bufnr, "modified"),

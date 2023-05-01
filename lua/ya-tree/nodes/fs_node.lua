@@ -176,7 +176,6 @@ end
 ---  - {opts.to?} `string` recursively expand to the specified path and return it.
 ---@return Yat.Node.Filesystem|nil node if {opts.to} is specified, and found.
 function FilesystemNode:expand(opts)
-  Logger.get("nodes").debug("expanding %q", self.path)
   opts = opts or {}
   if self._children and (not self.scanned or opts.force_scan) then
     self:scandir()

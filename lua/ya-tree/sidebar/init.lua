@@ -568,7 +568,7 @@ end
 local function can_switch_to_previous_buffer()
   local buffers = 0
   for _, bufnr in ipairs(api.nvim_list_bufs()) do
-    if api.nvim_buf_is_loaded(bufnr) and api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].buflisted then
+    if api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buflisted then
       buffers = buffers + 1
       if buffers >= 2 then
         return true

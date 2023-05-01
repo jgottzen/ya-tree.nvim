@@ -34,8 +34,7 @@ local function on_diagnostics_changed(diagnostics)
   ---@type table<string, Diagnostic[]>, table<string, DiagnosticSeverity>
   local new_diagnostics, new_severity_diagnostics = {}, {}
   for _, diagnostic in ipairs(diagnostics) do
-    ---@diagnostic disable-next-line:undefined-field
-    local bufnr = diagnostic.bufnr --[[@type integer]]
+    local bufnr = diagnostic.bufnr
     if api.nvim_buf_is_valid(bufnr) then
       local bufname = api.nvim_buf_get_name(bufnr)
       local current = new_diagnostics[bufname]

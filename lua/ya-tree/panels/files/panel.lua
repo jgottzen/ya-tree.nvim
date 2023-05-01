@@ -166,9 +166,9 @@ function FilesPanel:on_fs_changed_event(dir, filenames)
           new_node = parent and parent:get_node(self.focus_path_on_fs_event)
         end
         if not new_node then
-          local os_sep = Path.path.sep
+          local sep = Path.path.sep
           for _, filename in ipairs(filenames) do
-            local path = dir .. os_sep .. filename
+            local path = dir .. sep .. filename
             local child = dir_node:get_node(path)
             if child then
               log.debug("setting current node to %q", path)
