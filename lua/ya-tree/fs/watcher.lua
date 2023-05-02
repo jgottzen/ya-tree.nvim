@@ -42,11 +42,11 @@ end
 
 ---@param dir string
 function M.watch_dir(dir)
-  if not Config.config.dir_watcher.enable or is_ignored(dir) then
-    return
-  end
   if not setup_done then
     setup(Config.config)
+  end
+  if not Config.config.dir_watcher.enable or is_ignored(dir) then
+    return
   end
 
   local log = Logger.get("fs")
