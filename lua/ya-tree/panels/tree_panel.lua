@@ -217,8 +217,8 @@ end
 ---@protected
 function TreePanel:register_dot_git_dir_changed_event()
   if Config.config.git.enable then
-    self:register_git_event(event.git.DOT_GIT_DIR_CHANGED, function(repo, fs_changes)
-      self:on_dot_git_dir_changed(repo, fs_changes)
+    self:register_git_event(event.git.DOT_GIT_DIR_CHANGED, function(repo)
+      self:on_dot_git_dir_changed(repo)
     end)
   end
 end
@@ -228,9 +228,7 @@ end
 ---@async
 ---@protected
 ---@param repo Yat.Git.Repo
----@param fs_changes boolean
----@diagnostic disable-next-line:unused-local
-function TreePanel:on_dot_git_dir_changed(repo, fs_changes)
+function TreePanel:on_dot_git_dir_changed(repo)
   if vim.v.exiting == vim.NIL and (self.root:is_ancestor_of(repo.toplevel) or vim.startswith(self.root.path, repo.toplevel)) then
     Logger.get("panels").debug("git repo %s changed", tostring(repo))
     self:draw(self:get_current_node())

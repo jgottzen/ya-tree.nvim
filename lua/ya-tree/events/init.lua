@@ -11,7 +11,7 @@ local api = vim.api
 ---@field id string
 ---@field callback Yat.Events.AutocmdEvent.CallbackFn
 
----@alias Yat.Events.GitEvent.CallbackFn async fun(repo: Yat.Git.Repo, fs_changes: boolean)
+---@alias Yat.Events.GitEvent.CallbackFn async fun(repo: Yat.Git.Repo)
 
 ---@class Yat.Events.Handler.Git
 ---@field id string
@@ -225,14 +225,13 @@ end
 ---@async
 ---@param event Yat.Events.GitEvent
 ---@param repo Yat.Git.Repo
----@param fs_changes boolean
-function M.fire_git_event(event, repo, fs_changes)
+function M.fire_git_event(event, repo)
   local event_name = EVENT_NAMES[event]
   if vim.v.exiting == vim.NIL then
     Logger.get("events").trace("calling handlers for event %q", event_name)
   end
   for _, handler in pairs(M._git_event_listeners[event_name]) do
-    handler.callback(repo, fs_changes)
+    handler.callback(repo)
   end
 end
 

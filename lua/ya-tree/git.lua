@@ -195,9 +195,9 @@ function Repo:_add_git_watcher(config)
         return
       end
 
-      local fs_changes = self._status:refresh({ ignored = true })
+      self._status:refresh({ ignored = true })
       async.scheduler()
-      events.fire_git_event(event.git.DOT_GIT_DIR_CHANGED, self, fs_changes)
+      events.fire_git_event(event.git.DOT_GIT_DIR_CHANGED, self)
     end)
 
     local result, message
@@ -452,13 +452,11 @@ do
   ---@async
   ---@param opts? { ignored?: boolean }
   ---  - {opts.ignored?} `boolean`
-  ---@return boolean fs_changes
   function GitStatus:refresh(opts)
     local log = Logger.get("git")
     local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
       log.debug("refresh_status status called within 1 second, returning")
-      return false
     end
     opts = opts or {}
     local args = create_status_arguments({
@@ -472,7 +470,6 @@ do
       return false
     end
 
-    local old_changed_entries = self.status._changed_entries
     self.status.unmerged = 0
     self.status.stashed = 0
     self.status.behind = 0
@@ -485,20 +482,19 @@ do
     self.status._propagated_changed_entries = {}
     self.status._ignored = {}
 
-    local i, fs_changes = 1, false
+    local i = 1
     while i <= #results do
       local line = results[i]
       local line_type = line:sub(1, 1)
       if line_type == "#" then
         self:_parse_porcelainv2_header_row(line)
       elseif line_type == "1" then
-        fs_changes = self:_parse_porcelainv2_change_row(line) or fs_changes
+        self:_parse_porcelainv2_change_row(line)
       elseif line_type == "2" then
         -- the new and original paths are separated by NUL,
         -- the original path isn't currently used, so just step over it
         i = i + 1
         self:_parse_porcelainv2_rename_row(line)
-        fs_changes = true
       elseif line_type == "u" then
         self:_parse_porcelainv2_merge_row(line)
       elseif line_type == "?" then
@@ -512,12 +508,7 @@ do
       i = i + 1
     end
 
-    -- _parse_porcelainv2_change_row and _parse_porcelainv2_rename_row doens't detect all changes
-    -- that signify a fs change, comparing the number of entries gives it a decent chance
-    fs_changes = fs_changes or vim.tbl_count(old_changed_entries) ~= vim.tbl_count(self.status._changed_entries)
-
     async.scheduler()
-    return fs_changes
   end
 end
 
@@ -564,7 +555,6 @@ end
 
 ---@private
 ---@param line string
----@return boolean fs_changes
 function GitStatus:_parse_porcelainv2_change_row(line)
   -- FORMAT
   --
@@ -576,7 +566,6 @@ function GitStatus:_parse_porcelainv2_change_row(line)
   self.status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
-  return status:sub(1, 1) == "D" or status:sub(2, 2) == "D"
 end
 
 ---@private

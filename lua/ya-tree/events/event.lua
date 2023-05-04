@@ -20,7 +20,7 @@ local M = {
 
   ---@enum Yat.Events.GitEvent
   git = {
-    DOT_GIT_DIR_CHANGED = 10001, -- async fun(repo: GitRepo, fs_changes: boolean)
+    DOT_GIT_DIR_CHANGED = 10001, -- async fun(repo: Yat.Git.Repo)
   },
 
   ---@enum Yat.Events.YaTreeEvent
