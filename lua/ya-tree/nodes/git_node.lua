@@ -108,9 +108,43 @@ function GitNode:refresh(opts)
   end
   local paths = self.repo:status():changed_paths()
 
-  self._children = {}
-  self.empty = true
-  local leaf = self:populate_from_paths(paths, create_node)
+  local leaf
+  if #self._children == 0 then
+    self.empty = true
+    leaf = self:populate_from_paths(paths, create_node)
+  else
+    ---@type table<string, Yat.Node.Git>
+    local path_map = {}
+    self:walk(function(node)
+      path_map[node.path] = node
+    end)
+
+    for _, path in ipairs(paths) do
+      local node = path_map[path]
+      if node then
+        path_map[path] = nil
+      else
+        self:add_node(path)
+      end
+    end
+
+    for path, node in pairs(path_map) do
+      if node:is_file() then
+        self:remove_node(path, true)
+      end
+    end
+    self.empty = #self._children == 0
+
+    leaf = self
+    while leaf and leaf._children do
+      if leaf._children[1] then
+        leaf = leaf._children[1]
+      else
+        break
+      end
+    end
+  end
+
   async.scheduler()
   return leaf
 end

@@ -233,7 +233,7 @@ function FilesystemNode:refresh(opts)
       end
     end
     if refresh_git and self.repo then
-      self.repo:status():refresh_file_path(self.path)
+      self.repo:status():refresh_path(self.path)
     end
   end
 end

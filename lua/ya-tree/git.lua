@@ -333,11 +333,12 @@ function GitStatus:meta()
 end
 
 ---@param opts { header?: boolean, ignored?: boolean, all_untracked?: boolean }
+---@param path? string
 ---  - {opts.header?} `boolean`
 ---  - {opts.ignored?} `boolean`
 ---  - {opts.all_untracked?} `boolean`
 ---@return string[] arguments
-local function create_status_arguments(opts)
+local function create_status_arguments(opts, path)
   -- use "-z" , otherwise bytes > 0x80 will be quoted, eg octal \303\244 for "ä"
   -- another option is using "-c" "core.quotePath=false"
   local args = {
@@ -362,6 +363,9 @@ local function create_status_arguments(opts)
   else
     args[#args + 1] = "--ignored=no"
   end
+  if path then
+    args[#args + 1] = path
+  end
 
   return args
 end
@@ -378,64 +382,95 @@ local function is_unstaged(status)
   return status:sub(2, 2) ~= "."
 end
 
+---@param status string
+---@return boolean untracked
+local function is_untracked(status)
+  return status:sub(1, 1) == "?"
+end
+
 do
   local ONE_SECOND_IN_NS = 1000 * 1000 * 1000
 
   ---@async
   ---@param path string
-  ---@return string|nil status
-  function GitStatus:refresh_file_path(path)
+  function GitStatus:refresh_path(path)
     local log = Logger.get("git")
-    if fs.is_directory(path) then
-      log.error("only individual paths are supported by this method!")
-      return
-    end
     local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
-      log.debug("refresh_status status called within 1 second, returning")
-      return self:of(path, false)
+      log.debug("refresh(_path) called within 1 second, returning")
     end
-    local args = create_status_arguments({ header = false, ignored = false })
-    args[#args + 1] = path
+    local is_directory = fs.is_directory(path)
+    if is_directory then
+      path = path .. Path.path.sep
+    end
+    local args = create_status_arguments({ header = false, ignored = false }, path)
     log.debug("git status for path %q", path)
     local results, err = self.repo:command(args, true)
     if err then
       return
     end
 
-    self.status._timestamp = now
-    local old_status = self.status._changed_entries[path]
-    if old_status then
+    local function update_status(old_status)
       if is_staged(old_status) then
         self.status.staged = self.status.staged - 1
       end
       if is_unstaged(old_status) then
         self.status.unstaged = self.status.unstaged - 1
       end
+      if is_untracked(old_status) then
+        self.status.untracked = self.status.untracked - 1
+      end
     end
 
-    local relative_path = Path:new(path):make_relative(self.repo.toplevel)
-    local i, found = 1, false
+    self.status._timestamp = now
+    ---@type table<string, string>
+    local old_changes = {}
+    if is_directory then
+      for changed_path, old_status in pairs(self.status._changed_entries) do
+        if vim.startswith(changed_path, path) then
+          old_changes[changed_path] = old_status
+          update_status(old_status)
+        end
+      end
+    else
+      local old_status = self.status._changed_entries[path]
+      if old_status then
+        old_changes[path] = old_status
+        update_status(old_status)
+      end
+    end
+
+    ---@type table<string, boolean>
+    local changed_paths = {}
+    local i = 1
     while i <= #results do
       local line = results[i]
-      if vim.endswith(line, relative_path) then
-        found = true
-        local line_type = line:sub(1, 1)
-        if line_type == "1" then
-          self:_parse_porcelainv2_change_row(line)
-        elseif line_type == "2" then
-          -- the new and original paths are separated by NUL,
-          -- the original path isn't currently used, so just step over it
-          i = i + 1
-          self:_parse_porcelainv2_rename_row(line)
-        elseif line_type == "?" then
-          self:_parse_porcelainv2_untracked_row(line)
+      local line_type = line:sub(1, 1)
+      if line_type == "1" then
+        local absolute_path = self:_parse_porcelainv2_change_row(line)
+        changed_paths[absolute_path] = true
+      elseif line_type == "2" then
+        -- the new and original paths are separated by NUL,
+        -- the original path isn't currently used, so just step over it
+        i = i + 1
+        local absolute_path = self:_parse_porcelainv2_rename_row(line)
+        changed_paths[absolute_path] = true
+      elseif line_type == "?" then
+        local absolute_path = self:_parse_porcelainv2_untracked_row(line)
+        if absolute_path then
+          changed_paths[absolute_path] = true
         end
       end
       i = i + 1
     end
-    if not found then
-      self.status._changed_entries[path] = nil
+    local propagete = false
+    for old_path in pairs(old_changes) do
+      if not changed_paths[old_path] then
+        self.status._changed_entries[old_path] = nil
+        propagete = true
+      end
+    end
+    if propagete then
       self.status._propagated_changed_entries = {}
       for _path, status in pairs(self.status._changed_entries) do
         if status ~= "!" then
@@ -446,7 +481,6 @@ do
     end
 
     async.scheduler()
-    return self:of(path, false)
   end
 
   ---@async
@@ -456,7 +490,7 @@ do
     local log = Logger.get("git")
     local now = uv.hrtime()
     if (self.status._timestamp + ONE_SECOND_IN_NS) > now then
-      log.debug("refresh_status status called within 1 second, returning")
+      log.debug("refresh(_path) called within 1 second, returning")
     end
     opts = opts or {}
     local args = create_status_arguments({
@@ -555,6 +589,7 @@ end
 
 ---@private
 ---@param line string
+---@return string absolue_path
 function GitStatus:_parse_porcelainv2_change_row(line)
   -- FORMAT
   --
@@ -566,6 +601,7 @@ function GitStatus:_parse_porcelainv2_change_row(line)
   self.status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
+  return absolute_path
 end
 
 ---@private
@@ -605,6 +641,7 @@ end
 
 ---@private
 ---@param line string
+---@return string absolue_path
 function GitStatus:_parse_porcelainv2_rename_row(line)
   -- FORMAT
   --
@@ -621,6 +658,7 @@ function GitStatus:_parse_porcelainv2_rename_row(line)
   self.status._changed_entries[absolute_path] = status
   local fully_staged = self:_update_stage_counts(status)
   self:_propagate_status_to_parents(absolute_path, fully_staged)
+  return absolute_path
 end
 
 ---@private
@@ -638,6 +676,7 @@ end
 
 ---@private
 ---@param line string
+---@return string|nil absolue_path
 function GitStatus:_parse_porcelainv2_untracked_row(line)
   -- FORMAT
   --
@@ -651,11 +690,13 @@ function GitStatus:_parse_porcelainv2_untracked_row(line)
     local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
     self.status._changed_entries[absolute_path] = status
     self.status.untracked = self.status.untracked + 1
+    return absolute_path
   end
 end
 
 ---@private
 ---@param line string
+---@return string absolute_path
 function GitStatus:_parse_porcelainv2_ignored_row(line)
   -- FORMAT
   --
@@ -667,6 +708,7 @@ function GitStatus:_parse_porcelainv2_ignored_row(line)
   local absolute_path = make_absolute_path(self.repo.toplevel, relative_path)
   self.status._changed_entries[absolute_path] = status
   self.status._ignored[#self.status._ignored + 1] = absolute_path
+  return absolute_path
 end
 
 ---@param path string

@@ -3,6 +3,7 @@ local lazy = require("ya-tree.lazy")
 local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
 local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
+local fs_watcher = lazy.require("ya-tree.fs.watcher") ---@module "ya-tree.fs.watcher"
 local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
 local GitNode = lazy.require("ya-tree.nodes.git_node") ---@module "ya-tree.nodes.git_node"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
@@ -74,15 +75,18 @@ end
 ---@param _ integer
 ---@param file string
 function GitStatusPanel:on_buffer_saved(_, file)
-  local log = Logger.get("panels")
   if self.root.TYPE == "git" and self.root:is_ancestor_of(file) then
     local root = self.root --[[@as Yat.Node.Git]]
-    log.debug("changed file %q is in tree %s", file, tostring(self))
+    Logger.get("panels").debug("changed file %q is in tree %s", file, tostring(self))
     local node = root:get_node(file)
     if node then
       node.modified = false
     end
-    local git_status = root.repo:status():refresh_file_path(file)
+    if Config.config.dir_watcher.enable and fs_watcher.is_watched(Path:new(file):parent():absolute()) then
+      -- the directory watcher is enabled, _AND_ the directory is watched, the update will be handled by that event handler
+      return
+    end
+    local git_status = root.repo:status():refresh_path(file)
     if not node and git_status then
       root:add_node(file)
     elseif node and not git_status then
@@ -95,10 +99,12 @@ end
 ---@async
 ---@param repo Yat.Git.Repo
 function GitStatusPanel:on_dot_git_dir_changed(repo)
-  if vim.v.exiting == vim.NIL and self.root.repo == repo then
+  if vim.v.exiting == vim.NIL and self.root.repo == repo and not self.refreshing then
+    self.refreshing = true
     Logger.get("panels").debug("git repo %s changed", tostring(self.root.repo))
     self.root:refresh({ refresh_git = false })
     self:draw(self:get_current_node())
+    self.refreshing = false
   end
 end
 
@@ -108,22 +114,25 @@ end
 ---@param filenames string[]
 function GitStatusPanel:on_fs_changed_event(dir, filenames)
   local log = Logger.get("panels")
-  log.debug("fs_event for dir %q, with files %s", dir, filenames)
-  local ui_is_open = self:is_open()
+  log.debug("fs_event for dir %q, with entries %s", dir, filenames)
 
-  if self.root:is_ancestor_of(dir) or self.root.path == dir then
-    if not self.refreshing then
-      self.refreshing = true
-      self.root:refresh()
-      self.refreshing = false
-
-      if ui_is_open then
-        async.scheduler()
-        self:draw(self:get_current_node())
+  if not self.refreshing then
+    if self.root.TYPE == "git" and self.root:is_ancestor_of(dir) or self.root.path == dir then
+      local root = self.root --[[@as Yat.Node.Git]]
+      for _, filename in ipairs(filenames) do
+        local path = fs.join_path(dir, filename)
+        local node = root:get_node(path)
+        local git_status = root.repo:status():of(path, false)
+        if not node and git_status then
+          root:add_node(path)
+        elseif node and not git_status then
+          root:remove_node(path, true)
+        end
       end
-    else
-      log.info("git tree is refreshing, skipping")
+      self:draw(self:get_current_node())
     end
+  else
+    log.info("git tree is refreshing, skipping")
   end
 end
 

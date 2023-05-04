@@ -140,7 +140,7 @@ end
 ---@param filenames string[]
 function FilesPanel:on_fs_changed_event(dir, filenames)
   local log = Logger.get("panels")
-  log.debug("fs_event for dir %q, with files %s, focus=%q", dir, filenames, self.focus_path_on_fs_event)
+  log.debug("fs_event for dir %q, with entries %s, focus=%q", dir, filenames, self.focus_path_on_fs_event)
   local is_open = self:is_open()
 
   local repo = git.get_repo_for_path(dir)
