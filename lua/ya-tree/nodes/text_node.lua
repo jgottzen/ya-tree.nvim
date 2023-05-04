@@ -27,11 +27,6 @@ function TextNode:is_editable()
   return false
 end
 
----@return boolean hidden
-function TextNode:is_hidden()
-  return false
-end
-
 ---@param text string
 ---@param path string
 ---@param container? boolean

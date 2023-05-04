@@ -297,7 +297,7 @@ do
   function TreePanel:complete_func_loaded_nodes(bufnr)
     paths = {}
     self.root:walk(function(node)
-      if not node:is_container() and not node:is_hidden(Config.config) then
+      if not node:is_container() and not node:is_hidden() then
         paths[#paths + 1] = node.path:sub(#self.root.path + 2)
       end
     end)
@@ -551,7 +551,7 @@ end
 function TreePanel:focus_node(node)
   -- if the node has been hidden after a toggle
   -- go upwards in the tree until we find one that's displayed
-  while node and node:is_hidden(Config.config) and node.parent do
+  while node and node:is_hidden() and node.parent do
     node = node.parent
   end
   if node then
@@ -661,7 +661,7 @@ function TreePanel:render()
     if has_children and node.expanded then
       ---@param child Yat.Node
       local children = vim.tbl_filter(function(child)
-        return not child:is_hidden(Config.config)
+        return not child:is_hidden()
       end, node:children()) --[=[@as Yat.Node[]]=]
       local nr_of_children = #children
       for i, child in ipairs(children) do

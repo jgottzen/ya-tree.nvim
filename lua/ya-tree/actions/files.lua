@@ -281,7 +281,7 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
   local first_node = nodes[1]
   if first_node then
     for _, node in first_node.parent:iterate_children({ from = first_node, reverse = true }) do
-      if node and not node:is_hidden(Config.config) then
+      if node and not node:is_hidden() then
         node_to_focus = node
         break
       end
@@ -290,7 +290,7 @@ local function get_nodes_to_delete(selected_nodes, root_path, confirm, title_pre
       local last_node = nodes[#nodes]
       if last_node then
         for _, node in last_node.parent:iterate_children({ from = last_node }) do
-          if node and not node:is_hidden(Config.config) then
+          if node and not node:is_hidden() then
             node_to_focus = node
             break
           end

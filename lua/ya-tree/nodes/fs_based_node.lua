@@ -1,6 +1,7 @@
 local lazy = require("ya-tree.lazy")
 
 local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Node = require("ya-tree.nodes.node")
@@ -127,10 +128,12 @@ function FsBasedNode:is_ancestor_of(path)
   return false
 end
 
----@param config Yat.Config
+---@alias Yat.Node.HiddenReason "filter"|"git"|string
+
 ---@return boolean hidden
 ---@return Yat.Node.HiddenReason? reason
-function FsBasedNode:is_hidden(config)
+function FsBasedNode:is_hidden()
+  local config = Config.config
   if config.filters.enable then
     if config.filters.dotfiles and self.name:sub(1, 1) == "." then
       return true, "filter"

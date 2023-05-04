@@ -56,12 +56,11 @@ do
   ---@async
   ---@param node Yat.Node
   ---@param depth integer
-  ---@param config Yat.Config
   local function expand(node, depth, config)
     node:expand()
     if depth < config.expand_all_nodes_max_depth then
       for _, child in node:iterate_children() do
-        if child:has_children() and not child:is_hidden(config) then
+        if child:has_children() and not child:is_hidden() then
           expand(child, depth + 1, config)
         end
       end
@@ -100,7 +99,7 @@ end
 ---@param iterator fun(): integer, Yat.Node
 local function focus_first_non_hidden_node_from_iterator(panel, iterator)
   for _, node in iterator do
-    if not node:is_hidden(Config.config) then
+    if not node:is_hidden() then
       panel:focus_node(node)
       break
     end
@@ -160,7 +159,7 @@ end
 ---@param start Yat.Node.FsBasedNode
 function M.focus_prev_git_item(panel, start)
   focus_first_node_that_matches(panel, start, false, function(node)
-    return not node:is_hidden(Config.config) and node:git_status() ~= nil
+    return not node:is_hidden() and node:git_status() ~= nil
   end)
 end
 
@@ -169,7 +168,7 @@ end
 ---@param start Yat.Node.FsBasedNode
 function M.focus_next_git_item(panel, start)
   focus_first_node_that_matches(panel, start, true, function(node)
-    return not node:is_hidden(Config.config) and node:git_status() ~= nil
+    return not node:is_hidden() and node:git_status() ~= nil
   end)
 end
 
@@ -181,7 +180,7 @@ local function focus_diagnostic_item(panel, start, forward)
   local container_min_diagnostic_severity = panel:container_min_severity()
   local leaf_min_diagnostic_severity = panel:leaf_min_severity()
   focus_first_node_that_matches(panel, start, forward, function(node)
-    if not node:is_hidden(Config.config) then
+    if not node:is_hidden() then
       local severity = node:diagnostic_severity()
       if severity then
         local target_severity = node:is_container() and container_min_diagnostic_severity or leaf_min_diagnostic_severity

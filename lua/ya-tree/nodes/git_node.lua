@@ -1,6 +1,7 @@
 local lazy = require("ya-tree.lazy")
 
 local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
@@ -45,11 +46,10 @@ local function is_any_child_displayable(node)
   return false
 end
 
----@param config Yat.Config
 ---@return boolean hidden
 ---@return Yat.Node.HiddenReason? reason
-function GitNode:is_hidden(config)
-  if not config.git.show_ignored then
+function GitNode:is_hidden()
+  if not Config.config.git.show_ignored then
     if self:is_git_ignored() or (self:is_directory() and not is_any_child_displayable(self)) then
       return true, "git"
     end

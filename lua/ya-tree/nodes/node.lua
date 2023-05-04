@@ -147,15 +147,8 @@ function Node:has_children()
   return self._children ~= nil
 end
 
----@alias Yat.Node.HiddenReason "filter"|"git"|string
-
--- selene: allow(unused_variable)
-
----@param config Yat.Config
 ---@return boolean hidden
----@return Yat.Node.HiddenReason? reason
----@diagnostic disable-next-line:unused-local
-function Node:is_hidden(config)
+function Node:is_hidden()
   return false
 end
 

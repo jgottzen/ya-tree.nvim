@@ -220,7 +220,7 @@ function FilesPanel:command_arguments(args)
       local config = Config.config
       local node = self.root:expand({ to = path })
       if node then
-        local hidden, reason = node:is_hidden(config)
+        local hidden, reason = node:is_hidden()
         if hidden and reason then
           if reason == "filter" then
             config.filters.enable = false
