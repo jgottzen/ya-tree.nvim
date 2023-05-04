@@ -25,9 +25,6 @@ local M = {
 
   ---@enum Yat.Events.YaTreeEvent
   ya_tree = {
-    YA_TREE_WINDOW_OPENED = 20001, -- fun({ winid: integer })
-    YA_TREE_WINDOW_CLOSED = 20002, -- fun({ winid: integer })
-
     DIAGNOSTICS_CHANGED = 20101, -- fun(severity_changed: boolean)
 
     FS_CHANGED = 20201, -- fun(dir: string, filenames: string[])
