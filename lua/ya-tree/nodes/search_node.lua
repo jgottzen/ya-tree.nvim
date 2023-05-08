@@ -46,7 +46,7 @@ function SearchNode:search(term)
   end
 
   if term then
-    local cmd, args = utils.build_search_arguments(term, self.path, true, Config.config)
+    local cmd, args = utils.build_search_arguments(term, self.path, false, Config.config)
     if not cmd then
       return nil, "No suitable search command found!"
     end
