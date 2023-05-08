@@ -10,7 +10,6 @@ local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local SearchNode = lazy.require("ya-tree.nodes.search_node") ---@module "ya-tree.nodes.search_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
-local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local api = vim.api
 local uv = vim.loop
@@ -391,44 +390,41 @@ function FilesPanel:close_search(draw)
   end
 end
 
----@protected
+---@async
 ---@param node? Yat.Node.Filesystem|Yat.Node.Search
----@return fun(bufnr: integer)
----@return string search_root
-function FilesPanel:get_complete_func_and_search_root(node)
-  local config = Config.config.panels.files
-  node = node or self.root
-  local fn, search_root
-  if type(config.completion.setup) == "function" then
-    ---@param bufnr integer
-    fn = function(bufnr)
-      local completefunc = config.completion.setup(self, node)
-      if completefunc then
-        api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
-        api.nvim_buf_set_option(bufnr, "omnifunc", "")
-      end
-    end
-    search_root = node.path
-  else
-    if config.completion.on == "node" then
+function FilesPanel:search_for_node(node)
+  if self.mode == "files" then
+    local config = Config.config.panels.files
+    node = node or self.root
+    local fn, search_root
+    if type(config.completion.setup) == "function" then
       ---@param bufnr integer
       fn = function(bufnr)
-        self:complete_func_file_in_path(bufnr, node.path)
+        local completefunc = config.completion.setup(self, node)
+        if completefunc then
+          api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
+          api.nvim_buf_set_option(bufnr, "omnifunc", "")
+        end
       end
       search_root = node.path
     else
-      if config.completion.on ~= "root" then
-        utils.warn(string.format("'panels.files.completion.on' is not a recognized value (%q), using 'root'", config.completion.on))
+      if config.completion.on == "node" then
+        search_root = node.path
+      else
+        search_root = self.root.path
       end
       ---@param bufnr integer
       fn = function(bufnr)
-        self:complete_func_file_in_path(bufnr, self.root.path)
+        self:complete_func_file_in_path(bufnr, search_root)
       end
-      search_root = self.root.path
     end
-  end
 
-  return fn, search_root
+    self:search_fs_for_path(fn, search_root)
+  else
+    self:search_for_loaded_node(function(bufnr)
+      self:complete_func_loaded_nodes(bufnr)
+    end)
+  end
 end
 
 return FilesPanel

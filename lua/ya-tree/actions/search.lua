@@ -11,7 +11,7 @@ local M = {}
 
 ---@async
 ---@param panel Yat.Panel.Tree
----@param node? Yat.Node.FsBasedNode
+---@param node? Yat.Node
 function M.search_for_node_in_panel(panel, node)
   panel:search_for_node(node)
 end

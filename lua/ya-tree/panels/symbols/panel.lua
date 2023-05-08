@@ -193,13 +193,4 @@ function SymbolsPanel:change_root_node(path)
   end
 end
 
----@protected
----@return fun(bufnr: integer)
----@return string search_root
-function SymbolsPanel:get_complete_func_and_search_root()
-  return function(bufnr)
-    self:complete_func_loaded_nodes(bufnr)
-  end, self.root.path
-end
-
 return SymbolsPanel

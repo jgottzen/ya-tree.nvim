@@ -91,7 +91,7 @@ function BuffersPanel:on_buffer_new(bufnr, file)
   local buftype = api.nvim_buf_get_option(bufnr, "buftype")
   local is_terminal = buftype == "terminal"
   if (buftype == "" and fs.is_file(file)) or is_terminal then
-    local  node = self.root:get_node(file)
+    local node = self.root:get_node(file)
     if not node then
       log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
       node = self.root:add_node(file, bufnr, is_terminal)
@@ -183,11 +183,9 @@ function BuffersPanel:on_win_opened()
   end
 end
 
----@protected
----@return string complete_func
----@return string search_root
-function BuffersPanel:get_complete_func_and_search_root()
-  return "buffer", self.root.path
+---@async
+function BuffersPanel:search_for_node()
+  self:search_for_loaded_node("buffer")
 end
 
 return BuffersPanel

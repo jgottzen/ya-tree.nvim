@@ -183,13 +183,11 @@ function GitStatusPanel:change_root_node(path_or_repo)
   self:draw()
 end
 
----@protected
----@return fun(bufnr: integer)
----@return string search_root
-function GitStatusPanel:get_complete_func_and_search_root()
-  return function(bufnr)
+---@async
+function GitStatusPanel:search_for_node()
+  self:search_for_loaded_node(function(bufnr)
     self:complete_func_loaded_nodes(bufnr)
-  end, self.root.path
+  end)
 end
 
 return GitStatusPanel

@@ -331,24 +331,11 @@ function TreePanel:complete_func_file_in_path(bufnr, path)
   end
 end
 
--- selene: allow(unused_variable)
-
----@abstract
----@protected
----@param node? Yat.Node
----@return fun(bufnr: integer)|string|nil complete_func
----@return string|nil search_root
----@diagnostic disable-next-line:unused-local,missing-return
-function TreePanel:get_complete_func_and_search_root(node) end
-
 ---@async
----@param node? Yat.Node.FsBasedNode
-function TreePanel:search_for_node(node)
-  local completion, search_root = self:get_complete_func_and_search_root(node)
-  if not search_root then
-    return
-  end
-
+---@protected
+---@param completion? fun(bufnr: integer)|string
+---@param search_root string
+function TreePanel:search_fs_for_path(completion, search_root)
   local log = Logger.get("panels")
   local path = ui.nui_input({ title = " Path: ", completion = completion })
   if path then
@@ -378,6 +365,25 @@ function TreePanel:search_for_node(node)
     end
   end
 end
+
+---@async
+---@protected
+---@param completion? fun(bufnr: integer)|string
+function TreePanel:search_for_loaded_node(completion)
+  local path = ui.nui_input({ title = " Node: ", completion = completion })
+  if path then
+    local node = self.root:expand({ to = self.root.path .. Path.path.sep .. path })
+    self:draw(node)
+  end
+end
+
+-- selene: allow(unused_variable)
+
+---@async
+---@abstract
+---@param node? Yat.Node
+---@diagnostic disable-next-line:unused-local
+function TreePanel:search_for_node(node) end
 
 ---@async
 function TreePanel:refresh()

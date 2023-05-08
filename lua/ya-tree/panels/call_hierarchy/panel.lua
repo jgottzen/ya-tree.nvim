@@ -133,13 +133,4 @@ function CallHierarchyPanel:render_header()
   return line .. " | " .. direction, highligts
 end
 
----@protected
----@return fun(bufnr: integer)
----@return string search_root
-function CallHierarchyPanel:get_complete_func_and_search_root()
-  return function(bufnr)
-    self:complete_func_loaded_nodes(bufnr)
-  end, self.root.path
-end
-
 return CallHierarchyPanel
