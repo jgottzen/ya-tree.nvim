@@ -1053,12 +1053,12 @@ local DEFAULT = {
           untracked = "",
 
           ---@class Yat.Config.Renderers.GitStatus.Icons.Merge
-          ---@field us string The icon for added/deleted/modified by `us`, default: `"➜"`.
-          ---@field them string The icon for added/deleted/modified by `them`, default: `""`.
+          ---@field us string The icon for added/deleted/modified by `us`, default: `"󱦰"`.
+          ---@field them string The icon for added/deleted/modified by `them`, default: `"󱦱"`.
           ---@field both string The icon for added/deleted/modified by `both`, default: `""`.
           merge = {
-            us = "➜",
-            them = "",
+            us = "󱦰",
+            them = "󱦱",
             both = "",
           },
         },
