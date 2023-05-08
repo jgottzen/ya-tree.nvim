@@ -14,7 +14,7 @@ local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 ---@field public parent? Yat.Node.Git
 ---@field private _children? Yat.Node.Git[]
 ---@field public repo Yat.Git.Repo
----@field package editable boolean
+---@field package deleted boolean
 local GitNode = FsBasedNode:subclass("Yat.Node.Git")
 
 ---Creates a new git status node.
@@ -24,7 +24,6 @@ local GitNode = FsBasedNode:subclass("Yat.Node.Git")
 function GitNode:init(fs_node, parent)
   FsBasedNode.init(self, fs_node, parent)
   self.TYPE = "git"
-  self.editable = self._type == "file"
   if self:is_directory() then
     self.empty = true
     self.expanded = true
@@ -59,7 +58,12 @@ end
 
 ---@return boolean editable
 function GitNode:is_editable()
-  return self.editable
+  return not self.deleted and FsBasedNode.is_editable(self)
+end
+
+---@return boolean deleted
+function GitNode:is_deleted()
+  return self.deleted
 end
 
 ---@async
@@ -79,7 +83,7 @@ local function create_node(path, parent, _type)
   end
   local node = GitNode:new(fs_node, parent)
   if not exists then
-    node.editable = false
+    node.deleted = true
   end
   return node
 end

@@ -12,18 +12,6 @@ local api = vim.api
 
 local M = {}
 
----@type table<Luv.FileType, string>
-local NODE_TYPE_MAP = {
-  directory = "Directory",
-  file = "File",
-  link = "Symbolic Link",
-  fifo = "Fifo (Named Pipe)",
-  socket = "Socket",
-  char = "Character Device",
-  block = "Block Device",
-  unknown = "Unknown",
-}
-
 -- taken from https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/scandir.lua
 local get_username, get_groupname
 do
@@ -102,6 +90,17 @@ do
   end
 end
 
+local NODE_TYPE_MAP = {
+  directory = "Directory",
+  file = "File",
+  link = "Symbolic Link",
+  fifo = "Fifo (Named Pipe)",
+  socket = "Socket",
+  char = "Character Device",
+  block = "Block Device",
+  unknown = "Unknown",
+}
+
 local PERMISSIONS_TBL = { [0] = "---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx" }
 local PERMISSION_HLS = {
   ["-"] = hl.INFO_PERMISSION_NONE,
@@ -125,11 +124,53 @@ local function close_popup()
   end
 end
 
+---@param node Yat.Node.Buffer
+---@return string[] lines
+---@return Yat.Ui.HighlightGroup[][] highlights
+local function create_terminal_content(node)
+  local format_string = "%5s: %s "
+  local left_column_end = 5
+  local right_column_start = 7
+
+  ---@type string[]
+  local lines = {
+    string.format(format_string, "Name", node.name),
+    "",
+    string.format(format_string, "Type", "Terminal"),
+    string.format(format_string, "Buf#", node.bufnr),
+  }
+  ---@type Yat.Ui.HighlightGroup[][]
+  local highlights = {
+    { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
+    {},
+    { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
+    { { name = "Label", from = 1, to = left_column_end }, { name = hl.BUFFER_NUMBER, from = right_column_start, to = -1 } },
+  }
+
+  return lines, highlights
+end
+
 ---@async
 ---@param node Yat.Node.FsBasedNode
 ---@return string[]|nil lines
 ---@return Yat.Ui.HighlightGroup[][]|nil highlights
-local function create_fs_info(node)
+local function create_popup_content(node)
+  if node.TYPE == "git" then
+    ---@cast node Yat.Node.Git
+    if node:is_deleted() then
+      utils.notify(string.format("%s is deleted from the Git index", node.path))
+      return
+    end
+  elseif node.TYPE == "buffer" then
+    ---@cast node Yat.Node.Buffer
+    if node:is_terminal() then
+      return create_terminal_content(node)
+    elseif node:is_terminals_container() then
+      return
+    end
+  end
+
+  ---@cast node Yat.Node.FsBasedNode
   local stat = node:fs_stat()
   async.scheduler()
   if not stat then
@@ -208,32 +249,6 @@ local function create_fs_info(node)
   return lines, highlights
 end
 
----@param node Yat.Node.Buffer
----@return string[] lines
----@return Yat.Ui.HighlightGroup[][] highlights
-local function create_terminal_info(node)
-  local format_string = "%5s: %s "
-  local left_column_end = 5
-  local right_column_start = 7
-
-  ---@type string[]
-  local lines = {
-    string.format(format_string, "Name", node.name),
-    "",
-    string.format(format_string, "Type", "Terminal"),
-    string.format(format_string, "Buf#", node.bufnr),
-  }
-  ---@type Yat.Ui.HighlightGroup[][]
-  local highlights = {
-    { { name = "Label", from = 1, to = left_column_end }, { name = "Title", from = right_column_start, to = -1 } },
-    {},
-    { { name = "Label", from = 1, to = left_column_end }, { name = "Type", from = right_column_start, to = -1 } },
-    { { name = "Label", from = 1, to = left_column_end }, { name = hl.BUFFER_NUMBER, from = right_column_start, to = -1 } },
-  }
-
-  return lines, highlights
-end
-
 ---@async
 ---@param _ Yat.Panel.Tree
 ---@param node Yat.Node.FsBasedNode
@@ -248,17 +263,7 @@ function M.show_node_info(_, node)
     return
   end
 
-  local lines, highlight_groups
-  if node.TYPE == "buffer" then
-    ---@cast node Yat.Node.Buffer
-    if node:is_terminal() then
-      lines, highlight_groups = create_terminal_info(node)
-    elseif not node:is_terminals_container() then
-      lines, highlight_groups = create_fs_info(node)
-    end
-  else
-    lines, highlight_groups = create_fs_info(node)
-  end
+  local lines, highlight_groups = create_popup_content(node)
   if not lines or not highlight_groups then
     return
   end
