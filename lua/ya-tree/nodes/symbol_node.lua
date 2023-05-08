@@ -32,10 +32,10 @@ function SymbolNode:init(name, path, kind, detail, position, parent)
   Node.init(self, {
     name = name,
     path = path,
-    container = kind == symbol_kind.FILE,
+    container = kind == symbol_kind.File,
   }, parent)
   self.TYPE = "symbol"
-  if kind == symbol_kind.FILE then
+  if kind == symbol_kind.File then
     self._children = {}
   end
   self.file = parent and parent.file or path
@@ -94,7 +94,7 @@ end
 ---@param cmd Yat.Action.Files.Open.Mode
 function SymbolNode:edit(cmd)
   vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(self.file) } })
-  if self.kind ~= symbol_kind.FILE then
+  if self.kind ~= symbol_kind.File then
     lsp.open_location(self._lsp_client_id, self.file, self.position)
   end
 end
