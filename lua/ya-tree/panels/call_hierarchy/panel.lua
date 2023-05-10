@@ -2,6 +2,7 @@ local lazy = require("ya-tree.lazy")
 
 local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
 local CallHierarchyNode = lazy.require("ya-tree.nodes.call_node") ---@module "ya-tree.nodes.call_node"
+local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
 local TextNode = lazy.require("ya-tree.nodes.text_node") ---@module "ya-tree.nodes.text_node"
@@ -38,6 +39,13 @@ function CallHierarchyPanel:init(sidebar, config, keymap, renderers)
   end)
 
   Logger.get("panels").info("created panel %s", tostring(self))
+end
+
+---@protected
+function CallHierarchyPanel:on_win_opened()
+  if Config.config.move_cursor_to_name then
+    self:create_move_to_name_autocmd()
+  end
 end
 
 ---@async
