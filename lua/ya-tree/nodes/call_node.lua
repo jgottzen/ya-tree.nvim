@@ -90,10 +90,6 @@ end
 ---@param call_hierarchy Lsp.CallHierarchy.IncomingCall|Lsp.CallHierarchy.OutgoingCall
 function CallHierarchyNode:add_child(call_hierarchy)
   local item = call_hierarchy.from or call_hierarchy.to
-  if not self._children then
-    self._children = {}
-    self.container = true
-  end
   local file = vim.uri_to_fname(item.uri)
   local path = file .. Path.path.sep .. item.name
   local has_chilren = #call_hierarchy.fromRanges > 1
@@ -107,9 +103,10 @@ function CallHierarchyNode:add_child(call_hierarchy)
   self._children[#self._children + 1] = node
   if has_chilren then
     node._children = {}
+    node.container = true
     for _, from_range in ipairs(call_hierarchy.fromRanges) do
       path = node.path .. Path.path.sep .. (#node._children + 1)
-      local child = CallHierarchyNode:new(item.name, path, item.kind, item.detail, from_range, self._bufnr, file, self)
+      local child = CallHierarchyNode:new(item.name, path, item.kind, item.detail, from_range, self._bufnr, file, node)
       node._children[#node._children + 1] = child
     end
   end
@@ -126,6 +123,7 @@ function CallHierarchyNode:refresh(opts)
   Logger.get("nodes").debug("refreshing %q, bufnr=%s", self.name, self.bufnr)
 
   self._children = {}
+  self.container = true
   local client_id, call_hierarchy
   if opts.direction == "incoming" then
     client_id, call_hierarchy = lsp.incoming_calls(self._bufnr, opts.call_site)
