@@ -58,8 +58,8 @@ function CallHierarchyPanel:create_call_hierarchy(winid, bufnr, file)
   local call_site, err = lsp.call_site(winid, bufnr)
   if call_site then
     self.call_site = call_site
-    self.root = CallHierarchyNode:new(call_site.detail, "", call_site.kind, call_site.detail, call_site.selectionRange, bufnr, file)
-    self.root:refresh({ call_site = self.call_site, direction = self._direction })
+    self.root = CallHierarchyNode:new(call_site.detail, "", call_site.kind, call_site.detail, call_site.selectionRange, file)
+    self.root:refresh({ bufnr = bufnr, call_site = self.call_site, direction = self._direction })
     self.root:expand()
   else
     self.root = TextNode:new(err or "No call site at cursor position", "/")

@@ -25,6 +25,7 @@ local lazy = require("ya-tree.lazy")
 local FsBasedNode = require("ya-tree.nodes.fs_based_node")
 local hl = lazy.require("ya-tree.ui.highlights") ---@module "ya-tree.ui.highlights"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local LspDetailsNode = require("ya-tree.nodes.lsp_details_node")
 local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 ---@class Yat.Ui.RenderContext
@@ -163,8 +164,8 @@ function M.icon(node, context, renderer)
     ---@cast node Yat.Node.Buffer
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
-  elseif node_type == "symbol" or node_type == "call_hierarchy" then
-    ---@cast node Yat.Node.LspSymbol|Yat.Node.CallHierarchy
+  elseif node:instance_of(LspDetailsNode) then
+    ---@cast node Yat.Node.LspDetailsNode
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
   elseif node:instance_of(FsBasedNode) then
