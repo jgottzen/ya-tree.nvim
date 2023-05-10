@@ -7,7 +7,7 @@ local fs = lazy.require("ya-tree.fs") ---@module "ya-tree.fs"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
 local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.lsp.symbol_kind"
-local SymbolNode = lazy.require("ya-tree.nodes.symbol_node") ---@module "ya-tree.nodes.symbol_node"
+local LspSymbolNode = lazy.require("ya-tree.nodes.lsp_symbol_node") ---@module "ya-tree.nodes.lsp_symbol_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
 local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
@@ -18,8 +18,8 @@ local uv = vim.loop
 ---@field new async fun(self: Yat.Panel.Symbols, sidebar: Yat.Sidebar, config: Yat.Config.Panels.Symbols, keymap: table<string, Yat.Action>, renderers: { container: Yat.Panel.Tree.Ui.Renderer[], leaf: Yat.Panel.Tree.Ui.Renderer[] }): Yat.Panel.Symbols
 ---
 ---@field public TYPE "symbols"
----@field public root Yat.Node.Symbol
----@field public current_node Yat.Node.Symbol
+---@field public root Yat.Node.LspSymbol
+---@field public current_node Yat.Node.LspSymbol
 local SymbolsPanel = TreePanel:subclass("Yat.Panel.Symbols")
 
 ---@async
@@ -48,7 +48,7 @@ end
 ---@nodiscard
 ---@param path string
 ---@param bufnr? integer
----@return Yat.Node.Symbol
+---@return Yat.Node.LspSymbol
 function SymbolsPanel:create_root_node(path, bufnr)
   local do_defer = bufnr == nil
   if not bufnr then
@@ -66,7 +66,7 @@ function SymbolsPanel:create_root_node(path, bufnr)
     end
   end
   local name = fs.name_from_path(path)
-  local root = SymbolNode:new(name, path, symbol_kind.File, nil, {
+  local root = LspSymbolNode:new(name, path, symbol_kind.File, nil, {
     start = { line = 0, character = 0 },
     ["end"] = { line = -1, character = -1 },
   })
@@ -148,7 +148,7 @@ end
 ---@async
 ---@private
 function SymbolsPanel:on_cursor_hold()
-  local node = self:get_current_node() --[[@as Yat.Node.Symbol?]]
+  local node = self:get_current_node() --[[@as Yat.Node.LspSymbol?]]
   if not node or self.root == node then
     return
   end

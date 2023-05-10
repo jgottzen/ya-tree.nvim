@@ -7,12 +7,12 @@ local Node = require("ya-tree.nodes.node")
 local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.lsp.symbol_kind"
 
----@class Yat.Node.Symbol : Yat.Node
----@field new fun(self: Yat.Node.Symbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.Symbol): Yat.Node.Symbol
+---@class Yat.Node.LspSymbol : Yat.Node
+---@field new fun(self: Yat.Node.LspSymbol, name: string, path: string, kind: Lsp.Symbol.Kind, detail?: string, position: Lsp.Range, parent?: Yat.Node.LspSymbol): Yat.Node.LspSymbol
 ---
 ---@field public TYPE "symbol"
----@field public parent? Yat.Node.Symbol
----@field private _children? Yat.Node.Symbol[]
+---@field public parent? Yat.Node.LspSymbol
+---@field private _children? Yat.Node.LspSymbol[]
 ---@field private file string
 ---@field private _bufnr integer
 ---@field private _lsp_client_id integer
@@ -20,7 +20,7 @@ local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.
 ---@field public kind Lsp.Symbol.Kind
 ---@field public detail? string
 ---@field public position Lsp.Range
-local SymbolNode = Node:subclass("Yat.Node.Symbol")
+local LspSymbolNode = Node:subclass("Yat.Node.LspSymbol")
 
 ---@private
 ---@param name string
@@ -28,8 +28,8 @@ local SymbolNode = Node:subclass("Yat.Node.Symbol")
 ---@param kind Lsp.Symbol.Kind
 ---@param detail? string
 ---@param position Lsp.Range
----@param parent? Yat.Node.Symbol
-function SymbolNode:init(name, path, kind, detail, position, parent)
+---@param parent? Yat.Node.LspSymbol
+function LspSymbolNode:init(name, path, kind, detail, position, parent)
   Node.init(self, {
     name = name,
     path = path,
@@ -53,27 +53,27 @@ function SymbolNode:init(name, path, kind, detail, position, parent)
 end
 
 ---@return integer
-function SymbolNode:bufnr()
+function LspSymbolNode:bufnr()
   return self._bufnr
 end
 
 ---@return integer? lsp_client_id
-function SymbolNode:lsp_client_id()
+function LspSymbolNode:lsp_client_id()
   return self._lsp_client_id
 end
 
 ---@return Lsp.Symbol.Tag[]
-function SymbolNode:tags()
+function LspSymbolNode:tags()
   return self._tags
 end
 
 ---@return boolean editable
-function SymbolNode:is_editable()
+function LspSymbolNode:is_editable()
   return true
 end
 
 ---@return DiagnosticSeverity|nil
-function SymbolNode:diagnostic_severity()
+function LspSymbolNode:diagnostic_severity()
   if not self.parent then
     -- self is the root node
     return diagnostics.severity_of(self.path)
@@ -93,7 +93,7 @@ function SymbolNode:diagnostic_severity()
 end
 
 ---@param cmd Yat.Action.Files.Open.Mode
-function SymbolNode:edit(cmd)
+function LspSymbolNode:edit(cmd)
   vim.cmd({ cmd = cmd, args = { vim.fn.fnameescape(self.file) } })
   if self.kind ~= symbol_kind.File then
     lsp.open_location(self._lsp_client_id, self.file, self.position)
@@ -102,9 +102,9 @@ end
 
 ---@private
 ---@param symbol Lsp.Symbol.Document
-function SymbolNode:add_child(symbol)
+function LspSymbolNode:add_child(symbol)
   local path = self.path .. Path.path.sep .. symbol.name .. (#self._children + 1)
-  local node = SymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)
+  local node = LspSymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)
   node.symbol = symbol
   if symbol.tags then
     node._tags = symbol.tags
@@ -123,7 +123,7 @@ end
 ---@param opts? {bufnr?: integer, use_cache?: boolean}
 ---  - {opts.bufnr?} `integer` which buffer to use, default: the currently set buffer.
 ---  - {opts.use_cache?} `boolean` whether to use cached data, default: `false`.
-function SymbolNode:refresh(opts)
+function LspSymbolNode:refresh(opts)
   if self.parent then
     return self.parent:refresh(opts)
   end
@@ -147,4 +147,4 @@ function SymbolNode:refresh(opts)
   end
 end
 
-return SymbolNode
+return LspSymbolNode

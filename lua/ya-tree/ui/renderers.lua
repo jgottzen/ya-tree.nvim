@@ -164,7 +164,7 @@ function M.icon(node, context, renderer)
     icon = get_icon(node.name, node.extension, renderer.directory.expanded, hl.DIRECTORY_ICON)
     highlight = hl.DIRECTORY_ICON
   elseif node_type == "symbol" or node_type == "call_hierarchy" then
-    ---@cast node Yat.Node.Symbol|Yat.Node.CallHierarchy
+    ---@cast node Yat.Node.LspSymbol|Yat.Node.CallHierarchy
     icon = M.helpers.get_lsp_symbols_kind_icon(node.kind)
     highlight = M.helpers.get_lsp_symbol_highlight(node.kind)
   elseif node:instance_of(FsBasedNode) then
@@ -531,7 +531,7 @@ function M.clipboard(node, _, renderer)
   end
 end
 
----@param node Yat.Node.Symbol
+---@param node Yat.Node.LspSymbol
 ---@param _ Yat.Ui.RenderContext
 ---@param renderer Yat.Config.Renderers.Builtin.SymbolDetails
 ---@return Yat.Ui.RenderResult[]|nil result
