@@ -2,8 +2,9 @@ local lazy = require("ya-tree.lazy")
 
 local diagnostics = lazy.require("ya-tree.diagnostics") ---@module "ya-tree.diagnostics"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
-local Node = require("ya-tree.nodes.node")
 local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
+local Node = require("ya-tree.nodes.node")
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 
 ---@alias Yat.CallHierarchy.Direction "incoming"|"outgoing"
 
@@ -94,7 +95,7 @@ function CallHierarchyNode:add_child(call_hierarchy)
     self.container = true
   end
   local file = vim.uri_to_fname(item.uri)
-  local path = file .. "/" .. item.name
+  local path = file .. Path.path.sep .. item.name
   local has_chilren = #call_hierarchy.fromRanges > 1
   local location
   if not has_chilren then
@@ -107,7 +108,7 @@ function CallHierarchyNode:add_child(call_hierarchy)
   if has_chilren then
     node._children = {}
     for _, from_range in ipairs(call_hierarchy.fromRanges) do
-      path = node.path .. "/" .. (#node._children + 1)
+      path = node.path .. Path.path.sep .. (#node._children + 1)
       local child = CallHierarchyNode:new(item.name, path, item.kind, item.detail, from_range, self._bufnr, file, self)
       node._children[#node._children + 1] = child
     end

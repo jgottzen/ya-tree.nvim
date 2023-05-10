@@ -4,6 +4,7 @@ local diagnostics = lazy.require("ya-tree.diagnostics") ---@module "ya-tree.diag
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
 local lsp = lazy.require("ya-tree.lsp") ---@module "ya-tree.lsp"
 local Node = require("ya-tree.nodes.node")
+local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.lsp.symbol_kind"
 
 ---@class Yat.Node.Symbol : Yat.Node
@@ -102,7 +103,7 @@ end
 ---@private
 ---@param symbol Lsp.Symbol.Document
 function SymbolNode:add_child(symbol)
-  local path = self.path .. "/" .. symbol.name .. (#self._children + 1)
+  local path = self.path .. Path.path.sep .. symbol.name .. (#self._children + 1)
   local node = SymbolNode:new(symbol.name, path, symbol.kind, symbol.detail, symbol.range, self)
   node.symbol = symbol
   if symbol.tags then
@@ -123,10 +124,10 @@ end
 ---  - {opts.bufnr?} `integer` which buffer to use, default: the currently set buffer.
 ---  - {opts.use_cache?} `boolean` whether to use cached data, default: `false`.
 function SymbolNode:refresh(opts)
-  opts = opts or {}
   if self.parent then
     return self.parent:refresh(opts)
   end
+  opts = opts or {}
   local bufnr = opts.bufnr or self._bufnr
   if not bufnr then
     return
