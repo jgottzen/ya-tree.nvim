@@ -288,7 +288,7 @@ M.scheduler = M.wrap(vim.schedule, 1, false)
 ---Schedules `fn` to run soon on the nvim loop, in an async context.
 ---
 ---@param fn async fun()
-function M.defer(fn)
+function M.run_on_next_tick(fn)
   vim.schedule(function()
     M.void(fn)()
   end)

@@ -73,7 +73,7 @@ function SymbolsPanel:create_root_node(path, bufnr)
 
   if bufnr then
     if do_defer then
-      async.defer(function()
+      async.run_on_next_tick(function()
         root:refresh({ bufnr = bufnr, use_cache = true })
         root:expand()
         self:draw()

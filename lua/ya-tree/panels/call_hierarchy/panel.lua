@@ -31,7 +31,7 @@ function CallHierarchyPanel:init(sidebar, config, keymap, renderers)
   local root = TextNode:new("Waiting for LSP...", "/")
   TreePanel.init(self, "call_hierarchy", sidebar, config.title, config.icon, keymap, renderers, root)
   self._direction = "incoming"
-  async.defer(function()
+  async.run_on_next_tick(function()
     local edit_winid = self.sidebar:edit_win()
     local bufnr = api.nvim_win_get_buf(edit_winid)
     local file = api.nvim_buf_get_name(bufnr)
