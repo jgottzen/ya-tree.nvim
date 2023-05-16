@@ -1,5 +1,6 @@
 local lazy = require("ya-tree.lazy")
 
+local async = lazy.require("ya-tree.async") ---@module "ya-tree.async"
 local BufferNode = lazy.require("ya-tree.nodes.buffer_node") ---@module "ya-tree.nodes.buffer_node"
 local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local event = lazy.require("ya-tree.events.event") ---@module "ya-tree.events.event"
@@ -78,7 +79,10 @@ end
 ---@private
 function BuffersPanel:register_buffer_new_event()
   self:register_autocmd_event(event.autocmd.BUFFER_NEW, function(bufnr, file)
-    self:on_buffer_new(bufnr, file)
+    -- defer for a short time, so that the updated buftype is read
+    async.defer_fn(function()
+      self:on_buffer_new(bufnr, file)
+    end, 100)
   end)
 end
 
@@ -93,7 +97,7 @@ function BuffersPanel:on_buffer_new(bufnr, file)
   if (buftype == "" and fs.is_file(file)) or is_terminal then
     local node = self.root:get_node(file)
     if not node then
-      log.debug("adding buffer %q with bufnr %s to buffers tree", file, bufnr)
+      log.debug("adding buffer %q with bufnr %s and type %q to buffers tree", file, bufnr, buftype)
       node = self.root:add_node(file, bufnr, is_terminal)
     elseif node.bufnr ~= bufnr then
       log.debug("buffer %q changed bufnr from %s to %s", file, node.bufnr, bufnr)

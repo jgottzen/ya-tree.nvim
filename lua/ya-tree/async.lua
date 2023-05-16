@@ -294,4 +294,14 @@ function M.run_on_next_tick(fn)
   end)
 end
 
+---Defers calling `fn` until `timeout` ms passes, the `fn` is run in an async context.
+---
+---@param fn async fun() Callback to call once `timeout` expires
+---@param timeout integer Number of milliseconds to wait before calling `fn`
+function M.defer_fn(fn, timeout)
+  vim.defer_fn(function()
+    M.run(fn)
+  end, timeout)
+end
+
 return M
