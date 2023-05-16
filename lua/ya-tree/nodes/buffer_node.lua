@@ -244,13 +244,15 @@ local function clean_paths(paths)
   return cleaned
 end
 
+---@param current_root string
 ---@param paths string[]
 ---@return string path
-local function find_common_ancestor(paths)
-  if #paths == 1 then
-    return paths[1]
+local function find_common_ancestor(current_root, paths)
+  if #paths == 0 then
+    return current_root
   end
 
+  paths = { current_root, unpack(paths) }
   table.sort(paths, function(a, b)
     return #a < #b
   end)
@@ -279,7 +281,11 @@ local function find_common_ancestor(paths)
     end
   end
 
-  return table.concat(common_ancestor, sep)
+  if #common_ancestor == 0 or (#common_ancestor == 1 and common_ancestor[1] == "") then
+    return Path.path.root(current_root)
+  else
+    return table.concat(common_ancestor, sep)
+  end
 end
 
 ---@async
@@ -292,7 +298,7 @@ function BufferNode:refresh()
   async.scheduler()
   local buffers, terminals = utils.get_current_buffers()
   local paths = clean_paths(vim.tbl_keys(buffers))
-  local root_path = find_common_ancestor({ self.path, unpack(paths) })
+  local root_path = find_common_ancestor(self.path, paths)
   if root_path ~= self.path then
     Logger.get("nodes").debug("setting new root path to %q", root_path)
     local fs_node = fs.node_for(root_path) --[[@as Yat.Fs.Node]]
@@ -370,7 +376,7 @@ function BufferNode:add_node(path, bufnr, is_terminal)
         table.remove(self._children, i)
       end
 
-      local new_root_path = find_common_ancestor({ path, self.path })
+      local new_root_path = find_common_ancestor(self.path, { path })
       if #self._children > 0 then
         -- create new node from self
         local old_root = BufferNode:new({ name = self.name, path = self.path, _type = "directory" })
@@ -395,6 +401,7 @@ function BufferNode:add_node(path, bufnr, is_terminal)
           return #value > #new_root_path
         end, Path:new(current_root):parents()) --[=[@as string[]]=]
         local parent = self
+        paths = utils.list_reverse(paths)
         -- create intermediary nodes between new root and old root
         for _, parent_path in ipairs(paths) do
           log.debug("creating node %q with parent %q", parent_path, parent.path)

@@ -28,6 +28,17 @@ function M.tbl_unique(list)
   return vim.tbl_keys(uniques)
 end
 
+---@generic T
+---@param list T[]
+---@return T[]
+function M.list_reverse(list)
+  local reversed = {}
+  for i = #list, 1, -1 do
+    reversed[#reversed + 1] = list[i]
+  end
+  return reversed
+end
+
 M.is_linux = fn.has("unix") == 1
 M.is_macos = not M.is_linux and (fn.has("mac") == 1 or fn.has("macunix") == 1)
 M.is_windows = not M.is_macos and (fn.has("win32") == 1 or fn.has("win32unix") == 1)
