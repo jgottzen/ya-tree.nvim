@@ -236,6 +236,7 @@ function FsBasedNode:_add_node(path, node_creator)
       if child then
         log.debug("adding child %q to parent %q", child.path, node.path)
         node._children[#node._children + 1] = child
+        node.empty = false
         if self.node_comparator then
           table.sort(node._children, self.node_comparator)
         end
@@ -271,6 +272,8 @@ function FsBasedNode:populate_from_paths(paths, node_creator)
     if node then
       ---@diagnostic disable-next-line:invisible
       parent._children[#parent._children + 1] = node
+      ---@diagnostic disable-next-line:invisible
+      parent.empty = false
       node_map[node.path] = node
     end
   end

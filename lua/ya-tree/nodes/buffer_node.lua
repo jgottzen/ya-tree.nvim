@@ -309,7 +309,7 @@ function BufferNode:refresh()
 
   self.repo = git.get_repo_for_path(root_path)
   self._children = {}
-  self.empty = #paths == 0
+  self.empty = true
   local first_leaf_node = self:populate_from_paths(paths, function(path, parent)
     local fs_node = fs.node_for(path)
     if fs_node then
