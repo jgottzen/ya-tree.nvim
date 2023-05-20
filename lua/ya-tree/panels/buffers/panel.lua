@@ -81,7 +81,9 @@ function BuffersPanel:register_buffer_new_event()
   self:register_autocmd_event(event.autocmd.BUFFER_NEW, function(bufnr, file)
     -- defer for a short time, so that the updated buftype is read
     async.defer_fn(function()
-      self:on_buffer_new(bufnr, file)
+      if api.nvim_buf_is_valid(bufnr) then
+        self:on_buffer_new(bufnr, file)
+      end
     end, 100)
   end)
 end
