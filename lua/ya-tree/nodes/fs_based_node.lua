@@ -277,7 +277,7 @@ function FsBasedNode:populate_from_paths(paths, node_creator)
 
   local min_path_size = #self.path
   for _, path in ipairs(paths) do
-    if vim.startswith(path, self.path) then
+    if not node_map[path] and vim.startswith(path, self.path) then
       local parents = Path:new(path):parents()
       for i = #parents, 1, -1 do
         local parent_path = parents[i]

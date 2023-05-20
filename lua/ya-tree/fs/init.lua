@@ -79,6 +79,14 @@ end
 ---@async
 ---@param path string
 ---@return uv.aliases.fs_stat_table|nil stat
+function M.stat(path)
+  local _, stat = fs_stat(path)
+  return stat
+end
+
+---@async
+---@param path string
+---@return uv.aliases.fs_stat_table|nil stat
 function M.lstat(path)
   local err, stat = fs_lstat(path)
   if not stat then

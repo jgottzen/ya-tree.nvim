@@ -237,7 +237,8 @@ end
 local function clean_paths(paths)
   local cleaned = {}
   for _, path in ipairs(paths) do
-    if fs.exists(path) then
+    local stat = fs.stat(path)
+    if stat and stat.type ~= "directory" then
       cleaned[#cleaned + 1] = path
     end
   end
