@@ -19,8 +19,6 @@ local fn = vim.fn
 ---@class Yat.Node.Buffer : Yat.Node.FsBasedNode
 ---@field new fun(self: Yat.Node.Buffer, node_data: Yat.Node.BufferData|Yat.Fs.Node, parent?: Yat.Node.Buffer, bufname?: string, bufnr?: integer, modified?: boolean, hidden?: boolean): Yat.Node.Buffer
 ---
----@field public type fun(self: Yat.Node.Buffer): Yat.Node.Buffer.Type
----
 ---@field public TYPE "buffer"
 ---@field public parent? Yat.Node.Buffer
 ---@field private _type Yat.Node.Buffer.Type
