@@ -209,7 +209,7 @@ end
 ---@param fn fun(...):any A callback style function to be converted. The last argument must be the callback.
 ---@param argc integer The number of arguments of func. Must be included.
 ---@param strict boolean Error when called in a non-async context.
----@return fun(...) fn Returns an async function.
+---@return async fun(...) fn Returns an async function.
 function M.wrap(fn, argc, strict)
   vim.validate({ argc = { argc, "number" } })
 
@@ -282,7 +282,7 @@ function M.curry(fn, ...)
 end
 
 ---An async function that when called will yield to the Neovim scheduler to be able to call the API.
----@type fun()
+---@type async fun()
 M.scheduler = M.wrap(vim.schedule, 1, false)
 
 ---Schedules `fn` to run soon on the nvim loop, in an async context.
