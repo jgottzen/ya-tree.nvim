@@ -668,7 +668,8 @@ end
 
 ---@param bufnr integer
 local function on_win_leave(bufnr)
-  if ui.is_window_floating() then
+  local winid = api.nvim_get_current_win()
+  if ui.is_window_floating(winid) then
     return
   end
   local ok, buftype = pcall(function()
@@ -680,10 +681,7 @@ local function on_win_leave(bufnr)
 
   local sidebar = M.get_sidebar(api.nvim_get_current_tabpage())
   if sidebar then
-    local winid = api.nvim_get_current_win()
-    if is_likely_edit_window(winid) then
-      sidebar:set_edit_winid(winid)
-    end
+    sidebar:set_edit_winid(winid)
   end
 end
 
