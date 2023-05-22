@@ -95,7 +95,9 @@ function M.get_current_buffers()
   local buffers, terminals = {}, {}
   for _, bufnr in ipairs(api.nvim_list_bufs()) do
     ---@cast bufnr integer
-    local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+    local ok, buftype = pcall(function()
+      return vim.bo[bufnr].buftype
+    end)
     if ok then
       local path = api.nvim_buf_get_name(bufnr)
       if buftype == "terminal" then
@@ -106,7 +108,7 @@ function M.get_current_buffers()
       elseif buftype == "" and path ~= "" and api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].buflisted then
         buffers[path] = {
           bufnr = bufnr,
-          modified = api.nvim_buf_get_option(bufnr, "modified"),
+          modified = vim.bo[bufnr].modified,
         }
       end
     end
@@ -128,7 +130,7 @@ function M.is_current_buffer_directory()
   if not is_directory(bufname) then
     return false
   end
-  if api.nvim_buf_get_option(bufnr, "filetype") ~= "" then
+  if vim.bo[bufnr].filetype ~= "" then
     return false
   end
 

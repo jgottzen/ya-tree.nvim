@@ -200,7 +200,7 @@ end
 ---@param lines string[]
 ---@param highlight_groups? Yat.Ui.HighlightGroup[][]
 function M.set_content_for_popup(popup, lines, highlight_groups)
-  api.nvim_buf_set_option(popup.bufnr, "modifiable", true)
+  vim.bo[popup.bufnr].modifiable = true
   api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
   if highlight_groups then
     for line, highlight_group in ipairs(highlight_groups) do
@@ -209,7 +209,7 @@ function M.set_content_for_popup(popup, lines, highlight_groups)
       end
     end
   end
-  api.nvim_buf_set_option(popup.bufnr, "modifiable", false)
+  vim.bo[popup.bufnr].modifiable = false
 end
 
 return M

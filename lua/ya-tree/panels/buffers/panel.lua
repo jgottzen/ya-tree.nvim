@@ -94,7 +94,7 @@ end
 ---@param file string
 function BuffersPanel:on_buffer_new(bufnr, file)
   local log = Logger.get("panels")
-  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  local buftype = vim.bo[bufnr].buftype
   local is_terminal = buftype == "terminal"
   if (buftype == "" and fs.is_file(file)) or is_terminal then
     local node = self.root:get_node(file)
@@ -126,8 +126,10 @@ end
 ---@param file string
 function BuffersPanel:on_buffer_hidden(bufnr, file)
   -- BufHidden might be triggered after TermClose, when the buffer no longer exists,
-  -- so calling nvim_buf_get_option results in an error.
-  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  -- so calling vim.bo[bufnr] results in an error.
+  local ok, buftype = pcall(function()
+    return vim.bo[bufnr].buftype
+  end)
   if ok and buftype == "terminal" then
     self.root:set_terminal_hidden(file, bufnr, true)
     self:draw()
@@ -146,7 +148,7 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersPanel:on_buffer_displayed(bufnr, file)
-  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  local buftype = vim.bo[bufnr].buftype
   if buftype == "terminal" then
     self.root:set_terminal_hidden(file, bufnr, false)
     self:draw()
@@ -165,7 +167,7 @@ end
 ---@param bufnr integer
 ---@param file string
 function BuffersPanel:on_buffer_deleted(bufnr, file)
-  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  local buftype = vim.bo[bufnr].buftype
   local is_fs_buffer = buftype == ""
   local is_terminal = buftype == "terminal"
   if is_fs_buffer and fs.is_file(file) or is_terminal then

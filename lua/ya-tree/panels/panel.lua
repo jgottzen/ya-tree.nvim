@@ -373,7 +373,7 @@ end
 ---@param lines string[]
 ---@param highlights Yat.Ui.HighlightGroup[][]
 function Panel:set_content(lines, highlights)
-  api.nvim_buf_set_option(self._bufnr, "modifiable", true)
+  vim.bo[self._bufnr].modifiable = true
   api.nvim_buf_clear_namespace(self._bufnr, hl.NS, 0, -1)
   api.nvim_buf_set_lines(self._bufnr, 0, -1, false, lines)
   for linenr, line_highlights in ipairs(highlights) do
@@ -386,7 +386,7 @@ function Panel:set_content(lines, highlights)
       end
     end
   end
-  api.nvim_buf_set_option(self._bufnr, "modifiable", false)
+  vim.bo[self._bufnr].modifiable = false
 end
 
 do

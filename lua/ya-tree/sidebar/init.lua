@@ -409,7 +409,7 @@ local function is_likely_edit_window(winid)
     return false
   end
   local bufnr = api.nvim_win_get_buf(winid)
-  return api.nvim_buf_get_option(bufnr, "buftype") == ""
+  return vim.bo[bufnr].buftype == ""
 end
 
 ---@param tabpage integer
@@ -553,7 +553,7 @@ local function on_win_closed(bufnr, winid)
       -- check that there are no buffers with unsaved modifications,
       -- if so, just return
       for _, _bufnr in ipairs(api.nvim_list_bufs()) do
-        if api.nvim_buf_is_loaded(_bufnr) and api.nvim_buf_get_option(_bufnr, "modified") then
+        if api.nvim_buf_is_loaded(_bufnr) and vim.bo[_bufnr].modified then
           return
         end
       end
@@ -582,7 +582,7 @@ end
 ---@param bufnr integer
 ---@param file string
 local function on_buf_enter(bufnr, file)
-  local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+  local buftype = vim.bo[bufnr].buftype
   if buftype ~= "" or file == "" then
     return
   end
@@ -671,7 +671,9 @@ local function on_win_leave(bufnr)
   if ui.is_window_floating() then
     return
   end
-  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  local ok, buftype = pcall(function()
+    return vim.bo[bufnr].buftype
+  end)
   if not ok or buftype ~= "" then
     return
   end

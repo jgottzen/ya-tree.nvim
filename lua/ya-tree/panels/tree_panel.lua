@@ -112,8 +112,8 @@ end
 ---@param match string
 ---@diagnostic disable-next-line:unused-local
 function TreePanel:on_buffer_modified(bufnr, file, match)
-  if file ~= "" and api.nvim_buf_get_option(bufnr, "buftype") == "" then
-    local modified = api.nvim_buf_get_option(bufnr, "modified") --[[@as boolean]]
+  if file ~= "" and vim.bo[bufnr].buftype == "" then
+    local modified = vim.bo[bufnr].modified
     local node = self.root:get_node(file)
     if node and node.modified ~= modified then
       node.modified = modified
@@ -178,7 +178,9 @@ end
 ---@param bufnr integer
 ---@param bufname string
 function TreePanel:expand_to_buffer(bufnr, bufname)
-  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  local ok, buftype = pcall(function()
+    return vim.bo[bufnr].buftype
+  end)
   if not ok or not ((buftype == "" and bufname ~= "") or buftype == "terminal") then
     return
   end
@@ -283,7 +285,7 @@ do
   ---@param start integer
   ---@param base string
   ---@return integer|string[]
-  _G._ya_tree_panels_trees_loaded_nodes_complete = function(start, base)
+  _G._ya_tree_panels_trees_completefunc_loaded_nodes = function(start, base)
     if start == 1 then
       return 0
     end
@@ -301,8 +303,8 @@ do
         paths[#paths + 1] = node.path:sub(#self.root.path + 2)
       end
     end)
-    api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_panels_trees_loaded_nodes_complete")
-    api.nvim_buf_set_option(bufnr, "omnifunc", "")
+    vim.bo[bufnr].completefunc = "v:lua._ya_tree_panels_trees_completefunc_loaded_nodes"
+    vim.bo[bufnr].omnifunc = ""
   end
 end
 
@@ -311,7 +313,7 @@ end
 ---@param start integer
 ---@param base string
 ---@return integer|string[]
-_G._ya_tree_panels_trees_file_in_path_complete = function(start, base)
+_G._ya_tree_panels_trees_completefunc_file_in_path = function(start, base)
   if start == 1 then
     return 0
   end
@@ -321,13 +323,13 @@ end
 ---@param bufnr integer
 ---@param path string
 function TreePanel:complete_func_file_in_path(bufnr, path)
-  api.nvim_buf_set_option(bufnr, "completefunc", "v:lua._ya_tree_panels_trees_file_in_path_complete")
-  api.nvim_buf_set_option(bufnr, "omnifunc", "")
+  vim.bo[bufnr].completefunc = "v:lua._ya_tree_panels_trees_completefunc_file_in_path"
+  vim.bo[bufnr].omnifunc = ""
   -- only complete on _all_ files if the node is located below the home dir
   if vim.startswith(path, Path.path.home .. Path.path.sep) then
-    api.nvim_buf_set_option(bufnr, "path", path .. "/**")
+    vim.bo[bufnr].path = "/**"
   else
-    api.nvim_buf_set_option(bufnr, "path", path .. "/*")
+    vim.bo[bufnr].path = "/*"
   end
 end
 

@@ -54,7 +54,7 @@ function SymbolsPanel:create_root_node(path, bufnr)
   if not bufnr then
     async.scheduler()
     bufnr = api.nvim_get_current_buf()
-    local buftype = api.nvim_buf_get_option(bufnr, "buftype")
+    local buftype = vim.bo[bufnr].buftype
     if buftype == "" then
       path = api.nvim_buf_get_name(bufnr)
     else
@@ -102,7 +102,9 @@ end
 ---@param bufnr integer
 ---@param file string
 function SymbolsPanel:on_buffer_enter(bufnr, file)
-  local ok, buftype = pcall(api.nvim_buf_get_option, bufnr, "buftype")
+  local ok, buftype = pcall(function()
+    return vim.bo[bufnr].buftype
+  end)
   if ok and buftype == "" and file ~= "" and self.root.path ~= file and fs.is_file(file) then
     self.root = self:create_root_node(file, bufnr)
     self.current_node = self.root

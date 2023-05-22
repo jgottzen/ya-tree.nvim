@@ -11,7 +11,6 @@ local Path = lazy.require("ya-tree.path") ---@module "ya-tree.path"
 local SearchNode = lazy.require("ya-tree.nodes.search_node") ---@module "ya-tree.nodes.search_node"
 local TreePanel = require("ya-tree.panels.tree_panel")
 
-local api = vim.api
 local uv = vim.loop
 
 ---@class Yat.Panel.Files : Yat.Panel.Tree
@@ -402,8 +401,8 @@ function FilesPanel:search_for_node(node)
       fn = function(bufnr)
         local completefunc = config.completion.setup(self, node)
         if completefunc then
-          api.nvim_buf_set_option(bufnr, "completefunc", completefunc)
-          api.nvim_buf_set_option(bufnr, "omnifunc", "")
+          vim.bo[bufnr].completefunc = completefunc
+          vim.bo[bufnr].omnifunc = ""
         end
       end
       search_root = node.path
