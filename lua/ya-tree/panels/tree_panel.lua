@@ -174,6 +174,13 @@ function TreePanel:on_buffer_enter(bufnr, file, match)
   end
 end
 
+---@protected
+---@param buftype string
+---@return boolean
+function TreePanel:supports_buffer_type(buftype)
+  return buftype == ""
+end
+
 ---@async
 ---@param bufnr integer
 ---@param bufname string
@@ -181,7 +188,7 @@ function TreePanel:expand_to_buffer(bufnr, bufname)
   local ok, buftype = pcall(function()
     return vim.bo[bufnr].buftype
   end)
-  if not ok or not ((buftype == "" and bufname ~= "") or buftype == "terminal") then
+  if not ok or bufname == "" or not self:supports_buffer_type(buftype) then
     return
   end
 

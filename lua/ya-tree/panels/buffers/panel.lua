@@ -76,6 +76,13 @@ function BuffersPanel:get_git_repos()
   return vim.tbl_keys(found_toplevels)
 end
 
+---@protected
+---@param buftype string
+---@return boolean
+function BuffersPanel:supports_buffer_type(buftype)
+  return buftype == "" or buftype == "terminal"
+end
+
 ---@private
 function BuffersPanel:register_buffer_new_event()
   self:register_autocmd_event(event.autocmd.BUFFER_NEW, function(bufnr, file)
