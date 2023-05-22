@@ -400,6 +400,7 @@ do
   end
 end
 
+---@protected
 ---@param event Yat.Events.AutocmdEvent
 ---@param callback async fun(bufnr: integer, file: string, match: string)
 function Panel:register_autocmd_event(event, callback)
@@ -410,6 +411,7 @@ function Panel:register_autocmd_event(event, callback)
   end
 end
 
+---@protected
 ---@param event Yat.Events.AutocmdEvent
 function Panel:remove_autocmd_event(event)
   local id = self.registered_events.autocmd[event]
@@ -419,12 +421,14 @@ function Panel:remove_autocmd_event(event)
   end
 end
 
+---@protected
 function Panel:remove_all_autocmd_events()
   for event in pairs(self.registered_events.autocmd) do
     self:remove_autocmd_event(event)
   end
 end
 
+---@protected
 ---@param event Yat.Events.GitEvent
 ---@param callback Yat.Events.GitEvent.CallbackFn
 function Panel:register_git_event(event, callback)
@@ -435,6 +439,7 @@ function Panel:register_git_event(event, callback)
   end
 end
 
+---@protected
 ---@param event Yat.Events.AutocmdEvent
 function Panel:remove_git_event(event)
   local id = self.registered_events.git[event]
@@ -444,12 +449,14 @@ function Panel:remove_git_event(event)
   end
 end
 
+---@protected
 function Panel:remove_all_git_events()
   for event in pairs(self.registered_events.git) do
     self:remove_git_event(event)
   end
 end
 
+---@protected
 ---@param event Yat.Events.YaTreeEvent
 ---@param callback async fun(...)
 function Panel:register_ya_tree_event(event, callback)
@@ -460,6 +467,7 @@ function Panel:register_ya_tree_event(event, callback)
   end
 end
 
+---@protected
 ---@param event Yat.Events.AutocmdEvent
 function Panel:remove_yatree_event(event)
   local id = self.registered_events.autocmd[event]
@@ -469,6 +477,7 @@ function Panel:remove_yatree_event(event)
   end
 end
 
+---@protected
 function Panel:remove_all_yatree_events()
   for event in pairs(self.registered_events.yatree) do
     self:remove_yatree_event(event)
