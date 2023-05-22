@@ -184,9 +184,11 @@ function GitStatusPanel:change_root_node(path_or_repo)
 end
 
 ---@async
-function GitStatusPanel:search_for_node()
+---@param node? Yat.Node.Git
+function GitStatusPanel:search_for_node(node)
   self:search_for_loaded_node(function(bufnr)
-    self:complete_func_loaded_nodes(bufnr)
+    local root = Config.config.panels.git_status.completion.on == "node" and node or self.root
+    self:complete_func_loaded_nodes(bufnr, false, root)
   end)
 end
 

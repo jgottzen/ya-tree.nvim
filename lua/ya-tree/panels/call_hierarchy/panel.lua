@@ -133,6 +133,24 @@ function CallHierarchyPanel:refresh()
   self.refreshing = false
 end
 
+---@async
+---@param node? Yat.Node.CallHierarchy|Yat.Node.Text
+function CallHierarchyPanel:search_for_node(node)
+  if self.root.TYPE == "call_hierarchy" then
+    self:search_for_loaded_node(function(bufnr)
+      local root = Config.config.panels.symbols.completion.on == "node" and node or self.root --[[@as Yat.Node.CallHierarchy]]
+      local sub_pos = #root.path + 2
+      ---@type Yat.Panel.Tree.ComplexCompletionItem[]
+      local items = {}
+      root:walk(function(current)
+        items[#items + 1] = { word = current.path:sub(sub_pos), abbr = current:abbreviated_path():sub(sub_pos) }
+      end)
+      table.remove(items, 1)
+      self:complete_func_complex(bufnr, items)
+    end)
+  end
+end
+
 ---@return string line
 ---@return Yat.Ui.HighlightGroup[][] highlights
 function CallHierarchyPanel:render_header()

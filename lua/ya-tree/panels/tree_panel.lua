@@ -303,11 +303,13 @@ do
   end
 
   ---@param bufnr integer
-  function TreePanel:complete_func_loaded_nodes(bufnr)
+  ---@param include_containers boolean
+  ---@param root Yat.Node
+  function TreePanel:complete_func_loaded_nodes(bufnr, include_containers, root)
     paths = {}
-    self.root:walk(function(node)
-      if not node:is_container() and not node:is_hidden() then
-        paths[#paths + 1] = node.path:sub(#self.root.path + 2)
+    root:walk(function(node)
+      if (include_containers or not node:is_container()) and not node:is_hidden() then
+        paths[#paths + 1] = node.path:sub(#root.path + 2)
       end
     end)
     vim.bo[bufnr].completefunc = "v:lua._ya_tree_panels_trees_completefunc_loaded_nodes"
@@ -315,6 +317,35 @@ do
   end
 end
 
+do
+  ---@type Yat.Panel.Tree.ComplexCompletionItem[]
+  local completion_items = {}
+
+  -- selene: allow(global_usage)
+
+  ---@param start integer
+  ---@param base string
+  ---@return integer|string[]
+  _G._ya_tree_panels_trees_completefunc_complex = function(start, base)
+    if start == 1 then
+      return 0
+    end
+    ---@param item Yat.Panel.Tree.ComplexCompletionItem
+    return vim.tbl_filter(function(item)
+      return item.abbr:find(base, 1, true) ~= nil
+    end, completion_items)
+  end
+
+  ---@alias Yat.Panel.Tree.ComplexCompletionItem { word: string, abbr: string }
+
+  ---@param bufnr integer
+  ---@param items Yat.Panel.Tree.ComplexCompletionItem[]
+  function TreePanel:complete_func_complex(bufnr, items)
+    completion_items = items
+    vim.bo[bufnr].completefunc = "v:lua._ya_tree_panels_trees_completefunc_complex"
+    vim.bo[bufnr].omnifunc = ""
+  end
+end
 -- selene: allow(global_usage)
 
 ---@param start integer

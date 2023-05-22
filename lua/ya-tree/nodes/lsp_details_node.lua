@@ -8,6 +8,7 @@ local symbol_kind = lazy.require("ya-tree.lsp.symbol_kind") ---@module "ya-tree.
 ---@class Yat.Node.LspDetailsNode : Yat.Node
 ---
 ---@field public parent? Yat.Node.LspDetailsNode
+---@field protected _abbreviated_path string
 ---@field protected _children? Yat.Node.LspDetailsNode[]
 ---@field protected file string
 ---@field protected _bufnr integer
@@ -34,6 +35,9 @@ function LspDetailsNode:init(name, path, kind, container, detail, position, file
   if parent then
     self._bufnr = parent._bufnr
     self._lsp_client_id = parent._lsp_client_id
+    self._abbreviated_path = parent._abbreviated_path .. "  " .. name
+  else
+    self._abbreviated_path = path
   end
   self.kind = kind
   if detail then
@@ -41,6 +45,11 @@ function LspDetailsNode:init(name, path, kind, container, detail, position, file
   end
   self.position = position
   self.file = file
+end
+
+---@return string
+function LspDetailsNode:abbreviated_path()
+  return self._abbreviated_path
 end
 
 ---@return integer

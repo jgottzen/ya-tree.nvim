@@ -37,6 +37,8 @@ local builtin = require("ya-tree.actions.builtin")
 ---
 ---| "toggle_filter"
 ---
+---| "search_for_node_in_panel"
+---
 ---| "toggle_ignored"
 ---
 ---| "focus_prev_diagnostic_item"
@@ -90,6 +92,8 @@ local M = {
     builtin.general.focus_last_sibling,
 
     builtin.files.toggle_filter,
+
+    builtin.search.search_for_node_in_panel,
 
     builtin.git.toggle_ignored,
 

@@ -338,11 +338,18 @@ local DEFAULT = {
     ---@class Yat.Config.Panels.GitStatus
     ---@field title string The name of the panel, default: `"Git"`.
     ---@field icon string The icon for the panel, default: `""`.
+    ---@field completion Yat.Config.Panels.GitStatus.Completion Completion configuration.
     ---@field mappings Yat.Config.Panels.GitStatus.Mappings Panel specific mappings.
     ---@field renderers Yat.Config.Panels.GitStatus.Renderers Panel specific renderers.
     git_status = {
       title = "Git Status",
       icon = "",
+
+      ---@class Yat.Config.Panels.GitStatus.Completion
+      ---@field on "root"|"node" Whether to complete on the panel root directory or the current node, ignored if `setup` is set, default: `"root"`.
+      completion = {
+        on = "root",
+      },
 
       ---@class Yat.Config.Panels.GitStatus.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
@@ -428,6 +435,7 @@ local DEFAULT = {
     ---@class Yat.Config.Panels.Symbols
     ---@field title string The name of the panel, default: `"Lsp Symbols"`.
     ---@field icon string The icon for the panel, default" `""`.
+    ---@field completion Yat.Config.Panels.Symbols.Completion Completion configuration.
     ---@field scroll_buffer_to_symbol boolean Whether to scroll the file to the current symbol, default: `true`.
     ---@field mappings Yat.Config.Panels.Symbols.Mappings Panel specific mappings.
     ---@field renderers Yat.Config.Panels.Symbols.Renderers Panel specific renderers.
@@ -435,6 +443,12 @@ local DEFAULT = {
       title = "Lsp Symbols",
       icon = "",
       scroll_buffer_to_symbol = true,
+
+      ---@class Yat.Config.Panels.Symbols.Completion
+      ---@field on "root"|"node" Whether to complete on the panel root node or the current node, ignored if `setup` is set, default: `"root"`.
+      completion = {
+        on = "root",
+      },
 
       ---@class Yat.Config.Panels.Symbols.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
@@ -470,6 +484,7 @@ local DEFAULT = {
           [">"] = "focus_next_sibling",
           ["K"] = "focus_first_sibling",
           ["J"] = "focus_last_sibling",
+          ["S"] = "search_for_node_in_panel",
           ["[e"] = "focus_prev_diagnostic_item",
           ["]e"] = "focus_next_diagnostic_item",
         },
@@ -502,11 +517,18 @@ local DEFAULT = {
     ---@class Yat.Config.Panels.CallHierarchy
     ---@field title string The name of the panel, default: `"Call Hierarchy"`.
     ---@field icon string The icon for the panel, default" `""`.
+    ---@field completion Yat.Config.Panels.CallHierarchy.Completion Completion configuration.
     ---@field mappings Yat.Config.Panels.CallHierarchy.Mappings Panel specific mappings.
     ---@field renderers Yat.Config.Panels.CallHierarchy.Renderers Panel specific renderers.
     call_hierarchy = {
       title = "Call Hierarchy",
       icon = "",
+
+      ---@class Yat.Config.Panels.CallHierarchy.Completion
+      ---@field on "root"|"node" Whether to complete on the panel root node or the current node, ignored if `setup` is set, default: `"root"`.
+      completion = {
+        on = "root",
+      },
 
       ---@class Yat.Config.Panels.CallHierarchy.Mappings
       ---@field disable_defaults boolean Whether to disable all default mappings, default: `false`.
@@ -542,6 +564,7 @@ local DEFAULT = {
           [">"] = "focus_next_sibling",
           ["K"] = "focus_first_sibling",
           ["J"] = "focus_last_sibling",
+          ["S"] = "search_for_node_in_panel",
           ["gt"] = "toggle_call_direction",
           ["gc"] = "create_call_hierarchy_from_buffer_position",
         },

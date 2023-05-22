@@ -195,4 +195,20 @@ function SymbolsPanel:change_root_node(path)
   end
 end
 
+---@async
+---@param node? Yat.Node.LspSymbol
+function SymbolsPanel:search_for_node(node)
+  self:search_for_loaded_node(function(bufnr)
+    local root = Config.config.panels.symbols.completion.on == "node" and node or self.root
+    local sub_pos = #root.path + 2
+    ---@type Yat.Panel.Tree.ComplexCompletionItem[]
+    local items = {}
+    root:walk(function(current)
+      items[#items + 1] = { word = current.path:sub(sub_pos), abbr = current:abbreviated_path():sub(sub_pos) }
+    end)
+    table.remove(items, 1)
+    self:complete_func_complex(bufnr, items)
+  end)
+end
+
 return SymbolsPanel

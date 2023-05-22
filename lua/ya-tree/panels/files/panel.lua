@@ -392,8 +392,8 @@ end
 ---@async
 ---@param node? Yat.Node.Filesystem|Yat.Node.Search
 function FilesPanel:search_for_node(node)
+  local config = Config.config.panels.files
   if self.mode == "files" then
-    local config = Config.config.panels.files
     node = node or self.root
     local fn, search_root
     if type(config.completion.setup) == "function" then
@@ -407,11 +407,7 @@ function FilesPanel:search_for_node(node)
       end
       search_root = node.path
     else
-      if config.completion.on == "node" then
-        search_root = node.path
-      else
-        search_root = self.root.path
-      end
+      search_root = config.completion.on == "node" and node.path or self.root.path
       ---@param bufnr integer
       fn = function(bufnr)
         self:complete_func_file_in_path(bufnr, search_root)
@@ -421,7 +417,8 @@ function FilesPanel:search_for_node(node)
     self:search_fs_for_path(fn, search_root)
   else
     self:search_for_loaded_node(function(bufnr)
-      self:complete_func_loaded_nodes(bufnr)
+      local root = config.completion.on == "node" and node or self.root
+      self:complete_func_loaded_nodes(bufnr, true, root)
     end)
   end
 end
