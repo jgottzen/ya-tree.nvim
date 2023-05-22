@@ -35,7 +35,11 @@ local builtin = require("ya-tree.actions.builtin")
 ---| "focus_first_sibling"
 ---| "focus_last_sibling"
 ---
+---| "toggle_filter"
+---
 ---| "search_for_node_in_panel"
+---
+---| "toggle_ignored"
 ---
 ---| "toggle_call_direction"
 ---| "create_call_hierarchy_from_buffer_position"
@@ -87,7 +91,11 @@ local M = {
     builtin.general.focus_first_sibling,
     builtin.general.focus_last_sibling,
 
+    builtin.files.toggle_filter,
+
     builtin.search.search_for_node_in_panel,
+
+    builtin.git.toggle_ignored,
 
     builtin.call_hierarchy.toggle_call_direction,
     builtin.call_hierarchy.create_call_hierarchy_from_buffer_position,

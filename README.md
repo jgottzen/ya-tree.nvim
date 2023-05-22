@@ -1393,7 +1393,7 @@ The actions supported by the trees are:
 ---| "focus_next_sibling"
 ---| "focus_first_sibling"
 ---| "focus_last_sibling"
----|
+---
 ---| "toggle_filter"
 ---
 ---| "search_for_node_in_panel"
@@ -1444,8 +1444,12 @@ The actions supported by the trees are:
 ---| "focus_next_sibling"
 ---| "focus_first_sibling"
 ---| "focus_last_sibling"
----|
+---
+---| "toggle_filter"
+---
 ---| "search_for_node_in_panel"
+---
+---| "toggle_ignored"
 ---
 ---| "toggle_call_direction"
 ---| "create_call_hierarchy_from_buffer_position"
