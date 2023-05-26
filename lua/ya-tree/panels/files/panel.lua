@@ -344,6 +344,21 @@ function FilesPanel:render_header()
 end
 
 ---@async
+function FilesPanel:refresh()
+  local log = Logger.get("panels")
+  if self.refreshing or vim.v.exiting ~= vim.NIL then
+    log.debug("refresh already in progress or vim is exiting, aborting refresh")
+    return
+  end
+
+  self.refreshing = true
+  log.debug("refreshing %q panel", self.TYPE)
+  self.root:refresh({ recurse = true, refresh_git = true })
+  self:draw(self:get_current_node())
+  self.refreshing = false
+end
+
+---@async
 ---@param path string
 ---@return Yat.Node.Search
 local function create_search_root(path)

@@ -84,8 +84,12 @@ function SearchNode:search(term)
   end
 end
 
+-- selene: allow(unused_variable)
+
 ---@async
-function SearchNode:refresh()
+---@param opts? table<string, any>
+---@diagnostic disable-next-line: unused-local
+function SearchNode:refresh(opts)
   if self.parent then
     return self.parent:refresh()
   end

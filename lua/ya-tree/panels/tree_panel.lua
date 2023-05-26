@@ -435,7 +435,7 @@ function TreePanel:refresh()
 
   self.refreshing = true
   log.debug("refreshing %q panel", self.TYPE)
-  self.root:refresh({ recurse = true, refresh_git = true })
+  self.root:refresh()
   self:draw(self:get_current_node())
   self.refreshing = false
 end
