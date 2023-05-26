@@ -221,6 +221,9 @@ function FsBasedNode:_add_node(path, node_creator)
   local splits = vim.split(rest, Path.path.sep, { plain = true, trimempty = true })
   local node = self
   for i = 1, #splits do
+    if not node.container or not node._children then
+      error("Tried to add a node to a non-directory node: " .. self.path)
+    end
     local name = splits[i]
     local found = false
     for _, child in ipairs(node._children) do
@@ -268,6 +271,10 @@ function FsBasedNode:populate_from_paths(paths, node_creator)
   ---@param parent Yat.Node.FsBasedNode
   ---@param _type "directory"|"unknown"
   local function add_node(path, parent, _type)
+    ---@diagnostic disable-next-line: invisible
+    if not parent.container or not parent._children then
+      error("Tried to add a node to a non-directory node: " .. self.path)
+    end
     local node = node_creator(path, parent, _type)
     if node then
       ---@diagnostic disable-next-line:invisible
@@ -286,10 +293,9 @@ function FsBasedNode:populate_from_paths(paths, node_creator)
         local parent_path = parents[i]
         -- skip paths 'above' the root node
         if #parent_path > min_path_size then
-          local parent = node_map[parent_path]
-          if not parent then
-            local grand_parent = node_map[parents[i + 1]]
-            add_node(parent_path, grand_parent, "directory")
+          if not node_map[parent_path] then
+            local parent = node_map[parents[i + 1]]
+            add_node(parent_path, parent, "directory")
           end
         end
       end
