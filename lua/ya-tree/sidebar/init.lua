@@ -384,7 +384,8 @@ function Sidebar:close_panel(panel)
     panel_layout.show = false
     ---@diagnostic disable-next-line:invisible
     panel:close()
-    self:set_panel_heights(side)
+    self:set_panel_heights("left")
+    self:set_panel_heights("right")
   end
 end
 
