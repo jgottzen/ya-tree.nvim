@@ -41,12 +41,12 @@ function M.open_git_status_panel(panel, node)
 
   if panel.TYPE ~= "git_status" then
     local TreePanel = require("ya-tree.panels.tree_panel")
+    local repo ---@type Yat.Git.Repo?
     if panel:instance_of(TreePanel) then
       ---@cast panel Yat.Panel.Tree
       if not node then
         node = panel.root
       end
-      local repo ---@type Yat.Git.Repo?
       local FsBasedNode = require("ya-tree.nodes.fs_based_node")
       if node:instance_of(FsBasedNode) then
         repo = node--[[@as Yat.Node.FsBasedNode]].repo
@@ -56,13 +56,9 @@ function M.open_git_status_panel(panel, node)
       end
       if repo then
         panel.sidebar:set_git_repo_for_path(node.path, repo)
-        panel.sidebar:git_status_panel(true, repo)
-      else
-        utils.notify(string.format("No Git repository found in %q.", node.path))
       end
-    else
-      panel.sidebar:git_status_panel(true)
     end
+    panel.sidebar:git_status_panel(true, repo)
   end
 end
 
