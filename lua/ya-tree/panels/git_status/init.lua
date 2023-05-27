@@ -51,6 +51,7 @@ local completion = lazy.require("ya-tree.completion") ---@module "ya-tree.comple
 ---| "search_for_node_in_panel"
 ---
 ---| "toggle_ignored"
+---| "open_repository"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---| "git_stage"
@@ -120,6 +121,7 @@ local M = {
     builtin.search.search_for_node_in_panel,
 
     builtin.git.toggle_ignored,
+    builtin.git.open_repository,
     builtin.git.focus_prev_git_item,
     builtin.git.focus_next_git_item,
     builtin.git.git_stage,

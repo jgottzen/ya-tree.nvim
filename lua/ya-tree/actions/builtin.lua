@@ -53,6 +53,7 @@
 ---
 ---| "toggle_ignored"
 ---| "check_node_for_git"
+---| "open_repository"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---| "git_stage"
@@ -130,6 +131,7 @@ local M = {
   git = {
     toggle_ignored = "toggle_ignored",
     check_node_for_git = "check_node_for_git",
+    open_repository = "open_repository",
     focus_prev_git_item = "focus_prev_git_item",
     focus_next_git_item = "focus_next_git_item",
     git_stage = "git_stage",

@@ -3,6 +3,7 @@ local lazy = require("ya-tree.lazy")
 local Config = lazy.require("ya-tree.config") ---@module "ya-tree.config"
 local git = lazy.require("ya-tree.git") ---@module "ya-tree.git"
 local Logger = lazy.require("ya-tree.log") ---@module "ya-tree.log"
+local ui = lazy.require("ya-tree.ui") ---@module "ya-tree.ui"
 local utils = lazy.require("ya-tree.utils") ---@module "ya-tree.utils"
 
 local M = {}
@@ -37,6 +38,15 @@ function M.check_node_for_git(panel, node)
     end
   elseif node.repo and not node.repo:is_yadm() then
     utils.notify(string.format("%q is already detected as a Git repository.", node.path))
+  end
+end
+
+---@async
+---@param panel Yat.Panel.GitStatus
+function M.open_repository(panel)
+  local path = ui.nui_input({ title = "Repo", default = panel.root.path, completion = "dir", width = 30 })
+  if path then
+    panel:change_root_node(path)
   end
 end
 

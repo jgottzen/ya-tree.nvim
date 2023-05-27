@@ -606,6 +606,7 @@ local DEFAULT = {
           ["H"] = "toggle_filter",
           ["S"] = "search_for_node_in_panel",
           ["gn"] = "goto_node_in_files_panel",
+          ["gd"] = "open_repository",
           ["ga"] = "git_stage",
           ["gu"] = "git_unstage",
           ["gr"] = "git_revert",
@@ -1203,6 +1204,7 @@ The actions supported by the trees are:
 ---
 ---| "toggle_ignored"
 ---| "check_node_for_git"
+---| "open_repository"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---| "git_stage"
@@ -1343,6 +1345,7 @@ The actions supported by the trees are:
 ---| "goto_node_in_files_panel"
 ---
 ---| "toggle_ignored"
+---| "open_repository"
 ---| "focus_prev_git_item"
 ---| "focus_next_git_item"
 ---| "git_stage"

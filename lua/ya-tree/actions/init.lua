@@ -138,6 +138,7 @@ local function define_actions(config)
   if config.git.enable then
     M.define_action(builtin.git.toggle_ignored, git.toggle_ignored, "Toggle git ignored files and directories", { "n" }, true)
     M.define_action(builtin.git.check_node_for_git, git.check_node_for_git, "Check node for Git repo")
+    M.define_action(builtin.git.open_repository, git.open_repository, "Open repository", { "n" }, true)
     M.define_action(builtin.git.focus_prev_git_item, nodes.focus_prev_git_item, "Go to previous Git item")
     M.define_action(builtin.git.focus_next_git_item, nodes.focus_next_git_item, "Go to next Git item")
     M.define_action(builtin.git.git_stage, git.stage, "Stage file/directory")
