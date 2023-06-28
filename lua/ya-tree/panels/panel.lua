@@ -217,7 +217,12 @@ function Panel:set_win_options()
   win_set_buf_noautocmd(self._winid, self._bufnr)
 
   for k, v in pairs(WIN_OPTIONS) do
-    vim.wo[self._winid][k] = v
+    -- vim.wo is in fact 'window global', to properly set a window local option, i.e. 'setlocal winopt',
+    -- nvim_set_option_value with 'local' scope has to be used.
+    -- otherwise window options leak into other windows, especially if a buffer is moved from one window to another,
+    -- i.e. when a file buffer is opened in the panels window and then moved to the 'edit window' by the sidebar.
+    -- TODO: replace with double-indexing on vim.wo https://github.com/neovim/neovim/pull/20288 is merged
+    api.nvim_set_option_value(k, v, { scope = "local", win = self._winid })
   end
 
   api.nvim_win_set_hl_ns(self._winid, hl.NS)

@@ -638,16 +638,7 @@ local function on_buf_enter(bufnr, file)
       log.debug("moving buffer %s from panel %s to window %s", bufnr, panel.TYPE, edit_winid)
 
       api.nvim_set_current_win(edit_winid)
-      --- moving the buffer to the edit window retains the number/relativenumber/signcolumn settings
-      -- from the tree window...
-      -- save them and apply them after switching
-      local number = vim.wo.number
-      local relativenumber = vim.wo.relativenumber
-      local signcolumn = vim.wo.signcolumn
       api.nvim_win_set_buf(edit_winid, bufnr)
-      vim.wo.number = number
-      vim.wo.relativenumber = relativenumber
-      vim.wo.signcolumn = signcolumn
       panel:restore()
     end
   end
